@@ -30,6 +30,11 @@ services:
       - APP_ENV=development
       - HOST=0.0.0.0
       - PORT=8000
+      # Chế độ quán: osm (mặc định) | google. Thiếu key thì backend tự lùi về osm.
+      - PLACES_PROVIDER=${PLACES_PROVIDER:-osm}
+      - GOOGLE_MAPS_SERVER_KEY=${GOOGLE_MAPS_SERVER_KEY:-}
+      - GOOGLE_MATCH_DAILY_LIMIT=${GOOGLE_MATCH_DAILY_LIMIT:-1000}
+      - SEED_DEMO=${SEED_DEMO:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -51,6 +56,9 @@ services:
       - VITE_BACKEND_URL=http://backend:8000
       - VITE_API_URL=
       - VITE_ENABLE_MOCK=false
+      # Để trống = không nạp Google Maps; chỉ đặt khi chạy chế độ google
+      - VITE_GOOGLE_MAPS_BROWSER_KEY=${VITE_GOOGLE_MAPS_BROWSER_KEY:-}
+      - VITE_MAP_STYLE_URL=${VITE_MAP_STYLE_URL:-}
     depends_on:
       backend:
         condition: service_healthy

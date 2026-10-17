@@ -3,8 +3,9 @@
 Tạo sẵn:
 - 1 Phòng hoàn chỉnh (Mã phòng: DIDAU8)
 - 3 Thành viên (1 Host, 2 Members)
-- 5 Địa điểm thuộc nhiều danh mục (Food, Drink, Entertainment)
-- Dữ liệu bình chọn hòa phiếu (3 địa điểm cùng đạt 2 upvotes)
+- Điểm hẹn Q.1 (TP.HCM) và khung giờ 17:00-23:00 để demo bản đồ và tự lên lịch
+- 5 Địa điểm thêm tay thuộc nhiều danh mục (Food, Drink, Entertainment)
+- 2 Địa điểm từ OSM (có external_id thật trong snapshot) cùng dẫn đầu 3 upvotes để demo Chọn hộ
 - 1 Mục lịch trình mẫu sẵn sàng cho demo
 """
 
@@ -16,8 +17,10 @@ from sqlalchemy import delete, select
 
 from app.core.database import AsyncSessionLocal
 from app.domain.enums import (
+    CityCode,
     MemberRole,
     PlaceCategory,
+    PlaceSource,
     PlaceStatus,
     RoomStatus,
     TieBreakStrategyName,
@@ -35,6 +38,13 @@ PLACE_2_ID = UUID("9a8b7c6d-5e4f-3a2b-1c0d-e9f8a7b6c5d4")  # Cơm Tấm Ba Ghi�
 PLACE_3_ID = UUID("1b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e")  # CGV Vincom Đồng Khởi
 PLACE_4_ID = UUID("2c3d4e5f-6a7b-8c9d-0e1f-2a3b4c5d6e7f")  # Lẩu Dê 404
 PLACE_5_ID = UUID("3d4e5f6a-7b8c-9d0e-1f2a-3b4c5d6e7f8a")  # Trà Sữa Phê La
+
+PLACE_6_ID = UUID("5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b")  # Quán Bụi (OSM)
+PLACE_7_ID = UUID("6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c")  # Propaganda Saigon Bistro (OSM)
+
+# Điểm hẹn: trung tâm Q.1 (gần phố đi bộ Nguyễn Huệ)
+ORIGIN_LAT = 10.7769
+ORIGIN_LNG = 106.7009
 
 SCHEDULE_1_ID = UUID("4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d")
 
@@ -63,6 +73,11 @@ async def seed_data() -> None:
             status=RoomStatus.PLANNING.value,
             tie_break_strategy=TieBreakStrategyName.EARLIEST_SUBMISSION.value,
             budget_limit=500000,
+            city=CityCode.HCM.value,
+            origin_lat=ORIGIN_LAT,
+            origin_lng=ORIGIN_LNG,
+            start_minute=1020,  # 17:00
+            end_minute=1380,  # 23:00
         )
         session.add(room)
         await session.flush()
@@ -181,9 +196,48 @@ async def seed_data() -> None:
             open_minute=480,  # 08:00
             close_minute=1380,  # 23:00
         )
-        session.add_all([place1, place2, place3, place4, place5])
+        # Hai quán lấy từ snapshot OSM (external_id có thật trong app/data/pois_hcm.json.gz)
+        place6 = Place(
+            id=PLACE_6_ID,
+            room_id=ROOM_ID,
+            submitted_by_id=HOST_MEMBER_ID,
+            name="Quán Bụi",
+            address="39 Lý Tự Trọng, Quận 1",
+            latitude=10.779185,
+            longitude=106.702288,
+            category=PlaceCategory.FOOD.value,
+            status=PlaceStatus.VOTING.value,
+            estimated_cost=150000,
+            open_minute=480,  # 08:00
+            close_minute=1380,  # 23:00
+            source=PlaceSource.OSM.value,
+            external_id="osm:node/6235215186",
+            cuisine="vietnamese",
+            opening_hours_raw="Mo-Su 08:00-23:00",
+            coords_source="OSM",
+        )
+        place7 = Place(
+            id=PLACE_7_ID,
+            room_id=ROOM_ID,
+            submitted_by_id=MEMBER_2_ID,
+            name="Propaganda Saigon Bistro",
+            address="21 Hàn Thuyên, Quận 1",
+            latitude=10.778708,
+            longitude=106.698088,
+            category=PlaceCategory.FOOD.value,
+            status=PlaceStatus.VOTING.value,
+            estimated_cost=170000,
+            open_minute=450,  # 07:30
+            close_minute=1380,  # 23:00
+            source=PlaceSource.OSM.value,
+            external_id="osm:node/4183849494",
+            cuisine="sandwich",
+            opening_hours_raw="Mo-Su 07:30-23:00",
+            coords_source="OSM",
+        )
+        session.add_all([place1, place2, place3, place4, place5, place6, place7])
         await session.flush()
-        print("✅ Đã tạo 5 địa điểm: Cà Phê Trứng 3T, Cơm Tấm Ba Ghiền, CGV Vincom, Lẩu Dê 404, Phê La")
+        print("✅ Đã tạo 7 địa điểm (5 thêm tay + 2 từ OSM: Quán Bụi, Propaganda Saigon Bistro)")
 
         # 5. Tạo dữ liệu bỏ phiếu hòa phiếu (Tied Votes: mỗi quán 2 votes)
         votes = [
@@ -196,10 +250,17 @@ async def seed_data() -> None:
             # MinhKhoa upvotes Place 2 & Place 3
             Vote(place_id=PLACE_2_ID, member_id=MEMBER_3_ID, vote_value=1),
             Vote(place_id=PLACE_3_ID, member_id=MEMBER_3_ID, vote_value=1),
+            # Cả 3 người cùng upvote 2 quán OSM -> hòa ở đầu bảng (3 điểm) để demo Chọn hộ
+            Vote(place_id=PLACE_6_ID, member_id=HOST_MEMBER_ID, vote_value=1),
+            Vote(place_id=PLACE_6_ID, member_id=MEMBER_2_ID, vote_value=1),
+            Vote(place_id=PLACE_6_ID, member_id=MEMBER_3_ID, vote_value=1),
+            Vote(place_id=PLACE_7_ID, member_id=HOST_MEMBER_ID, vote_value=1),
+            Vote(place_id=PLACE_7_ID, member_id=MEMBER_2_ID, vote_value=1),
+            Vote(place_id=PLACE_7_ID, member_id=MEMBER_3_ID, vote_value=1),
         ]
         session.add_all(votes)
         await session.flush()
-        print("✅ Đã tạo các lá phiếu hòa điểm (Cà Phê 3T: 2, Cơm Tấm: 2, CGV: 2) để demo TieBreak")
+        print("✅ Đã tạo phiếu: Quán Bụi = Propaganda = 3 (hòa đầu bảng, demo Chọn hộ); Cà Phê 3T = Cơm Tấm = CGV = 2")
 
         # 6. Tạo 1 mục lịch trình mẫu (Schedule Item)
         schedule1 = ScheduleItem(
@@ -207,14 +268,14 @@ async def seed_data() -> None:
             room_id=ROOM_ID,
             place_id=PLACE_1_ID,
             day_offset=0,
-            start_minute=540,  # 09:00
-            end_minute=630,  # 10:30
+            start_minute=1020,  # 17:00
+            end_minute=1080,  # 18:00
             order_index=0,
-            note="Uống cà phê sáng và ngắm tàu thuyền trên sông Sài Gòn",
+            note="Uống cà phê chiều tối và ngắm tàu thuyền trên sông Sài Gòn",
         )
         session.add(schedule1)
         await session.commit()
-        print("✅ Đã tạo 1 mục lịch trình mẫu: Cà Phê Trứng 3T (09:00 - 10:30)")
+        print("✅ Đã tạo 1 mục lịch trình mẫu: Cà Phê Trứng 3T (17:00 - 18:00)")
 
         print("\n🎉 HOÀN THÀNH SEED DỮ LIỆU THÀNH CÔNG!")
         print("👉 Mã phòng tham gia: DIDAU8")

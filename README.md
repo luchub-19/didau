@@ -88,7 +88,7 @@ Sau khi khởi chạy:
 
 ## 🌱 Nạp Dữ Liệu Mẫu (Seed Data)
 
-Hệ thống cung cấp sẵn script seed dữ liệu mẫu khởi tạo phòng `DIDAU8` với 3 thành viên, 5 địa điểm các loại, điểm vote hòa nhau và lịch trình mẫu:
+Hệ thống cung cấp sẵn script seed dữ liệu mẫu khởi tạo phòng `DIDAU8` (điểm hẹn Q.1, khung giờ 17:00–23:00) với 3 thành viên, 7 địa điểm (5 thêm tay + 2 quán OSM có `external_id` thật), hai quán OSM hòa 3 phiếu ở đầu bảng để demo "🎲 Chọn hộ", và 1 mục lịch trình mẫu:
 
 ```bash
 # Chạy trong container backend:
@@ -128,11 +128,28 @@ cd backend && poetry run python -m app.core.seed
 
 ---
 
+## 🗺️ Giai đoạn 2: Bản đồ, Chọn hộ & Tự lên lịch
+
+Với phòng `DIDAU8` sau khi seed:
+1. Tab **🗺️ Bản đồ**: chọn một quán trên bản đồ (dữ liệu OSM, không cần key) → **+ Thêm vào lựa chọn**.
+2. Hai quán dẫn đầu đang hòa → banner **🎲 Chọn hộ** hiện ra → Host quay **Vòng quay**; mọi tab dừng cùng một ô (kết quả do server tính theo `seed`).
+3. Bấm **✨ Lên lịch giúp tôi** → xem lộ trình nháp → Host **Áp dụng lịch trình**; không còn xung đột.
+4. Mở một quán → viết **review nội bộ** (sao, tag, bình luận ≤ 280 ký tự).
+
+Chế độ `google` (tuỳ chọn) bật bằng biến môi trường `PLACES_PROVIDER=google` + key; xem [docs/DEPLOY.md](docs/DEPLOY.md) mục 6. Không đặt key thì ứng dụng không gửi request nào tới `googleapis.com`.
+
+```bash
+# Ví dụ: chạy chế độ google với docker compose (cần key thật)
+PLACES_PROVIDER=google GOOGLE_MAPS_SERVER_KEY=... VITE_GOOGLE_MAPS_BROWSER_KEY=... docker compose up --build
+```
+
+---
+
 ## 🧪 Kiểm Thử Tự Động (Automated Testing)
 
 Toàn bộ hệ thống đạt độ phủ kiểm thử 100% các tiêu chí hợp đồng:
 
-### 1. Backend Tests (313 Tests Pass)
+### 1. Backend Tests (513 Tests Pass)
 ```bash
 # Chạy trong container Docker:
 docker exec didau_backend poetry run pytest -v
@@ -142,12 +159,20 @@ cd backend
 poetry run pytest -v
 ```
 
-### 2. Frontend Tests (47 Tests Pass)
+### 2. Frontend Tests (150 Tests Pass)
 ```bash
 cd frontend
 npm test
 npm run lint
 npm run build
+```
+
+### 3. Smoke Test End-to-End (cần backend đang chạy)
+Tạo phòng, thêm quán OSM, hòa phiếu, Chọn hộ bằng vòng quay (2 client WebSocket phải nhận cùng góc dừng), tự lên lịch + áp dụng, kiểm tra không có xung đột nặng, review nội bộ:
+```bash
+cd backend
+poetry run python ../scripts/smoke_test.py http://localhost:8000 http://localhost:5173 osm
+# Chế độ google: chạy backend với PLACES_PROVIDER=google rồi đổi tham số cuối thành google
 ```
 
 ---
