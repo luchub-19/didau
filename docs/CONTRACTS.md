@@ -940,12 +940,20 @@ class IRoomService(ABC):
     async def join_room(self, code: str, nickname: str, avatar_url: Optional[str]) -> Dict[str, Any]: pass
     @abstractmethod
     async def get_room_details(self, room_id: UUID) -> Dict[str, Any]: pass
+    @abstractmethod
+    async def update_room(self, room_id: UUID, data: Dict[str, Any]) -> Any: pass  # CR-03
 
 class IPlaceService(ABC):
     @abstractmethod
     async def add_place(self, room_id: UUID, member_id: UUID, data: Dict[str, Any]) -> Dict[str, Any]: pass
     @abstractmethod
     async def list_places(self, room_id: UUID, current_member_id: UUID) -> List[Dict[str, Any]]: pass
+    @abstractmethod
+    async def get_place(self, room_id: UUID, place_id: UUID, current_member_id: UUID) -> Dict[str, Any]: pass
+    @abstractmethod
+    async def update_place(self, room_id: UUID, place_id: UUID, member: Any, data: Dict[str, Any]) -> Dict[str, Any]: pass
+    @abstractmethod
+    async def delete_place(self, room_id: UUID, place_id: UUID, member: Any) -> bool: pass
 
 class IVotingService(ABC):
     @abstractmethod
@@ -953,7 +961,14 @@ class IVotingService(ABC):
     @abstractmethod
     async def retract_vote(self, place_id: UUID, member_id: UUID) -> Dict[str, Any]: pass
     @abstractmethod
-    async def resolve_voting(self, room_id: UUID, host_id: UUID, strategy_name: str, max_places: int) -> List[Dict[str, Any]]: pass
+    async def resolve_voting(
+        self,
+        room_id: UUID,
+        host_member: Any,
+        strategy_name: str,
+        max_accepted_places: int = 1,
+        explicit_accepted_place_ids: Optional[List[UUID]] = None,
+    ) -> Dict[str, Any]: pass  # CR-02
 
 class IScheduleService(ABC):
     @abstractmethod
@@ -962,6 +977,10 @@ class IScheduleService(ABC):
     async def add_item(self, room_id: UUID, data: Dict[str, Any]) -> Dict[str, Any]: pass
     @abstractmethod
     async def update_schedule(self, room_id: UUID, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]: pass
+    @abstractmethod
+    async def delete_item(self, room_id: UUID, item_id: UUID) -> bool: pass
+    @abstractmethod
+    async def replace_all(self, room_id: UUID, slots: List[Any]) -> List[Any]: pass  # CR-02
 
 class IConflictService(ABC):
     @abstractmethod
@@ -1051,6 +1070,13 @@ export type TieBreakStrategyName =
 export type PlaceSource = 'MANUAL' | 'OSM' | 'GOOGLE'; // CR-02
 export type CityCode = 'HCM' | 'HN'; // CR-02
 export type DecisionMode = 'SMART' | 'WHEEL' | 'SWIPE' | 'LADDER'; // CR-02
+export type DecisionStatus = 'OPEN' | 'RESOLVED' | 'CANCELLED' | 'EXPIRED'; // CR-02
+export type TriggerHint =
+  | 'TIE_AT_TOP'
+  | 'NEAR_TIE'
+  | 'TOO_MANY'
+  | 'STALLED'
+  | 'EMPTY'; // CR-02
 
 // frontend/src/types/models.ts
 
@@ -1080,6 +1106,7 @@ export interface Member {
   role: MemberRole;
   is_active: boolean;
   joined_at: string;
+  last_active_at?: string;
 }
 
 export interface Place {
@@ -1124,6 +1151,8 @@ export interface ScheduleItem {
   end_minute: number; // 0 - 1439
   order_index: number;
   note?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ConflictAlert {
@@ -1135,6 +1164,103 @@ export interface ConflictAlert {
   entity_ids: string[];
   resolved: boolean;
   created_at: string;
+}
+
+export interface Poi {
+  external_id: string;
+  name: string;
+  category: PlaceCategory;
+  lat: number;
+  lng: number;
+  address?: string | null;
+  cuisine?: string | null;
+  opening_hours_raw?: string | null;
+  open_minute?: number | null;
+  close_minute?: number | null;
+  distance_km?: number | null;
+  tags?: Record<string, string>;
+}
+
+export interface PlaceReview {
+  id: string;
+  external_key: string;
+  room_id?: string | null;
+  member_id?: string | null;
+  nickname: string;
+  rating: number; // 1 - 5
+  comment?: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ReviewSummary {
+  avg: number;
+  count: number;
+  tags_top3: string[];
+  items: PlaceReview[];
+}
+
+export interface DecisionSession {
+  id: string;
+  room_id: string;
+  mode: DecisionMode;
+  status: DecisionStatus;
+  category?: string | null;
+  candidate_place_ids: string[];
+  seed: number;
+  result_place_id?: string | null;
+  result_payload?: Record<string, unknown> | null;
+  created_by_id: string;
+  created_at: string;
+  closes_at?: string | null;
+}
+
+export interface DecisionSwipe {
+  session_id: string;
+  member_id: string;
+  place_id: string;
+  liked: boolean;
+}
+
+export interface DeciderHint {
+  type: TriggerHint;
+  category?: string | null;
+  candidate_place_ids: string[];
+}
+
+export interface ScoredPick {
+  place_id: string;
+  score: number;
+  reasons: string[];
+}
+
+export interface DecisionHintsResponse {
+  hints: DeciderHint[];
+  smart_picks: ScoredPick[];
+}
+
+export interface PlannedSlot {
+  place_id: string;
+  day_offset: number;
+  start_minute: number;
+  end_minute: number;
+  travel_from_prev_min: number;
+  reasons: string[];
+}
+
+export interface DroppedPlace {
+  place_id: string;
+  reason: string;
+}
+
+export interface AutoPlanPreviewResponse {
+  slots: PlannedSlot[];
+  dropped: DroppedPlace[];
+  total_travel_min: number;
+  total_cost: number;
+  used_fallback: boolean;
+  plan_hash: string;
 }
 
 // frontend/src/types/api.ts
@@ -1155,11 +1281,24 @@ export interface CreateRoomRequest {
   creator_avatar_url?: string;
   budget_limit?: number;
   tie_break_strategy?: TieBreakStrategyName;
-  city?: CityCode; // CR-02
+  city?: CityCode | string; // CR-02
   origin_lat?: number; // CR-02
   origin_lng?: number; // CR-02
   start_minute?: number; // CR-02
   end_minute?: number; // CR-02
+}
+
+export interface UpdateRoomRequest {
+  title?: string;
+  description?: string | null;
+  event_date?: string;
+  budget_limit?: number | null;
+  tie_break_strategy?: TieBreakStrategyName;
+  city?: CityCode | string;
+  origin_lat?: number | null;
+  origin_lng?: number | null;
+  start_minute?: number;
+  end_minute?: number;
 }
 
 export interface CreateRoomResponse {
@@ -1178,6 +1317,11 @@ export interface JoinRoomResponse {
   room: Room;
   member: Member;
   member_token: string;
+}
+
+export interface RoomDetailResponse extends Room {
+  members: Member[];
+  total_places?: number;
 }
 
 export interface CreatePlaceRequest {
@@ -1216,6 +1360,20 @@ export interface ResolveVotingRequest {
   max_accepted_places: number;
 }
 
+export interface ResolvedPlaceItem {
+  id: string;
+  name: string;
+  status: PlaceStatus;
+  score: number;
+  upvotes: number;
+}
+
+export interface ResolveVotingResponse {
+  resolved_places: ResolvedPlaceItem[];
+  tie_break_applied: boolean;
+  tie_break_strategy: TieBreakStrategyName;
+}
+
 export interface CreateScheduleItemRequest {
   place_id: string;
   day_offset: number;
@@ -1224,14 +1382,101 @@ export interface CreateScheduleItemRequest {
   note?: string;
 }
 
+export interface BulkUpdateScheduleItem {
+  id: string;
+  day_offset: number;
+  start_minute: number;
+  end_minute: number;
+  order_index: number;
+}
+
 export interface BulkUpdateScheduleRequest {
-  items: Array<{
-    id: string;
-    day_offset: number;
-    start_minute: number;
-    end_minute: number;
-    order_index: number;
-  }>;
+  items: BulkUpdateScheduleItem[];
+}
+
+export interface DeleteScheduleResponse {
+  success: boolean;
+  deleted_item_id: string;
+}
+
+export type PlaceListResponse = Place[];
+export type ScheduleListResponse = ScheduleItem[];
+export type ConflictListResponse = ConflictAlert[];
+export type PoiListResponse = Poi[];
+
+export interface PoiQueryParams {
+  bbox?: string;
+  category?: PlaceCategory;
+  limit?: number;
+}
+
+export interface PoiSearchParams {
+  q: string;
+  lat?: number;
+  lng?: number;
+  limit?: number;
+}
+
+export interface GoogleMatchRequest {
+  external_id: string;
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+export interface GoogleMatchResponse {
+  google_place_id: string | null;
+  reason: 'OK' | 'NO_MATCH' | 'QUOTA' | 'DISABLED' | string;
+}
+
+export interface CreateReviewRequest {
+  external_key: string;
+  rating: number; // 1 - 5
+  comment?: string | null;
+  tags?: string[];
+}
+
+export interface CreateDecisionRequest {
+  mode: DecisionMode;
+  category?: PlaceCategory | null;
+  candidate_place_ids?: string[];
+  weighted?: boolean;
+}
+
+export interface CreateDecisionResponse {
+  session: DecisionSession;
+  seed: number;
+  result_place_id?: string | null;
+  result_payload?: Record<string, unknown> | null;
+}
+
+export interface SubmitSwipeRequest {
+  place_id: string;
+  liked: boolean;
+}
+
+export interface SubmitSwipeResponse {
+  success: boolean;
+  session_id?: string;
+  place_id?: string;
+  liked?: boolean;
+}
+
+export interface DecisionActionResponse {
+  session: DecisionSession;
+  resolved_place?: Place;
+  strategy?: TieBreakStrategyName;
+  message?: string;
+}
+
+export interface AutoPlanPreviewRequest {
+  day_offset?: number;
+  duration_overrides?: Record<string, number>;
+}
+
+export interface AutoPlanApplyRequest {
+  plan_hash: string;
+  slots: PlannedSlot[];
 }
 
 // frontend/src/types/websocket.ts
@@ -1240,5 +1485,106 @@ export interface WebSocketEnvelope<T = unknown> {
   type: string;
   payload: T;
   ts: number;
+}
+
+export interface PingPayload {
+  [key: string]: never;
+}
+
+export interface SubscribeRoomPayload {
+  room_id: string;
+}
+
+export interface TypingPlacePayload {
+  is_typing: boolean;
+  nickname: string;
+}
+
+export interface WsErrorPayload {
+  code: string;
+  message: string;
+}
+
+export interface RoomStateSyncPayload {
+  room: Room;
+  members: Member[];
+  places: Place[];
+  schedule: ScheduleItem[];
+  conflicts: ConflictAlert[];
+}
+
+export interface RoomUpdatedPayload {
+  room: Room;
+}
+
+export interface MemberJoinedPayload {
+  member: Member;
+}
+
+export interface MemberLeftPayload {
+  member_id: string;
+  nickname: string;
+}
+
+export interface PlaceAddedPayload {
+  place: Place;
+}
+
+export interface PlaceUpdatedPayload {
+  place: Place;
+}
+
+export interface PlaceDeletedPayload {
+  place_id: string;
+}
+
+export interface VoteUpdatedPayload {
+  place_id: string;
+  upvotes: number;
+  downvotes: number;
+  score: number;
+  current_user_vote?: VoteValue;
+}
+
+export interface VotingResolvedPayload {
+  strategy: TieBreakStrategyName;
+  accepted_place_ids: string[];
+}
+
+export interface ScheduleUpdatedPayload {
+  items: ScheduleItem[];
+}
+
+export interface ConflictsUpdatedPayload {
+  conflicts: ConflictAlert[];
+}
+
+export interface DecisionStartedPayload {
+  session_id: string;
+  mode: DecisionMode;
+  candidate_place_ids: string[];
+  seed: number;
+  result_place_id?: string | null;
+  result_payload?: Record<string, unknown> | null;
+  closes_at?: string | null;
+}
+
+export interface DecisionProgressPayload {
+  session_id: string;
+  done_member_ids: string[];
+  total_members: number;
+}
+
+export interface DecisionResolvedPayload {
+  session_id: string;
+  result_place_id: string;
+  status: DecisionStatus;
+}
+
+export interface ChatMessagePayload {
+  member_id?: string;
+  nickname?: string;
+  avatar_url?: string | null;
+  message: string;
 }
 ```

@@ -257,3 +257,20 @@ class IPoiProvider(ABC):
 
 ### 2. Đề xuất
 Thêm vào mục 4.1/4.2: `CHAT_MESSAGE` (payload theo code hiện tại) và `MESSAGE_TOO_LONG`, `PING` hai chiều. Nên bỏ các alias thừa (`CHAT`, `SEND_CHAT`, `SEND_MESSAGE`) ở task sau. Tương thích ngược hoàn toàn.
+
+
+---
+
+## CR-05: Ghi nhận các endpoint đã có trong code nhưng chưa có trong CONTRACTS §3.3
+
+- **Người đề xuất**: Session review tích hợp (2026-10-17)
+- **Ngày tạo**: 2026-10-17
+- **Trạng thái**: PROPOSED (CHỜ NGƯỜI DÙNG DUYỆT)
+- **Task đã DONE bị ảnh hưởng**: T-08 (`api/v1/members.py`), T-09 (`api/v1/places.py`), T-11 (`api/v1/schedule.py`). Chỉ ghi tài liệu, không đổi code.
+
+### 1. Vấn đề
+`/openapi.json` có 5 route mà mục 3.3 (27 endpoint đánh số) không mô tả: `GET /api/v1/members/me`, `GET /rooms/{room_id}/places/{place_id}`, `PATCH /rooms/{room_id}/places/{place_id}`, `DELETE /rooms/{room_id}/places/{place_id}`, `DELETE /rooms/{room_id}/schedule/{item_id}`. FE (`placeApi`, `scheduleApi`, MSW) và `IPlaceService`/`IScheduleService` đã dùng chúng; phần interface đã được bổ sung vào CONTRACTS mục 5 trong đợt review này.
+
+### 2. Đề xuất
+Thêm 5 route trên vào mục 3.3 theo hành vi hiện tại (PATCH/DELETE place: Submitter hoặc Host; DELETE schedule item: mọi member). Tương thích ngược hoàn toàn.
+

@@ -307,6 +307,9 @@ class VotingService:
                             upvotes=summary["upvotes"],
                             downvotes=summary["downvotes"],
                             score=summary["score"],
+                            latitude=p.latitude,
+                            longitude=p.longitude,
+                            address=p.address,
                         )
                     )
             tie_break_applied = True
@@ -342,6 +345,9 @@ class VotingService:
                         upvotes=summary["upvotes"],
                         downvotes=summary["downvotes"],
                         score=summary["score"],
+                        latitude=p.latitude,
+                        longitude=p.longitude,
+                        address=p.address,
                     )
                 )
 

@@ -101,7 +101,7 @@ Kế hoạch: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md) · Hợ
 **Phân lớp:** không router nào gọi repository để truy vấn; router chỉ dựng service từ repo.
 
 **Còn lại, chỉ báo cáo (không refactor theo yêu cầu):**
-- Khối dựng `PlaceVoteSummary` lặp 5 chỗ: `schedule_service.py:113`, `voting_service.py:297` và `:332`, `autoplan_service.py:64`, `conflict_service.py:91`. Hai bản trong `voting_service.py` vẫn thiếu `latitude/longitude/address` (CR-01); hiện không gây lỗi vì resolve chỉ dùng tie-break, nhưng nên gom thành một hàm dùng chung.
+- Khối dựng `PlaceVoteSummary` lặp 5 chỗ: `schedule_service.py:113`, `voting_service.py:297` và `:332`, `autoplan_service.py:64`, `conflict_service.py:91`. Hai bản trong `voting_service.py` trước đây thiếu `latitude/longitude/address` (CR-01); đã bổ sung ở review 2026-10-17 (lần 3), nhưng vẫn nên gom thành một hàm dùng chung.
 - Factory service vẫn rải rác: `deps.py` chỉ có room/member; `places.py`, `votes.py`, `schedule.py`, `conflicts.py`, `decisions.py` tự dựng, và `websocket.py:61-112` dựng cả repo lẫn 5 service. Nên dời vào `deps.py`.
 - Alias thừa `_ensure_room_access = ensure_room_access` còn ở `schedule.py:75` và `conflicts.py:50`.
 - `main.py:102,112` còn hai hàm `test_*` nằm trong module ứng dụng (pytest không thu thập); nên chuyển vào `tests/`.
@@ -122,3 +122,9 @@ Kế hoạch: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md) · Hợ
 - **Bẫy phụ:** container `didau_frontend` KHÔNG mount source (build từ image), nên sửa frontend xong phải chạy
   `docker compose up -d --build frontend` mới thấy thay đổi, không thì web vẫn chạy code cũ.
 - **Test không bắt được:** jsdom không tính CSS/layout nên test không phát hiện lỗi này; chỉ kiểm tra được trên trình duyệt thật.
+
+## REVIEW TÍCH HỢP (2026-10-17, lần 3, chưa commit)
+**Chạy lại từ đầu:** backend `ruff check` sạch, 513 pass; frontend `lint`, `tsc --noEmit` sạch, 150 pass, `build` sạch; `docker compose up --build` lên đủ 3 service, `alembic current` = `002 (head)`; `scripts/smoke_test.py ... osm` PASS 13/13 (chạy bằng `poetry run python` vì cần httpx/websockets). Không có lỗi tích hợp mới.
+**Sửa:** (1) `voting_service.py` (2 chỗ dựng `PlaceVoteSummary`) truyền thêm `latitude/longitude/address` (CR-01); (2) `CONTRACTS.md` mục 5: `resolve_voting` default `max_accepted_places=1` (khớp code), `delete_item(room_id, item_id)`; thêm `update_room/get_place/update_place/delete_place/replace_all`, types `Poi/PlaceReview/DecisionSession...` (đã có từ đợt trước).
+**CR:** CR-01..04 đã có quyết định; **CR-05 (PROPOSED)** mới, chờ người dùng duyệt: 5 route có trong code nhưng chưa có trong CONTRACTS §3.3.
+**Chỉ báo cáo, không sửa:** `ruff format --check` báo 35 file chưa đúng format (CLAUDE.md chỉ yêu cầu `ruff check`); `PlaceVoteSummary` vẫn dựng ở 5 chỗ (`conflict_service.py:91`, `autoplan_service.py:64`, `voting_service.py:297,335`, `schedule_service.py:113`); factory service rải ở `places.py:32`, `votes.py:35`, `schedule.py:41,60`, `conflicts.py:31`, `decisions.py:43`, `reviews.py:15`, `pois.py:22` và `websocket.py` dựng cả repo; alias thừa `_ensure_room_access` ở `places.py:47`, `votes.py:52`, `schedule.py:75`, `conflicts.py:50`; `main.py:102,112` còn hàm `test_*`; alias WS `CHAT/SEND_CHAT/SEND_MESSAGE` ở `websocket.py:275`.
