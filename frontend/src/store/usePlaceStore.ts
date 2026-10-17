@@ -5,6 +5,7 @@ import type {
   CreatePlaceRequest,
   Place,
   PlaceCategory,
+  Poi,
   ResolveVotingRequest,
   ResolveVotingResponse,
   VoteValue,
@@ -19,6 +20,7 @@ interface PlaceState {
   // Actions
   fetchPlaces: (roomId: string) => Promise<void>;
   addPlace: (roomId: string, data: CreatePlaceRequest) => Promise<Place>;
+  addPlaceFromPoi: (roomId: string, poi: Poi) => Promise<Place>;
   updatePlace: (
     roomId: string,
     placeId: string,
@@ -84,6 +86,52 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       const errorMsg =
         (err as { message?: string })?.message || 'Không thể thêm địa điểm.';
       set({ error: errorMsg, isLoading: false });
+      throw err;
+    }
+  },
+
+  addPlaceFromPoi: async (roomId: string, poi: Poi) => {
+    // Nếu quán đã có trong store theo external_id
+    const existing = get().places.find((p) => p.external_id === poi.external_id);
+    if (existing) {
+      return existing;
+    }
+
+    const payload: CreatePlaceRequest = {
+      name: poi.name,
+      address: poi.address ?? undefined,
+      latitude: poi.lat,
+      longitude: poi.lng,
+      category: poi.category,
+      source: 'OSM',
+      external_id: poi.external_id,
+      cuisine: poi.cuisine ?? undefined,
+      opening_hours_raw: poi.opening_hours_raw ?? undefined,
+      open_minute: poi.open_minute ?? undefined,
+      close_minute: poi.close_minute ?? undefined,
+      coords_source: 'osm',
+    };
+
+    try {
+      return await get().addPlace(roomId, payload);
+    } catch (err: unknown) {
+      const errorObj = err as {
+        code?: string;
+        message?: string;
+        details?: { place_id?: string };
+      };
+      if (errorObj?.code === 'PLACE_ALREADY_ADDED' && errorObj.details?.place_id) {
+        let found = get().places.find((p) => p.id === errorObj.details?.place_id);
+        if (!found) {
+          try {
+            await get().fetchPlaces(roomId);
+            found = get().places.find((p) => p.id === errorObj.details?.place_id);
+          } catch {
+            // ignore
+          }
+        }
+        if (found) return found;
+      }
       throw err;
     }
   },

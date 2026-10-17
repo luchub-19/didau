@@ -1,6 +1,6 @@
-import React from 'react';
 import { Badge, CategoryIcon } from '../common';
 import { VoteButtons } from '../voting/VoteButtons';
+import { useMapStore } from '../../store/useMapStore';
 import type { Place } from '../../types';
 
 export interface PlaceCardProps {
@@ -10,6 +10,7 @@ export interface PlaceCardProps {
   isHost?: boolean;
   isVotingDisabled?: boolean;
   onDeletePlace?: (placeId: string) => void;
+  onViewOnMap?: (place: Place) => void;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   isHost = false,
   isVotingDisabled = false,
   onDeletePlace,
+  onViewOnMap,
   className = '',
 }) => {
   const isOwner = currentMemberId && place.submitted_by_id === currentMemberId;
@@ -36,6 +38,22 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   const openStr = formatMinutes(place.open_minute);
   const closeStr = formatMinutes(place.close_minute);
   const hoursDisplay = openStr && closeStr ? `${openStr} - ${closeStr}` : null;
+  const hasCoordinates =
+    (place.latitude != null && place.longitude != null) || Boolean(place.external_id);
+
+  const handleViewOnMap = () => {
+    if (onViewOnMap) {
+      onViewOnMap(place);
+    } else {
+      useMapStore.getState().selectPlace(place.id);
+    }
+  };
+
+  const isOsm = place.source === 'OSM' || (place.source as unknown as string) === 'osm';
+  const isGoogle =
+    place.source === 'GOOGLE' ||
+    (place.source as unknown as string) === 'google' ||
+    Boolean(place.google_place_id);
 
   return (
     <div
@@ -48,13 +66,32 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
       } ${className}`}
     >
       <div className="p-4 sm:p-5 space-y-3">
-        {/* Header: Category + Status Badge + Delete */}
+        {/* Header: Category + Status Badge + Source Badge + Delete */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <CategoryIcon category={place.category} size="sm" />
             <Badge variant={place.status} size="sm">
               {place.status}
             </Badge>
+
+            {isOsm && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
+                title="Nguồn: OpenStreetMap"
+                data-testid="badge-source-osm"
+              >
+                🗺️ OSM
+              </span>
+            )}
+            {isGoogle && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                title="Nguồn: Google Places"
+                data-testid="badge-source-google"
+              >
+                G Google
+              </span>
+            )}
           </div>
 
           {canDelete && onDeletePlace && (
@@ -133,6 +170,18 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
                 />
               </svg>
             </a>
+          )}
+
+          {hasCoordinates && (
+            <button
+              type="button"
+              onClick={handleViewOnMap}
+              className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 hover:underline font-medium cursor-pointer"
+              title="Xem vị trí quán trên bản đồ"
+              data-testid="btn-view-on-map"
+            >
+              <span>🗺️ Xem trên bản đồ</span>
+            </button>
           )}
         </div>
 

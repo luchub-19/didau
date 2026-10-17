@@ -12,3 +12,6 @@ export const CITY_CENTER: Record<string, { lat: number; lng: number }> = {
   HCM: { lat: 10.7769, lng: 106.7009 },
   HN: { lat: 21.0285, lng: 105.8542 },
 };
+
+export const GOOGLE_MAPS_BROWSER_KEY: string =
+  import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY || "";

@@ -3,18 +3,23 @@ import maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CITY_CENTER, MAP_STYLE_URL } from '../../config';
-import { distanceKm, useMapStore } from '../../store/useMapStore';
+import { useMapStore } from '../../store/useMapStore';
+import { usePlaceStore } from '../../store/usePlaceStore';
 import type { Place, Poi, Room } from '../../types';
-import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { highlightPoi, installPoiLayer, updatePoiSource } from './PoiLayer';
 import { installRoomPlacesLayer, updateRoomPlacesSource } from './RoomPlacesLayer';
+import { installRouteLayer, updateRouteSource } from './RouteLayer';
 import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
+import { PlaceSheet } from './PlaceSheet';
+import { NearbySuggestions } from './NearbySuggestions';
+import { useScheduleStore } from '../../store/useScheduleStore';
 
 export interface MapViewProps {
   room: Room;
   places: Place[];
   isHost: boolean;
+  isVotingDisabled?: boolean;
   /** Host kéo ghim điểm hẹn xong: gọi `PATCH /rooms/{id}`. */
   onOriginChange: (lat: number, lng: number) => void;
 }
@@ -22,7 +27,13 @@ export interface MapViewProps {
 /** Dưới mức zoom này không tải POI (khung nhìn quá rộng). */
 const MIN_FETCH_ZOOM = 12;
 
-export function MapView({ room, places, isHost, onOriginChange }: MapViewProps) {
+export function MapView({
+  room,
+  places,
+  isHost,
+  isVotingDisabled = false,
+  onOriginChange,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -70,6 +81,7 @@ export function MapView({ room, places, isHost, onOriginChange }: MapViewProps) 
     instance.on('load', () => {
       installPoiLayer(instance, (id) => useMapStore.getState().selectPoi(id));
       installRoomPlacesLayer(instance, (id) => useMapStore.getState().selectPlace(id));
+      installRouteLayer(instance);
       setMap(instance);
       setMapReady(true);
       refresh();
@@ -83,6 +95,39 @@ export function MapView({ room, places, isHost, onOriginChange }: MapViewProps) 
       setMapReady(false);
     };
   }, []);
+
+  const scheduleItems = useScheduleStore((s) => s.items);
+  const autoPlanPreview = useScheduleStore((s) => s.autoPlanPreview);
+
+  // Tuyến đường theo lịch trình hoặc bản xem trước tự lên lịch
+  const routeCoordinates = useMemo<[number, number][]>(() => {
+    const placeMap = new Map<string, Place>(places.map((p) => [p.id, p]));
+    let orderedIds: string[] = [];
+
+    if (autoPlanPreview?.slots && autoPlanPreview.slots.length > 0) {
+      orderedIds = autoPlanPreview.slots.map((s) => s.place_id);
+    } else if (scheduleItems.length > 0) {
+      const sorted = [...scheduleItems].sort((a, b) => {
+        if (a.day_offset !== b.day_offset) return a.day_offset - b.day_offset;
+        return a.order_index - b.order_index;
+      });
+      orderedIds = sorted.map((s) => s.place_id);
+    }
+
+    const coords: [number, number][] = [];
+    for (const id of orderedIds) {
+      const p = placeMap.get(id);
+      if (p && p.latitude != null && p.longitude != null) {
+        coords.push([p.longitude, p.latitude]);
+      }
+    }
+    return coords;
+  }, [places, scheduleItems, autoPlanPreview]);
+
+  // Cập nhật đường tuyến (RouteLayer)
+  useEffect(() => {
+    if (map && mapReady) updateRouteSource(map, routeCoordinates);
+  }, [map, mapReady, routeCoordinates]);
 
   // POI (trừ quán đã trong phòng) → lớp POI
   const roomExternalIds = useMemo(
@@ -124,12 +169,6 @@ export function MapView({ room, places, isHost, onOriginChange }: MapViewProps) 
   const selectedPlace =
     selection?.kind === 'place' ? places.find((p) => p.id === selection.id) : undefined;
 
-  const origin = hasOrigin
-    ? { lat: room.origin_lat as number, lng: room.origin_lng as number }
-    : null;
-  const distanceFromOrigin = (lat: number, lng: number) =>
-    origin ? `${distanceKm(origin.lat, origin.lng, lat, lng).toFixed(1)} km từ điểm hẹn` : null;
-
   return (
     <div className="relative h-[70vh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
       <div ref={containerRef} className="absolute inset-0" data-testid="map-container" />
@@ -162,65 +201,29 @@ export function MapView({ room, places, isHost, onOriginChange }: MapViewProps) 
         </span>
       )}
 
+      {places.length === 0 && !selection && (
+        <NearbySuggestions
+          room={room}
+          places={places}
+          pois={Object.values(poisById)}
+          onSelectPoi={flyToPoi}
+          onAddPoi={(poi) => {
+            void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
+          }}
+        />
+      )}
+
       {(selectedPoi || selectedPlace) && (
-        <div className="absolute inset-x-3 bottom-3 z-10 max-w-md rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl sm:left-auto sm:right-14">
-          {selectedPoi && (
-            <>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{selectedPoi.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {CATEGORY_METADATA[selectedPoi.category]?.icon}{' '}
-                    {CATEGORY_METADATA[selectedPoi.category]?.label}
-                    {selectedPoi.cuisine ? ` · ${selectedPoi.cuisine}` : ''}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Đóng"
-                  onClick={() => selectPoi(null)}
-                  className="text-slate-400 hover:text-slate-700"
-                >
-                  ✕
-                </button>
-              </div>
-              {selectedPoi.address && (
-                <p className="mt-1 text-xs text-slate-600">{selectedPoi.address}</p>
-              )}
-              <p className="mt-1 text-xs text-slate-500">
-                {[
-                  distanceFromOrigin(selectedPoi.lat, selectedPoi.lng),
-                  selectedPoi.opening_hours_raw,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-            </>
-          )}
-          {selectedPlace && (
-            <>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{selectedPlace.name}</p>
-                  <p className="text-xs text-slate-500">
-                    Đã trong lựa chọn · điểm vote {selectedPlace.score}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Đóng"
-                  onClick={() => selectPlace(null)}
-                  className="text-slate-400 hover:text-slate-700"
-                >
-                  ✕
-                </button>
-              </div>
-              {selectedPlace.address && (
-                <p className="mt-1 text-xs text-slate-600">{selectedPlace.address}</p>
-              )}
-            </>
-          )}
-        </div>
+        <PlaceSheet
+          room={room}
+          poi={selectedPoi}
+          place={selectedPlace}
+          onClose={() => {
+            selectPoi(null);
+            selectPlace(null);
+          }}
+          isVotingDisabled={isVotingDisabled}
+        />
       )}
 
       <span className="sr-only">

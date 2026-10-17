@@ -12,6 +12,7 @@ export interface PlaceListProps {
   isVotingDisabled?: boolean;
   onOpenAddModal: () => void;
   onDeletePlace: (placeId: string) => void;
+  onViewOnMap?: (place: Place) => void;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   isVotingDisabled,
   onOpenAddModal,
   onDeletePlace,
+  onViewOnMap,
   className = '',
 }) => {
   const [search, setSearch] = useState('');
@@ -112,6 +114,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
               isHost={isHost}
               isVotingDisabled={isVotingDisabled}
               onDeletePlace={onDeletePlace}
+              onViewOnMap={onViewOnMap}
             />
           ))}
         </div>
