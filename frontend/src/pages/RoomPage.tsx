@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRoom } from '../hooks/useRoom';
 import { Button, Header } from '../components/common';
-import { RoomHeader, MemberList } from '../components/room';
+import { RoomHeader, MemberList, JoinRoomModal } from '../components/room';
 import { CategoryFilter, PlaceForm, PlaceList } from '../components/places';
 import { TieBreakSelectorModal } from '../components/voting';
 import { ScheduleTimeline, AddScheduleItemModal } from '../components/schedule';
@@ -25,6 +25,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
     conflicts,
     isInitializing,
     initError,
+    needsJoin,
     ws,
   } = useRoom(roomId);
 
@@ -36,6 +37,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [isTieBreakOpen, setIsTieBreakOpen] = useState(false);
+  const [isJoinOpen, setIsJoinOpen] = useState(true);
 
   const handleDeletePlace = async (placeId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa địa điểm này không?')) {
@@ -79,6 +81,37 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
             Đang tải dữ liệu chuyến đi...
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (needsJoin) {
+    const codeFromLink = new URLSearchParams(window.location.search).get('code') ?? '';
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <Header onGoHome={onGoHome} />
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto space-y-4">
+          <div className="text-4xl">🔑</div>
+          <h2 className="text-lg font-bold text-slate-900">Bạn chưa tham gia phòng này</h2>
+          <p className="text-xs text-slate-500">
+            Nhập mã phòng (6 ký tự) và biệt danh của bạn để vào phòng.
+          </p>
+          <div className="pt-2 flex gap-3">
+            <Button variant="outline" size="sm" onClick={onGoHome}>
+              Về trang chủ
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => setIsJoinOpen(true)}>
+              Nhập mã phòng
+            </Button>
+          </div>
+        </div>
+        <JoinRoomModal
+          isOpen={isJoinOpen}
+          onClose={() => setIsJoinOpen(false)}
+          // Token đã được lưu khi join; tải lại để dữ liệu phòng và WebSocket khởi tạo với token mới.
+          onSuccess={(joinedRoomId) => window.location.assign(`/rooms/${joinedRoomId}`)}
+          initialCode={codeFromLink}
+        />
       </div>
     );
   }

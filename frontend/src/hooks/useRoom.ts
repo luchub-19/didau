@@ -8,6 +8,7 @@ import { useWebSocket } from './useWebSocket';
 export function useRoom(roomId?: string) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [needsJoin, setNeedsJoin] = useState(false);
 
   const room = useRoomStore((s) => s.room);
   const members = useRoomStore((s) => s.members);
@@ -34,6 +35,7 @@ export function useRoom(roomId?: string) {
     let isMounted = true;
     setIsInitializing(true);
     setInitError(null);
+    setNeedsJoin(false);
 
     Promise.all([
       fetchRoom(roomId),
@@ -43,10 +45,10 @@ export function useRoom(roomId?: string) {
     ])
       .catch((err) => {
         if (isMounted) {
-          const msg =
-            (err as { message?: string })?.message ||
-            'Không thể tải dữ liệu phòng.';
-          setInitError(msg);
+          const { code, message } = err as { code?: string; message?: string };
+          // Chưa có token hoặc token thuộc phòng khác: cần nhập mã phòng để vào.
+          setNeedsJoin(code === 'UNAUTHORIZED' || code === 'FORBIDDEN');
+          setInitError(message || 'Không thể tải dữ liệu phòng.');
         }
       })
       .finally(() => {
@@ -73,6 +75,7 @@ export function useRoom(roomId?: string) {
     conflicts,
     isInitializing,
     initError,
+    needsJoin,
     ws,
   };
 }

@@ -30,7 +30,7 @@ export const RoomHeader: React.FC<RoomHeaderProps> = ({
 
   const handleCopyLink = async () => {
     try {
-      const shareUrl = `${window.location.origin}/rooms/${room.id}`;
+      const shareUrl = `${window.location.origin}/rooms/${room.id}?code=${room.code}`;
       await navigator.clipboard.writeText(shareUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
