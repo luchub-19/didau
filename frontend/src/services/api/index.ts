@@ -4,3 +4,7 @@ export * from './placeApi';
 export * from './voteApi';
 export * from './scheduleApi';
 export * from './conflictApi';
+export * from './poiApi';
+export * from './reviewApi';
+export * from './decisionApi';
+

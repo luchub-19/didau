@@ -1,5 +1,5 @@
 import type { ConflictAlert, Member, Place, Room, ScheduleItem } from './models';
-import type { TieBreakStrategyName, VoteValue } from './enums';
+import type { DecisionMode, DecisionStatus, TieBreakStrategyName, VoteValue } from './enums';
 
 export interface WebSocketEnvelope<T = unknown> {
   type: string;
@@ -76,3 +76,26 @@ export interface ScheduleUpdatedPayload {
 export interface ConflictsUpdatedPayload {
   conflicts: ConflictAlert[];
 }
+
+export interface DecisionStartedPayload {
+  session_id: string;
+  mode: DecisionMode;
+  candidate_place_ids: string[];
+  seed: number;
+  result_place_id?: string | null;
+  result_payload?: Record<string, unknown> | null;
+  closes_at?: string | null;
+}
+
+export interface DecisionProgressPayload {
+  session_id: string;
+  done_member_ids: string[];
+  total_members: number;
+}
+
+export interface DecisionResolvedPayload {
+  session_id: string;
+  result_place_id: string;
+  status: DecisionStatus;
+}
+

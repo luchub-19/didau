@@ -1,5 +1,8 @@
 import apiClient from './client';
 import type {
+  AutoPlanApplyRequest,
+  AutoPlanPreviewRequest,
+  AutoPlanPreviewResponse,
   BulkUpdateScheduleRequest,
   CreateScheduleItemRequest,
   DeleteScheduleResponse,
@@ -43,4 +46,27 @@ export const scheduleApi = {
     );
     return res.data;
   },
+
+  async previewAutoPlan(
+    roomId: string,
+    data?: AutoPlanPreviewRequest,
+  ): Promise<AutoPlanPreviewResponse> {
+    const res = await apiClient.post<AutoPlanPreviewResponse>(
+      `/rooms/${roomId}/schedule/auto-plan`,
+      data ?? {},
+    );
+    return res.data;
+  },
+
+  async applyAutoPlan(
+    roomId: string,
+    data: AutoPlanApplyRequest,
+  ): Promise<ScheduleItem[]> {
+    const res = await apiClient.post<ScheduleItem[]>(
+      `/rooms/${roomId}/schedule/auto-plan/apply`,
+      data,
+    );
+    return res.data;
+  },
 };
+

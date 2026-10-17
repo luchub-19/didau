@@ -22,4 +22,21 @@ export type TieBreakStrategyName =
   | 'MOST_UPVOTES'
   | 'CREATOR_PRIORITY'
   | 'RANDOM'
-  | 'CATEGORY_DIVERSITY';
+  | 'CATEGORY_DIVERSITY'
+  | 'GROUP_DECISION';
+
+export type PlaceSource = 'MANUAL' | 'OSM' | 'GOOGLE';
+
+export type CityCode = 'HCM' | 'HN';
+
+export type DecisionMode = 'SMART' | 'WHEEL' | 'SWIPE' | 'LADDER';
+
+export type DecisionStatus = 'OPEN' | 'RESOLVED' | 'CANCELLED' | 'EXPIRED';
+
+export type TriggerHint =
+  | 'TIE_AT_TOP'
+  | 'NEAR_TIE'
+  | 'TOO_MANY'
+  | 'STALLED'
+  | 'EMPTY';
+
