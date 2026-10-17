@@ -9,7 +9,14 @@ from app.core.exceptions import (
     RoomStatusInvalidError,
     ValidationError,
 )
-from app.domain.enums import MemberRole, PlaceCategory, PlaceStatus, RoomStatus
+from app.core.time_utils import now_utc
+from app.domain.enums import (
+    MemberRole,
+    PlaceCategory,
+    PlaceStatus,
+    RoomStatus,
+    TieBreakStrategyName,
+)
 from app.domain.models.member import Member
 from app.domain.patterns.event_bus import (
     IEventBus,
@@ -233,15 +240,17 @@ class VotingService:
         room_id: UUID,
         host_member: Member,
         strategy_name: str,
-        max_accepted_places: int,
+        max_accepted_places: int = 1,
+        explicit_accepted_place_ids: list[UUID] | None = None,
     ) -> dict[str, Any]:
-        """Chốt kết quả bình chọn bằng chiến lược TieBreak (chỉ HOST).
+        """Chốt kết quả bình chọn bằng chiến lược TieBreak hoặc GROUP_DECISION (chỉ HOST).
 
         Args:
             room_id: UUID của phòng.
             host_member: Đối tượng Member của Chủ phòng (HOST).
             strategy_name: Tên chiến lược phân định hòa phiếu.
             max_accepted_places: Số lượng địa điểm tối đa được chấp nhận.
+            explicit_accepted_place_ids: Danh sách địa điểm thắng chỉ định sẵn (cho GROUP_DECISION).
 
         Returns:
             Dict chứa resolved_places, tie_break_applied, tie_break_strategy.
@@ -266,66 +275,99 @@ class VotingService:
                 details={"room_id": str(room_id)},
             )
 
-        # 3. Lấy strategy từ factory (sẽ raise InvalidStrategyError nếu không hợp lệ)
-        strategy = self.tie_break_factory.get_strategy(strategy_name)
-
-        # 4. Lấy danh sách địa điểm và vote summary
+        # 3. Lấy danh sách địa điểm và vote summary
         places = await self.place_repo.list_by_room(room_id)
         vote_summary = await self.vote_repo.get_vote_summary_by_room(room_id)
 
-        # 5. Xây dựng danh sách PlaceVoteSummary cho hàm resolve
-        candidates: list[PlaceVoteSummary] = []
-        for p in places:
-            summary = vote_summary.get(p.id, {"upvotes": 0, "downvotes": 0, "score": 0})
-            category_val = (
-                p.category if isinstance(p.category, PlaceCategory) else PlaceCategory(p.category)
-            )
-            status_val = p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(p.status)
+        is_group_decision = (
+            strategy_name.strip().upper() == TieBreakStrategyName.GROUP_DECISION.value
+        )
 
-            # Chỉ lấy địa điểm chưa bị REJECTED hoặc VISITED
-            if status_val in (PlaceStatus.REJECTED, PlaceStatus.VISITED):
-                continue
+        if is_group_decision:
+            strategy_key = TieBreakStrategyName.GROUP_DECISION.value
+            accepted_set = set(explicit_accepted_place_ids or [])
+            resolved_places = []
+            for p in places:
+                if p.id in accepted_set:
+                    summary = vote_summary.get(p.id, {"upvotes": 0, "downvotes": 0, "score": 0})
+                    category_val = (
+                        p.category if isinstance(p.category, PlaceCategory) else PlaceCategory(p.category)
+                    )
+                    resolved_places.append(
+                        PlaceVoteSummary(
+                            place_id=p.id,
+                            name=p.name,
+                            category=category_val,
+                            status=PlaceStatus.ACCEPTED,
+                            submitted_by_id=p.submitted_by_id,
+                            estimated_cost=int(p.estimated_cost or 0),
+                            open_minute=p.open_minute,
+                            close_minute=p.close_minute,
+                            created_at=p.created_at or now_utc(),
+                            upvotes=summary["upvotes"],
+                            downvotes=summary["downvotes"],
+                            score=summary["score"],
+                        )
+                    )
+            tie_break_applied = True
+        else:
+            # Lấy strategy từ factory (sẽ raise InvalidStrategyError nếu không hợp lệ)
+            strategy = self.tie_break_factory.get_strategy(strategy_name)
+            strategy_key = strategy.strategy_name
 
-            candidates.append(
-                PlaceVoteSummary(
-                    place_id=p.id,
-                    name=p.name,
-                    category=category_val,
-                    status=status_val,
-                    submitted_by_id=p.submitted_by_id,
-                    estimated_cost=int(p.estimated_cost or 0),
-                    open_minute=p.open_minute,
-                    close_minute=p.close_minute,
-                    created_at=p.created_at,
-                    upvotes=summary["upvotes"],
-                    downvotes=summary["downvotes"],
-                    score=summary["score"],
+            # Xây dựng danh sách PlaceVoteSummary cho hàm resolve
+            candidates: list[PlaceVoteSummary] = []
+            for p in places:
+                summary = vote_summary.get(p.id, {"upvotes": 0, "downvotes": 0, "score": 0})
+                category_val = (
+                    p.category if isinstance(p.category, PlaceCategory) else PlaceCategory(p.category)
                 )
+                status_val = p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(p.status)
+
+                # Chỉ lấy địa điểm chưa bị REJECTED hoặc VISITED
+                if status_val in (PlaceStatus.REJECTED, PlaceStatus.VISITED):
+                    continue
+
+                candidates.append(
+                    PlaceVoteSummary(
+                        place_id=p.id,
+                        name=p.name,
+                        category=category_val,
+                        status=status_val,
+                        submitted_by_id=p.submitted_by_id,
+                        estimated_cost=int(p.estimated_cost or 0),
+                        open_minute=p.open_minute,
+                        close_minute=p.close_minute,
+                        created_at=p.created_at,
+                        upvotes=summary["upvotes"],
+                        downvotes=summary["downvotes"],
+                        score=summary["score"],
+                    )
+                )
+
+            # Tìm danh mục đã được chấp nhận trước đó (cho CategoryDiversity)
+            already_accepted_categories: list[PlaceCategory] = [
+                (p.category if isinstance(p.category, PlaceCategory) else PlaceCategory(p.category))
+                for p in places
+                if (
+                    (p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(p.status))
+                    == PlaceStatus.ACCEPTED
+                )
+            ]
+
+            context = TieBreakContext(
+                room_id=room_id,
+                host_member_id=host_member.id,
+                already_accepted_categories=already_accepted_categories,
             )
 
-        # 6. Tìm danh mục đã được chấp nhận trước đó (cho CategoryDiversity)
-        already_accepted_categories: list[PlaceCategory] = [
-            (p.category if isinstance(p.category, PlaceCategory) else PlaceCategory(p.category))
-            for p in places
-            if (
-                (p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(p.status))
-                == PlaceStatus.ACCEPTED
+            # Áp dụng TieBreak resolve
+            resolved_places, tie_break_applied = resolve_voting_with_tie_break(
+                candidates=candidates,
+                max_accepted_places=max_accepted_places,
+                strategy=strategy,
+                context=context,
             )
-        ]
-
-        context = TieBreakContext(
-            room_id=room_id,
-            host_member_id=host_member.id,
-            already_accepted_categories=already_accepted_categories,
-        )
-
-        # 7. Áp dụng TieBreak resolve
-        resolved_places, tie_break_applied = resolve_voting_with_tie_break(
-            candidates=candidates,
-            max_accepted_places=max_accepted_places,
-            strategy=strategy,
-            context=context,
-        )
 
         old_status_map: dict[UUID, PlaceStatus] = {
             p.id: (p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(p.status))
@@ -368,7 +410,7 @@ class VotingService:
         # 9. Phát sự kiện VotingResolvedEvent
         resolved_event = VotingResolvedEvent(
             room_id=room_id,
-            strategy=strategy.strategy_name,
+            strategy=strategy_key,
             accepted_place_ids=accepted_place_ids,
         )
         await self.event_bus.publish(resolved_event)
@@ -378,7 +420,7 @@ class VotingService:
             room_id,
             {
                 "status": RoomStatus.FINALIZED.value,
-                "tie_break_strategy": strategy.strategy_name,
+                "tie_break_strategy": strategy_key,
             },
         )
 
@@ -387,14 +429,14 @@ class VotingService:
             "%d/%d địa điểm được chấp nhận (tie_break_applied=%s)",
             host_member.id,
             room_id,
-            strategy.strategy_name,
+            strategy_key,
             len(accepted_place_ids),
-            len(candidates),
+            len(resolved_places),
             tie_break_applied,
         )
 
         return {
             "resolved_places": resolved_places_response,
             "tie_break_applied": tie_break_applied,
-            "tie_break_strategy": strategy.strategy_name,
+            "tie_break_strategy": strategy_key,
         }

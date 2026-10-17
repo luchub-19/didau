@@ -7,6 +7,9 @@ from app.domain.patterns.event_bus.bus import (
 )
 from app.domain.patterns.event_bus.events import (
     ConflictDetectedEvent,
+    DecisionProgressEvent,
+    DecisionResolvedEvent,
+    DecisionStartedEvent,
     DomainEvent,
     MemberJoinedEvent,
     MemberLeftEvent,
@@ -26,6 +29,9 @@ from app.domain.patterns.event_bus.handlers import (
 __all__ = [
     "CallableEventHandler",
     "ConflictDetectedEvent",
+    "DecisionProgressEvent",
+    "DecisionResolvedEvent",
+    "DecisionStartedEvent",
     "DomainEvent",
     "IEventBus",
     "IEventHandler",

@@ -77,12 +77,16 @@ def register_websocket_broadcast_handlers(
 
     from app.domain.patterns.event_bus.events import (
         ConflictDetectedEvent,
+        DecisionProgressEvent,
+        DecisionResolvedEvent,
+        DecisionStartedEvent,
         DomainEvent,
         MemberJoinedEvent,
         MemberLeftEvent,
         PlaceAddedEvent,
         PlaceDeletedEvent,
         PlaceStatusChangedEvent,
+        RoomUpdatedEvent,
         ScheduleUpdatedEvent,
         VoteCastEvent,
         VotingResolvedEvent,
@@ -96,8 +100,12 @@ def register_websocket_broadcast_handlers(
     event_bus.register(VoteCastEvent, handler)
     event_bus.register(PlaceStatusChangedEvent, handler)
     event_bus.register(VotingResolvedEvent, handler)
+    event_bus.register(RoomUpdatedEvent, handler)
     event_bus.register(ScheduleUpdatedEvent, handler)
     event_bus.register(ConflictDetectedEvent, handler)
+    event_bus.register(DecisionStartedEvent, handler)
+    event_bus.register(DecisionProgressEvent, handler)
+    event_bus.register(DecisionResolvedEvent, handler)
     return handler
 
 

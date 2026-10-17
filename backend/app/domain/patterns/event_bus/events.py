@@ -6,7 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.id_generator import generate_uuid
 from app.core.time_utils import now_utc
-from app.domain.enums import MemberRole, PlaceCategory, PlaceStatus
+from app.domain.enums import (
+    DecisionMode,
+    DecisionStatus,
+    MemberRole,
+    PlaceCategory,
+    PlaceStatus,
+)
 
 
 def _extract_attr(obj: Any, attr: str, default: Any = None) -> Any:
@@ -312,3 +318,71 @@ class ConflictDetectedEvent(DomainEvent):
 
     def to_envelope_payload(self) -> dict[str, Any]:
         return {"conflicts": self.conflicts}
+
+
+class DecisionStartedEvent(DomainEvent):
+    """Sự kiện phiên chọn hộ bắt đầu (DECISION_STARTED, CR-02)."""
+
+    session_id: UUID
+    mode: DecisionMode | str
+    candidate_place_ids: list[Any] = Field(default_factory=list)
+    seed: int
+    result_place_id: UUID | None = None
+    result_payload: dict[str, Any] | None = None
+    closes_at: datetime | None = None
+
+    @property
+    def event_type(self) -> str:
+        return "DECISION_STARTED"
+
+    def to_envelope_payload(self) -> dict[str, Any]:
+        mode_val = self.mode.value if isinstance(self.mode, DecisionMode) else str(self.mode)
+        return {
+            "session_id": str(self.session_id),
+            "mode": mode_val,
+            "candidate_place_ids": [str(pid) for pid in self.candidate_place_ids],
+            "seed": self.seed,
+            "result_place_id": str(self.result_place_id) if self.result_place_id else None,
+            "result_payload": self.result_payload,
+            "closes_at": self.closes_at.isoformat() if self.closes_at else None,
+        }
+
+
+class DecisionProgressEvent(DomainEvent):
+    """Sự kiện cập nhật tiến độ người đã swipe (DECISION_PROGRESS, CR-02)."""
+
+    session_id: UUID
+    done_member_ids: list[Any] = Field(default_factory=list)
+    total_members: int
+
+    @property
+    def event_type(self) -> str:
+        return "DECISION_PROGRESS"
+
+    def to_envelope_payload(self) -> dict[str, Any]:
+        return {
+            "session_id": str(self.session_id),
+            "done_member_ids": [str(mid) for mid in self.done_member_ids],
+            "total_members": self.total_members,
+        }
+
+
+class DecisionResolvedEvent(DomainEvent):
+    """Sự kiện phiên chọn hộ đã chốt kết quả (DECISION_RESOLVED, CR-02)."""
+
+    session_id: UUID
+    result_place_id: UUID | None = None
+    status: DecisionStatus | str = DecisionStatus.RESOLVED
+
+    @property
+    def event_type(self) -> str:
+        return "DECISION_RESOLVED"
+
+    def to_envelope_payload(self) -> dict[str, Any]:
+        status_val = self.status.value if isinstance(self.status, DecisionStatus) else str(self.status)
+        return {
+            "session_id": str(self.session_id),
+            "result_place_id": str(self.result_place_id) if self.result_place_id else None,
+            "status": status_val,
+        }
+
