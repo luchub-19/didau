@@ -376,6 +376,7 @@ Khi có lỗi (status $\ge 400$):
 }
 ```
 - **Error Codes**: `ROOM_NOT_FOUND` (404), `NICKNAME_TAKEN` (409).
+- Ghi chú (CR-02): `room` và response của #1, #3 còn mang `city`, `origin_lat`, `origin_lng`, `start_minute`, `end_minute`.
 
 #### 3. Lấy toàn bộ thông tin phòng
 - **Method & Path**: `GET /api/v1/rooms/{room_id}`
@@ -689,6 +690,16 @@ Khi có lỗi (status $\ge 400$):
 - **Payload**: `{ "plan_hash": "...", "slots": [...] }`
 - **Response 200 OK**: Trả về schedule items và kích hoạt `SCHEDULE_UPDATED` + `CONFLICTS_UPDATED`. 409 nếu `plan_hash` không khớp.
 
+#### 27. Cập nhật cấu hình phòng (CR-03)
+- **Method & Path**: `PATCH /api/v1/rooms/{room_id}`
+- **Auth**: Header `X-Member-Token: <token>` (Host only)
+- **Payload**: mọi trường tuỳ chọn: `title`, `description`, `event_date`, `budget_limit`, `tie_break_strategy`, `city`, `origin_lat`, `origin_lng`, `start_minute`, `end_minute`
+- **Response 200 OK**: `RoomResponse`; phát WS `ROOM_UPDATED`.
+- **Error Codes**: `FORBIDDEN_HOST_ONLY` (403), `VALIDATION_ERROR` (422).
+
+#### Mã lỗi bổ sung (CR-03)
+- `PLACE_ALREADY_ADDED` (409): `POST /rooms/{room_id}/places` trùng `(room_id, external_id)`; `details.place_id` là id quán đã có.
+
 ---
 
 ## 4. GIAO THỨC VÀ SỰ KIỆN WEBSOCKET (WEBSOCKET CONTRACT)
@@ -725,6 +736,7 @@ Khi có lỗi (status $\ge 400$):
 | `VOTING_RESOLVED` | Chủ phòng đã chốt kết quả vote | `{ "strategy": "MOST_UPVOTES", "accepted_place_ids": ["..."] }` |
 | `SCHEDULE_UPDATED` | Lịch trình thời gian thay đổi | `{ "items": [ {...}, {...} ] }` |
 | `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới | `{ "conflicts": [ {...} ] }` |
+| `ROOM_UPDATED` | Cấu hình phòng thay đổi (CR-03) | `{ "room": {...} }` |
 | `DECISION_STARTED` | Phiên chọn hộ bắt đầu (CR-02) | `{ "session_id": "...", "mode": "WHEEL", "candidate_place_ids": [...], "seed": 812734, "result_place_id": "...", "result_payload": {"stop_angle_deg": 1532.5}, "closes_at": null }` |
 | `DECISION_PROGRESS`| Cập nhật tiến độ người đã swipe (CR-02) | `{ "session_id": "...", "done_member_ids": ["..."], "total_members": 5 }` |
 | `DECISION_RESOLVED`| Phiên chọn hộ đã chốt (CR-02) | `{ "session_id": "...", "result_place_id": "...", "status": "RESOLVED" }` |
@@ -1030,7 +1042,12 @@ export type TieBreakStrategyName =
   | 'MOST_UPVOTES'
   | 'CREATOR_PRIORITY'
   | 'RANDOM'
-  | 'CATEGORY_DIVERSITY';
+  | 'CATEGORY_DIVERSITY'
+  | 'GROUP_DECISION'; // CR-02
+
+export type PlaceSource = 'MANUAL' | 'OSM' | 'GOOGLE'; // CR-02
+export type CityCode = 'HCM' | 'HN'; // CR-02
+export type DecisionMode = 'SMART' | 'WHEEL' | 'SWIPE' | 'LADDER'; // CR-02
 
 // frontend/src/types/models.ts
 
@@ -1043,6 +1060,11 @@ export interface Room {
   status: RoomStatus;
   tie_break_strategy: TieBreakStrategyName;
   budget_limit?: number | null;
+  city?: CityCode | string; // CR-02
+  origin_lat?: number | null; // CR-02
+  origin_lng?: number | null; // CR-02
+  start_minute?: number; // CR-02, mặc định 1020 (17:00)
+  end_minute?: number; // CR-02, mặc định 1380 (23:00)
   created_at: string;
   updated_at: string;
 }
@@ -1068,6 +1090,13 @@ export interface Place {
   longitude?: number | null;
   category: PlaceCategory;
   status: PlaceStatus;
+  source?: PlaceSource; // CR-02
+  external_id?: string | null; // CR-02
+  google_place_id?: string | null; // CR-02
+  cuisine?: string | null; // CR-02
+  opening_hours_raw?: string | null; // CR-02
+  coords_source?: string | null; // CR-02
+  coords_fetched_at?: string | null; // CR-02
   url?: string | null;
   notes?: string | null;
   estimated_cost: number;
@@ -1078,7 +1107,7 @@ export interface Place {
   score: number;
   current_user_vote: VoteValue;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface ScheduleItem {
@@ -1123,6 +1152,11 @@ export interface CreateRoomRequest {
   creator_avatar_url?: string;
   budget_limit?: number;
   tie_break_strategy?: TieBreakStrategyName;
+  city?: CityCode; // CR-02
+  origin_lat?: number; // CR-02
+  origin_lng?: number; // CR-02
+  start_minute?: number; // CR-02
+  end_minute?: number; // CR-02
 }
 
 export interface CreateRoomResponse {
@@ -1154,6 +1188,12 @@ export interface CreatePlaceRequest {
   estimated_cost?: number;
   open_minute?: number;
   close_minute?: number;
+  source?: PlaceSource; // CR-02
+  external_id?: string; // CR-02
+  google_place_id?: string; // CR-02
+  cuisine?: string; // CR-02
+  opening_hours_raw?: string; // CR-02
+  coords_source?: string; // CR-02
 }
 
 export interface VoteRequest {

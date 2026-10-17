@@ -216,3 +216,25 @@ class IPoiProvider(ABC):
 2. **T-10**: `voting_service.resolve` chấp nhận `GROUP_DECISION` cùng danh sách quán thắng chỉ định sẵn.
 3. **T-11**: `schedule_service` thêm `replace_all()` (transaction).
 4. **T-15/T-16**: types, MSW và API client mở rộng (T-24).
+
+---
+
+## CR-03: Bổ sung `PATCH /rooms/{room_id}` và mã lỗi `PLACE_ALREADY_ADDED`
+
+- **Người đề xuất**: Session review tích hợp (2026-10-17)
+- **Ngày tạo**: 2026-10-17
+- **Trạng thái**: ACCEPTED (ĐÃ CHẤP NHẬN, chưa triển khai)
+- **Ngày duyệt**: 2026-10-17
+- **Quyết định**: CHẤP NHẬN nguyên đề xuất. Đã cập nhật `CONTRACTS.md` (endpoint #27, sự kiện `ROOM_UPDATED`, mã lỗi `PLACE_ALREADY_ADDED`). Code triển khai giao cho T-27 (BE: route + `RoomService.update_room` + 409 trong `add_place`), kèm test.
+- **Task đã DONE bị ảnh hưởng**: T-08 (thêm route + `RoomService.update_room`); T-23 (`UpdateRoomRequest` đã có sẵn nhưng chưa có route dùng).
+- **Task TODO cần**: T-27 ("Host kéo ghim điểm hẹn để `PATCH room`"), T-28.
+
+### 1. Vấn đề
+1. CR-02 §3 viết "`PATCH /rooms/{id}` nhận thêm `origin_lat`, `origin_lng`, `city`, `start_minute`, `end_minute`" như thể endpoint đã tồn tại, nhưng CONTRACTS mục 3.3 chưa bao giờ có nó và T-08 không làm. Hiện `PATCH /api/v1/rooms/{id}` trả 405. Không task nào đang sở hữu việc này, trong khi T-27 và T-35 (đọc `room.start_minute`/`end_minute`/`origin_*`) phụ thuộc vào nó.
+2. `POST /rooms/{id}/places` với `external_id` đã có trong phòng chạm `uq_places_room_external` và trả 500 (IntegrityError không được bắt). Bấm đúp "Thêm vào lựa chọn" ở T-28 sẽ gặp lỗi này.
+
+### 2. Đề xuất
+- `PATCH /api/v1/rooms/{room_id}` (Host only). Body = `UpdateRoomRequest` (mọi trường tuỳ chọn). Response 200 = `RoomResponse`. Phát WS `ROOM_UPDATED` `{ "room": {...} }` (sự kiện mới, cần thêm vào mục 4.2).
+- Mã lỗi `PLACE_ALREADY_ADDED` (409, `details.place_id` = id quán đã có) cho `POST /places` khi trùng `(room_id, external_id)`.
+- Tương thích ngược: chỉ thêm route, thêm sự kiện và thêm mã lỗi.
+

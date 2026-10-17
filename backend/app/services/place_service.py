@@ -9,7 +9,7 @@ from app.core.exceptions import (
     RoomStatusInvalidError,
     ValidationError,
 )
-from app.domain.enums import MemberRole, PlaceCategory, PlaceStatus, RoomStatus
+from app.domain.enums import MemberRole, PlaceCategory, PlaceSource, PlaceStatus, RoomStatus
 from app.domain.models.member import Member
 from app.domain.models.place import Place
 from app.domain.patterns.category_detector import (
@@ -85,6 +85,15 @@ class PlaceService:
             "estimated_cost": int(place.estimated_cost or 0),
             "open_minute": place.open_minute,
             "close_minute": place.close_minute,
+            "source": (
+                place.source.value if isinstance(place.source, PlaceSource) else str(place.source)
+            ),
+            "external_id": place.external_id,
+            "google_place_id": place.google_place_id,
+            "cuisine": place.cuisine,
+            "opening_hours_raw": place.opening_hours_raw,
+            "coords_source": place.coords_source,
+            "coords_fetched_at": place.coords_fetched_at,
             "upvotes": upvotes,
             "downvotes": downvotes,
             "score": score,
@@ -150,6 +159,9 @@ class PlaceService:
                 else str(detected_category)
             )
 
+        raw_source = data.get("source")
+        source_str = str(getattr(raw_source, "value", raw_source) or PlaceSource.MANUAL.value)
+
         # 5. Lưu vào cơ sở dữ liệu
         place_data = {
             "room_id": room_id,
@@ -165,6 +177,12 @@ class PlaceService:
             "estimated_cost": data.get("estimated_cost") or 0,
             "open_minute": data.get("open_minute"),
             "close_minute": data.get("close_minute"),
+            "source": source_str,
+            "external_id": data.get("external_id"),
+            "google_place_id": data.get("google_place_id"),
+            "cuisine": data.get("cuisine"),
+            "opening_hours_raw": data.get("opening_hours_raw"),
+            "coords_source": data.get("coords_source"),
         }
         place = await self.place_repo.create(place_data)
 

@@ -56,6 +56,8 @@ export function useWebSocket(roomId?: string) {
     // Listen to status changes
     const unsubStatus = client.onStatusChange((status) => {
       setConnectionStatus(status);
+      // Server chỉ gửi ROOM_STATE_SYNC khi nhận SUBSCRIBE_ROOM: xin đồng bộ mỗi lần (re)connect
+      if (status === 'OPEN') client.send('SUBSCRIBE_ROOM', { room_id: roomId });
     });
 
     // Subscriptions to domain events

@@ -564,3 +564,32 @@ async def test_delete_place_forbidden_for_other_member(client: AsyncClient) -> N
     )
     assert del_res.status_code == 403
     assert del_res.json()["error"]["code"] == "FORBIDDEN_HOST_ONLY"
+
+
+@pytest.mark.asyncio
+async def test_create_place_persists_cr02_fields(client: AsyncClient) -> None:
+    """CreatePlaceRequest nhận trường CR-02 (source, external_id, ...) thì phải lưu và trả lại đúng."""
+    room_data = await _create_room(client, "NamHost")
+    room_id = room_data["room"]["id"]
+    headers = {"X-Member-Token": room_data["member_token"]}
+
+    response = await client.post(
+        f"/api/v1/rooms/{room_id}/places",
+        json={
+            "name": "Quán X",
+            "source": "OSM",
+            "external_id": "osm:node/1",
+            "cuisine": "vietnamese",
+            "opening_hours_raw": "Mo-Su 08:00-22:00",
+            "coords_source": "OSM",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["source"] == "OSM"
+    assert body["external_id"] == "osm:node/1"
+    assert body["cuisine"] == "vietnamese"
+    assert body["opening_hours_raw"] == "Mo-Su 08:00-22:00"
+    assert body["coords_source"] == "OSM"
