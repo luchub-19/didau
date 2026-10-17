@@ -65,3 +65,47 @@ class TieBreakStrategyName(str, Enum):
     CREATOR_PRIORITY = "CREATOR_PRIORITY"
     RANDOM = "RANDOM"
     CATEGORY_DIVERSITY = "CATEGORY_DIVERSITY"
+    GROUP_DECISION = "GROUP_DECISION"
+
+
+class PlaceSource(str, Enum):
+    """Nguồn gốc dữ liệu của địa điểm theo CR-02."""
+
+    MANUAL = "MANUAL"
+    OSM = "OSM"
+    GOOGLE = "GOOGLE"
+
+
+class CityCode(str, Enum):
+    """Mã thành phố hỗ trợ cho phòng."""
+
+    HCM = "HCM"
+    HN = "HN"
+
+
+class DecisionMode(str, Enum):
+    """Chế độ quyết định chọn hộ."""
+
+    SMART = "SMART"
+    WHEEL = "WHEEL"
+    SWIPE = "SWIPE"
+    LADDER = "LADDER"
+
+
+class DecisionStatus(str, Enum):
+    """Trạng thái phiên quyết định chọn hộ."""
+
+    OPEN = "OPEN"
+    RESOLVED = "RESOLVED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
+
+
+class TriggerHint(str, Enum):
+    """Gợi ý kích hoạt tính năng Chọn hộ."""
+
+    TIE_AT_TOP = "TIE_AT_TOP"
+    NEAR_TIE = "NEAR_TIE"
+    TOO_MANY = "TOO_MANY"
+    STALLED = "STALLED"
+    EMPTY = "EMPTY"

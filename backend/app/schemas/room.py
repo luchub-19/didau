@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.enums import RoomStatus, TieBreakStrategyName
+from app.domain.enums import CityCode, RoomStatus, TieBreakStrategyName
 from app.schemas.member import MemberResponse, RoomDetailMemberResponse
 
 
@@ -22,6 +22,43 @@ class CreateRoomRequest(BaseModel):
         default=TieBreakStrategyName.EARLIEST_SUBMISSION,
         description="Chiến lược phân định hòa phiếu",
     )
+    city: CityCode | str = Field(
+        default=CityCode.HCM,
+        description="Thành phố tổ chức (HCM | HN)",
+    )
+    origin_lat: float | None = Field(
+        default=None, ge=-90.0, le=90.0, description="Vĩ độ điểm tập trung/hẹn"
+    )
+    origin_lng: float | None = Field(
+        default=None, ge=-180.0, le=180.0, description="Kinh độ điểm tập trung/hẹn"
+    )
+    start_minute: int = Field(
+        default=1020,
+        ge=0,
+        le=1439,
+        description="Giờ bắt đầu khung thời gian phòng (phút)",
+    )
+    end_minute: int = Field(
+        default=1380,
+        ge=0,
+        le=1439,
+        description="Giờ kết thúc khung thời gian phòng (phút)",
+    )
+
+
+class UpdateRoomRequest(BaseModel):
+    """Payload cập nhật cấu hình phòng (PATCH) theo CR-02."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    event_date: date | None = None
+    budget_limit: int | None = Field(default=None, ge=0)
+    tie_break_strategy: TieBreakStrategyName | str | None = None
+    city: CityCode | str | None = None
+    origin_lat: float | None = Field(default=None, ge=-90.0, le=90.0)
+    origin_lng: float | None = Field(default=None, ge=-180.0, le=180.0)
+    start_minute: int | None = Field(default=None, ge=0, le=1439)
+    end_minute: int | None = Field(default=None, ge=0, le=1439)
 
 
 class RoomResponse(BaseModel):
@@ -35,6 +72,11 @@ class RoomResponse(BaseModel):
     status: RoomStatus | str = RoomStatus.PLANNING
     tie_break_strategy: TieBreakStrategyName | str = TieBreakStrategyName.EARLIEST_SUBMISSION
     budget_limit: int | None = None
+    city: str = CityCode.HCM.value
+    origin_lat: float | None = None
+    origin_lng: float | None = None
+    start_minute: int = 1020
+    end_minute: int = 1380
     created_at: datetime
     updated_at: datetime | None = None
 
@@ -76,6 +118,11 @@ class RoomDetailResponse(BaseModel):
     status: RoomStatus | str = RoomStatus.PLANNING
     tie_break_strategy: TieBreakStrategyName | str = TieBreakStrategyName.EARLIEST_SUBMISSION
     budget_limit: int | None = None
+    city: str = CityCode.HCM.value
+    origin_lat: float | None = None
+    origin_lng: float | None = None
+    start_minute: int = 1020
+    end_minute: int = 1380
     members: list[RoomDetailMemberResponse] = Field(default_factory=list)
     total_places: int = 0
     created_at: datetime

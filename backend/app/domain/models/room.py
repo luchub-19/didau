@@ -2,16 +2,29 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import BigInteger, Date, DateTime, Index, String, Text, Uuid, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.core.id_generator import generate_room_code, generate_uuid
 from app.core.time_utils import now_utc
-from app.domain.enums import RoomStatus, TieBreakStrategyName
+from app.domain.enums import CityCode, RoomStatus, TieBreakStrategyName
 
 if TYPE_CHECKING:
     from app.domain.models.conflict import Conflict
+    from app.domain.models.decision import DecisionSession
     from app.domain.models.member import Member
     from app.domain.models.place import Place
     from app.domain.models.schedule import ScheduleItem
@@ -22,6 +35,14 @@ class Room(Base):
 
     __tablename__ = "rooms"
     __table_args__ = (
+        CheckConstraint(
+            "start_minute >= 0 AND start_minute <= 1439",
+            name="chk_rooms_start_minute",
+        ),
+        CheckConstraint(
+            "end_minute >= 0 AND end_minute <= 1439",
+            name="chk_rooms_end_minute",
+        ),
         Index("idx_rooms_code", "code"),
         Index("idx_rooms_status", "status"),
     )
@@ -65,6 +86,32 @@ class Room(Base):
         BigInteger,
         nullable=True,
     )
+    city: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default=CityCode.HCM.value,
+        server_default=CityCode.HCM.value,
+    )
+    origin_lat: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    origin_lng: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    start_minute: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1020,
+        server_default="1020",
+    )
+    end_minute: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1380,
+        server_default="1380",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -100,6 +147,12 @@ class Room(Base):
     )
     conflicts: Mapped[list["Conflict"]] = relationship(
         "Conflict",
+        back_populates="room",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    decision_sessions: Mapped[list["DecisionSession"]] = relationship(
+        "DecisionSession",
         back_populates="room",
         cascade="all, delete-orphan",
         passive_deletes=True,

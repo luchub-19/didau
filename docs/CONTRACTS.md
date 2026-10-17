@@ -50,7 +50,44 @@ Trạng thái hoạt động của phòng:
 - `COMPLETED`: Buổi đi chơi đã diễn ra xong.
 - `ARCHIVED`: Phòng đã đóng và lưu trữ.
 
+### 1.7. `PlaceSource` (CR-02)
+Nguồn gốc dữ liệu của địa điểm:
+- `MANUAL`: Địa điểm do người dùng tự nhập thủ công hoặc dán URL.
+- `OSM`: Địa điểm trích xuất từ dữ liệu OpenStreetMap snapshot.
+- `GOOGLE`: Địa điểm tra cứu và liên kết với Google Places API / UI Kit.
+
+### 1.8. `CityCode` (CR-02)
+Mã thành phố hỗ trợ cho phòng:
+- `HCM`: Thành phố Hồ Chí Minh.
+- `HN`: Thủ đô Hà Nội.
+
+### 1.9. `DecisionMode` (CR-02)
+Chế độ quyết định chọn hộ khi hòa phiếu hoặc phân vân:
+- `SMART`: Gợi ý thông minh 1 chạm theo điểm số và trọng số ngữ cảnh.
+- `WHEEL`: Vòng quay may mắn realtime.
+- `SWIPE`: Quẹt thẻ bình chọn nhanh (Tinder-style swipe deck).
+- `LADDER`: Trò chơi Thang may mắn (Ghost Leg / Amidakuji).
+
+### 1.10. `DecisionStatus` (CR-02)
+Trạng thái của phiên quyết định chọn hộ:
+- `OPEN`: Đang diễn ra, chờ thành viên tương tác.
+- `RESOLVED`: Đã chốt kết quả thành công.
+- `CANCELLED`: Phiên bị hủy bởi Host.
+- `EXPIRED`: Hết hạn thời gian đóng phiên (`closes_at`).
+
+### 1.11. `TriggerHint` (CR-02)
+Gợi ý kích hoạt tính năng Chọn hộ:
+- `TIE_AT_TOP`: Hòa phiếu ở nhóm địa điểm dẫn đầu.
+- `NEAR_TIE`: Điểm số sít sao giữa các địa điểm top đầu.
+- `TOO_MANY`: Quá nhiều địa điểm được đề xuất gây phân vân.
+- `STALLED`: Bình chọn bị trì trệ, không có hoạt động mới.
+- `EMPTY`: Phòng chưa có địa điểm nào được thêm.
+
+### 1.12. `TieBreakStrategyName` bổ sung (CR-02)
+- `GROUP_DECISION`: Phân định theo kết quả phiên Chọn hộ nhóm (Vòng quay / Swipe / Thang / Gợi ý 1 chạm).
+
 ---
+
 
 ## 2. SCHEMA CƠ SỞ DỮ LIỆU (DATABASE SCHEMA DDL)
 
@@ -70,6 +107,11 @@ CREATE TABLE rooms (
     status VARCHAR(30) NOT NULL DEFAULT 'PLANNING',
     tie_break_strategy VARCHAR(50) NOT NULL DEFAULT 'EARLIEST_SUBMISSION',
     budget_limit BIGINT NULL,
+    city VARCHAR(10) NOT NULL DEFAULT 'HCM',
+    origin_lat DOUBLE PRECISION NULL,
+    origin_lng DOUBLE PRECISION NULL,
+    start_minute INTEGER NOT NULL DEFAULT 1020 CHECK (start_minute >= 0 AND start_minute <= 1439),
+    end_minute INTEGER NOT NULL DEFAULT 1380 CHECK (end_minute >= 0 AND end_minute <= 1439),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -105,6 +147,13 @@ CREATE TABLE places (
     longitude DOUBLE PRECISION NULL,
     category VARCHAR(50) NOT NULL DEFAULT 'OTHER',
     status VARCHAR(30) NOT NULL DEFAULT 'PROPOSED',
+    source VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
+    external_id VARCHAR(100) NULL,
+    google_place_id VARCHAR(300) NULL,
+    cuisine VARCHAR(100) NULL,
+    opening_hours_raw VARCHAR(255) NULL,
+    coords_source VARCHAR(20) NULL,
+    coords_fetched_at TIMESTAMP WITH TIME ZONE NULL,
     url VARCHAR(1000) NULL,
     notes TEXT NULL,
     estimated_cost BIGINT NULL DEFAULT 0,
@@ -117,6 +166,7 @@ CREATE TABLE places (
 CREATE INDEX idx_places_room_id ON places(room_id);
 CREATE INDEX idx_places_status ON places(status);
 CREATE INDEX idx_places_category ON places(category);
+CREATE UNIQUE INDEX uq_places_room_external ON places(room_id, external_id) WHERE external_id IS NOT NULL;
 
 -- 4. BẢNG VOTES (Bình chọn địa điểm)
 CREATE TABLE votes (
@@ -166,6 +216,60 @@ CREATE TABLE conflicts (
 
 CREATE INDEX idx_conflicts_room_id ON conflicts(room_id);
 CREATE INDEX idx_conflicts_resolved ON conflicts(resolved);
+
+-- 7. BẢNG EXTERNAL_PLACE_LINKS (Bộ đệm liên kết OSM và Google Place ID)
+CREATE TABLE external_place_links (
+    osm_external_id VARCHAR(100) PRIMARY KEY,
+    google_place_id VARCHAR(300) NULL,
+    matched_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    rejected_count INTEGER NOT NULL DEFAULT 0
+);
+
+-- 8. BẢNG PLACE_REVIEWS (Đánh giá nội bộ của các thành viên)
+CREATE TABLE place_reviews (
+    id UUID PRIMARY KEY,
+    external_key VARCHAR(320) NOT NULL,
+    room_id UUID REFERENCES rooms(id) ON DELETE SET NULL,
+    member_id UUID REFERENCES members(id) ON DELETE SET NULL,
+    nickname VARCHAR(50) NOT NULL,
+    rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment VARCHAR(280) NULL,
+    tags JSON NOT NULL DEFAULT '[]'::json,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_place_reviews_member_external_key UNIQUE (member_id, external_key)
+);
+
+CREATE INDEX idx_reviews_external_key ON place_reviews(external_key);
+
+-- 9. BẢNG DECISION_SESSIONS (Phiên giải quyết chọn hộ)
+CREATE TABLE decision_sessions (
+    id UUID PRIMARY KEY,
+    room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    mode VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    category VARCHAR(50) NULL,
+    candidate_place_ids JSON NOT NULL,
+    seed BIGINT NOT NULL,
+    result_place_id UUID REFERENCES places(id) ON DELETE SET NULL,
+    result_payload JSON NULL,
+    created_by_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closes_at TIMESTAMP WITH TIME ZONE NULL
+);
+
+CREATE INDEX idx_decision_sessions_room_id ON decision_sessions(room_id);
+CREATE INDEX idx_decision_sessions_status ON decision_sessions(status);
+CREATE UNIQUE INDEX uq_decision_open_per_room ON decision_sessions(room_id) WHERE status = 'OPEN';
+
+-- 10. BẢNG DECISION_SWIPES (Lá phiếu quẹt trong phiên SWIPE)
+CREATE TABLE decision_swipes (
+    session_id UUID NOT NULL REFERENCES decision_sessions(id) ON DELETE CASCADE,
+    member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    place_id UUID NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+    liked BOOLEAN NOT NULL,
+    CONSTRAINT pk_decision_swipes PRIMARY KEY (session_id, member_id, place_id)
+);
 ```
 
 ---
@@ -517,6 +621,74 @@ Khi có lỗi (status $\ge 400$):
 ]
 ```
 
+#### 13. Danh sách POI theo Bounding Box (CR-02)
+- **Method & Path**: `GET /api/v1/pois?bbox={min_lat,min_lng,max_lat,max_lng}&category={category}&limit={limit}`
+- **Auth**: Công khai.
+
+#### 14. Tìm kiếm POI không dấu (CR-02)
+- **Method & Path**: `GET /api/v1/pois/search?q={query}&lat={lat}&lng={lng}&limit={limit}`
+- **Auth**: Công khai.
+
+#### 15. Chi tiết một POI (CR-02)
+- **Method & Path**: `GET /api/v1/pois/{external_id}`
+- **Auth**: Công khai.
+
+#### 16. Khớp Google Place ID (CR-02)
+- **Method & Path**: `POST /api/v1/pois/google-match`
+- **Auth**: Header `X-Member-Token: <token>`
+- **Payload**: `{ "external_id": "osm:node/123", "name": "Cơm Tấm Ba Ghiền", "lat": 10.7933, "lng": 106.6664 }`
+- **Response 200 OK**: `{ "google_place_id": "ChIJ...", "reason": "OK" }`
+
+#### 17. Báo sai khớp Google Place ID (CR-02)
+- **Method & Path**: `DELETE /api/v1/pois/google-match/{external_id}`
+- **Auth**: Header `X-Member-Token: <token>`
+
+#### 18. Lấy đánh giá nội bộ (CR-02)
+- **Method & Path**: `GET /api/v1/reviews?external_key={external_key}`
+- **Auth**: Công khai.
+- **Response 200 OK**: `{ "avg": 4.5, "count": 2, "tags_top3": ["ngon", "rẻ"], "items": [...] }`
+
+#### 19. Đăng / cập nhật đánh giá nội bộ (CR-02)
+- **Method & Path**: `PUT /api/v1/reviews`
+- **Auth**: Header `X-Member-Token: <token>`
+- **Payload**: `{ "external_key": "osm:node/123", "rating": 5, "comment": "Ngon tuyệt", "tags": ["ngon"] }`
+
+#### 20. Lấy gợi ý Chọn hộ (CR-02)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/decisions/hints`
+- **Auth**: Header `X-Member-Token: <token>`
+- **Response 200 OK**: `{ "hints": [...], "smart_picks": [...] }`
+
+#### 21. Tạo phiên Chọn hộ (CR-02)
+- **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions`
+- **Auth**: Header `X-Member-Token: <token>` (Host only)
+- **Payload**: `{ "mode": "WHEEL", "category": "FOOD", "candidate_place_ids": ["..."], "weighted": false }`
+- **Response 201 Created**: `{ "session": {...}, "seed": 123456789, "result_place_id": "...", "result_payload": {...} }`
+
+#### 22. Quẹt thẻ bình chọn Swipe (CR-02)
+- **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions/{session_id}/swipes`
+- **Auth**: Header `X-Member-Token: <token>`
+- **Payload**: `{ "place_id": "...", "liked": true }`
+
+#### 23. Chấp nhận kết quả phiên Chọn hộ (CR-02)
+- **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions/{session_id}/accept`
+- **Auth**: Header `X-Member-Token: <token>` (Host only)
+
+#### 24. Hủy phiên Chọn hộ (CR-02)
+- **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions/{session_id}/cancel`
+- **Auth**: Header `X-Member-Token: <token>` (Host only)
+
+#### 25. Xem trước lịch trình tự động (Auto-plan Preview) (CR-02)
+- **Method & Path**: `POST /api/v1/rooms/{room_id}/schedule/auto-plan`
+- **Auth**: Header `X-Member-Token: <token>`
+- **Payload**: `{ "day_offset": 0, "duration_overrides": {} }`
+- **Response 200 OK**: `{ "slots": [...], "dropped": [...], "total_travel_min": 25, "total_cost": 300000, "used_fallback": false, "plan_hash": "..." }`
+
+#### 26. Áp dụng lịch trình tự động (Auto-plan Apply) (CR-02)
+- **Method & Path**: `POST /api/v1/rooms/{room_id}/schedule/auto-plan/apply`
+- **Auth**: Header `X-Member-Token: <token>` (Host only)
+- **Payload**: `{ "plan_hash": "...", "slots": [...] }`
+- **Response 200 OK**: Trả về schedule items và kích hoạt `SCHEDULE_UPDATED` + `CONFLICTS_UPDATED`. 409 nếu `plan_hash` không khớp.
+
 ---
 
 ## 4. GIAO THỨC VÀ SỰ KIỆN WEBSOCKET (WEBSOCKET CONTRACT)
@@ -553,8 +725,12 @@ Khi có lỗi (status $\ge 400$):
 | `VOTING_RESOLVED` | Chủ phòng đã chốt kết quả vote | `{ "strategy": "MOST_UPVOTES", "accepted_place_ids": ["..."] }` |
 | `SCHEDULE_UPDATED` | Lịch trình thời gian thay đổi | `{ "items": [ {...}, {...} ] }` |
 | `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới | `{ "conflicts": [ {...} ] }` |
+| `DECISION_STARTED` | Phiên chọn hộ bắt đầu (CR-02) | `{ "session_id": "...", "mode": "WHEEL", "candidate_place_ids": [...], "seed": 812734, "result_place_id": "...", "result_payload": {"stop_angle_deg": 1532.5}, "closes_at": null }` |
+| `DECISION_PROGRESS`| Cập nhật tiến độ người đã swipe (CR-02) | `{ "session_id": "...", "done_member_ids": ["..."], "total_members": 5 }` |
+| `DECISION_RESOLVED`| Phiên chọn hộ đã chốt (CR-02) | `{ "session_id": "...", "result_place_id": "...", "status": "RESOLVED" }` |
 
 ---
+
 
 ## 5. CHỮ KÝ PYTHON (INTERFACES, REPOSITORIES & SERVICES)
 
@@ -786,13 +962,31 @@ class IWebSocketConnectionManager(ABC):
 
 
 # ==========================================
-# 6. PHASE 2 ABSTRACT INTERFACES (STUBS ONLY)
+# 6. PHASE 2 ABSTRACT INTERFACES
 # ==========================================
 
+class ITravelTimeEstimator(ABC):
+    """Ước lượng thời gian di chuyển giữa 2 toạ độ (CR-02)."""
+    @abstractmethod
+    def minutes(self, a: tuple[float, float], b: tuple[float, float]) -> int: pass
+
 class IRouteOptimizationService(ABC):
-    """Phase 2: Thuật toán tối ưu hóa lộ trình di chuyển qua nhiều địa điểm."""
+    """Thuật toán tối ưu hóa lộ trình di chuyển và tự động lên lịch trình (CR-02)."""
     @abstractmethod
     async def optimize_route(self, place_ids: List[UUID]) -> List[UUID]: pass
+
+    @abstractmethod
+    async def plan_day(
+        self, places: List[PlaceVoteSummary], constraints: Any
+    ) -> tuple[List[Any], List[Any]]: pass
+
+class IPoiProvider(ABC):
+    """Cung cấp dữ liệu POI từ snapshot OSM (CR-02)."""
+    @abstractmethod
+    def in_bbox(self, bbox: tuple[float, float, float, float], category: Optional[PlaceCategory], limit: int) -> List[Any]: pass
+
+    @abstractmethod
+    def search(self, q: str, near: Optional[tuple[float, float]], limit: int) -> List[Any]: pass
 
 class IExternalPlacesProvider(ABC):
     """Phase 2: Đồng bộ trực tiếp Google Places / OpenStreetMap."""

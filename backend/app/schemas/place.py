@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.enums import PlaceCategory, PlaceStatus
+from app.domain.enums import PlaceCategory, PlaceSource, PlaceStatus
 
 
 class PlaceSubmitter(BaseModel):
@@ -35,6 +35,23 @@ class CreatePlaceRequest(BaseModel):
     close_minute: int | None = Field(
         default=None, ge=0, le=1439, description="Giờ đóng cửa (phút tính từ 00:00)"
     )
+    source: PlaceSource = Field(
+        default=PlaceSource.MANUAL,
+        description="Nguồn dữ liệu địa điểm (MANUAL | OSM | GOOGLE)",
+    )
+    external_id: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Mã định danh nguồn ngoài (osm:node/123 | google:place_id)",
+    )
+    google_place_id: str | None = Field(default=None, max_length=300, description="Google Place ID")
+    cuisine: str | None = Field(default=None, max_length=100, description="Ẩm thực/chuyên món")
+    opening_hours_raw: str | None = Field(
+        default=None, max_length=255, description="Chuỗi opening_hours gốc từ OSM"
+    )
+    coords_source: str | None = Field(
+        default=None, max_length=20, description="Nguồn tọa độ (MANUAL | OSM | GOOGLE)"
+    )
 
 
 class UpdatePlaceRequest(BaseModel):
@@ -51,6 +68,8 @@ class UpdatePlaceRequest(BaseModel):
     estimated_cost: int | None = Field(default=None, ge=0)
     open_minute: int | None = Field(default=None, ge=0, le=1439)
     close_minute: int | None = Field(default=None, ge=0, le=1439)
+    cuisine: str | None = Field(default=None, max_length=100)
+    opening_hours_raw: str | None = Field(default=None, max_length=255)
 
 
 class PlaceResponse(BaseModel):
@@ -66,6 +85,13 @@ class PlaceResponse(BaseModel):
     longitude: float | None = None
     category: PlaceCategory
     status: PlaceStatus = PlaceStatus.PROPOSED
+    source: PlaceSource | str = PlaceSource.MANUAL
+    external_id: str | None = None
+    google_place_id: str | None = None
+    cuisine: str | None = None
+    opening_hours_raw: str | None = None
+    coords_source: str | None = None
+    coords_fetched_at: datetime | None = None
     url: str | None = None
     notes: str | None = None
     estimated_cost: int = 0

@@ -14,13 +14,14 @@ from sqlalchemy import (
     Text,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.core.id_generator import generate_uuid
 from app.core.time_utils import now_utc
-from app.domain.enums import PlaceCategory, PlaceStatus
+from app.domain.enums import PlaceCategory, PlaceSource, PlaceStatus
 
 if TYPE_CHECKING:
     from app.domain.models.member import Member
@@ -45,6 +46,14 @@ class Place(Base):
         Index("idx_places_room_id", "room_id"),
         Index("idx_places_status", "status"),
         Index("idx_places_category", "category"),
+        Index(
+            "uq_places_room_external",
+            "room_id",
+            "external_id",
+            unique=True,
+            postgresql_where=text("external_id IS NOT NULL"),
+            sqlite_where=text("external_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -110,6 +119,36 @@ class Place(Base):
     )
     close_minute: Mapped[int | None] = mapped_column(
         Integer,
+        nullable=True,
+    )
+    source: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=PlaceSource.MANUAL.value,
+        server_default=PlaceSource.MANUAL.value,
+    )
+    external_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    google_place_id: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
+    )
+    cuisine: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    opening_hours_raw: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    coords_source: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    coords_fetched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(

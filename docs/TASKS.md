@@ -502,3 +502,308 @@ flowchart TD
 - **Tiêu chí hoàn thành**:
   - Chạy `docker-compose up` mở 2 tab trình duyệt ẩn danh: Tab 1 tạo phòng, Tab 2 tham gia; Tab 1 vote thì Tab 2 nhảy số điểm ngay lập tức qua WebSocket; xếp lịch và nhận cảnh báo xung đột thời gian thực không có lỗi console.
 - **Cách kiểm tra thủ công**: Thực hiện trọn vẹn kịch bản người dùng trên 2 cửa sổ trình duyệt độc lập.
+
+---
+
+## 3. GIAI ĐOẠN 2: BẢN ĐỒ, "CHỌN HỘ" & TỰ LÊN LỊCH (T-23 → T-37)
+
+Thiết kế, research chi phí và lý do lựa chọn: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md). Thay đổi hợp đồng: **CR-02** trong [CHANGE_REQUESTS.md](CHANGE_REQUESTS.md). Quy tắc chung giữ nguyên như giai đoạn 1: mỗi task dưới 15 file, dưới 1500 dòng, có test tự động.
+
+**Ràng buộc chung cho mọi task giai đoạn 2:**
+- Không thêm dịch vụ trả phí. Mọi gọi Google phải sau cờ `PLACES_PROVIDER=google` và có đường lùi về `osm`.
+- Backend **không đọc và không lưu** rating/review/ảnh của Google. Chỉ được lưu `google_place_id`.
+- Mọi kết quả ngẫu nhiên (vòng quay, thang) đều do server sinh từ `seed` lưu DB, client chỉ phát hoạt ảnh.
+- Planner và `TravelTimeConflictRule` dùng chung một `ITravelTimeEstimator`.
+
+```mermaid
+flowchart TD
+    classDef backend fill:#fff3e0,stroke:#f57c00,stroke-width:2px;
+    classDef frontend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef pureLogic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef integration fill:#ffebee,stroke:#d32f2f,stroke-width:2px;
+
+    T23["T-23: CR-02 Contracts + Migration 002"]:::backend
+    T24["T-24: FE Types + MSW cho CR-02"]:::frontend
+    T25["T-25: OSM POI Snapshot + /pois API"]:::backend
+    T26["T-26: Google match place_id + quota guard"]:::backend
+    T27["T-27: FE MapView (MapLibre)"]:::frontend
+    T28["T-28: FE PlaceSheet + Thêm vào lựa chọn + Google card"]:::frontend
+    T29["T-29: Review nội bộ (BE + FE)"]:::backend
+    T30["T-30: Pure Logic: DeciderTrigger + SmartPick + Wheel/Ladder"]:::pureLogic
+    T31["T-31: Decision Session API + WS"]:::backend
+    T32["T-32: FE Chọn hộ: Gợi ý 1 chạm + Vòng quay"]:::frontend
+    T33["T-33: FE Swipe + Thang may mắn"]:::frontend
+    T34["T-34: Pure Logic: ItineraryPlanner + TravelTimeEstimator"]:::pureLogic
+    T35["T-35: Auto-plan API"]:::backend
+    T36["T-36: FE Lên lịch giúp tôi"]:::frontend
+    T37["T-37: Tích hợp GĐ2, seed, E2E, README"]:::integration
+
+    T23 --> T24
+    T23 --> T25
+    T25 --> T26
+    T24 --> T27
+    T25 --> T27
+    T27 --> T28
+    T26 --> T28
+    T23 --> T29
+    T28 --> T29
+    T23 --> T31
+    T30 --> T31
+    T24 --> T32
+    T31 --> T32
+    T32 --> T33
+    T23 --> T35
+    T34 --> T35
+    T24 --> T36
+    T35 --> T36
+    T27 --> T36
+    T29 --> T37
+    T33 --> T37
+    T36 --> T37
+```
+
+**Làn chạy song song:** T-30 và T-34 (pure logic) chạy được ngay, không cần chờ ai. Sau T-23 thì T-25, T-29 (phần BE), T-31 và T-35 chạy song song. Frontend dùng MSW (T-24) để không phải chờ backend.
+
+---
+
+### T-23: CR-02 — Cập nhật Contracts, Enums, Models & Alembic Migration 002
+- **Phụ thuộc**: Không (chỉ cần CR-02 được duyệt)
+- **Có thể chạy song song với**: T-30, T-34
+- **Được phép tạo/sửa**:
+  - `docs/CONTRACTS.md` (áp CR-02), `docs/CHANGE_REQUESTS.md` (đổi trạng thái CR-02)
+  - `backend/app/domain/enums.py`
+  - `backend/app/domain/models/place.py`, `backend/app/domain/models/room.py`, `backend/app/domain/models/review.py` (mới), `backend/app/domain/models/decision.py` (mới), `backend/app/domain/models/external_link.py` (mới), `backend/app/domain/models/__init__.py`
+  - `backend/alembic/versions/002_map_decide_autoplan.py`
+  - `backend/app/schemas/place.py`, `backend/app/schemas/room.py`
+  - `backend/tests/unit/test_database.py`
+- **KHÔNG được sửa**: Logic patterns, services, routers, frontend.
+- **Mô tả**: Hiện thực đúng schema trong CR-02: thêm cột vào `places` (`source`, `external_id`, `google_place_id`, `cuisine`, `opening_hours_raw`, `coords_source`, `coords_fetched_at`) và `rooms` (`city`, `origin_lat`, `origin_lng`, `start_minute`, `end_minute`). Tạo bảng `place_reviews`, `decision_sessions`, `decision_swipes`, `external_place_links`. Thêm các enum `PlaceSource`, `CityCode`, `DecisionMode`, `DecisionStatus`, `TieBreakStrategyName.GROUP_DECISION`. Mọi cột mới đều nullable hoặc có default, để tương thích ngược với 313 test hiện có.
+- **Tiêu chí hoàn thành**:
+  - `alembic upgrade head` rồi `alembic downgrade -1` rồi `upgrade head` chạy sạch trên PostgreSQL và SQLite.
+  - Toàn bộ test backend cũ vẫn pass. `ruff check` sạch.
+- **Cách kiểm tra thủ công**: `\d places`, `\d decision_sessions` trong psql.
+
+---
+
+### T-24: Frontend Types & MSW Handlers cho CR-02
+- **Phụ thuộc**: T-23 (chỉ cần CONTRACTS.md đã cập nhật)
+- **Có thể chạy song song với**: T-25, T-29, T-31, T-35
+- **Được phép tạo/sửa**:
+  - `frontend/src/types/enums.ts`, `frontend/src/types/models.ts`, `frontend/src/types/api.ts`, `frontend/src/types/websocket.ts`
+  - `frontend/src/mocks/handlers.ts`, `frontend/src/mocks/mockData.ts` (thêm ~30 POI mẫu quanh Q.1)
+  - `frontend/src/services/api/poiApi.ts`, `reviewApi.ts`, `decisionApi.ts` (mới), `frontend/src/services/api/scheduleApi.ts`, `frontend/src/services/api/index.ts`
+  - `frontend/src/__tests__/msw_phase2.test.ts` (mới)
+- **KHÔNG được sửa**: Components, stores hiện có.
+- **Mô tả**: Type TS khớp 1-1 với CR-02. Thêm API client và mock cho `/pois`, `/pois/search`, `/pois/google-match`, `/reviews`, `/rooms/{id}/decisions*`, `/rooms/{id}/schedule/auto-plan*`. Mock trả dữ liệu deterministic (cùng seed thì cùng kết quả).
+- **Tiêu chí hoàn thành**: `npm test` pass (test mới gọi đủ endpoint qua MSW), `tsc -b` sạch.
+
+---
+
+### T-25: Backend OSM POI Snapshot & `/pois` API
+- **Phụ thuộc**: T-23
+- **Có thể chạy song song với**: T-24, T-29, T-31, T-35
+- **Được phép tạo/sửa**:
+  - `scripts/build_osm_pois.py` (mới; chạy tay, gọi Overpass, ghi file nén)
+  - `backend/app/data/pois_hcm.json.gz`, `backend/app/data/pois_hn.json.gz` (sinh bởi script)
+  - `backend/app/services/poi_service.py` (mới), `backend/app/domain/patterns/category_detector/osm_mapping.py` (mới)
+  - `backend/app/api/v1/pois.py` (mới), `backend/app/api/v1/router.py`, `backend/app/schemas/poi.py` (mới)
+  - `backend/app/config.py` (thêm `PLACES_PROVIDER`, `POI_DATA_DIR`)
+  - `backend/tests/unit/test_poi_service.py`, `backend/tests/integration/test_pois_api.py` (mới)
+- **KHÔNG được sửa**: `nominatim_service.py` (giữ cho geocode địa chỉ), models.
+- **Mô tả**:
+  - Script lấy `amenity ∈ {restaurant, cafe, fast_food, food_court, bar, pub, ice_cream}` cho HCM + HN. Giữ tag rút gọn. Gắn `external_id = "osm:{type}/{id}"`. Ghi `© OpenStreetMap contributors (ODbL)` vào metadata.
+  - `PoiService` nạp snapshot lúc khởi động, dựng grid index 0,01°. API:
+    - `GET /api/v1/pois?bbox=minLng,minLat,maxLng,maxLat&category=&limit=500`
+    - `GET /api/v1/pois/search?q=&lat=&lng=&limit=10`: so khớp không dấu, xếp theo độ khớp và khoảng cách.
+    - `GET /api/v1/pois/{external_id}`
+  - Map tag OSM sang `PlaceCategory`. Parse `opening_hours` mẫu phổ biến thành `open_minute`/`close_minute` cho một thứ trong tuần.
+- **Tiêu chí hoàn thành**: Test bbox Q.1 trả >500 điểm. Search "pho" khớp "Phở". Search không dấu khớp có dấu. Bbox quá lớn trả 422. p95 < 30 ms trên snapshot đầy đủ.
+- **Cách kiểm tra thủ công**: `curl "localhost:8000/api/v1/pois/search?q=bun%20bo&lat=10.776&lng=106.70"`.
+
+---
+
+### T-26: Backend Google `place_id` Match & Quota Guard (cờ `PLACES_PROVIDER=google`)
+- **Phụ thuộc**: T-25
+- **Có thể chạy song song với**: T-27, T-29, T-31
+- **Được phép tạo/sửa**:
+  - `backend/app/services/google_places_service.py` (mới), `backend/app/repositories/external_link_repo.py` (mới), `backend/app/repositories/__init__.py`
+  - `backend/app/api/v1/pois.py` (thêm `POST /pois/google-match`), `backend/app/schemas/poi.py`
+  - `backend/app/config.py` (`GOOGLE_MAPS_SERVER_KEY`, `GOOGLE_MATCH_DAILY_LIMIT=1000`)
+  - `backend/.env.example`, `render.yaml`
+  - `backend/tests/unit/test_google_places_service.py` (mới, mock httpx)
+- **KHÔNG được sửa**: Models.
+- **Mô tả**: Gọi `POST https://places.googleapis.com/v1/places:searchText` với `X-Goog-FieldMask: places.id` (**chỉ** field này, để rơi vào SKU *Text Search Essentials IDs Only*: miễn phí, không giới hạn; thêm `displayName` là nhảy sang SKU Pro). `textQuery` = tên OSM, `locationRestriction` hình chữ nhật ±80 m quanh toạ độ OSM, `pageSize=1`. Kết quả đầu tiên chính là quán khớp. Việc kiểm tra "đúng quán" để người dùng làm bằng nút "Không đúng quán?" trên thẻ (xoá liên kết). Kết quả lưu vào `external_place_links`. Có bộ đếm/ngày, vượt ngưỡng hoặc thiếu key thì trả `{google_place_id: null, reason}`. Không bao giờ ném lỗi 5xx ra client.
+- **Tiêu chí hoàn thành**: Test có các ca: hit cache, miss rồi gọi API, vượt quota, thiếu key, Google trả lỗi. Không test nào gọi mạng thật.
+
+---
+
+### T-27: Frontend MapView (MapLibre GL + OpenFreeMap)
+- **Phụ thuộc**: T-24, T-25 (hoặc MSW)
+- **Có thể chạy song song với**: T-26, T-29, T-31
+- **Được phép tạo/sửa**:
+  - `frontend/package.json` (thêm `maplibre-gl`)
+  - `frontend/src/components/map/MapView.tsx`, `PoiLayer.ts`, `RoomPlacesLayer.ts`, `OriginPin.tsx`, `MapSearchBox.tsx`, `index.ts` (mới)
+  - `frontend/src/store/useMapStore.ts` (mới), `frontend/src/store/index.ts`
+  - `frontend/src/config.ts` (`VITE_MAP_STYLE_URL`, mặc định OpenFreeMap Liberty)
+  - `frontend/src/pages/RoomPage.tsx` (thêm tab "🗺️ Bản đồ")
+  - `frontend/src/__tests__/map_store.test.ts` (mới)
+- **KHÔNG được sửa**: Components places/voting hiện có.
+- **Mô tả**: Map đặt tâm theo `room.city`/`origin`. POI layer tải theo bbox (debounce 300 ms, cache theo ô lưới), gom cụm (clustering) khi zoom < 15, màu theo category. Lớp quán của phòng có viền đậm và badge điểm vote, cập nhật realtime từ store. Host kéo ghim điểm hẹn để `PATCH room`. Ô tìm kiếm gọi `/pois/search` (osm mode). Hiển thị attribution OSM/OpenFreeMap. Mobile-first: map full màn hình, controls ở dưới.
+- **Tiêu chí hoàn thành**: Test store (bbox → cache key, merge POI, chọn POI). `npm run build` thành công. Thêm maplibre không làm bundle chính tăng quá 250 KB gzip (lazy-load chunk map).
+- **Cách kiểm tra thủ công**: Mở phòng, vào tab Bản đồ, lướt ở Q.1 thấy chấm quán, zoom out thấy gom cụm.
+
+---
+
+### T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
+- **Phụ thuộc**: T-27, T-26 (hoặc MSW)
+- **Có thể chạy song song với**: T-29, T-32
+- **Được phép tạo/sửa**:
+  - `frontend/src/components/map/PlaceSheet.tsx`, `GooglePlaceCard.tsx`, `NearbySuggestions.tsx` (mới)
+  - `frontend/src/services/google/loadPlacesUiKit.ts` (mới; nạp `importLibrary('places')` lười, chỉ khi có `VITE_GOOGLE_MAPS_BROWSER_KEY`)
+  - `frontend/src/store/usePlaceStore.ts` (thêm `addPlaceFromPoi`)
+  - `frontend/src/components/places/PlaceCard.tsx` (badge nguồn OSM/Google, nút "Xem trên bản đồ")
+  - `frontend/src/__tests__/place_sheet.test.tsx` (mới)
+- **KHÔNG được sửa**: Backend.
+- **Mô tả**:
+  - PlaceSheet: bottom sheet trên mobile, panel phải trên desktop. Gồm tên, category, khoảng cách tới điểm hẹn, giờ mở OSM, địa chỉ, khu review nội bộ (placeholder cho T-29), nút **+ Thêm vào lựa chọn**. Nếu quán đã có trong phòng thì nút đổi thành `VoteButtons` ngay trong sheet.
+  - GooglePlaceCard: gọi `/pois/google-match`. Có `place_id` thì render `<gmp-place-details>` với `gmp-place-details-place-request`. Chỉ tạo element khi sheet mở và gỡ khi đóng. Timeout 4 s hoặc lỗi thì ẩn thẻ, không hiện lỗi đỏ.
+  - "Gợi ý quanh đây" khi phòng trống: 5 POI gần điểm hẹn nhất, thuộc category còn thiếu.
+- **Tiêu chí hoàn thành**: Test các ca: thêm POI tạo đúng payload (external_id, toạ độ, category, giờ); POI đã có thì hiện vote; không có key thì không nạp script Google; timeout thì card ẩn.
+- **Cách kiểm tra thủ công**: 2 tab. Tab 1 chạm quán rồi Thêm, tab 2 thấy quán xuất hiện realtime cả trên map lẫn danh sách.
+
+---
+
+### T-29: Review nội bộ (Backend + Frontend)
+- **Phụ thuộc**: T-23; phần FE phụ thuộc T-28
+- **Có thể chạy song song với**: T-30, T-31, T-34
+- **Được phép tạo/sửa**:
+  - `backend/app/repositories/review_repo.py`, `backend/app/services/review_service.py`, `backend/app/api/v1/reviews.py`, `backend/app/schemas/review.py` (mới), `backend/app/api/v1/router.py`, `backend/app/repositories/__init__.py`
+  - `backend/tests/integration/test_reviews_api.py` (mới)
+  - `frontend/src/components/reviews/InternalReviews.tsx`, `ReviewForm.tsx`, `index.ts` (mới), `frontend/src/components/map/PlaceSheet.tsx`
+  - `frontend/src/__tests__/reviews.test.tsx` (mới)
+- **KHÔNG được sửa**: Models (đã có từ T-23).
+- **Mô tả**: `GET /api/v1/reviews?external_key=` trả `{avg, count, tags_top3, items[≤20]}`. `PUT /api/v1/reviews` upsert theo (member, external_key): sao 1–5, comment ≤280 ký tự, tag thuộc danh sách cố định. Khi phòng sang COMPLETED thì frontend hiện nhắc "Đánh giá các quán hôm nay?".
+- **Tiêu chí hoàn thành**: Test upsert không tạo trùng, validate sao, tag lạ bị loại, aggregate đúng.
+
+---
+
+### T-30: Pure Logic — DeciderTrigger, SmartPickScorer, WheelPicker, LadderGenerator
+- **Phụ thuộc**: Không
+- **Có thể chạy song song với**: Mọi task
+- **Được phép tạo/sửa**:
+  - `backend/app/domain/patterns/decision/__init__.py`, `trigger.py`, `smart_pick.py`, `randomizers.py` (mới)
+  - `backend/tests/unit/test_decision_trigger.py`, `test_smart_pick.py`, `test_randomizers.py` (mới)
+- **KHÔNG được sửa**: Mọi thứ khác.
+- **Mô tả**: Theo mục 4.1 và 4.3 của plan.
+  - `DeciderTrigger.evaluate()` trả các hint `TIE_AT_TOP | NEAR_TIE | TOO_MANY | STALLED | EMPTY`, kèm category và danh sách ứng viên.
+  - `SmartPickScorer.rank()` dùng trọng số cấu hình được và sinh `reasons` tiếng Việt ngắn gọn.
+  - `WheelPicker.pick(candidates, weights, seed)` và `LadderGenerator.generate(n_columns, seed)` trả cấu trúc thang (các bậc ngang) và cột thắng. Cùng seed thì cùng kết quả.
+- **Tiêu chí hoàn thành**: ≥40 test. Có test phân phối: 10.000 seed thì WheelPicker không trọng số lệch <3% mỗi ô. Kết quả thang khớp với việc đi đường thủ công. Mọi lý do đều có số liệu cụ thể (km, giờ).
+
+---
+
+### T-31: Backend Decision Session API & WebSocket Events
+- **Phụ thuộc**: T-23, T-30
+- **Có thể chạy song song với**: T-25, T-29, T-35
+- **Được phép tạo/sửa**:
+  - `backend/app/repositories/decision_repo.py`, `backend/app/services/decision_service.py`, `backend/app/api/v1/decisions.py`, `backend/app/schemas/decision.py` (mới)
+  - `backend/app/api/v1/router.py`, `backend/app/repositories/__init__.py`
+  - `backend/app/domain/patterns/event_bus/events.py`, `backend/app/domain/patterns/event_bus/handlers.py`
+  - `backend/app/services/voting_service.py` (gọi resolve với `GROUP_DECISION`)
+  - `backend/tests/integration/test_decisions_api.py` (mới)
+- **KHÔNG được sửa**: Pure logic T-30 (chỉ gọi).
+- **Mô tả**: Endpoint theo CR-02:
+  - `GET /rooms/{id}/decisions/hints` (trigger + smart pick top 3).
+  - `POST /rooms/{id}/decisions` (Host; mode `SMART|WHEEL|SWIPE|LADDER`; server sinh seed và với WHEEL/LADDER tính luôn kết quả).
+  - `POST .../{sid}/swipes`.
+  - `POST .../{sid}/accept` (Host, áp kết quả qua đường resolve hiện có).
+  - `POST .../{sid}/cancel`.
+  - WS: `DECISION_STARTED`, `DECISION_PROGRESS`, `DECISION_RESOLVED`.
+  - Swipe đóng khi đủ người hoặc hết `closes_at`. Hoà thì tự sinh WHEEL con giữa các quán hoà. Mỗi phòng chỉ 1 phiên OPEN, trả 409 nếu đã có.
+- **Tiêu chí hoàn thành**: Test đủ các ca: Member không mở được phiên (403); 2 phiên OPEN bị 409; swipe trùng thì ghi đè; hết hạn thì tự đóng; accept xong thì quán ACCEPTED và có `VOTING_RESOLVED`; seed được lưu và trả về.
+
+---
+
+### T-32: Frontend "🎲 Chọn hộ": Banner, Gợi ý 1 chạm & Vòng quay
+- **Phụ thuộc**: T-24, T-31 (hoặc MSW)
+- **Có thể chạy song song với**: T-28, T-36
+- **Được phép tạo/sửa**:
+  - `frontend/src/components/decide/DeciderBanner.tsx`, `SmartPickCard.tsx`, `SpinWheel.tsx`, `DecideModal.tsx`, `index.ts` (mới)
+  - `frontend/src/store/useDecisionStore.ts` (mới), `frontend/src/store/index.ts`
+  - `frontend/src/hooks/useRoom.ts` (dispatch event `DECISION_*`)
+  - `frontend/src/pages/RoomPage.tsx` (gắn banner)
+  - `frontend/src/__tests__/decide_wheel.test.tsx` (mới)
+- **KHÔNG được sửa**: `TieBreakSelectorModal` (giữ cho Host muốn chọn chiến lược thủ công).
+- **Mô tả**: Banner hiện theo `/decisions/hints`, refetch khi có `VOTE_UPDATED`/`PLACE_*`. SmartPickCard có lý do dạng chip và 3 nút (Chốt luôn / Đổi quán khác / Chơi trò). SpinWheel vẽ bằng SVG + CSS transform, ease-out 4 s, dừng đúng ô `result` từ server, có `prefers-reduced-motion` thì bỏ hoạt ảnh. Có nút "Xem cách tính" hiện seed.
+- **Tiêu chí hoàn thành**: Test: hint TIE thì banner hiện; nhận `DECISION_STARTED` thì 2 client tính ra cùng góc dừng; Member chỉ thấy, không có nút bắt đầu.
+
+---
+
+### T-33: Frontend Swipe & Thang may mắn
+- **Phụ thuộc**: T-32
+- **Có thể chạy song song với**: T-36
+- **Được phép tạo/sửa**:
+  - `frontend/src/components/decide/SwipeDeck.tsx`, `LuckyLadder.tsx`, `DecideModal.tsx`, `index.ts`
+  - `frontend/src/store/useDecisionStore.ts`
+  - `frontend/src/__tests__/decide_swipe_ladder.test.tsx` (mới)
+- **KHÔNG được sửa**: Backend.
+- **Mô tả**: SwipeDeck dùng pointer events (không thêm thư viện), có nút ✓/✗ cho desktop và bàn phím ←/→, thanh tiến độ "x/y người xong" từ `DECISION_PROGRESS`, đồng hồ đếm ngược. LuckyLadder dùng SVG vẽ thang từ cấu trúc server trả, hoạt ảnh đi đường 3 s. Có biến thể "chọn người quyết định".
+- **Tiêu chí hoàn thành**: Test: swipe gửi đúng payload; hết giờ thì khoá; đường đi của thang khớp cột thắng từ server.
+
+---
+
+### T-34: Pure Logic — HeuristicItineraryPlanner & ITravelTimeEstimator
+- **Phụ thuộc**: Không
+- **Có thể chạy song song với**: Mọi task
+- **Được phép tạo/sửa**:
+  - `backend/app/domain/patterns/itinerary/__init__.py`, `travel.py`, `opening_hours.py`, `planner.py` (mới)
+  - `backend/app/domain/phase2_interfaces/route_optimization.py` (mở rộng `plan_day`, giữ `optimize_route`)
+  - `backend/app/domain/patterns/conflict_rule/implementations.py` (`TravelTimeConflictRule` nhận `ITravelTimeEstimator`; mặc định giữ hành vi cũ)
+  - `backend/tests/mocks/phase2_stubs.py`
+  - `backend/tests/unit/test_itinerary_planner.py`, `test_travel_estimator.py`, `test_opening_hours_parser.py` (mới)
+- **KHÔNG được sửa**: Services, API.
+- **Mô tả**: Theo mục 5.2 của plan: brute-force với n≤7, greedy + 2-opt với n>7, neo bữa ăn, chờ quán mở, loại quán không kịp giờ (kèm lý do), tràn ngày. Kết quả deterministic.
+- **Tiêu chí hoàn thành**:
+  - ≥35 test, gồm các ca: khung mặc định 17:00–23:00 với 3 quán (ăn tối, cafe, rạp) thì FOOD rơi vào 17:30–20:30; quán đóng 21:00 không bị xếp sau 21:00; 6 quán trong khung 17:00–23:00 thì có quán vào `dropped`; 7 quán chạy < 200 ms; n=10 ra kết quả hợp lệ.
+  - **Test hợp đồng**: chạy `ConflictDetectionEngine` trên lịch planner sinh ra thì không có `TIME_OVERLAP`, `TRAVEL_TIME`, `OPENING_HOURS`.
+  - Test conflict rule cũ vẫn pass.
+
+---
+
+### T-35: Backend Auto-plan API
+- **Phụ thuộc**: T-23, T-34
+- **Có thể chạy song song với**: T-25, T-29, T-31
+- **Được phép tạo/sửa**:
+  - `backend/app/services/autoplan_service.py` (mới), `backend/app/api/v1/schedule.py`, `backend/app/schemas/schedule.py`
+  - `backend/app/services/schedule_service.py` (thêm `replace_all`)
+  - `backend/tests/integration/test_autoplan_api.py` (mới)
+- **KHÔNG được sửa**: Pure logic T-34 (chỉ gọi).
+- **Mô tả**: `POST /rooms/{id}/schedule/auto-plan` (mọi member) nhận override thời lượng tuỳ chọn và trả `{slots, dropped, total_travel_min, total_cost}`, không ghi DB. `POST .../auto-plan/apply` (Host) nhận lại đúng `slots` đã xem (kèm `plan_hash` để phát hiện dữ liệu đã đổi, đổi thì 409), thay lịch trong 1 transaction, đánh giá conflict, rồi phát `SCHEDULE_UPDATED` + `CONFLICTS_UPDATED`. Phòng không có quán ACCEPTED thì lấy top-score mỗi category, kèm cờ `used_fallback=true`.
+- **Tiêu chí hoàn thành**: Test: preview không ghi DB; Member gọi apply bị 403; `plan_hash` lệch bị 409; apply xong thì conflict rỗng với dữ liệu seed.
+
+---
+
+### T-36: Frontend "✨ Lên lịch giúp tôi"
+- **Phụ thuộc**: T-24, T-35 (hoặc MSW), T-27 (vẽ tuyến)
+- **Có thể chạy song song với**: T-32, T-33
+- **Được phép tạo/sửa**:
+  - `frontend/src/components/schedule/AutoPlanButton.tsx`, `AutoPlanPreview.tsx` (mới), `frontend/src/components/schedule/index.ts`, `frontend/src/components/schedule/ScheduleTimeline.tsx` (gắn nút + "Sắp lại tối ưu")
+  - `frontend/src/components/map/RouteLayer.ts` (mới; polyline thẳng nối các điểm theo thứ tự)
+  - `frontend/src/store/useScheduleStore.ts`
+  - `frontend/src/__tests__/autoplan.test.tsx` (mới)
+- **KHÔNG được sửa**: Backend.
+- **Mô tả**: Nút hiện theo điều kiện ở mục 5.1. Nếu đang có hint TIE thì nút mở DecideModal trước. Preview gồm timeline nháp, chip lý do, danh sách quán "không xếp được" kèm lý do, và nút đổi thời lượng từng slot rồi xem lại. Host thấy nút Áp dụng, Member thấy dòng "Chờ Host chốt".
+- **Tiêu chí hoàn thành**: Test: điều kiện hiện nút; Member không có nút Áp dụng; apply nhận 409 thì tự xem trước lại và báo "dữ liệu vừa thay đổi".
+
+---
+
+### T-37: Tích hợp Giai đoạn 2, Seed, E2E & Tài liệu
+- **Phụ thuộc**: T-29, T-33, T-36 (và gián tiếp mọi task GĐ2)
+- **Có thể chạy song song với**: Không
+- **Được phép tạo/sửa**:
+  - `backend/app/core/seed.py` (phòng DIDAU8 thêm origin Q.1, quán có `external_id`, 2 quán hoà để demo Chọn hộ)
+  - `scripts/smoke_test.py`, `README.md`, `docs/DEPLOY.md` (thêm biến môi trường, hướng dẫn đặt quota Google Cloud)
+  - `docker-compose.yml`, `frontend/.env.example`, `backend/.env.example`
+- **KHÔNG được sửa**: Contracts.
+- **Mô tả**: Chạy luồng E2E đầy đủ trên 2 trình duyệt, **cả 2 chế độ** `osm` và `google`: mở map, thêm 4 quán, vote ra hoà, Chọn hộ bằng vòng quay (cả 2 tab dừng cùng ô), Lên lịch giúp tôi, Áp dụng, không có xung đột, kéo thả sửa lịch, viết review nội bộ. Ghi checklist đặt quota/budget alert vào DEPLOY.md.
+- **Tiêu chí hoàn thành**: Smoke test pass. Toàn bộ test BE/FE pass. Không có lỗi console. Chạy không có key Google thì không phát sinh request nào tới `googleapis.com` (kiểm tra bằng tab Network).
