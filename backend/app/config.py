@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # Seed demo khi khởi động container
     SEED_DEMO: bool = False
 
+    # Nguồn dữ liệu quán: "osm" (mặc định) hoặc "google" (bật lớp Google, có đường lùi về osm)
+    PLACES_PROVIDER: str = "osm"
+
+    # Thư mục chứa snapshot POI (pois_*.json.gz); rỗng = backend/app/data
+    POI_DATA_DIR: str = ""
+
     # Nominatim User-Agent
     NOMINATIM_USER_AGENT: str = "DiDau/1.0 (student project)"
 
