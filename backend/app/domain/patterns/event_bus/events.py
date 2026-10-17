@@ -274,6 +274,19 @@ class VotingResolvedEvent(DomainEvent):
         }
 
 
+class RoomUpdatedEvent(DomainEvent):
+    """Sự kiện cấu hình phòng thay đổi (ROOM_UPDATED, CR-03)."""
+
+    room: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def event_type(self) -> str:
+        return "ROOM_UPDATED"
+
+    def to_envelope_payload(self) -> dict[str, Any]:
+        return {"room": self.room}
+
+
 class ScheduleUpdatedEvent(DomainEvent):
     """Sự kiện lịch trình được sắp xếp hoặc cập nhật (SCHEDULE_UPDATED)."""
 

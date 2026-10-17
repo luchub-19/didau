@@ -223,7 +223,7 @@ class IPoiProvider(ABC):
 
 - **Người đề xuất**: Session review tích hợp (2026-10-17)
 - **Ngày tạo**: 2026-10-17
-- **Trạng thái**: ACCEPTED (ĐÃ CHẤP NHẬN, chưa triển khai)
+- **Trạng thái**: ACCEPTED (ĐÃ CHẤP NHẬN, đã triển khai ở T-27)
 - **Ngày duyệt**: 2026-10-17
 - **Quyết định**: CHẤP NHẬN nguyên đề xuất. Đã cập nhật `CONTRACTS.md` (endpoint #27, sự kiện `ROOM_UPDATED`, mã lỗi `PLACE_ALREADY_ADDED`). Code triển khai giao cho T-27 (BE: route + `RoomService.update_room` + 409 trong `add_place`), kèm test.
 - **Task đã DONE bị ảnh hưởng**: T-08 (thêm route + `RoomService.update_room`); T-23 (`UpdateRoomRequest` đã có sẵn nhưng chưa có route dùng).

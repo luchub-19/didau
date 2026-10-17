@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { useRoom } from '../hooks/useRoom';
 import { Button, Header } from '../components/common';
 import { RoomHeader, MemberList, JoinRoomModal } from '../components/room';
@@ -7,7 +7,11 @@ import { TieBreakSelectorModal } from '../components/voting';
 import { ScheduleTimeline, AddScheduleItemModal } from '../components/schedule';
 import { ConflictAlertBanner } from '../components/conflicts';
 import { usePlaceStore } from '../store/usePlaceStore';
+import { useRoomStore } from '../store/useRoomStore';
 import type { PlaceCategory } from '../types';
+
+// maplibre-gl nặng: tách thành chunk riêng, chỉ tải khi mở tab Bản đồ
+const MapView = lazy(() => import('../components/map/MapView'));
 
 export interface RoomPageProps {
   roomId: string;
@@ -30,14 +34,23 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   } = useRoom(roomId);
 
   const deletePlace = usePlaceStore((s) => s.deletePlace);
+  const updateRoom = useRoomStore((s) => s.updateRoom);
   const selectedCategory = usePlaceStore((s) => s.selectedCategory);
   const setSelectedCategory = usePlaceStore((s) => s.setSelectedCategory);
 
-  const [activeTab, setActiveTab] = useState<'PLACES' | 'SCHEDULE'>('PLACES');
+  const [activeTab, setActiveTab] = useState<'PLACES' | 'SCHEDULE' | 'MAP'>('PLACES');
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [isTieBreakOpen, setIsTieBreakOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(true);
+
+  const handleOriginChange = async (lat: number, lng: number) => {
+    try {
+      await updateRoom(roomId, { origin_lat: lat, origin_lng: lng });
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || 'Không thể đặt điểm hẹn. Chỉ Host mới được đổi.');
+    }
+  };
 
   const handleDeletePlace = async (placeId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa địa điểm này không?')) {
@@ -231,6 +244,19 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
 
               <button
                 type="button"
+                onClick={() => setActiveTab('MAP')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  activeTab === 'MAP'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>🗺️</span>
+                <span>Bản đồ</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab('SCHEDULE')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                   activeTab === 'SCHEDULE'
@@ -281,6 +307,24 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
                   onDeletePlace={handleDeletePlace}
                 />
               </div>
+            )}
+
+            {/* Tab bản đồ */}
+            {activeTab === 'MAP' && (
+              <Suspense
+                fallback={
+                  <div className="h-[70vh] min-h-[420px] flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-sm text-slate-500">
+                    Đang tải bản đồ...
+                  </div>
+                }
+              >
+                <MapView
+                  room={room}
+                  places={places}
+                  isHost={isHost}
+                  onOriginChange={handleOriginChange}
+                />
+              </Suspense>
             )}
 
             {/* Tab 2: Schedule Timeline */}

@@ -238,6 +238,20 @@ export const handlers = [
     });
   }),
 
+  // 3b. Cập nhật cấu hình phòng (CR-03, Host only)
+  http.patch('*/api/v1/rooms/:roomId', async ({ request }) => {
+    const token = request.headers.get('X-Member-Token');
+    if (token !== MOCK_HOST_TOKEN) {
+      return HttpResponse.json(
+        { error: { code: 'FORBIDDEN_HOST_ONLY', message: 'Thao tác này chỉ dành riêng cho Chủ phòng (HOST).' } },
+        { status: 403 },
+      );
+    }
+    const body = (await request.json()) as Record<string, unknown>;
+    currentRoom = { ...currentRoom, ...body, updated_at: new Date().toISOString() } as Room;
+    return HttpResponse.json(currentRoom);
+  }),
+
   // 4. Lấy thông tin thành viên hiện tại
   http.get('*/api/v1/members/me', ({ request }) => {
     const token = request.headers.get('X-Member-Token');

@@ -593,3 +593,21 @@ async def test_create_place_persists_cr02_fields(client: AsyncClient) -> None:
     assert body["cuisine"] == "vietnamese"
     assert body["opening_hours_raw"] == "Mo-Su 08:00-22:00"
     assert body["coords_source"] == "OSM"
+
+
+@pytest.mark.asyncio
+async def test_create_place_duplicate_external_id_returns_409(client: AsyncClient) -> None:
+    """CR-03: trùng (room_id, external_id) trả 409 PLACE_ALREADY_ADDED kèm place_id đã có."""
+    room_data = await _create_room(client, "NamHost")
+    room_id = room_data["room"]["id"]
+    headers = {"X-Member-Token": room_data["member_token"]}
+    body = {"name": "Quán Y", "source": "OSM", "external_id": "osm:node/2"}
+
+    first = await client.post(f"/api/v1/rooms/{room_id}/places", json=body, headers=headers)
+    assert first.status_code == 201
+
+    second = await client.post(f"/api/v1/rooms/{room_id}/places", json=body, headers=headers)
+    assert second.status_code == 409
+    error = second.json()["error"]
+    assert error["code"] == "PLACE_ALREADY_ADDED"
+    assert error["details"]["place_id"] == first.json()["id"]

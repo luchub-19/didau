@@ -3,7 +3,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 
-from app.api.deps import ensure_room_access, get_current_member, get_room_service
+from app.api.deps import (
+    ensure_room_access,
+    get_current_host,
+    get_current_member,
+    get_room_service,
+)
 from app.core.exceptions import RateLimitExceededError
 from app.core.rate_limiter import room_creation_limiter
 from app.domain.models.member import Member
@@ -13,6 +18,8 @@ from app.schemas.room import (
     JoinRoomRequest,
     JoinRoomResponse,
     RoomDetailResponse,
+    RoomResponse,
+    UpdateRoomRequest,
 )
 from app.services.room_service import RoomService
 
@@ -84,3 +91,21 @@ async def get_room(
     ensure_room_access(current_member, room_id)
     result = await room_service.get_room_details(room_id)
     return RoomDetailResponse.model_validate(result)
+
+
+@router.patch(
+    "/{room_id}",
+    response_model=RoomResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cập nhật cấu hình phòng (Host only)",
+)
+async def update_room(
+    room_id: UUID,
+    payload: UpdateRoomRequest,
+    host: Annotated[Member, Depends(get_current_host)],
+    room_service: Annotated[RoomService, Depends(get_room_service)],
+) -> RoomResponse:
+    """Cập nhật tiêu đề, ngày, ngân sách, thành phố, điểm hẹn, khung giờ; phát ROOM_UPDATED."""
+    ensure_room_access(host, room_id)
+    room = await room_service.update_room(room_id, payload.model_dump(exclude_unset=True))
+    return RoomResponse.model_validate(room)

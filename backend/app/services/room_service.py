@@ -5,7 +5,7 @@ from uuid import UUID
 from app.core.exceptions import NicknameTakenError, RoomNotFoundError, ValidationError
 from app.core.id_generator import generate_room_code
 from app.domain.enums import MemberRole, RoomStatus, TieBreakStrategyName
-from app.domain.patterns.event_bus import IEventBus, MemberJoinedEvent
+from app.domain.patterns.event_bus import IEventBus, MemberJoinedEvent, RoomUpdatedEvent
 from app.repositories import IMemberRepository, IPlaceRepository, IRoomRepository
 
 logger = logging.getLogger(__name__)
@@ -192,8 +192,53 @@ class RoomService:
             "status": room.status,
             "tie_break_strategy": room.tie_break_strategy,
             "budget_limit": room.budget_limit,
+            "city": room.city,
+            "origin_lat": room.origin_lat,
+            "origin_lng": room.origin_lng,
+            "start_minute": room.start_minute,
+            "end_minute": room.end_minute,
             "members": members,
             "total_places": total_places,
             "created_at": room.created_at,
             "updated_at": room.updated_at,
         }
+
+    async def update_room(self, room_id: UUID, data: dict[str, Any]) -> Any:
+        """Cập nhật cấu hình phòng (Host only, kiểm tra ở router) và phát ROOM_UPDATED (CR-03)."""
+        room = await self.room_repo.get_by_id(room_id)
+        if room is None:
+            raise RoomNotFoundError(
+                message="Không tìm thấy phòng với ID yêu cầu.",
+                details={"room_id": str(room_id)},
+            )
+
+        changes: dict[str, Any] = {}
+        for key, value in data.items():
+            if value is None:
+                continue
+            changes[key] = getattr(value, "value", value)
+
+        if "title" in changes and not str(changes["title"]).strip():
+            raise ValidationError("Tiêu đề phòng không được để trống.", details={"field": "title"})
+
+        start = changes.get("start_minute", room.start_minute)
+        end = changes.get("end_minute", room.end_minute)
+        if start >= end:
+            raise ValidationError(
+                "Giờ bắt đầu phải nhỏ hơn giờ kết thúc.",
+                details={"start_minute": start, "end_minute": end},
+            )
+
+        updated = await self.room_repo.update(room_id, changes) if changes else room
+        if updated is None:
+            raise RoomNotFoundError(
+                message="Không tìm thấy phòng với ID yêu cầu.",
+                details={"room_id": str(room_id)},
+            )
+
+        from app.schemas.room import RoomResponse
+
+        room_payload = RoomResponse.model_validate(updated).model_dump(mode="json")
+        if changes:
+            await self.event_bus.publish(RoomUpdatedEvent(room_id=room_id, room=room_payload))
+        return updated

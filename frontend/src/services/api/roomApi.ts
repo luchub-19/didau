@@ -5,7 +5,9 @@ import type {
   JoinRoomRequest,
   JoinRoomResponse,
   Member,
+  Room,
   RoomDetailResponse,
+  UpdateRoomRequest,
 } from '../../types';
 
 export const roomApi = {
@@ -21,6 +23,11 @@ export const roomApi = {
 
   async getRoom(roomId: string): Promise<RoomDetailResponse> {
     const res = await apiClient.get<RoomDetailResponse>(`/rooms/${roomId}`);
+    return res.data;
+  },
+
+  async updateRoom(roomId: string, data: UpdateRoomRequest): Promise<Room> {
+    const res = await apiClient.patch<Room>(`/rooms/${roomId}`, data);
     return res.data;
   },
 

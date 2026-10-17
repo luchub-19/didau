@@ -16,6 +16,7 @@ from app.domain.patterns.event_bus import (
     InMemoryEventBus,
     MemberJoinedEvent,
     RecordingEventHandler,
+    RoomUpdatedEvent,
 )
 from app.main import app
 
@@ -437,3 +438,80 @@ async def test_create_room_rate_limit_exceeded(
     from uuid import UUID
     await db_session.execute(delete(Room).where(Room.id.in_([UUID(rid) for rid in created_ids])))
     await db_session.commit()
+
+
+# ============================================================================
+# PATCH /api/v1/rooms/{room_id} (CR-03)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_room_host_sets_origin_and_broadcasts(
+    client: AsyncClient, test_event_bus: InMemoryEventBus
+) -> None:
+    """Host đổi điểm hẹn/khung giờ: 200, lưu DB, GET trả đúng và phát ROOM_UPDATED."""
+    created = (
+        await client.post(
+            "/api/v1/rooms",
+            json={"title": "Kèo", "event_date": "2026-10-25", "creator_nickname": "Host"},
+        )
+    ).json()
+    room_id = created["room"]["id"]
+    headers = {"X-Member-Token": created["member_token"]}
+    recorder = RecordingEventHandler()
+    test_event_bus.register(RoomUpdatedEvent, recorder)
+
+    response = await client.patch(
+        f"/api/v1/rooms/{room_id}",
+        json={"origin_lat": 10.7769, "origin_lng": 106.7009, "city": "HN", "start_minute": 600},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["origin_lat"] == 10.7769
+    assert body["city"] == "HN"
+    assert body["start_minute"] == 600
+    assert body["end_minute"] == 1380
+
+    detail = (await client.get(f"/api/v1/rooms/{room_id}", headers=headers)).json()
+    assert detail["origin_lng"] == 106.7009
+    assert detail["city"] == "HN"
+    assert detail["start_minute"] == 600
+
+    assert recorder.count() == 1
+    assert recorder.last_event.to_envelope()["type"] == "ROOM_UPDATED"
+    assert recorder.last_event.to_envelope()["payload"]["room"]["id"] == room_id
+
+
+@pytest.mark.asyncio
+async def test_update_room_member_forbidden_and_invalid_window(client: AsyncClient) -> None:
+    """Member gọi PATCH nhận 403; start >= end nhận 422."""
+    created = (
+        await client.post(
+            "/api/v1/rooms",
+            json={"title": "Kèo", "event_date": "2026-10-25", "creator_nickname": "Host"},
+        )
+    ).json()
+    room_id = created["room"]["id"]
+    joined = (
+        await client.post(
+            "/api/v1/rooms/join",
+            json={"room_code": created["room"]["code"], "nickname": "Khach"},
+        )
+    ).json()
+
+    forbidden = await client.patch(
+        f"/api/v1/rooms/{room_id}",
+        json={"title": "Đổi tên"},
+        headers={"X-Member-Token": joined["member_token"]},
+    )
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error"]["code"] == "FORBIDDEN_HOST_ONLY"
+
+    invalid = await client.patch(
+        f"/api/v1/rooms/{room_id}",
+        json={"start_minute": 1300, "end_minute": 1200},
+        headers={"X-Member-Token": created["member_token"]},
+    )
+    assert invalid.status_code == 422
+    assert invalid.json()["error"]["code"] == "VALIDATION_ERROR"

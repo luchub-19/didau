@@ -14,6 +14,7 @@ import type {
   PlaceDeletedPayload,
   PlaceUpdatedPayload,
   RoomStateSyncPayload,
+  RoomUpdatedPayload,
   ScheduleUpdatedPayload,
   VoteUpdatedPayload,
   VotingResolvedPayload,
@@ -67,6 +68,10 @@ export function useWebSocket(roomId?: string) {
       if (payload.places) setPlaces(payload.places);
       if (payload.schedule) setScheduleItems(payload.schedule);
       if (payload.conflicts) setConflicts(payload.conflicts);
+    });
+
+    const unsubRoomUpdated = client.on<RoomUpdatedPayload>('ROOM_UPDATED', (payload) => {
+      if (payload.room) setRoom(payload.room);
     });
 
     const unsubMemberJoined = client.on<MemberJoinedPayload>('MEMBER_JOINED', (payload) => {
@@ -133,6 +138,7 @@ export function useWebSocket(roomId?: string) {
     return () => {
       unsubStatus();
       unsubRoomSync();
+      unsubRoomUpdated();
       unsubMemberJoined();
       unsubMemberLeft();
       unsubPlaceAdded();

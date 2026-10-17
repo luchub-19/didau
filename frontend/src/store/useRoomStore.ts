@@ -8,6 +8,7 @@ import type {
   JoinRoomResponse,
   Member,
   Room,
+  UpdateRoomRequest,
 } from '../types';
 
 interface RoomState {
@@ -22,6 +23,7 @@ interface RoomState {
   createRoom: (data: CreateRoomRequest) => Promise<CreateRoomResponse>;
   joinRoom: (data: JoinRoomRequest) => Promise<JoinRoomResponse>;
   fetchRoom: (roomId: string) => Promise<void>;
+  updateRoom: (roomId: string, data: UpdateRoomRequest) => Promise<Room>;
   setRoom: (room: Room | null) => void;
   setMembers: (members: Member[]) => void;
   addMember: (member: Member) => void;
@@ -106,6 +108,11 @@ export const useRoomStore = create<RoomState>((set) => ({
     }
   },
 
+  updateRoom: async (roomId, data) => {
+    const room = await roomApi.updateRoom(roomId, data);
+    set({ room });
+    return room;
+  },
   setRoom: (room) => set({ room }),
   setMembers: (members) => set({ members }),
   addMember: (member) =>

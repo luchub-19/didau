@@ -35,6 +35,10 @@ export interface RoomStateSyncPayload {
   conflicts: ConflictAlert[];
 }
 
+export interface RoomUpdatedPayload {
+  room: Room;
+}
+
 export interface MemberJoinedPayload {
   member: Member;
 }

@@ -111,6 +111,19 @@ class NicknameTakenError(AppException):
         super().__init__(code="NICKNAME_TAKEN", message=message, status_code=409, details=details)
 
 
+class PlaceAlreadyAddedError(AppException):
+    """Lỗi khi địa điểm (cùng external_id) đã có trong phòng (CR-03)."""
+
+    def __init__(
+        self,
+        message: str = "Địa điểm này đã có trong danh sách lựa chọn của phòng.",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            code="PLACE_ALREADY_ADDED", message=message, status_code=409, details=details
+        )
+
+
 class ConflictCriticalError(AppException):
     """Lỗi khi xảy ra xung đột nghiêm trọng không thể tiếp tục."""
 

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.core.exceptions import (
     ForbiddenHostOnlyError,
+    PlaceAlreadyAddedError,
     PlaceNotFoundError,
     RoomNotFoundError,
     RoomStatusInvalidError,
@@ -161,6 +162,15 @@ class PlaceService:
 
         raw_source = data.get("source")
         source_str = str(getattr(raw_source, "value", raw_source) or PlaceSource.MANUAL.value)
+
+        # 4b. Chặn trùng (room_id, external_id) trước khi chạm unique constraint (CR-03)
+        external_id = data.get("external_id")
+        if external_id:
+            for existing in await self.place_repo.list_by_room(room_id):
+                if existing.external_id == external_id:
+                    raise PlaceAlreadyAddedError(
+                        details={"place_id": str(existing.id), "external_id": external_id},
+                    )
 
         # 5. Lưu vào cơ sở dữ liệu
         place_data = {
