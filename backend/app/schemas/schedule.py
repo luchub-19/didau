@@ -104,3 +104,86 @@ class DeleteScheduleItemResponse(BaseModel):
     success: bool = True
     item_id: UUID
     message: str = "Đã xóa mục lịch trình thành công."
+
+
+class PlannedSlotResponse(BaseModel):
+    """Khung giờ địa điểm trong lịch trình tự động được gợi ý."""
+
+    place_id: UUID = Field(..., description="ID địa điểm")
+    day_offset: int = Field(default=0, ge=0, description="Ngày trong chuyến đi (0 là ngày đầu tiên)")
+    start_minute: int = Field(..., ge=0, le=1439, description="Thời điểm bắt đầu (0-1439)")
+    end_minute: int = Field(..., ge=0, le=1439, description="Thời điểm kết thúc (0-1439)")
+    travel_from_prev_min: int = Field(
+        default=0, ge=0, description="Thời gian di chuyển từ điểm trước (phút)"
+    )
+    reasons: list[str] = Field(
+        default_factory=list, description="Danh sách lý do sắp xếp vị trí/thời gian"
+    )
+
+    @model_validator(mode="after")
+    def validate_minutes(self) -> "PlannedSlotResponse":
+        if self.start_minute >= self.end_minute:
+            raise ValidationError(
+                message="Thời điểm bắt đầu (start_minute) phải nhỏ hơn thời điểm kết thúc (end_minute).",
+                details={
+                    "start_minute": self.start_minute,
+                    "end_minute": self.end_minute,
+                },
+            )
+        return self
+
+
+class DroppedPlaceResponse(BaseModel):
+    """Địa điểm không thể xếp vào lịch trình cùng lý do."""
+
+    place_id: UUID = Field(..., description="ID địa điểm bị loại")
+    reason: str = Field(..., description="Lý do không xếp được vào lịch")
+
+
+class AutoPlanPreviewRequest(BaseModel):
+    """Dữ liệu yêu cầu xem trước lịch trình tự động (POST /schedule/auto-plan)."""
+
+    day_offset: int = Field(
+        default=0, ge=0, description="Ngày bắt đầu xếp lịch (0 là ngày đầu tiên)"
+    )
+    duration_overrides: dict[UUID, int] = Field(
+        default_factory=dict,
+        description="Thời lượng tùy chỉnh cho từng địa điểm (phút)",
+    )
+
+
+class AutoPlanPreviewResponse(BaseModel):
+    """Kết quả xem trước lịch trình tự động theo CONTRACTS.md."""
+
+    slots: list[PlannedSlotResponse] = Field(
+        default_factory=list, description="Danh sách các khung giờ được xếp"
+    )
+    dropped: list[DroppedPlaceResponse] = Field(
+        default_factory=list, description="Danh sách địa điểm không thể xếp vào lịch"
+    )
+    total_travel_min: int = Field(
+        default=0, ge=0, description="Tổng thời gian di chuyển (phút)"
+    )
+    total_cost: int = Field(
+        default=0, ge=0, description="Tổng chi phí ước tính (VND)"
+    )
+    used_fallback: bool = Field(
+        default=False,
+        description="True nếu chưa có quán ACCEPTED và thuật toán dùng quán điểm cao nhất mỗi danh mục",
+    )
+    plan_hash: str = Field(
+        ...,
+        description="Mã hash đối soát tính toàn vẹn và chống stale data khi áp dụng",
+    )
+
+
+class AutoPlanApplyRequest(BaseModel):
+    """Dữ liệu yêu cầu áp dụng lịch trình tự động (POST /schedule/auto-plan/apply)."""
+
+    plan_hash: str = Field(
+        ..., description="Mã hash đối soát từ kết quả xem trước gần nhất"
+    )
+    slots: list[PlannedSlotResponse] = Field(
+        ..., description="Danh sách các khung giờ được chốt áp dụng"
+    )
+

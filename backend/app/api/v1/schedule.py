@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 from app.api.deps import (
     ensure_room_access,
     get_conflict_repository,
+    get_current_host,
     get_current_member,
     get_event_bus,
     get_place_repository,
@@ -23,11 +24,15 @@ from app.repositories import (
     IVoteRepository,
 )
 from app.schemas.schedule import (
+    AutoPlanApplyRequest,
+    AutoPlanPreviewRequest,
+    AutoPlanPreviewResponse,
     BulkUpdateScheduleRequest,
     CreateScheduleItemRequest,
     DeleteScheduleItemResponse,
     ScheduleItemResponse,
 )
+from app.services.autoplan_service import AutoPlanService
 from app.services.schedule_service import ScheduleService
 
 router = APIRouter(prefix="/rooms/{room_id}/schedule", tags=["Schedule"])
@@ -49,6 +54,21 @@ def get_schedule_service(
         event_bus=event_bus,
         vote_repo=vote_repo,
         conflict_repo=conflict_repo,
+    )
+
+
+def get_autoplan_service(
+    room_repo: Annotated[IRoomRepository, Depends(get_room_repository)],
+    place_repo: Annotated[IPlaceRepository, Depends(get_place_repository)],
+    vote_repo: Annotated[IVoteRepository, Depends(get_vote_repository)],
+    schedule_service: Annotated[ScheduleService, Depends(get_schedule_service)],
+) -> AutoPlanService:
+    """Dependency cung cấp AutoPlanService."""
+    return AutoPlanService(
+        room_repo=room_repo,
+        place_repo=place_repo,
+        vote_repo=vote_repo,
+        schedule_service=schedule_service,
     )
 
 
@@ -129,4 +149,49 @@ async def delete_schedule_item(
         item_id=item_id,
         message="Đã xóa mục lịch trình thành công.",
     )
+
+
+@router.post(
+    "/auto-plan",
+    response_model=AutoPlanPreviewResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Xem trước lịch trình tự động (Auto-plan Preview)",
+)
+async def preview_auto_plan(
+    room_id: UUID,
+    current_member: Annotated[Member, Depends(get_current_member)],
+    autoplan_service: Annotated[AutoPlanService, Depends(get_autoplan_service)],
+    payload: AutoPlanPreviewRequest | None = None,
+) -> AutoPlanPreviewResponse:
+    """Xem trước phương án lịch trình thông minh không ghi dữ liệu vào database."""
+    _ensure_room_access(current_member, room_id)
+    req = payload or AutoPlanPreviewRequest()
+    return await autoplan_service.preview(
+        room_id=room_id,
+        day_offset=req.day_offset,
+        duration_overrides=req.duration_overrides,
+    )
+
+
+@router.post(
+    "/auto-plan/apply",
+    response_model=list[ScheduleItemResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Áp dụng lịch trình tự động vào phòng (Auto-plan Apply, HOST only)",
+)
+async def apply_auto_plan(
+    room_id: UUID,
+    payload: AutoPlanApplyRequest,
+    current_member: Annotated[Member, Depends(get_current_host)],
+    autoplan_service: Annotated[AutoPlanService, Depends(get_autoplan_service)],
+) -> list[ScheduleItemResponse]:
+    """Áp dụng phương án lịch trình vào database và phát tán sự kiện (Chỉ dành cho HOST)."""
+    _ensure_room_access(current_member, room_id)
+    items = await autoplan_service.apply(
+        room_id=room_id,
+        plan_hash=payload.plan_hash,
+        slots=payload.slots,
+    )
+    return [ScheduleItemResponse.model_validate(i) for i in items]
+
 

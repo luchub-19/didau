@@ -16,7 +16,11 @@ from app.domain.patterns.conflict_rule.rule import (
     ConflictResult,
     PlaceVoteSummary,
 )
-from app.domain.patterns.event_bus import IEventBus, ScheduleUpdatedEvent
+from app.domain.patterns.event_bus import (
+    ConflictDetectedEvent,
+    IEventBus,
+    ScheduleUpdatedEvent,
+)
 from app.repositories import (
     IConflictRepository,
     IPlaceRepository,
@@ -367,3 +371,162 @@ class ScheduleService:
         await self.event_bus.publish(ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts))
 
         return True
+
+    async def replace_all(
+        self,
+        room_id: UUID,
+        slots: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Thay thế toàn bộ lịch trình hiện tại của phòng bằng danh sách mới (transaction).
+
+        Quy trình:
+        1. Kiểm tra phòng tồn tại.
+        2. Kiểm tra tính hợp lệ của từng slot (place_id thuộc phòng, start < end, v.v.).
+        3. Xóa toàn bộ các mục lịch trình cũ của room_id.
+        4. Tạo các mục lịch trình mới theo thứ tự slots.
+        5. Đánh giá xung đột bằng conflict_engine và lưu vào conflict_repo.
+        6. Phát tán ScheduleUpdatedEvent và ConflictDetectedEvent.
+        7. Trả về danh sách schedule items đã được format.
+        """
+        room = await self.room_repo.get_by_id(room_id)
+        if room is None:
+            raise RoomNotFoundError(
+                message="Không tìm thấy phòng với mã yêu cầu.",
+                details={"room_id": str(room_id)},
+            )
+
+        # Kiểm tra tính hợp lệ của từng slot
+        for slot in slots:
+            pid = slot.get("place_id")
+            if pid is None:
+                raise ValidationError(
+                    message="Thiếu thông tin place_id bắt buộc.",
+                    details={"field": "place_id"},
+                )
+            place_id = UUID(str(pid)) if not isinstance(pid, UUID) else pid
+            place = await self.place_repo.get_by_id(place_id)
+            if place is None or place.room_id != room_id:
+                raise PlaceNotFoundError(
+                    message="Không tìm thấy địa điểm được yêu cầu trong phòng này.",
+                    details={"place_id": str(place_id), "room_id": str(room_id)},
+                )
+
+            sm = int(slot.get("start_minute", 0))
+            em = int(slot.get("end_minute", 0))
+            do = int(slot.get("day_offset", 0))
+            if sm >= em:
+                raise ValidationError(
+                    message="Thời điểm bắt đầu (start_minute) phải nhỏ hơn thời điểm kết thúc (end_minute).",
+                    details={"start_minute": sm, "end_minute": em},
+                )
+            if not (0 <= sm <= 1439) or not (0 <= em <= 1439):
+                raise ValidationError(
+                    message="Khung giờ (phút) phải nằm trong khoảng từ 0 đến 1439.",
+                    details={"start_minute": sm, "end_minute": em},
+                )
+            if do < 0:
+                raise ValidationError(
+                    message="day_offset không được là số âm.",
+                    details={"day_offset": do},
+                )
+
+        # 1. Xóa toàn bộ schedule items hiện có
+        existing_items = await self.schedule_repo.list_by_room(room_id)
+        for item in existing_items:
+            await self.schedule_repo.delete(item.id)
+
+        # 2. Tạo mới các schedule items theo thứ tự
+        for index, slot in enumerate(slots):
+            place_id = (
+                UUID(str(slot["place_id"]))
+                if not isinstance(slot["place_id"], UUID)
+                else slot["place_id"]
+            )
+            reasons = slot.get("reasons") or []
+            note = slot.get("note")
+            if note is None and reasons:
+                note = ", ".join(reasons)
+
+            create_data = {
+                "room_id": room_id,
+                "place_id": place_id,
+                "day_offset": int(slot.get("day_offset", 0)),
+                "start_minute": int(slot["start_minute"]),
+                "end_minute": int(slot["end_minute"]),
+                "order_index": index,
+                "note": note,
+            }
+            await self.schedule_repo.create(create_data)
+
+        # 3. Lấy lại toàn bộ items vừa tạo (đã eager load place)
+        all_items = await self.schedule_repo.list_by_room(room_id)
+
+        # 4. Đánh giá xung đột tức thời
+        conflict_context = await self._build_conflict_context(room_id, all_items)
+        detected_conflicts: list[ConflictResult] = self.conflict_engine.evaluate_all(
+            conflict_context
+        )
+
+        saved_conflicts = []
+        if self.conflict_repo is not None:
+            saved_conflicts = await self.conflict_repo.replace_conflicts(
+                room_id, detected_conflicts
+            )
+
+        # 5. Phát sự kiện ScheduleUpdatedEvent
+        schedule_dicts = [
+            {
+                "id": str(s.id),
+                "place_id": str(s.place_id),
+                "place_name": s.place.name if s.place else "",
+                "day_offset": s.day_offset,
+                "start_minute": s.start_minute,
+                "end_minute": s.end_minute,
+                "order_index": s.order_index,
+                "note": s.note,
+            }
+            for s in all_items
+        ]
+        await self.event_bus.publish(
+            ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
+        )
+
+        # 6. Phát sự kiện ConflictDetectedEvent (CONFLICTS_UPDATED)
+        if self.conflict_repo is not None:
+            conflicts_payload = [
+                {
+                    "id": str(c.id),
+                    "room_id": str(c.room_id),
+                    "rule_code": c.rule_code,
+                    "level": c.level,
+                    "message": c.message,
+                    "entity_type": c.entity_type,
+                    "entity_ids": c.entity_ids,
+                    "resolved": c.resolved,
+                    "created_at": (
+                        c.created_at.isoformat()
+                        if hasattr(c.created_at, "isoformat")
+                        else str(c.created_at)
+                    ),
+                }
+                for c in saved_conflicts
+            ]
+        else:
+            conflicts_payload = [
+                {
+                    "rule_code": cr.rule_code,
+                    "level": (
+                        cr.level.value if hasattr(cr.level, "value") else str(cr.level)
+                    ),
+                    "message": cr.message,
+                    "entity_type": cr.entity_type,
+                    "entity_ids": [str(eid) for eid in cr.entity_ids],
+                }
+                for cr in detected_conflicts
+            ]
+        await self.event_bus.publish(
+            ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
+        )
+
+        return [self._format_schedule_item(item) for item in all_items]
+
