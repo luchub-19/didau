@@ -105,3 +105,11 @@ Kế hoạch: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md) · Hợ
 - Factory service vẫn rải rác: `deps.py` chỉ có room/member; `places.py`, `votes.py`, `schedule.py`, `conflicts.py`, `decisions.py` tự dựng, và `websocket.py:61-112` dựng cả repo lẫn 5 service. Nên dời vào `deps.py`.
 - Alias thừa `_ensure_room_access = ensure_room_access` còn ở `schedule.py:75` và `conflicts.py:50`.
 - `main.py:102,112` còn hai hàm `test_*` nằm trong module ứng dụng (pytest không thu thập); nên chuyển vào `tests/`.
+
+## Ghi chú: bản đồ chạy OSM trước, Google để nâng cấp sau (2026-10-17)
+- `MapView.tsx` giờ: kiểm tra WebGL → style vector OpenFreeMap; nếu lỗi/quá 8s chưa `load` thì dựng lại bằng
+  style raster OSM (`FALLBACK_MAP_STYLE` trong `config.ts`); lỗi cuối cùng hiện thông báo thay vì ô xám trống.
+  Chưa kiểm tra trên trình duyệt thật (extension Chrome không kết nối) — cần mở tab Bản đồ xem lại bằng tay.
+- Google Maps/Places UI Kit để sau: cờ `PLACES_PROVIDER=google` + `VITE_GOOGLE_MAPS_BROWSER_KEY` để trống = chế độ OSM,
+  không có request nào tới googleapis. Việc nâng cấp: xem mục "Việc của người" trong CLAUDE.md, rồi T-26/T-28.
+- Gạch raster `tile.openstreetmap.org` chỉ là đường lùi (policy OSM cấm dùng nặng); production nên dùng nhà cung cấp gạch riêng.

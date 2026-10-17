@@ -8,6 +8,22 @@ export const WS_BASE = raw
 // Bản đồ: style mặc định là OpenFreeMap Liberty (miễn phí, không cần key)
 export const MAP_STYLE_URL: string =
   import.meta.env.VITE_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty";
+// Style dự phòng: gạch raster OSM, dùng khi style vector không tải được.
+// glyphs lấy từ OpenFreeMap để lớp chữ (số cụm POI) vẫn vẽ được.
+export const FALLBACK_MAP_STYLE = {
+  version: 8 as const,
+  glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+  sources: {
+    osm: {
+      type: "raster" as const,
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [{ id: "osm", type: "raster" as const, source: "osm" }],
+};
 export const CITY_CENTER: Record<string, { lat: number; lng: number }> = {
   HCM: { lat: 10.7769, lng: 106.7009 },
   HN: { lat: 21.0285, lng: 105.8542 },

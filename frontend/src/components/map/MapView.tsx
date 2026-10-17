@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CITY_CENTER, MAP_STYLE_URL } from '../../config';
+import { CITY_CENTER, FALLBACK_MAP_STYLE, MAP_STYLE_URL } from '../../config';
 import { useMapStore } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import type { Place, Poi, Room } from '../../types';
@@ -24,6 +24,15 @@ export interface MapViewProps {
   onOriginChange: (lat: number, lng: number) => void;
 }
 
+function hasWebGL(): boolean {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
 /** Dưới mức zoom này không tải POI (khung nhìn quá rộng). */
 const MIN_FETCH_ZOOM = 12;
 
@@ -37,6 +46,7 @@ export function MapView({
   const containerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const poisById = useMapStore((s) => s.poisById);
   const selection = useMapStore((s) => s.selection);
@@ -51,46 +61,87 @@ export function MapView({
       : (CITY_CENTER[room.city ?? 'HCM'] ?? CITY_CENTER.HCM),
   );
 
-  // Khởi tạo map đúng một lần
+  // Khởi tạo map đúng một lần. Style vector lỗi/quá chậm → dựng lại bằng style raster OSM.
   useEffect(() => {
-    if (!containerRef.current) return;
-    const instance = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE_URL,
-      center: [initialCenter.current.lng, initialCenter.current.lat],
-      zoom: 14,
-      attributionControl: { compact: true },
-    });
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    const container = containerRef.current;
+    if (!container) return;
+    if (!hasWebGL()) {
+      setMapError('Trình duyệt không hỗ trợ WebGL nên không hiển thị được bản đồ.');
+      return;
+    }
 
+    let disposed = false;
+    let instance: MapLibreMap | null = null;
     let debounce: ReturnType<typeof setTimeout>;
-    const refresh = () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => {
-        if (instance.getZoom() < MIN_FETCH_ZOOM) return;
-        const b = instance.getBounds();
-        void useMapStore.getState().loadBounds({
-          minLat: b.getSouth(),
-          minLng: b.getWest(),
-          maxLat: b.getNorth(),
-          maxLng: b.getEast(),
-        });
-      }, 300);
+    let styleTimeout: ReturnType<typeof setTimeout>;
+
+    const build = (style: string | typeof FALLBACK_MAP_STYLE, isFallback: boolean) => {
+      const m = new maplibregl.Map({
+        container,
+        style: style as string,
+        center: [initialCenter.current.lng, initialCenter.current.lat],
+        zoom: 14,
+        attributionControl: { compact: true },
+      });
+      instance = m;
+      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+
+      const refresh = () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+          if (m.getZoom() < MIN_FETCH_ZOOM) return;
+          const b = m.getBounds();
+          void useMapStore.getState().loadBounds({
+            minLat: b.getSouth(),
+            minLng: b.getWest(),
+            maxLat: b.getNorth(),
+            maxLng: b.getEast(),
+          });
+        }, 300);
+      };
+
+      const switchToFallback = () => {
+        if (disposed || isFallback) return;
+        clearTimeout(styleTimeout);
+        m.remove();
+        build(FALLBACK_MAP_STYLE, true);
+      };
+
+      m.on('load', () => {
+        clearTimeout(styleTimeout);
+        try {
+          installPoiLayer(m, (id) => useMapStore.getState().selectPoi(id));
+          installRoomPlacesLayer(m, (id) => useMapStore.getState().selectPlace(id));
+          installRouteLayer(m);
+        } catch (err) {
+          console.error('[MapView] lỗi dựng lớp dữ liệu', err);
+        }
+        setMapError(null);
+        setMap(m);
+        setMapReady(true);
+        refresh();
+      });
+      m.on('moveend', refresh);
+      // Lỗi tải style (không phải lỗi gạch lẻ tẻ) → chuyển sang style dự phòng
+      m.on('error', (e) => {
+        const err = e.error as (Error & { status?: number }) | undefined;
+        console.warn('[MapView] map error', err);
+        if (!m.isStyleLoaded() && !m.loaded()) switchToFallback();
+      });
+      // Style quá chậm (mạng nghẽn / bị chặn) cũng lùi về dự phòng
+      if (!isFallback) styleTimeout = setTimeout(() => !m.loaded() && switchToFallback(), 8000);
+      else styleTimeout = setTimeout(() => {
+        if (!m.loaded()) setMapError('Không tải được bản đồ. Kiểm tra kết nối mạng rồi tải lại trang.');
+      }, 15000);
     };
 
-    instance.on('load', () => {
-      installPoiLayer(instance, (id) => useMapStore.getState().selectPoi(id));
-      installRoomPlacesLayer(instance, (id) => useMapStore.getState().selectPlace(id));
-      installRouteLayer(instance);
-      setMap(instance);
-      setMapReady(true);
-      refresh();
-    });
-    instance.on('moveend', refresh);
+    build(MAP_STYLE_URL, false);
 
     return () => {
+      disposed = true;
       clearTimeout(debounce);
-      instance.remove();
+      clearTimeout(styleTimeout);
+      instance?.remove();
       setMap(null);
       setMapReady(false);
     };
@@ -172,6 +223,12 @@ export function MapView({
   return (
     <div className="relative h-[70vh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
       <div ref={containerRef} className="absolute inset-0" data-testid="map-container" />
+
+      {mapError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-100/90 p-6 text-center text-sm text-slate-600">
+          {mapError}
+        </div>
+      )}
 
       <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
         <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
