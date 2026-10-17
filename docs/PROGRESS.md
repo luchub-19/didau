@@ -38,3 +38,28 @@ Bảng theo dõi trạng thái thực hiện các tác vụ phát triển ứng 
 - **Orchestration**: Docker Compose khởi chạy trọn vẹn 3 dịch vụ (`didau_db`, `didau_backend`, `didau_frontend`)
 - **Dữ liệu mẫu khởi tạo**: Script `app/core/seed.py` nạp sẵn phòng `DIDAU8` với 3 thành viên, 5 địa điểm phân loại thông minh, phiếu bầu hòa 3 bên để demo `TieBreakStrategy` và 1 mục lịch trình mẫu.
 - **Tài liệu hướng dẫn**: [README.md](../README.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), [docs/CONTRACTS.md](CONTRACTS.md), [docs/CHANGE_REQUESTS.md](CHANGE_REQUESTS.md).
+
+---
+
+## GIAI ĐOẠN 2: BẢN ĐỒ, "CHỌN HỘ" & TỰ LÊN LỊCH
+
+Kế hoạch: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md) · Hợp đồng: CR-02 (ACCEPTED 2026-10-17) · Chi tiết task: [TASKS.md mục 3](TASKS.md)
+
+| Task | Tên tác vụ | Ưu tiên | Trạng thái | Session | Ghi chú phạm vi |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **T-23** | CR-02: Contracts, Enums, Models & Migration 002 | P0 | DONE | 45a11fce | Hoàn thành CR-02: áp CONTRACTS.md, enums PlaceSource/CityCode/DecisionMode/DecisionStatus/TriggerHint/GROUP_DECISION, models Place/Room/ExternalPlaceLink/PlaceReview/DecisionSession/DecisionSwipe, Alembic migration 002 (upgrade/downgrade sạch trên PostgreSQL và SQLite), schemas Place/Room. Pass 327/327 backend tests và ruff lint clean 100%. |
+
+| **T-24** | Frontend Types & MSW cho CR-02 | P0 | TODO | – | |
+| **T-25** | OSM POI Snapshot & `/pois` API | P0 | TODO | – | |
+| **T-26** | Google `place_id` Match & Quota Guard | P1 | TODO | – | Sau cờ `PLACES_PROVIDER=google` |
+| **T-27** | Frontend MapView (MapLibre + OpenFreeMap) | P0 | TODO | – | |
+| **T-28** | PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard | P0 | TODO | – | Google card là P1 |
+| **T-29** | Review nội bộ (BE + FE) | P1 | TODO | – | |
+| **T-30** | Pure Logic: DeciderTrigger, SmartPick, Wheel, Ladder | P1 | TODO | – | Chạy song song ngay |
+| **T-31** | Decision Session API & WS Events | P1 | TODO | – | |
+| **T-32** | FE Chọn hộ: Banner, Gợi ý 1 chạm, Vòng quay | P1 | TODO | – | |
+| **T-33** | FE Swipe & Thang may mắn | P2 | TODO | – | |
+| **T-34** | Pure Logic: ItineraryPlanner & TravelTimeEstimator | P0 | DONE | d5f4dfe1 | Thêm `patterns/itinerary/` (`travel.py`: `ITravelTimeEstimator`, `HaversineTravelEstimator` = Haversine×1,3÷30km/h+10′; `opening_hours.py`: `parse_opening_hours(raw, weekday)`; `planner.py`: `HeuristicItineraryPlanner.plan()/plan_day()`, `select_candidates()`, `PlanConstraints`, `PlannedSlot`, `DroppedPlace`). n≤7 duyệt hoán vị, n>7 greedy+2-opt, deterministic. `TravelTimeConflictRule(estimator=None)` giữ hành vi cũ khi không truyền; `haversine_distance_km` chuyển sang `itinerary/travel.py` (vẫn re-export từ `conflict_rule`). `IRouteOptimizationService.plan_day` thêm vào (abstract), stub đã cập nhật. 68 test mới (296 unit pass), gồm test hợp đồng: engine không báo TIME_OVERLAP/TRAVEL_TIME/OPENING_HOURS trên lịch sinh ra. **Quyết định/lệch plan:** (1) FOOD đến sớm hơn khung bữa thì chờ tới đầu khung (phạt chờ 0,5/phút < phạt lệch 2/phút); (2) giờ mở qua đêm/`24:00` bị cắt ở 23:59 vì `end_minute` ≤ 1439; (3) `optimize_route` của planner trả nguyên thứ tự (cần toạ độ → dùng `plan_day`); (4) `opening_hours_raw` truyền qua `PlanConstraints.opening_hours_raw[place_id]` vì `PlaceVoteSummary` chưa có trường này. **Cho T-35:** gọi `select_candidates(places)` → `(quán, used_fallback)`, rồi `plan_day(places, PlanConstraints(event_date=…, start_minute=room.start_minute, end_minute=room.end_minute, …))`; `dropped[].reason` là tiếng Việt, hiển thị thẳng được. Integration test (cần DB) chạy toàn bộ một lần trước khi sửa lẻ: 394 pass, 1 fail ở `test_websocket_subscribe_room_sync` (không liên quan T-34, chưa điều tra); chưa chạy lại sau đó. |
+| **T-35** | Auto-plan API | P0 | TODO | – | |
+| **T-36** | FE "✨ Lên lịch giúp tôi" | P0 | TODO | – | |
+| **T-37** | Tích hợp GĐ2, Seed, E2E & Tài liệu | P2 | TODO | – | Test cả 2 chế độ osm/google |

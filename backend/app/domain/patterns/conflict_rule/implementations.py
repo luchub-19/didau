@@ -11,27 +11,7 @@ from app.domain.patterns.conflict_rule.rule import (
     IConflictRule,
     PlaceVoteSummary,
 )
-
-
-def haversine_distance_km(
-    lat1: float,
-    lon1: float,
-    lat2: float,
-    lon2: float,
-) -> float:
-    """Tính khoảng cách đường chim bay giữa hai tọa độ địa lý theo công thức Haversine (km)."""
-    radius = 6371.0  # Bán kính Trái Đất xấp xỉ tính bằng km
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(lon2 - lon1)
-
-    a = (
-        math.sin(delta_phi / 2.0) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
-    )
-    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    return radius * c
+from app.domain.patterns.itinerary.travel import ITravelTimeEstimator, haversine_distance_km
 
 
 def format_minute(minute: int) -> str:
@@ -141,9 +121,17 @@ class TravelTimeConflictRule(IConflictRule):
     ước tính dựa trên khoảng cách tọa độ Haversine.
     """
 
-    def __init__(self, average_speed_kmh: float = 30.0) -> None:
-        """Khởi tạo luật di chuyển với vận tốc trung bình (mặc định 30 km/h trong đô thị)."""
+    def __init__(
+        self,
+        average_speed_kmh: float = 30.0,
+        estimator: ITravelTimeEstimator | None = None,
+    ) -> None:
+        """Khởi tạo luật di chuyển với vận tốc trung bình (mặc định 30 km/h trong đô thị).
+
+        Nếu truyền `estimator` thì dùng nó thay cho công thức Haversine / vận tốc.
+        """
         self.average_speed_kmh = max(1.0, average_speed_kmh)
+        self.estimator = estimator
 
     @property
     def rule_code(self) -> str:
@@ -198,12 +186,7 @@ class TravelTimeConflictRule(IConflictRule):
                     lon_next = place_next.longitude
 
                 # Nếu thiếu tọa độ một trong hai địa điểm thì bỏ qua tính toán
-                if (
-                    lat_curr is None
-                    or lon_curr is None
-                    or lat_next is None
-                    or lon_next is None
-                ):
+                if lat_curr is None or lon_curr is None or lat_next is None or lon_next is None:
                     continue
 
                 distance_km = haversine_distance_km(
@@ -214,9 +197,15 @@ class TravelTimeConflictRule(IConflictRule):
                 )
 
                 # Ước tính số phút di chuyển = (khoảng cách / vận tốc) * 60 (làm tròn lên)
-                estimated_travel_minutes = math.ceil(
-                    (distance_km / self.average_speed_kmh) * 60.0
-                )
+                if self.estimator is not None:
+                    estimated_travel_minutes = self.estimator.minutes(
+                        (float(lat_curr), float(lon_curr)),
+                        (float(lat_next), float(lon_next)),
+                    )
+                else:
+                    estimated_travel_minutes = math.ceil(
+                        (distance_km / self.average_speed_kmh) * 60.0
+                    )
 
                 # Nếu khoảng cách > 0 và thời gian nghỉ giữa 2 chặng < thời gian di chuyển ước tính
                 if estimated_travel_minutes > 0 and gap_minutes < estimated_travel_minutes:

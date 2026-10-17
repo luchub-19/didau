@@ -1,5 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from app.domain.patterns.itinerary.planner import DroppedPlace, PlanConstraints, PlannedSlot
+    from app.domain.patterns.tie_break.strategy import PlaceVoteSummary
 
 
 class IRouteOptimizationService(ABC):
@@ -14,4 +19,16 @@ class IRouteOptimizationService(ABC):
 
         Returns:
             Danh sách các UUID địa điểm đã được sắp xếp theo thứ tự tối ưu.
+        """
+
+    @abstractmethod
+    async def plan_day(
+        self,
+        places: "list[PlaceVoteSummary]",
+        constraints: "PlanConstraints",
+    ) -> "tuple[list[PlannedSlot], list[DroppedPlace]]":
+        """Tự xếp lịch cho các địa điểm theo ràng buộc giờ, giờ mở cửa và thời gian di chuyển.
+
+        Returns:
+            (các slot đã xếp, các địa điểm bị loại kèm lý do).
         """

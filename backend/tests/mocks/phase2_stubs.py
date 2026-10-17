@@ -1,6 +1,8 @@
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.domain.patterns.itinerary.planner import DroppedPlace, PlanConstraints, PlannedSlot
+from app.domain.patterns.tie_break.strategy import PlaceVoteSummary
 from app.domain.phase2_interfaces import (
     IExpenseSplittingService,
     IExternalPlacesProvider,
@@ -21,6 +23,26 @@ class StubRouteOptimizationService(IRouteOptimizationService):
         if self.reversed_order:
             return list(reversed(place_ids))
         return sorted(place_ids, key=str)
+
+    async def plan_day(
+        self,
+        places: list[PlaceVoteSummary],
+        constraints: PlanConstraints,
+    ) -> tuple[list[PlannedSlot], list[DroppedPlace]]:
+        """Xếp tuần tự từ đầu khung giờ, mỗi quán 60 phút, không kiểm tra gì thêm."""
+        slots: list[PlannedSlot] = []
+        cursor = constraints.start_minute
+        for place in places:
+            slots.append(
+                PlannedSlot(
+                    place_id=place.place_id,
+                    day_offset=constraints.day_offset,
+                    start_minute=cursor,
+                    end_minute=cursor + 60,
+                )
+            )
+            cursor += 60
+        return slots, []
 
 
 class StubExternalPlacesProvider(IExternalPlacesProvider):
