@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: didau-backend
+    runtime: docker
+    rootDir: backend
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: NOMINATIM_USER_AGENT
+        sync: false
