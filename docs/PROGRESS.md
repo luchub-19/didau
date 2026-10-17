@@ -113,3 +113,12 @@ Kế hoạch: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md) · Hợ
 - Google Maps/Places UI Kit để sau: cờ `PLACES_PROVIDER=google` + `VITE_GOOGLE_MAPS_BROWSER_KEY` để trống = chế độ OSM,
   không có request nào tới googleapis. Việc nâng cấp: xem mục "Việc của người" trong CLAUDE.md, rồi T-26/T-28.
 - Gạch raster `tile.openstreetmap.org` chỉ là đường lùi (policy OSM cấm dùng nặng); production nên dùng nhà cung cấp gạch riêng.
+
+## Bẫy đã gặp: bản đồ không hiện, chỉ thấy ô tìm kiếm và bảng gợi ý (2026-10-17, đã sửa)
+- **Triệu chứng:** tab Bản đồ chỉ có lớp phủ (`MapSearchBox`, `NearbySuggestions`), không có nền bản đồ. Không có lỗi console.
+- **Nguyên nhân:** `maplibre-gl.css` đặt `.maplibregl-map { position: relative }`, đè lên class Tailwind `absolute inset-0`
+  của chính div chứa map → khung cao 0px. Đừng gắn `absolute`/`inset-0` trực tiếp lên div mà MapLibre khởi tạo.
+- **Cách sửa:** `MapView.tsx` bọc `<div className="absolute inset-0">` bên ngoài, div map bên trong dùng `h-full w-full`.
+- **Bẫy phụ:** container `didau_frontend` KHÔNG mount source (build từ image), nên sửa frontend xong phải chạy
+  `docker compose up -d --build frontend` mới thấy thay đổi, không thì web vẫn chạy code cũ.
+- **Test không bắt được:** jsdom không tính CSS/layout nên test không phát hiện lỗi này; chỉ kiểm tra được trên trình duyệt thật.

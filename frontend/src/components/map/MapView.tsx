@@ -222,7 +222,11 @@ export function MapView({
 
   return (
     <div className="relative h-[70vh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-      <div ref={containerRef} className="absolute inset-0" data-testid="map-container" />
+      {/* maplibre-gl.css đặt .maplibregl-map { position: relative } đè lên `absolute inset-0`
+          → khung cao 0px. Bọc ngoài bằng div absolute, map chiếm 100% div đó. */}
+      <div className="absolute inset-0">
+        <div ref={containerRef} className="h-full w-full" data-testid="map-container" />
+      </div>
 
       {mapError && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-100/90 p-6 text-center text-sm text-slate-600">
