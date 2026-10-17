@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { scheduleApi } from '../services/api/scheduleApi';
 import type {
+  AutoPlanApplyRequest,
+  AutoPlanPreviewRequest,
+  AutoPlanPreviewResponse,
   BulkUpdateScheduleRequest,
   CreateScheduleItemRequest,
   ScheduleItem,
@@ -10,6 +13,12 @@ interface ScheduleState {
   items: ScheduleItem[];
   isLoading: boolean;
   error: string | null;
+
+  // AutoPlan state
+  autoPlanPreview: AutoPlanPreviewResponse | null;
+  isAutoPlanLoading: boolean;
+  autoPlanError: string | null;
+  durationOverrides: Record<string, number>;
 
   // Actions
   fetchSchedule: (roomId: string) => Promise<void>;
@@ -23,6 +32,20 @@ interface ScheduleState {
   ) => Promise<ScheduleItem[]>;
   deleteItem: (roomId: string, itemId: string) => Promise<void>;
 
+  // AutoPlan actions
+  previewAutoPlan: (
+    roomId: string,
+    data?: AutoPlanPreviewRequest,
+  ) => Promise<AutoPlanPreviewResponse>;
+  applyAutoPlan: (
+    roomId: string,
+    data: AutoPlanApplyRequest,
+  ) => Promise<ScheduleItem[]>;
+  setDurationOverride: (placeId: string, duration: number) => void;
+  resetDurationOverrides: () => void;
+  setAutoPlanPreview: (preview: AutoPlanPreviewResponse | null) => void;
+  clearAutoPlanPreview: () => void;
+
   // Realtime updates & local state
   setItems: (items: ScheduleItem[]) => void;
   upsertItem: (item: ScheduleItem) => void;
@@ -34,6 +57,10 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
   items: [],
   isLoading: false,
   error: null,
+  autoPlanPreview: null,
+  isAutoPlanLoading: false,
+  autoPlanError: null,
+  durationOverrides: {},
 
   fetchSchedule: async (roomId: string) => {
     set({ isLoading: true, error: null });
@@ -99,6 +126,58 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
     }
   },
 
+  previewAutoPlan: async (roomId: string, data?: AutoPlanPreviewRequest) => {
+    set({ isAutoPlanLoading: true, autoPlanError: null });
+    try {
+      const preview = await scheduleApi.previewAutoPlan(roomId, data);
+      set({ autoPlanPreview: preview, isAutoPlanLoading: false });
+      return preview;
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message ||
+        (err as { message?: string })?.message ||
+        'Không thể xem trước lịch trình tự động.';
+      set({ autoPlanError: errorMsg, isAutoPlanLoading: false });
+      throw err;
+    }
+  },
+
+  applyAutoPlan: async (roomId: string, data: AutoPlanApplyRequest) => {
+    set({ isAutoPlanLoading: true, autoPlanError: null });
+    try {
+      const items = await scheduleApi.applyAutoPlan(roomId, data);
+      const sorted = [...items].sort((a, b) => a.order_index - b.order_index);
+      set({ items: sorted, autoPlanPreview: null, isAutoPlanLoading: false });
+      return sorted;
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message ||
+        (err as { message?: string })?.message ||
+        'Không thể áp dụng lịch trình tự động.';
+      set({ autoPlanError: errorMsg, isAutoPlanLoading: false });
+      throw err;
+    }
+  },
+
+  setDurationOverride: (placeId: string, duration: number) =>
+    set((state) => ({
+      durationOverrides: {
+        ...state.durationOverrides,
+        [placeId]: duration,
+      },
+    })),
+
+  resetDurationOverrides: () => set({ durationOverrides: {} }),
+
+  setAutoPlanPreview: (preview) => set({ autoPlanPreview: preview }),
+
+  clearAutoPlanPreview: () =>
+    set({
+      autoPlanPreview: null,
+      autoPlanError: null,
+      durationOverrides: {},
+    }),
+
   setItems: (items) => {
     const sorted = [...items].sort((a, b) => a.order_index - b.order_index);
     set({ items: sorted });
@@ -124,5 +203,9 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       items: [],
       isLoading: false,
       error: null,
+      autoPlanPreview: null,
+      isAutoPlanLoading: false,
+      autoPlanError: null,
+      durationOverrides: {},
     }),
 }));

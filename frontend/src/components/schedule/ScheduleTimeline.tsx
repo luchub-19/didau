@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import type { ScheduleItem, Place } from '../../types';
+import type { ScheduleItem, Place, Member } from '../../types';
 import { ScheduleItemCard } from './ScheduleItemCard';
 import { Button } from '../common/Button';
+import { AutoPlanButton } from './AutoPlanButton';
+import { AutoPlanPreview } from './AutoPlanPreview';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { useConflictStore } from '../../store/useConflictStore';
 
@@ -9,24 +11,30 @@ export interface ScheduleTimelineProps {
   roomId: string;
   items: ScheduleItem[];
   places: Place[];
+  members?: Member[];
   isHost?: boolean;
   onOpenAddModal?: () => void;
+  onOpenDecideModal?: () => void;
 }
 
 export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
   roomId,
   items,
   places,
+  members = [],
   isHost = false,
   onOpenAddModal,
+  onOpenDecideModal,
 }) => {
   const bulkUpdate = useScheduleStore((s) => s.bulkUpdate);
   const deleteItem = useScheduleStore((s) => s.deleteItem);
+  const previewAutoPlan = useScheduleStore((s) => s.previewAutoPlan);
   const conflicts = useConflictStore((s) => s.conflicts);
   const evaluateConflicts = useConflictStore((s) => s.evaluateConflicts);
 
   const [selectedDay, setSelectedDay] = useState<number | 'ALL'>('ALL');
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Map of place_id -> Place
   const placeMap = useMemo(() => {
@@ -164,9 +172,29 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
     }
   };
 
+  const handleOpenAutoPlan = async () => {
+    try {
+      await previewAutoPlan(roomId);
+    } catch (err) {
+      console.error('Lỗi khi tải xem trước lịch trình:', err);
+    } finally {
+      setIsPreviewOpen(true);
+    }
+  };
+
+  const handleReoptimize = async () => {
+    try {
+      await previewAutoPlan(roomId);
+    } catch (err) {
+      console.error('Lỗi khi sắp lại tối ưu:', err);
+    } finally {
+      setIsPreviewOpen(true);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header with Day Filters and Add button */}
+      {/* Header with Day Filters and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button
@@ -199,16 +227,38 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
           })}
         </div>
 
-        {onOpenAddModal && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onOpenAddModal}
-            leftIcon={<span>+</span>}
-          >
-            Xếp lịch mới
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReoptimize}
+              data-testid="reoptimize-schedule-btn"
+            >
+              ⚡ Sắp lại tối ưu
+            </Button>
+          )}
+
+          <AutoPlanButton
+            roomId={roomId}
+            places={places}
+            members={members}
+            isHost={isHost}
+            onOpenPreview={handleOpenAutoPlan}
+            onOpenDecideModal={onOpenDecideModal}
+          />
+
+          {onOpenAddModal && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={onOpenAddModal}
+              leftIcon={<span>+</span>}
+            >
+              Xếp lịch mới
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Schedule Items List */}
@@ -221,13 +271,22 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Hãy bắt đầu sắp xếp các địa điểm đã chốt theo khung giờ để cả nhóm cùng theo dõi.
           </p>
-          {onOpenAddModal && (
-            <div className="pt-2">
-              <Button variant="primary" size="sm" onClick={onOpenAddModal}>
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+            <AutoPlanButton
+              roomId={roomId}
+              places={places}
+              members={members}
+              isHost={isHost}
+              onOpenPreview={handleOpenAutoPlan}
+              onOpenDecideModal={onOpenDecideModal}
+              label="✨ Lên lịch tự động giúp tôi"
+            />
+            {onOpenAddModal && (
+              <Button variant="outline" size="sm" onClick={onOpenAddModal}>
                 + Thêm địa điểm vào lịch
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : (
         <div className="space-y-3 relative before:absolute before:top-4 before:bottom-4 before:left-7 before:w-0.5 before:bg-slate-200">
@@ -258,6 +317,18 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
           })}
         </div>
       )}
+
+      {/* Auto Plan Preview Modal */}
+      <AutoPlanPreview
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        roomId={roomId}
+        places={places}
+        isHost={isHost}
+        onApplySuccess={() => {
+          void evaluateConflicts(roomId);
+        }}
+      />
     </div>
   );
 };

@@ -6,8 +6,11 @@ import { CategoryFilter, PlaceForm, PlaceList } from '../components/places';
 import { TieBreakSelectorModal } from '../components/voting';
 import { ScheduleTimeline, AddScheduleItemModal } from '../components/schedule';
 import { ConflictAlertBanner } from '../components/conflicts';
+import { DeciderBanner, DecideModal } from '../components/decide';
 import { usePlaceStore } from '../store/usePlaceStore';
 import { useRoomStore } from '../store/useRoomStore';
+import { useMapStore } from '../store/useMapStore';
+import { useDecisionStore } from '../store/useDecisionStore';
 import type { PlaceCategory } from '../types';
 
 // maplibre-gl nặng: tách thành chunk riêng, chỉ tải khi mở tab Bản đồ
@@ -37,6 +40,9 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   const updateRoom = useRoomStore((s) => s.updateRoom);
   const selectedCategory = usePlaceStore((s) => s.selectedCategory);
   const setSelectedCategory = usePlaceStore((s) => s.setSelectedCategory);
+
+  const isDecideModalOpen = useDecisionStore((s) => s.isDecideModalOpen);
+  const setDecideModalOpen = useDecisionStore((s) => s.setDecideModalOpen);
 
   const [activeTab, setActiveTab] = useState<'PLACES' | 'SCHEDULE' | 'MAP'>('PLACES');
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
@@ -218,6 +224,12 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Column: Tabs, Places & Schedule */}
           <div className="lg:col-span-3 space-y-5">
+            {/* Decider Banner */}
+            <DeciderBanner
+              roomId={roomId}
+              onOpenDecide={() => setDecideModalOpen(true)}
+            />
+
             {/* View Navigation Tabs */}
             <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
               <button
@@ -305,6 +317,10 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
                   isVotingDisabled={isVotingDisabled}
                   onOpenAddModal={() => setIsAddPlaceOpen(true)}
                   onDeletePlace={handleDeletePlace}
+                  onViewOnMap={(p) => {
+                    setActiveTab('MAP');
+                    useMapStore.getState().selectPlace(p.id);
+                  }}
                 />
               </div>
             )}
@@ -322,6 +338,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
                   room={room}
                   places={places}
                   isHost={isHost}
+                  isVotingDisabled={isVotingDisabled}
                   onOriginChange={handleOriginChange}
                 />
               </Suspense>
@@ -333,8 +350,10 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
                 roomId={roomId}
                 items={schedule}
                 places={places}
+                members={members}
                 isHost={isHost}
                 onOpenAddModal={() => setIsAddScheduleOpen(true)}
+                onOpenDecideModal={() => setIsTieBreakOpen(true)}
               />
             )}
           </div>
@@ -402,6 +421,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         onClose={() => setIsAddScheduleOpen(false)}
         roomId={roomId}
         places={places}
+      />
+
+      <DecideModal
+        isOpen={isDecideModalOpen}
+        onClose={() => setDecideModalOpen(false)}
+        roomId={roomId}
+        isHost={isHost}
       />
     </div>
   );
