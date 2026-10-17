@@ -15,3 +15,9 @@ services:
         sync: false
       - key: NOMINATIM_USER_AGENT
         sync: false
+      - key: PLACES_PROVIDER
+        value: osm
+      - key: GOOGLE_MAPS_SERVER_KEY
+        sync: false
+      - key: GOOGLE_MATCH_DAILY_LIMIT
+        value: "1000"

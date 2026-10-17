@@ -18,3 +18,19 @@ class PoiResponse(BaseModel):
     close_minute: int | None = Field(default=None, ge=0, le=1439)
     distance_km: float | None = Field(default=None, description="Chỉ có khi truyền lat/lng")
     tags: dict[str, str] = Field(default_factory=dict)
+
+
+class GoogleMatchRequest(BaseModel):
+    """Yêu cầu khớp một quán OSM với Google place_id."""
+
+    external_id: str = Field(min_length=1, max_length=100, description="osm:{type}/{id}")
+    name: str = Field(min_length=1, max_length=200)
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+
+
+class GoogleMatchResponse(BaseModel):
+    """`google_place_id` null kèm `reason` khi không khớp được (không bao giờ là lỗi 5xx)."""
+
+    google_place_id: str | None = None
+    reason: str = Field(description="OK | NOT_FOUND | REJECTED | QUOTA | NO_KEY | DISABLED | ERROR")

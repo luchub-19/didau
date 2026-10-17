@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     # Nguồn dữ liệu quán: "osm" (mặc định) hoặc "google" (bật lớp Google, có đường lùi về osm)
     PLACES_PROVIDER: str = "osm"
 
+    # Key Google phía server (chỉ bật Places API (New)); rỗng = tắt lớp Google
+    GOOGLE_MAPS_SERVER_KEY: str = ""
+
+    # Trần số lần gọi Google Text Search mỗi ngày (miễn phí, chặn để phòng lạm dụng)
+    GOOGLE_MATCH_DAILY_LIMIT: int = 1000
+
     # Thư mục chứa snapshot POI (pois_*.json.gz); rỗng = backend/app/data
     POI_DATA_DIR: str = ""
 

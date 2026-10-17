@@ -1,10 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_member, get_db
 from app.core.exceptions import AppException, ValidationError
 from app.domain.enums import PlaceCategory
-from app.schemas.poi import PoiResponse
+from app.domain.models.member import Member
+from app.repositories.external_link_repo import ExternalLinkRepository
+from app.schemas.poi import GoogleMatchRequest, GoogleMatchResponse, PoiResponse
+from app.services.google_places_service import GooglePlacesService
 from app.services.poi_service import Poi, PoiService, get_poi_service
 
 router = APIRouter(prefix="/pois", tags=["POIs"])
@@ -12,6 +17,16 @@ router = APIRouter(prefix="/pois", tags=["POIs"])
 MAX_BBOX_SPAN_DEG = 0.2
 
 PoiServiceDep = Annotated[PoiService, Depends(get_poi_service)]
+
+
+def get_google_places_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> GooglePlacesService:
+    """Dependency cung cấp GooglePlacesService."""
+    return GooglePlacesService(ExternalLinkRepository(session))
+
+
+GoogleServiceDep = Annotated[GooglePlacesService, Depends(get_google_places_service)]
 
 
 def _to_response(poi: Poi) -> PoiResponse:
@@ -59,6 +74,30 @@ async def search_pois(
     """Tìm không dấu theo tên/ẩm thực; có lat+lng thì kèm `distance_km` và ưu tiên gần."""
     near = (lat, lng) if lat is not None and lng is not None else None
     return [_to_response(p) for p in service.search(q, near, limit)]
+
+
+@router.post("/google-match", response_model=GoogleMatchResponse)
+async def google_match(
+    payload: GoogleMatchRequest,
+    service: GoogleServiceDep,
+    _member: Annotated[Member, Depends(get_current_member)],
+) -> GoogleMatchResponse:
+    """Khớp quán OSM với Google place_id; thất bại vẫn 200 kèm `reason`."""
+    place_id, reason = await service.match(
+        payload.external_id, payload.name, payload.lat, payload.lng
+    )
+    return GoogleMatchResponse(google_place_id=place_id, reason=reason)
+
+
+@router.delete("/google-match/{external_id:path}", status_code=204)
+async def reject_google_match(
+    external_id: str,
+    service: GoogleServiceDep,
+    _member: Annotated[Member, Depends(get_current_member)],
+) -> Response:
+    """ "Không đúng quán?": xoá liên kết Google đã lưu."""
+    await service.reject(external_id)
+    return Response(status_code=204)
 
 
 @router.get("/{external_id:path}", response_model=PoiResponse)
