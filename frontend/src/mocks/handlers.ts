@@ -289,6 +289,25 @@ export const handlers = [
         ? body.category
         : detectMockCategory(body.name);
 
+    // Chống trùng external_id (CR-03)
+    if (body.external_id) {
+      const existing = placesList.find(
+        (p) => p.room_id === String(roomId) && p.external_id === body.external_id,
+      );
+      if (existing) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'PLACE_ALREADY_ADDED',
+              message: 'Địa điểm này đã được thêm vào chuyến đi.',
+              details: { place_id: existing.id },
+            },
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     const newPlace: Place = {
       id: crypto.randomUUID(),
       room_id: String(roomId),
@@ -300,6 +319,12 @@ export const handlers = [
       longitude: body.longitude ?? null,
       category: detectedCategory,
       status: 'PROPOSED',
+      source: body.source ?? (body.external_id ? 'OSM' : undefined),
+      external_id: body.external_id ?? null,
+      google_place_id: body.google_place_id ?? null,
+      cuisine: body.cuisine ?? null,
+      opening_hours_raw: body.opening_hours_raw ?? null,
+      coords_source: body.coords_source ?? null,
       url: body.url ?? null,
       notes: body.notes ?? null,
       estimated_cost: body.estimated_cost ?? 0,

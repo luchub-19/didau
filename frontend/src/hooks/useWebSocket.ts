@@ -6,8 +6,12 @@ import { useConflictStore } from '../store/useConflictStore';
 import { usePlaceStore } from '../store/usePlaceStore';
 import { useRoomStore } from '../store/useRoomStore';
 import { useScheduleStore } from '../store/useScheduleStore';
+import { useDecisionStore } from '../store/useDecisionStore';
 import type {
   ConflictsUpdatedPayload,
+  DecisionProgressPayload,
+  DecisionResolvedPayload,
+  DecisionStartedPayload,
   MemberJoinedPayload,
   MemberLeftPayload,
   PlaceAddedPayload,
@@ -83,15 +87,24 @@ export function useWebSocket(roomId?: string) {
     });
 
     const unsubPlaceAdded = client.on<PlaceAddedPayload>('PLACE_ADDED', (payload) => {
-      if (payload.place) upsertPlace(payload.place);
+      if (payload.place) {
+        upsertPlace(payload.place);
+        useDecisionStore.getState().fetchHints(roomId);
+      }
     });
 
     const unsubPlaceUpdated = client.on<PlaceUpdatedPayload>('PLACE_UPDATED', (payload) => {
-      if (payload.place) upsertPlace(payload.place);
+      if (payload.place) {
+        upsertPlace(payload.place);
+        useDecisionStore.getState().fetchHints(roomId);
+      }
     });
 
     const unsubPlaceDeleted = client.on<PlaceDeletedPayload>('PLACE_DELETED', (payload) => {
-      if (payload.place_id) removePlace(payload.place_id);
+      if (payload.place_id) {
+        removePlace(payload.place_id);
+        useDecisionStore.getState().fetchHints(roomId);
+      }
     });
 
     const unsubVoteUpdated = client.on<VoteUpdatedPayload>('VOTE_UPDATED', (payload) => {
@@ -103,6 +116,7 @@ export function useWebSocket(roomId?: string) {
           payload.score,
           payload.current_user_vote,
         );
+        useDecisionStore.getState().fetchHints(roomId);
       }
     });
 
@@ -133,6 +147,25 @@ export function useWebSocket(roomId?: string) {
       }
     });
 
+    const unsubDecisionStarted = client.on<DecisionStartedPayload>('DECISION_STARTED', (payload) => {
+      useDecisionStore.getState().handleDecisionStarted(payload);
+    });
+
+    const unsubDecisionProgress = client.on<DecisionProgressPayload>('DECISION_PROGRESS', (payload) => {
+      useDecisionStore.getState().handleDecisionProgress(payload);
+    });
+
+    const unsubDecisionResolved = client.on<DecisionResolvedPayload>('DECISION_RESOLVED', (payload) => {
+      useDecisionStore.getState().handleDecisionResolved(payload);
+      if (payload.result_place_id && payload.status === 'RESOLVED') {
+        const currentPlaces = usePlaceStore.getState().places;
+        const target = currentPlaces.find((p) => p.id === payload.result_place_id);
+        if (target) {
+          upsertPlace({ ...target, status: 'ACCEPTED' });
+        }
+      }
+    });
+
     client.connect();
 
     return () => {
@@ -149,6 +182,9 @@ export function useWebSocket(roomId?: string) {
       unsubScheduleUpdated();
       unsubConflictsUpdated();
       unsubTyping();
+      unsubDecisionStarted();
+      unsubDecisionProgress();
+      unsubDecisionResolved();
       client.disconnect();
       clientRef.current = null;
     };

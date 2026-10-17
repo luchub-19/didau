@@ -3,6 +3,7 @@ import { useRoomStore } from '../store/useRoomStore';
 import { usePlaceStore } from '../store/usePlaceStore';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useConflictStore } from '../store/useConflictStore';
+import { useDecisionStore } from '../store/useDecisionStore';
 import { useWebSocket } from './useWebSocket';
 
 export function useRoom(roomId?: string) {
@@ -24,6 +25,8 @@ export function useRoom(roomId?: string) {
   const conflicts = useConflictStore((s) => s.conflicts);
   const fetchConflicts = useConflictStore((s) => s.fetchConflicts);
 
+  const fetchHints = useDecisionStore((s) => s.fetchHints);
+
   const ws = useWebSocket(roomId);
 
   useEffect(() => {
@@ -42,6 +45,7 @@ export function useRoom(roomId?: string) {
       fetchPlaces(roomId),
       fetchSchedule(roomId),
       fetchConflicts(roomId),
+      fetchHints(roomId),
     ])
       .catch((err) => {
         if (isMounted) {
@@ -60,7 +64,7 @@ export function useRoom(roomId?: string) {
     return () => {
       isMounted = false;
     };
-  }, [roomId, fetchRoom, fetchPlaces, fetchSchedule, fetchConflicts]);
+  }, [roomId, fetchRoom, fetchPlaces, fetchSchedule, fetchConflicts, fetchHints]);
 
   const isHost = currentMember?.role === 'HOST';
 
