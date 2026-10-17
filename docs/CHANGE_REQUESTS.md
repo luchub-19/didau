@@ -238,3 +238,22 @@ class IPoiProvider(ABC):
 - Mã lỗi `PLACE_ALREADY_ADDED` (409, `details.place_id` = id quán đã có) cho `POST /places` khi trùng `(room_id, external_id)`.
 - Tương thích ngược: chỉ thêm route, thêm sự kiện và thêm mã lỗi.
 
+
+---
+
+## CR-04: Ghi nhận phần mở rộng WebSocket đã có trong code (PING từ server, CHAT_MESSAGE)
+
+- **Người đề xuất**: Session review tích hợp cuối GĐ2 (2026-10-17)
+- **Ngày tạo**: 2026-10-17
+- **Trạng thái**: ACCEPTED (ĐÃ CHẤP NHẬN)
+- **Ngày duyệt**: 2026-10-17
+- **Quyết định**: CHẤP NHẬN. Đã cập nhật `CONTRACTS.md` mục 4.1/4.2 (`CHAT_MESSAGE`, `PING` từ server, mã lỗi `MESSAGE_TOO_LONG`/`RATE_LIMIT_EXCEEDED`). Không sửa code; alias `CHAT`/`SEND_CHAT`/`SEND_MESSAGE` vẫn còn trong `websocket.py:275`, nên bỏ ở task dọn dẹp sau.
+- **Task đã DONE bị ảnh hưởng**: T-13 (`api/v1/websocket.py`); T-17 (FE `wsClient`) nếu đổi hành vi. Nếu chấp nhận chỉ ghi tài liệu, không task nào phải sửa code.
+
+### 1. Vấn đề
+`CONTRACTS.md` mục 4 không liệt kê các thông điệp mà `backend/app/api/v1/websocket.py` đang dùng và smoke test phụ thuộc vào (bước 6):
+- Client→Server `CHAT_MESSAGE` (code còn nhận alias `CHAT`, `SEND_CHAT`, `SEND_MESSAGE`); Server→Client `CHAT_MESSAGE` broadcast; lỗi `MESSAGE_TOO_LONG`.
+- Server chủ động gửi `PING` mỗi 25 s (contract chỉ có chiều client gửi `PING`, 30 s).
+
+### 2. Đề xuất
+Thêm vào mục 4.1/4.2: `CHAT_MESSAGE` (payload theo code hiện tại) và `MESSAGE_TOO_LONG`, `PING` hai chiều. Nên bỏ các alias thừa (`CHAT`, `SEND_CHAT`, `SEND_MESSAGE`) ở task sau. Tương thích ngược hoàn toàn.

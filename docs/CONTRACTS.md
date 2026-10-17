@@ -720,12 +720,15 @@ Khi có lỗi (status $\ge 400$):
 | `PING` | Nhịp tim giữ kết nối (mỗi 30s) | `{}` |
 | `SUBSCRIBE_ROOM` | Yêu cầu nhận đồng bộ toàn diện | `{ "room_id": "c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21" }` |
 | `TYPING_PLACE` | Báo hiệu thành viên đang nhập địa điểm | `{ "is_typing": true, "nickname": "ThuTrang" }` |
+| `CHAT_MESSAGE` | Gửi tin chat tới cả phòng (CR-04; tối đa 500 ký tự, 20 tin/10 s/member) | `{ "message": "Tối nay đi đâu?" }` |
 
 ### 4.2. Chiều Server $\rightarrow$ Client
 | Type | Ý nghĩa | Payload mẫu |
 | :--- | :--- | :--- |
 | `PONG` | Phản hồi lại PING | `{}` |
-| `ERROR` | Thông báo lỗi xử lý socket | `{ "code": "UNAUTHORIZED", "message": "Token không hợp lệ" }` |
+| `PING` | Server chủ động gửi mỗi 25 s; client có thể trả `PONG` hoặc bỏ qua (CR-04) | `{}` |
+| `CHAT_MESSAGE` | Tin chat broadcast tới cả phòng (CR-04) | `{ "member_id": "...", "nickname": "ThuTrang", "avatar_url": null, "message": "Tối nay đi đâu?" }` |
+| `ERROR` | Thông báo lỗi xử lý socket | `{ "code": "UNAUTHORIZED", "message": "Token không hợp lệ" }`; mã bổ sung (CR-04): `MESSAGE_TOO_LONG`, `RATE_LIMIT_EXCEEDED` |
 | `ROOM_STATE_SYNC` | Đồng bộ toàn bộ dữ liệu khi vừa connect | `{ "room": {...}, "members": [...], "places": [...], "schedule": [...], "conflicts": [...] }` |
 | `MEMBER_JOINED` | Có thành viên mới tham gia | `{ "member": { "id": "...", "nickname": "ThuTrang", "role": "MEMBER" } }` |
 | `MEMBER_LEFT` | Thành viên ngắt kết nối / rời phòng | `{ "member_id": "...", "nickname": "ThuTrang" }` |

@@ -89,3 +89,19 @@ Kế hoạch: [PLAN_MAP_DECIDE_AUTOPLAN.md](PLAN_MAP_DECIDE_AUTOPLAN.md) · Hợ
 - Khối dựng `PlaceVoteSummary` từ ORM lặp 3 lần (`conflict_service.py:91`, `schedule_service.py:109`, `voting_service.py:290`; bản voting thiếu `latitude/longitude/address`). T-31/T-35 sẽ thêm bản thứ 4, 5: nên gom thành một hàm dùng chung trước khi làm.
 - `backend/app/main.py` chứa `test_health_check_endpoint`/`test_healthz_endpoint` ngay trong module ứng dụng (pytest không thu thập vì ngoài `tests/`); nên chuyển vào `tests/`.
 - `votes.py` có alias `_ensure_room_access = ensure_room_access` thừa.
+
+---
+
+## REVIEW TÍCH HỢP CUỐI GIAI ĐOẠN 2 (2026-10-17)
+
+**Kết quả chạy (sau T-37):** backend `ruff` sạch, 513 pass; frontend `lint` + `tsc --noEmit` sạch, 150 pass, `build` sạch (chunk `MapView` 824 kB, chỉ cảnh báo kích thước, đã lazy-load). `docker compose up --build`: 3 service lên, backend healthy, `alembic current` = `002 (head)`. `scripts/smoke_test.py ... osm` PASS toàn bộ 13 bước. **Không phát hiện lỗi tích hợp, không sửa code.**
+
+**CONTRACTS:** 27/27 endpoint trong §3.3 khớp route thật (so với `/openapi.json`); mọi sự kiện WS §4.2 đều có trong code. CR-01/02/03 đã áp dụng đủ. Lệch còn lại: `CHAT_MESSAGE`, `MESSAGE_TOO_LONG` và `PING` do server gửi (25 s) có trong code nhưng không có trong §4 -> **CR-04, đã ACCEPTED và áp vào CONTRACTS §4** (không đổi code).
+
+**Phân lớp:** không router nào gọi repository để truy vấn; router chỉ dựng service từ repo.
+
+**Còn lại, chỉ báo cáo (không refactor theo yêu cầu):**
+- Khối dựng `PlaceVoteSummary` lặp 5 chỗ: `schedule_service.py:113`, `voting_service.py:297` và `:332`, `autoplan_service.py:64`, `conflict_service.py:91`. Hai bản trong `voting_service.py` vẫn thiếu `latitude/longitude/address` (CR-01); hiện không gây lỗi vì resolve chỉ dùng tie-break, nhưng nên gom thành một hàm dùng chung.
+- Factory service vẫn rải rác: `deps.py` chỉ có room/member; `places.py`, `votes.py`, `schedule.py`, `conflicts.py`, `decisions.py` tự dựng, và `websocket.py:61-112` dựng cả repo lẫn 5 service. Nên dời vào `deps.py`.
+- Alias thừa `_ensure_room_access = ensure_room_access` còn ở `schedule.py:75` và `conflicts.py:50`.
+- `main.py:102,112` còn hai hàm `test_*` nằm trong module ứng dụng (pytest không thu thập); nên chuyển vào `tests/`.
