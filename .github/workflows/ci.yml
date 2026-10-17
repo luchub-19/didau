@@ -45,6 +45,10 @@ jobs:
         working-directory: ./backend
         run: poetry run ruff check .
 
+      - name: Apply DB migrations
+        working-directory: ./backend
+        run: poetry run alembic upgrade head
+
       - name: Run Pytest
         working-directory: ./backend
         run: poetry run pytest
