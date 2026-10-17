@@ -1,26 +1,32 @@
-type ColdStartListener = (isWakingUp: boolean) => void;
+export type ColdStartStatus = 'idle' | 'waking' | 'error';
+
+export interface ColdStartState {
+  status: ColdStartStatus;
+  message: string;
+}
+
+type ColdStartListener = (state: ColdStartState) => void;
 const listeners = new Set<ColdStartListener>();
 
-let isServerWakingUp = false;
+let state: ColdStartState = { status: 'idle', message: '' };
 let firstRequestCompleted = false;
 
 export const coldStartManager = {
   subscribe(listener: ColdStartListener): () => void {
     listeners.add(listener);
-    listener(isServerWakingUp);
+    listener(state);
     return () => {
       listeners.delete(listener);
     };
   },
-  setWakingUp(val: boolean) {
-    if (isServerWakingUp !== val) {
-      isServerWakingUp = val;
-      listeners.forEach((cb) => cb(val));
-    }
+  setStatus(status: ColdStartStatus, message = '') {
+    if (state.status === status && state.message === message) return;
+    state = { status, message };
+    listeners.forEach((cb) => cb(state));
   },
   markCompleted() {
     firstRequestCompleted = true;
-    this.setWakingUp(false);
+    this.setStatus('idle');
   },
   isCompleted(): boolean {
     return firstRequestCompleted;

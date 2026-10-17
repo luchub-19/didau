@@ -201,8 +201,8 @@ async def _handle_websocket_room(
                         "ts": int(now_utc().timestamp() * 1000),
                     }
                 )
-        except (asyncio.CancelledError, Exception):
-            pass
+        except (asyncio.CancelledError, WebSocketDisconnect, RuntimeError, OSError):
+            logger.debug("Ping loop dừng: socket đã đóng hoặc task bị huỷ.")
 
     ping_task = asyncio.create_task(_server_ping_loop())
 

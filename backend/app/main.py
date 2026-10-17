@@ -76,12 +76,13 @@ async def healthz() -> Any:
     """Endpoint kiểm tra sức khỏe và kết nối cơ sở dữ liệu (SELECT 1). Trả về 200 hoặc 503."""
     from fastapi.responses import JSONResponse
     from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
 
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
         return JSONResponse(status_code=200, content={"status": "ok"})
-    except Exception as exc:
+    except (SQLAlchemyError, OSError) as exc:
         return JSONResponse(
             status_code=503,
             content={"status": "error", "detail": str(exc)},

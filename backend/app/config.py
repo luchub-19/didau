@@ -30,11 +30,15 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        """Danh sách các allowed origins sau khi tách dấu phẩy."""
-        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+        """Danh sách các allowed origins sau khi tách dấu phẩy.
+
+        Bỏ dấu "/" cuối: trình duyệt gửi Origin không có "/", CORSMiddleware so khớp chính xác.
+        """
+        origins = (o.strip().rstrip("/") for o in self.ALLOWED_ORIGINS.split(","))
+        return [o for o in origins if o]
 
     @property
-    def CORS_ORIGINS(self) -> list[str]:  # noqa: N802
+    def CORS_ORIGINS(self) -> list[str]:
         """Tương thích ngược với các module gọi settings.CORS_ORIGINS."""
         return self.cors_origins
 

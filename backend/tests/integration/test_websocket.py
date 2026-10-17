@@ -519,12 +519,11 @@ async def test_websocket_origin_check(db_session: AsyncSession) -> None:
     client = TestClient(app)
 
     # 1. Origin sai -> Đóng với mã 1008
-    with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect(
-            f"/ws/rooms/{room_id}?token={token}",
-            headers={"origin": "http://malicious-site.com"},
-        ):
-            pass
+    with pytest.raises(WebSocketDisconnect) as exc_info, client.websocket_connect(
+        f"/ws/rooms/{room_id}?token={token}",
+        headers={"origin": "http://malicious-site.com"},
+    ):
+        pass
     assert exc_info.value.code == 1008
 
     # 2. Origin đúng (http://localhost:5173) -> Kết nối thành công

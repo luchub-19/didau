@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
-import { coldStartManager } from './services/api/coldStart';
+import { coldStartManager, type ColdStartState } from './services/api/coldStart';
+import { Button } from './components/common';
 
 function parseRoomIdFromPath(): string | null {
   if (typeof window === 'undefined') return null;
@@ -18,10 +19,10 @@ export default function App(): React.ReactElement {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(() =>
     parseRoomIdFromPath(),
   );
-  const [isWakingUp, setIsWakingUp] = useState(false);
+  const [coldStart, setColdStart] = useState<ColdStartState>({ status: 'idle', message: '' });
 
   useEffect(() => {
-    const unsub = coldStartManager.subscribe(setIsWakingUp);
+    const unsub = coldStartManager.subscribe(setColdStart);
     return unsub;
   }, []);
 
@@ -46,7 +47,20 @@ export default function App(): React.ReactElement {
     window.history.pushState(null, '', '/');
   };
 
-  if (isWakingUp) {
+  if (coldStart.status === 'error') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 mb-4 rounded-2xl bg-rose-100 flex items-center justify-center text-3xl">
+          ⚠️
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">Không kết nối được máy chủ</h2>
+        <p className="text-sm text-slate-500 max-w-sm mb-6">{coldStart.message}</p>
+        <Button onClick={() => window.location.reload()}>Thử lại</Button>
+      </div>
+    );
+  }
+
+  if (coldStart.status === 'waking') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 mb-4 rounded-2xl bg-sky-100 flex items-center justify-center text-3xl animate-bounce">

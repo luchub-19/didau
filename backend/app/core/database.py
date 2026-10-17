@@ -1,4 +1,6 @@
+import urllib.parse
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -16,10 +18,6 @@ settings = get_settings()
 class Base(DeclarativeBase):
     """Lớp cơ sở Declarative Base cho toàn bộ models SQLAlchemy 2.0."""
 
-
-
-import urllib.parse
-from typing import Any
 
 def normalize_database_url(url: str) -> tuple[str, dict[str, Any]]:
     """Chuẩn hóa Database URL cho asyncpg và tạo connect_args phù hợp."""

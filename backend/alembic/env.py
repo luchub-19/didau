@@ -3,10 +3,11 @@ from logging.config import fileConfig
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 from app.config import get_settings
+from app.core.database import normalize_database_url
 from app.domain.models import Base
 
 # Alembic Config object
@@ -48,10 +49,6 @@ def do_run_migrations(connection: Connection) -> None:
 
     with context.begin_transaction():
         context.run_migrations()
-
-
-from sqlalchemy.ext.asyncio import create_async_engine
-from app.core.database import normalize_database_url
 
 
 async def run_async_migrations() -> None:
