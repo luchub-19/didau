@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { poiApi } from '../../services/api/poiApi';
 import { loadPlacesUiKit } from '../../services/google/loadPlacesUiKit';
 import { GOOGLE_MAPS_BROWSER_KEY } from '../../config';
@@ -18,11 +19,12 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
   lng,
   googlePlaceId,
 }) => {
+  const { t } = useTranslation();
   const [resolvedPlaceId, setResolvedPlaceId] = useState<string | null>(googlePlaceId ?? null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'hidden'>('idle');
 
   useEffect(() => {
-    // Nếu không có browser key, không gọi và không hiển thị
+    // Neu khong co browser key, khong goi va khong hien thi
     const apiKey =
       GOOGLE_MAPS_BROWSER_KEY ||
       (typeof import.meta !== 'undefined' ? import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY : '');
@@ -34,7 +36,7 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
     let isMounted = true;
     setStatus('loading');
 
-    // Timeout 4s theo yêu cầu: nếu lâu hơn 4s hoặc có lỗi, ẩn thẻ không báo lỗi đỏ
+    // Timeout 4s theo yeu cau: neu lau hon 4s hoac co loi, an the khong bao loi
     const timeoutId = setTimeout(() => {
       if (isMounted) {
         setStatus('hidden');
@@ -69,7 +71,7 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
           setStatus('hidden');
         }
       } catch {
-        // Lỗi gọi API hoặc timeout -> ẩn thẻ, không hiện lỗi đỏ
+        // Loi goi API hoac timeout -> an the, khong hien loi
         if (isMounted) setStatus('hidden');
       } finally {
         clearTimeout(timeoutId);
@@ -90,14 +92,14 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
 
   return (
     <div
-      className="my-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3"
+      className="my-3 rounded-card border border-line bg-surface-2 p-3.5"
       data-testid="google-place-card"
     >
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+      <div className="mb-2 flex items-center gap-1.5 text-label font-semibold text-ink">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-info text-[10px] font-bold text-surface">
           G
         </span>
-        <span>Đánh giá từ Google</span>
+        <span>{t('map.place.googleReviews')}</span>
       </div>
       <gmp-place-details data-testid="gmp-place-details" className="block w-full min-h-[120px]">
         <gmp-place-details-place-request

@@ -1,4 +1,5 @@
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
+import { getCssColor } from './PoiLayer';
 
 export const ROUTE_SOURCE = 'route-polyline';
 export const ROUTE_LAYER = 'route-polyline-line';
@@ -35,7 +36,10 @@ export function installRouteLayer(map: MapLibreMap): void {
     data: coordinatesToRouteGeoJSON([]),
   });
 
-  // Đường viền (casing)
+  const casingColor = getCssColor('--color-ink', '#1C1917');
+  const accentColor = getCssColor('--color-accent', '#FF6B4A');
+
+  // Duong vien (casing)
   map.addLayer({
     id: ROUTE_CASING_LAYER,
     type: 'line',
@@ -45,13 +49,13 @@ export function installRouteLayer(map: MapLibreMap): void {
       'line-cap': 'round',
     },
     paint: {
-      'line-color': '#0f172a',
-      'line-width': 6,
-      'line-opacity': 0.6,
+      'line-color': casingColor,
+      'line-width': 5,
+      'line-opacity': 0.4,
     },
   });
 
-  // Đường chính (polyline)
+  // Duong chinh (polyline)
   map.addLayer({
     id: ROUTE_LAYER,
     type: 'line',
@@ -61,7 +65,7 @@ export function installRouteLayer(map: MapLibreMap): void {
       'line-cap': 'round',
     },
     paint: {
-      'line-color': '#0ea5e9', // Sky-500
+      'line-color': accentColor,
       'line-width': 3.5,
       'line-dasharray': [2, 1],
     },

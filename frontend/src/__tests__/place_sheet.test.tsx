@@ -105,8 +105,8 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
 
       expect(html).toContain('Phở Hòa Pasteur');
       expect(html).toContain('260C Pasteur, P. Võ Thị Sáu, Q.3');
-      expect(html).toContain('Mo-Su 06:00-22:30');
-      expect(html).toContain('vietnamese');
+      expect(html).toContain('06:00 - 22:30');
+      expect(html).toContain('Món Việt');
       expect(html).toContain('từ điểm hẹn');
       expect(html).toContain('Thêm vào lựa chọn');
       expect(html).toContain('Đánh giá bạn bè');

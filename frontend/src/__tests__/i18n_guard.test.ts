@@ -40,16 +40,7 @@ export const PENDING_FILES = new Set<string>([
 
   // T-46: Tab Lịch + xung đột + auto-plan (đã chuyển qua i18n ở T-46)
 
-  // T-47: Tab Bản đồ + đánh giá
-  'components/map/GooglePlaceCard.tsx',
-  'components/map/MapSearchBox.tsx',
-  'components/map/MapView.tsx',
-  'components/map/NearbySuggestions.tsx',
-  'components/map/OriginPin.tsx',
-  'components/map/PlaceSheet.tsx',
-  'components/reviews/InternalReviews.tsx',
-  'components/reviews/ReviewForm.tsx',
-  'components/reviews/reviewUtils.ts',
+  // T-47: Tab Bản đồ + đánh giá (đã chuyển qua i18n ở T-47)
 
   // T-48: Chọn hộ phần 1 (banner, gợi ý, phân định hoà)
   'components/decide/DecideModal.tsx',

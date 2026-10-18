@@ -56,9 +56,9 @@ describe('reviewUtils', () => {
   });
 
   it('validateReview kiểm tra sao và độ dài nhận xét', () => {
-    expect(validateReview(0, '')).toMatch(/1 đến 5/);
-    expect(validateReview(6, '')).toMatch(/1 đến 5/);
-    expect(validateReview(3, 'a'.repeat(281))).toMatch(/280/);
+    expect(validateReview(0, '')).toBe('review.error.rating');
+    expect(validateReview(6, '')).toBe('review.error.rating');
+    expect(validateReview(3, 'a'.repeat(281))).toBe('review.error.commentTooLong');
     expect(validateReview(3, 'a'.repeat(280))).toBeNull();
   });
 

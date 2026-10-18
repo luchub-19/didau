@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PlaceReview } from '../../types';
 import { reviewApi } from '../../services/api';
-import { Button } from '../common';
+import { Button, Chip, TextField } from '../ui';
+import { describeApiError } from '../../i18n/serverText';
 import { REVIEW_COMMENT_MAX, REVIEW_TAGS, validateReview } from './reviewUtils';
 
 export interface ReviewFormProps {
@@ -17,6 +19,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   onSubmitted,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const [rating, setRating] = useState(initial?.rating ?? 0);
   const [comment, setComment] = useState(initial?.comment ?? '');
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
@@ -28,9 +31,13 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const invalid = validateReview(rating, comment);
-    if (invalid) {
-      setError(invalid);
+    const errorKey = validateReview(rating, comment);
+    if (errorKey === 'review.error.commentTooLong') {
+      setError(t('review.error.commentTooLong', { max: REVIEW_COMMENT_MAX }));
+      return;
+    }
+    if (errorKey) {
+      setError(t(errorKey));
       return;
     }
     setIsSaving(true);
@@ -44,78 +51,85 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       });
       onSubmitted(saved);
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message || 'Không thể gửi đánh giá.');
+      setError(describeApiError(err, t) || t('review.error.submitFailed'));
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2.5" data-testid="review-form">
-      <div className="flex items-center gap-1" role="radiogroup" aria-label="Số sao">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={rating === n}
-            aria-label={`${n} sao`}
-            onClick={() => setRating(n)}
-            className={`text-xl leading-none transition ${
-              n <= rating ? 'text-amber-400' : 'text-slate-300 hover:text-amber-300'
-            }`}
-          >
-            ★
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {REVIEW_TAGS.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            aria-pressed={tags.includes(tag)}
-            onClick={() => toggleTag(tag)}
-            className={`text-[11px] px-2 py-0.5 rounded-full border transition ${
-              tags.includes(tag)
-                ? 'bg-sky-100 border-sky-300 text-sky-700'
-                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-            }`}
-          >
-            {tag}
-          </button>
-        ))}
+    <form onSubmit={handleSubmit} className="space-y-3" data-testid="review-form">
+      <div>
+        <label className="block text-label font-medium text-ink mb-1">
+          {t('review.starsAria')}
+        </label>
+        <div
+          className="flex items-center gap-1"
+          role="radiogroup"
+          aria-label={t('review.starsAria')}
+        >
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={rating === n}
+              aria-label={t('review.starCount', { n })}
+              onClick={() => {
+                setRating(n);
+                if (error) setError(null);
+              }}
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center text-2xl leading-none transition-colors rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text ${
+                n <= rating
+                  ? 'text-amber-500'
+                  : 'text-ink-3/40 hover:text-amber-400'
+              }`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
       </div>
 
       <div>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          maxLength={REVIEW_COMMENT_MAX}
-          rows={2}
-          placeholder="Nhận xét ngắn về quán (không bắt buộc)"
-          className="w-full text-xs rounded-lg border border-slate-200 p-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
-        />
-        <p className="text-[10px] text-slate-400 text-right">
-          {comment.length}/{REVIEW_COMMENT_MAX}
-        </p>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tags">
+          {REVIEW_TAGS.map((tag) => (
+            <Chip
+              key={tag}
+              selected={tags.includes(tag)}
+              onClick={() => toggleTag(tag)}
+            >
+              {t(`review.tags.${tag}`, tag)}
+            </Chip>
+          ))}
+        </div>
       </div>
 
-      {error && (
-        <p className="text-[11px] text-rose-600" role="alert">
-          {error}
-        </p>
-      )}
+      <div>
+        <TextField
+          as="textarea"
+          label={t('review.commentLabel')}
+          value={comment}
+          onChange={(e) => {
+            setComment(e.target.value);
+            if (error) setError(null);
+          }}
+          maxLength={REVIEW_COMMENT_MAX}
+          rows={3}
+          placeholder={t('review.commentPlaceholder')}
+          hint={`${comment.length}/${REVIEW_COMMENT_MAX}`}
+          error={error ?? undefined}
+        />
+      </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 pt-1">
         {onCancel && (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Hủy
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            {t('review.cancel')}
           </Button>
         )}
-        <Button type="submit" size="sm" isLoading={isSaving}>
-          Gửi đánh giá
+        <Button type="submit" variant="primary" loading={isSaving}>
+          {t('review.submit')}
         </Button>
       </div>
     </form>

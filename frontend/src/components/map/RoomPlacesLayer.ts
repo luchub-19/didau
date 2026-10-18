@@ -1,17 +1,10 @@
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import type { Place } from '../../types';
-import { CATEGORY_COLORS } from './PoiLayer';
+import { getCssColor } from './PoiLayer';
 
 export const ROOM_PLACES_SOURCE = 'room-places';
 export const ROOM_PLACES_LAYER = 'room-places-circles';
 const ROOM_PLACES_SCORE_LAYER = 'room-places-score';
-
-const colorExpression = [
-  'match',
-  ['get', 'category'],
-  ...Object.entries(CATEGORY_COLORS).flat(),
-  CATEGORY_COLORS.OTHER,
-] as unknown as import('maplibre-gl').ExpressionSpecification;
 
 export const formatScore = (score: number) => (score > 0 ? `+${score}` : String(score));
 
@@ -28,6 +21,7 @@ export function placesToGeoJSON(places: Place[]): GeoJSON.FeatureCollection<GeoJ
           name: p.name,
           category: p.category,
           score: formatScore(p.score),
+          is_accepted: p.status === 'ACCEPTED',
         },
       })),
   };
@@ -39,20 +33,29 @@ export function installRoomPlacesLayer(
 ): void {
   map.addSource(ROOM_PLACES_SOURCE, { type: 'geojson', data: placesToGeoJSON([]) });
 
-  // Viền đậm để phân biệt với POI chưa chọn
+  const accentColor = getCssColor('--color-accent', '#FF6B4A');
+  const successColor = getCssColor('--color-success', '#047857');
+  const inkColor = getCssColor('--color-ink', '#1C1917');
+
+  // Quan da chot = pin success, quan them vao phong = pin coral (accent)
   map.addLayer({
     id: ROOM_PLACES_LAYER,
     type: 'circle',
     source: ROOM_PLACES_SOURCE,
     paint: {
-      'circle-color': colorExpression,
+      'circle-color': [
+        'case',
+        ['==', ['get', 'is_accepted'], true],
+        successColor,
+        accentColor,
+      ],
       'circle-radius': 13,
-      'circle-stroke-width': 3.5,
-      'circle-stroke-color': '#0f172a',
+      'circle-stroke-width': 3,
+      'circle-stroke-color': '#FFFFFF',
     },
   });
 
-  // Badge điểm vote
+  // Badge diem vote: chu ink tren coral (tranh chu trang tren coral), chu trang tren success
   map.addLayer({
     id: ROOM_PLACES_SCORE_LAYER,
     type: 'symbol',
@@ -63,7 +66,14 @@ export function installRoomPlacesLayer(
       'text-size': 11,
       'text-allow-overlap': true,
     },
-    paint: { 'text-color': '#ffffff' },
+    paint: {
+      'text-color': [
+        'case',
+        ['==', ['get', 'is_accepted'], true],
+        '#FFFFFF',
+        inkColor,
+      ],
+    },
   });
 
   map.on('click', ROOM_PLACES_LAYER, (e) => {

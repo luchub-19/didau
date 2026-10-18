@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ReviewSummary } from '../../types';
 import { reviewApi } from '../../services/api';
 import { tokenStorage } from '../../services/storage/tokenStorage';
-import { Button } from '../common';
+import { Button, Chip } from '../ui';
+import { Users } from '../ui/Icon';
 import { ReviewForm } from './ReviewForm';
 
 export interface InternalReviewsProps {
   externalKey: string;
-  /** Phòng đã COMPLETED: hiện nhắc "Đánh giá các quán hôm nay?" */
+  /** Phong da COMPLETED: hien nhac "Danh gia cac quan hom nay?" */
   remindToReview?: boolean;
-  /** Dữ liệu có sẵn (SSR/test); bỏ qua lần tải đầu tiên. */
+  /** Du lieu co san (SSR/test); bo qua lan tai dau tien. */
   initialSummary?: ReviewSummary | null;
 }
 
@@ -18,6 +20,7 @@ export const InternalReviews: React.FC<InternalReviewsProps> = ({
   remindToReview = false,
   initialSummary = null,
 }) => {
+  const { t } = useTranslation();
   const [summary, setSummary] = useState<ReviewSummary | null>(initialSummary);
   const [loadError, setLoadError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -41,48 +44,50 @@ export const InternalReviews: React.FC<InternalReviewsProps> = ({
 
   return (
     <div
-      className="my-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3"
+      className="my-3 rounded-card border border-line bg-surface-2 p-3.5 space-y-2.5"
       data-testid="internal-reviews"
     >
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-          <span>👥</span> Đánh giá bạn bè
+      <div className="flex items-center justify-between">
+        <span className="text-label font-semibold text-ink flex items-center gap-1.5">
+          <Users size={16} className="text-ink-2" />
+          <span>{t('review.title')}</span>
         </span>
-        <span className="text-[11px] text-slate-500" data-testid="reviews-avg">
-          {count > 0 ? `★ ${summary!.avg.toFixed(1)} · ${count} đánh giá` : 'Chưa có đánh giá'}
+        <span className="text-caption text-ink-3 font-medium" data-testid="reviews-avg">
+          {count > 0
+            ? t('review.summary', { avg: summary!.avg.toFixed(1), count })
+            : t('review.empty')}
         </span>
       </div>
 
       {remindToReview && !isEditing && (
-        <p className="text-[11px] font-medium text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mb-2">
-          Đánh giá các quán hôm nay?
+        <p className="text-caption font-medium text-warning bg-warning-soft rounded-field px-2.5 py-1.5 border border-warning/20">
+          {t('review.remind')}
         </p>
       )}
 
       {loadError && (
-        <p className="text-[11px] text-rose-600">Không tải được đánh giá.</p>
+        <p className="text-caption text-danger">{t('review.loadError')}</p>
       )}
 
       {summary && summary.tags_top3.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
+        <div className="flex flex-wrap gap-1.5">
           {summary.tags_top3.map((tag) => (
-            <span
-              key={tag}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-100"
-            >
-              {tag}
-            </span>
+            <Chip key={tag} disabled className="pointer-events-none">
+              {t(`review.tags.${tag}`, tag)}
+            </Chip>
           ))}
         </div>
       )}
 
       {summary && summary.items.length > 0 && (
-        <ul className="space-y-1.5 mb-2 max-h-40 overflow-y-auto">
+        <ul className="space-y-2 max-h-44 overflow-y-auto pr-1">
           {summary.items.map((r) => (
-            <li key={r.id} className="text-[11px] text-slate-600">
-              <span className="font-semibold text-slate-800">{r.nickname}</span>{' '}
-              <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
-              {r.comment && <span className="block text-slate-500">{r.comment}</span>}
+            <li key={r.id} className="text-caption text-ink-2 border-b border-line/60 pb-1.5 last:border-b-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-ink">{r.nickname}</span>
+                <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
+              </div>
+              {r.comment && <p className="mt-0.5 text-ink-2 leading-relaxed">{r.comment}</p>}
             </li>
           ))}
         </ul>
@@ -99,8 +104,8 @@ export const InternalReviews: React.FC<InternalReviewsProps> = ({
         />
       ) : (
         canReview && (
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-            ✍️ Viết đánh giá
+          <Button variant="secondary" onClick={() => setIsEditing(true)}>
+            {t('review.write')}
           </Button>
         )
       )}

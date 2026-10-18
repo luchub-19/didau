@@ -7,25 +7,52 @@ export const POI_POINT_LAYER = 'poi-points';
 const POI_COUNT_LAYER = 'poi-cluster-count';
 const POI_SELECTED_LAYER = 'poi-selected';
 
-/** Gom cụm khi zoom < 15. */
+/** Gom cum khi zoom < 15. */
 const CLUSTER_MAX_ZOOM = 14;
 
+export function getCssColor(varName: string, fallback: string): string {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return fallback;
+  }
+  const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  if (!val) return fallback;
+  if (/^\d+\s+\d+\s+\d+$/.test(val)) {
+    return `rgb(${val})`;
+  }
+  return val;
+}
+
 export const CATEGORY_COLORS: Record<PlaceCategory, string> = {
-  FOOD: '#f59e0b',
-  DRINK: '#10b981',
-  ENTERTAINMENT: '#a855f7',
-  SIGHTSEEING: '#3b82f6',
-  ACCOMMODATION: '#f43f5e',
-  SHOPPING: '#14b8a6',
-  OTHER: '#64748b',
+  FOOD: '#C2410C',
+  DRINK: '#047857',
+  ENTERTAINMENT: '#7E22CE',
+  SIGHTSEEING: '#1D4ED8',
+  ACCOMMODATION: '#BE123C',
+  SHOPPING: '#0F766E',
+  OTHER: '#57534E',
 };
 
-const colorExpression = [
-  'match',
-  ['get', 'category'],
-  ...Object.entries(CATEGORY_COLORS).flat(),
-  CATEGORY_COLORS.OTHER,
-] as unknown as import('maplibre-gl').ExpressionSpecification;
+export function getDynamicCategoryColors(): Record<PlaceCategory, string> {
+  return {
+    FOOD: getCssColor('--cat-food', '#C2410C'),
+    DRINK: getCssColor('--cat-drink', '#047857'),
+    ENTERTAINMENT: getCssColor('--cat-entertainment', '#7E22CE'),
+    SIGHTSEEING: getCssColor('--cat-sightseeing', '#1D4ED8'),
+    ACCOMMODATION: getCssColor('--cat-accommodation', '#BE123C'),
+    SHOPPING: getCssColor('--cat-shopping', '#0F766E'),
+    OTHER: getCssColor('--cat-other', '#57534E'),
+  };
+}
+
+export function buildColorExpression(): import('maplibre-gl').ExpressionSpecification {
+  const dynamicColors = getDynamicCategoryColors();
+  return [
+    'match',
+    ['get', 'category'],
+    ...Object.entries(dynamicColors).flat(),
+    dynamicColors.OTHER,
+  ] as unknown as import('maplibre-gl').ExpressionSpecification;
+}
 
 export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
@@ -50,13 +77,17 @@ export function installPoiLayer(
     clusterRadius: 50,
   });
 
+  const colorExpression = buildColorExpression();
+  const infoColor = getCssColor('--color-info', '#0369A1');
+  const inkColor = getCssColor('--color-ink', '#1C1917');
+
   map.addLayer({
     id: POI_CLUSTER_LAYER,
     type: 'circle',
     source: POI_SOURCE,
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': ['step', ['get', 'point_count'], '#38bdf8', 25, '#0ea5e9', 100, '#0369a1'],
+      'circle-color': ['step', ['get', 'point_count'], '#0284c7', 25, infoColor, 100, '#075985'],
       'circle-radius': ['step', ['get', 'point_count'], 16, 25, 20, 100, 26],
       'circle-stroke-width': 2,
       'circle-stroke-color': '#ffffff',
@@ -98,7 +129,7 @@ export function installPoiLayer(
       'circle-color': colorExpression,
       'circle-radius': 11,
       'circle-stroke-width': 3,
-      'circle-stroke-color': '#0f172a',
+      'circle-stroke-color': inkColor,
     },
   });
 
@@ -122,7 +153,7 @@ export function installPoiLayer(
   }
 }
 
-/** Cập nhật dữ liệu POI; bỏ các POI đã nằm trong phòng (lớp quán của phòng vẽ thay). */
+/** Cap nhat du lieu POI; bo cac POI da nam trong phong (lop quan cua phong ve thay). */
 export function updatePoiSource(
   map: MapLibreMap,
   pois: Poi[],

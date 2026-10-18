@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CITY_CENTER, FALLBACK_MAP_STYLE, MAP_STYLE_URL } from '../../config';
 import { useMapStore } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
+import { useScheduleStore } from '../../store/useScheduleStore';
 import type { Place, Poi, Room } from '../../types';
 import { highlightPoi, installPoiLayer, updatePoiSource } from './PoiLayer';
 import { installRoomPlacesLayer, updateRoomPlacesSource } from './RoomPlacesLayer';
@@ -13,14 +15,15 @@ import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
 import { PlaceSheet } from './PlaceSheet';
 import { NearbySuggestions } from './NearbySuggestions';
-import { useScheduleStore } from '../../store/useScheduleStore';
+import { Button, EmptyState, IconButton, Skeleton, toast } from '../ui';
+import { MapPin, WarningCircle } from '../ui/Icon';
 
 export interface MapViewProps {
   room: Room;
   places: Place[];
   isHost: boolean;
   isVotingDisabled?: boolean;
-  /** Host kéo ghim điểm hẹn xong: gọi `PATCH /rooms/{id}`. */
+  /** Host keo ghim diem hen xong: goi `PATCH /rooms/{id}`. */
   onOriginChange: (lat: number, lng: number) => void;
 }
 
@@ -33,7 +36,7 @@ function hasWebGL(): boolean {
   }
 }
 
-/** Dưới mức zoom này không tải POI (khung nhìn quá rộng). */
+/** Duoi muc zoom nay khong tai POI (khung nhin qua rong). */
 const MIN_FETCH_ZOOM = 12;
 
 export function MapView({
@@ -43,6 +46,7 @@ export function MapView({
   isVotingDisabled = false,
   onOriginChange,
 }: MapViewProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -61,12 +65,12 @@ export function MapView({
       : (CITY_CENTER[room.city ?? 'HCM'] ?? CITY_CENTER.HCM),
   );
 
-  // Khởi tạo map đúng một lần. Style vector lỗi/quá chậm → dựng lại bằng style raster OSM.
+  // Khoi tao map dung mot lan. Style vector loi/qua cham -> dung lai bang style raster OSM.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     if (!hasWebGL()) {
-      setMapError('Trình duyệt không hỗ trợ WebGL nên không hiển thị được bản đồ.');
+      setMapError(t('map.error.webgl'));
       return;
     }
 
@@ -114,7 +118,7 @@ export function MapView({
           installRoomPlacesLayer(m, (id) => useMapStore.getState().selectPlace(id));
           installRouteLayer(m);
         } catch (err) {
-          console.error('[MapView] lỗi dựng lớp dữ liệu', err);
+          console.error('[MapView] loi dung lop du lieu', err);
         }
         setMapError(null);
         setMap(m);
@@ -122,16 +126,14 @@ export function MapView({
         refresh();
       });
       m.on('moveend', refresh);
-      // Lỗi tải style (không phải lỗi gạch lẻ tẻ) → chuyển sang style dự phòng
       m.on('error', (e) => {
         const err = e.error as (Error & { status?: number }) | undefined;
         console.warn('[MapView] map error', err);
         if (!m.isStyleLoaded() && !m.loaded()) switchToFallback();
       });
-      // Style quá chậm (mạng nghẽn / bị chặn) cũng lùi về dự phòng
       if (!isFallback) styleTimeout = setTimeout(() => !m.loaded() && switchToFallback(), 8000);
       else styleTimeout = setTimeout(() => {
-        if (!m.loaded()) setMapError('Không tải được bản đồ. Kiểm tra kết nối mạng rồi tải lại trang.');
+        if (!m.loaded()) setMapError(t('map.error.loadStyle'));
       }, 15000);
     };
 
@@ -145,12 +147,22 @@ export function MapView({
       setMap(null);
       setMapReady(false);
     };
-  }, []);
+  }, [t]);
+
+  // Lang nghe resize window hoac doi tab de map khong bi mat kich thuoc
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    const handleResize = () => {
+      map.resize();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [map, mapReady]);
 
   const scheduleItems = useScheduleStore((s) => s.items);
   const autoPlanPreview = useScheduleStore((s) => s.autoPlanPreview);
 
-  // Tuyến đường theo lịch trình hoặc bản xem trước tự lên lịch
+  // Tuyen duong theo lich trinh hoac ban xem truoc tu len lich
   const routeCoordinates = useMemo<[number, number][]>(() => {
     const placeMap = new Map<string, Place>(places.map((p) => [p.id, p]));
     let orderedIds: string[] = [];
@@ -175,12 +187,12 @@ export function MapView({
     return coords;
   }, [places, scheduleItems, autoPlanPreview]);
 
-  // Cập nhật đường tuyến (RouteLayer)
+  // Cap nhat duong tuyen (RouteLayer)
   useEffect(() => {
     if (map && mapReady) updateRouteSource(map, routeCoordinates);
   }, [map, mapReady, routeCoordinates]);
 
-  // POI (trừ quán đã trong phòng) → lớp POI
+  // POI (tru quan da trong phong) -> lop POI
   const roomExternalIds = useMemo(
     () => new Set(places.map((p) => p.external_id).filter((id): id is string => !!id)),
     [places],
@@ -189,7 +201,7 @@ export function MapView({
     if (map && mapReady) updatePoiSource(map, Object.values(poisById), roomExternalIds);
   }, [map, mapReady, poisById, roomExternalIds]);
 
-  // Quán của phòng, cập nhật realtime từ store
+  // Quan cua phong, cap nhat realtime tu store
   useEffect(() => {
     if (map && mapReady) updateRoomPlacesSource(map, places);
   }, [map, mapReady, places]);
@@ -212,6 +224,10 @@ export function MapView({
   );
 
   const setPinAtCenter = () => {
+    if (!isHost) {
+      toast.error(t('map.onlyHostCanChangeOrigin'));
+      return;
+    }
     const c = getCenter();
     onOriginChange(c.lat, c.lng);
   };
@@ -221,75 +237,138 @@ export function MapView({
     selection?.kind === 'place' ? places.find((p) => p.id === selection.id) : undefined;
 
   return (
-    <div className="relative h-[70vh] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-      {/* maplibre-gl.css đặt .maplibregl-map { position: relative } đè lên `absolute inset-0`
-          → khung cao 0px. Bọc ngoài bằng div absolute, map chiếm 100% div đó. */}
-      <div className="absolute inset-0">
-        <div ref={containerRef} className="h-full w-full" data-testid="map-container" />
+    <div className="flex flex-col lg:flex-row h-[75vh] min-h-[480px] w-full gap-4">
+      {/* Cot trai desktop (360px): danh sach goi y gan day hoac chi tiet quan */}
+      <div className="hidden lg:flex flex-col w-[360px] shrink-0 h-full rounded-card border border-line bg-surface p-4 shadow-sm overflow-hidden">
+        {selectedPoi || selectedPlace ? (
+          <PlaceSheet
+            room={room}
+            poi={selectedPoi}
+            place={selectedPlace}
+            onClose={() => {
+              selectPoi(null);
+              selectPlace(null);
+            }}
+            isVotingDisabled={isVotingDisabled}
+            isDesktopColumn
+          />
+        ) : (
+          <NearbySuggestions
+            room={room}
+            places={places}
+            pois={Object.values(poisById)}
+            onSelectPoi={flyToPoi}
+            onAddPoi={(poi) => {
+              void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
+            }}
+            isDesktopColumn
+          />
+        )}
       </div>
 
-      {mapError && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-100/90 p-6 text-center text-sm text-slate-600">
-          {mapError}
+      {/* Khung ban do: full panel tren mobile, cot phai tren desktop */}
+      <div className="relative flex-1 h-full min-h-[420px] overflow-hidden rounded-card border border-line bg-surface-2 shadow-sm">
+        {/* MapLibre container */}
+        <div className="absolute inset-0">
+          <div ref={containerRef} className="h-full w-full" data-testid="map-container" />
         </div>
-      )}
 
-      <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
-        <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
-      </div>
+        {/* Trang thai dang tai ban do */}
+        {!mapReady && !mapError && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/50 pointer-events-none">
+            <Skeleton.Block className="w-full h-full opacity-40" />
+            <span className="absolute text-caption font-medium text-ink-3 bg-surface/90 px-3 py-1.5 rounded-full shadow-sm">
+              {t('map.loadingPlaces')}
+            </span>
+          </div>
+        )}
 
-      <OriginPin
-        map={map}
-        lat={room.origin_lat}
-        lng={room.origin_lng}
-        draggable={isHost}
-        onChange={onOriginChange}
-      />
+        {/* Trang thai loi tai ban do */}
+        {mapError && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/95 p-6 backdrop-blur-xs">
+            <EmptyState
+              icon={<WarningCircle size={32} className="text-danger" />}
+              title={t('map.error.title')}
+              description={mapError}
+              action={
+                <Button variant="secondary" onClick={() => window.location.reload()}>
+                  {t('common.retry')}
+                </Button>
+              }
+            />
+          </div>
+        )}
 
-      {isHost && !hasOrigin && (
-        <button
-          type="button"
-          onClick={setPinAtCenter}
-          className="absolute bottom-3 left-3 z-10 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white shadow-lg"
-        >
-          📍 Đặt điểm hẹn tại giữa bản đồ
-        </button>
-      )}
+        {/* O tim kiem noi phia tren */}
+        <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
+          <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
+        </div>
 
-      {isLoading && (
-        <span className="absolute right-3 top-16 z-10 rounded-full bg-white/90 px-2.5 py-1 text-xs text-slate-600 shadow">
-          Đang tải quán…
+        {/* Ghim diem tap trung */}
+        <OriginPin
+          map={map}
+          lat={room.origin_lat}
+          lng={room.origin_lng}
+          draggable={isHost}
+          onChange={onOriginChange}
+          onPermissionError={() => toast.error(t('map.onlyHostCanChangeOrigin'))}
+        />
+
+        {/* Nut dat diem hen tai giua ban do */}
+        {isHost && (
+          <div className="absolute bottom-3 left-3 z-10">
+            <IconButton
+              icon={<MapPin size={20} weight="fill" />}
+              aria-label={t('map.setOriginAtCenter')}
+              title={t('map.setOriginAtCenter')}
+              variant="secondary"
+              className="shadow-float bg-surface border border-line text-accent"
+              onClick={setPinAtCenter}
+            />
+          </div>
+        )}
+
+        {isLoading && (
+          <span className="absolute right-3 top-16 z-10 rounded-full bg-surface/90 border border-line px-2.5 py-1 text-caption text-ink-3 shadow-float">
+            {t('map.loadingPlaces')}
+          </span>
+        )}
+
+        {/* Tren mobile: NearbySuggestions khi chua chon quan nao */}
+        <div className="lg:hidden">
+          {places.length === 0 && !selection && (
+            <NearbySuggestions
+              room={room}
+              places={places}
+              pois={Object.values(poisById)}
+              onSelectPoi={flyToPoi}
+              onAddPoi={(poi) => {
+                void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
+              }}
+            />
+          )}
+        </div>
+
+        {/* Tren mobile: PlaceSheet bottom sheet khong chan */}
+        <div className="lg:hidden">
+          {(selectedPoi || selectedPlace) && (
+            <PlaceSheet
+              room={room}
+              poi={selectedPoi}
+              place={selectedPlace}
+              onClose={() => {
+                selectPoi(null);
+                selectPlace(null);
+              }}
+              isVotingDisabled={isVotingDisabled}
+            />
+          )}
+        </div>
+
+        <span className="sr-only">
+          {t('map.attribution')}
         </span>
-      )}
-
-      {places.length === 0 && !selection && (
-        <NearbySuggestions
-          room={room}
-          places={places}
-          pois={Object.values(poisById)}
-          onSelectPoi={flyToPoi}
-          onAddPoi={(poi) => {
-            void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
-          }}
-        />
-      )}
-
-      {(selectedPoi || selectedPlace) && (
-        <PlaceSheet
-          room={room}
-          poi={selectedPoi}
-          place={selectedPlace}
-          onClose={() => {
-            selectPoi(null);
-            selectPlace(null);
-          }}
-          isVotingDisabled={isVotingDisabled}
-        />
-      )}
-
-      <span className="sr-only">
-        Dữ liệu bản đồ © OpenStreetMap contributors, OpenFreeMap
-      </span>
+      </div>
     </div>
   );
 }

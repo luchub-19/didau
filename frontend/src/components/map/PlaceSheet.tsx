@@ -1,12 +1,19 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Place, Poi, Room } from '../../types';
 import { distanceKm } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { CATEGORY_METADATA } from '../common/categoryMetadata';
-import { Badge, Button, CategoryIcon } from '../common';
+import { Badge, CategoryIcon } from '../common';
+import { Button, IconButton } from '../ui';
+import { CaretDown, CaretUp, Clock, MapPin, X } from '../ui/Icon';
 import { VoteButtons } from '../voting/VoteButtons';
 import { InternalReviews, reviewKeyFor } from '../reviews';
 import { GooglePlaceCard } from './GooglePlaceCard';
+import { formatDistance, formatTimeRange } from '../../i18n/format';
+import { cuisineLabel } from '../../i18n/osm';
+import { describeApiError } from '../../i18n/serverText';
+import type { Language } from '../../i18n/useLanguage';
 
 export interface PlaceSheetProps {
   room: Room;
@@ -14,13 +21,7 @@ export interface PlaceSheetProps {
   place?: Place | null;
   onClose: () => void;
   isVotingDisabled?: boolean;
-}
-
-function formatMinutes(minutes?: number | null): string | null {
-  if (minutes === undefined || minutes === null) return null;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  isDesktopColumn?: boolean;
 }
 
 export const PlaceSheet: React.FC<PlaceSheetProps> = ({
@@ -29,14 +30,19 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
   place,
   onClose,
   isVotingDisabled = false,
+  isDesktopColumn = false,
 }) => {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language as Language) || 'vi';
+
+  const [snap, setSnap] = useState<'summary' | 'detail'>('summary');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
   const places = usePlaceStore((s) => s.places);
   const addPlaceFromPoi = usePlaceStore((s) => s.addPlaceFromPoi);
 
-  // Kiểm tra xem quán đã có trong phòng chưa
+  // Kiem tra xem quan da co trong phong chua
   const existingPlace = useMemo(() => {
     if (place) return place;
     if (poi) {
@@ -45,9 +51,10 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
     return null;
   }, [place, poi, places]);
 
-  const name = existingPlace?.name || poi?.name || 'Địa điểm';
+  const name = existingPlace?.name || poi?.name || t('map.place.defaultName');
   const category = existingPlace?.category || poi?.category || 'OTHER';
-  const cuisine = existingPlace?.cuisine || poi?.cuisine;
+  const rawCuisine = existingPlace?.cuisine || poi?.cuisine;
+  const cuisine = cuisineLabel(rawCuisine, lang);
   const address = existingPlace?.address || poi?.address;
   const lat = existingPlace?.latitude ?? poi?.lat;
   const lng = existingPlace?.longitude ?? poi?.lng;
@@ -55,24 +62,24 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
   const googlePlaceId = existingPlace?.google_place_id;
   const reviewKey = reviewKeyFor(existingPlace, poi);
 
-  // Giờ mở cửa
+  // Gio mo cua chi lay tu open_minute va close_minute da dinh dang
   const openingHours = useMemo(() => {
-    if (existingPlace?.opening_hours_raw) return existingPlace.opening_hours_raw;
-    if (poi?.opening_hours_raw) return poi.opening_hours_raw;
-    const open = formatMinutes(existingPlace?.open_minute ?? poi?.open_minute);
-    const close = formatMinutes(existingPlace?.close_minute ?? poi?.close_minute);
-    if (open && close) return `${open} - ${close}`;
+    const openMin = existingPlace?.open_minute ?? poi?.open_minute;
+    const closeMin = existingPlace?.close_minute ?? poi?.close_minute;
+    if (openMin != null && closeMin != null) {
+      return formatTimeRange(openMin, closeMin, lang);
+    }
     return null;
-  }, [existingPlace, poi]);
+  }, [existingPlace, poi, lang]);
 
-  // Khoảng cách tới điểm hẹn
+  // Khoang cach toi diem hen
   const distanceFromOrigin = useMemo(() => {
     if (room.origin_lat == null || room.origin_lng == null || lat == null || lng == null) {
       return null;
     }
     const km = distanceKm(room.origin_lat, room.origin_lng, lat, lng);
-    return `${km.toFixed(1)} km từ điểm hẹn`;
-  }, [room.origin_lat, room.origin_lng, lat, lng]);
+    return t('map.place.distanceFromOrigin', { distance: formatDistance(km, lang) });
+  }, [room.origin_lat, room.origin_lng, lat, lng, t, lang]);
 
   const handleAdd = async () => {
     if (!poi) return;
@@ -81,32 +88,51 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
     try {
       await addPlaceFromPoi(room.id, poi);
     } catch (err: unknown) {
-      const errorObj = err as { code?: string; message?: string; details?: { place_id?: string } };
+      const errorObj = err as { code?: string; message?: string };
       if (errorObj?.code === 'PLACE_ALREADY_ADDED') {
-        // Đã được thêm rồi -> giao diện tự chuyển sang existingPlace
         return;
       }
-      setAddError(errorObj?.message || 'Không thể thêm địa điểm vào chuyến đi.');
+      setAddError(describeApiError(err, t) || t('map.place.addError'));
     } finally {
       setIsAdding(false);
     }
   };
 
+  const containerClasses = isDesktopColumn
+    ? 'flex flex-col h-full overflow-y-auto'
+    : 'fixed inset-x-0 bottom-0 z-30 max-h-[85vh] rounded-t-3xl border-t border-line bg-surface p-4 sm:p-5 shadow-float overflow-y-auto sm:absolute sm:inset-x-auto sm:right-3 sm:top-3 sm:bottom-3 sm:w-96 sm:max-h-none sm:rounded-card sm:border sm:border-line pointer-events-auto';
+
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-30 max-h-[85vh] rounded-t-3xl border-t border-slate-200 bg-white p-5 shadow-2xl overflow-y-auto sm:absolute sm:inset-x-auto sm:right-3 sm:top-3 sm:bottom-3 sm:w-96 sm:max-h-none sm:rounded-2xl sm:border sm:border-slate-200"
+      className={containerClasses}
       data-testid="place-sheet"
+      onTouchStart={(e) => e.stopPropagation()}
+      style={{ touchAction: 'pan-y' }}
     >
+      {/* Keo nac tren dien thoai (chi hien khi khong phai cot desktop) */}
+      {!isDesktopColumn && (
+        <div className="flex sm:hidden justify-center pb-2">
+          <button
+            type="button"
+            onClick={() => setSnap((s) => (s === 'summary' ? 'detail' : 'summary'))}
+            className="flex items-center gap-1 px-3 py-1 text-caption text-ink-3 rounded-full hover:bg-surface-2 transition-colors"
+            aria-label={snap === 'summary' ? t('map.place.viewDetails') : t('map.place.collapseDetails')}
+          >
+            <span className="w-8 h-1 rounded-full bg-line block" />
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
-      <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-        <div className="space-y-1">
+      <div className="flex items-start justify-between gap-3 pb-3 border-b border-line">
+        <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <CategoryIcon category={category} size="sm" />
-            <span className="text-xs font-semibold text-slate-600">
+            <span className="text-label font-semibold text-ink-2">
               {CATEGORY_METADATA[category]?.label || category}
             </span>
             {cuisine && (
-              <span className="text-xs text-slate-400">· {cuisine}</span>
+              <span className="text-label text-ink-3">· {cuisine}</span>
             )}
             {existingPlace && (
               <Badge variant={existingPlace.status} size="sm">
@@ -114,81 +140,114 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
               </Badge>
             )}
           </div>
-          <h3 className="text-base font-bold text-slate-900 leading-snug">{name}</h3>
+          <h3 className="text-h3 font-bold text-ink leading-snug truncate">
+            {name}
+          </h3>
         </div>
 
-        <button
-          type="button"
+        <IconButton
+          icon={<X size={16} />}
+          variant="ghost"
+          aria-label={t('map.place.close')}
           onClick={onClose}
-          aria-label="Đóng"
-          className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition"
-        >
-          ✕
-        </button>
+          className="shrink-0"
+        />
       </div>
 
-      {/* Thông tin chi tiết */}
-      <div className="py-3 space-y-2 text-xs text-slate-600">
-        {address && (
-          <p className="flex items-start gap-1.5">
-            <span className="shrink-0 mt-0.5">📍</span>
-            <span>{address}</span>
-          </p>
-        )}
-
+      {/* Thong tin tom tat (luon hien) */}
+      <div className="py-2.5 space-y-1.5 text-body text-ink-2">
         {(distanceFromOrigin || openingHours) && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 pt-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption font-medium pt-0.5">
             {distanceFromOrigin && (
-              <span className="inline-flex items-center gap-1 font-medium text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">
-                <span>📏</span> {distanceFromOrigin}
+              <span className="inline-flex items-center gap-1 text-accent-text bg-accent-soft px-2 py-0.5 rounded-field">
+                <MapPin size={13} />
+                <span>{distanceFromOrigin}</span>
               </span>
             )}
             {openingHours && (
-              <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                <span>🕒</span> {openingHours}
+              <span className="inline-flex items-center gap-1 text-ink-2 bg-surface-2 px-2 py-0.5 rounded-field">
+                <Clock size={13} />
+                <span>{openingHours}</span>
               </span>
             )}
           </div>
         )}
       </div>
 
-      {/* Google Places UI Kit Card */}
-      {externalId && lat != null && lng != null && (
-        <GooglePlaceCard
-          externalId={externalId}
-          name={name}
-          lat={lat}
-          lng={lng}
-          googlePlaceId={googlePlaceId}
-        />
+      {/* Nut toggle nac tom tat / chi tiet tren mobile */}
+      {!isDesktopColumn && (
+        <div className="flex sm:hidden justify-center py-1">
+          <button
+            type="button"
+            onClick={() => setSnap((s) => (s === 'summary' ? 'detail' : 'summary'))}
+            className="flex items-center gap-1 text-caption font-medium text-accent-text hover:underline py-1"
+          >
+            {snap === 'summary' ? (
+              <>
+                <span>{t('map.place.viewDetails')}</span>
+                <CaretUp size={14} />
+              </>
+            ) : (
+              <>
+                <span>{t('map.place.collapseDetails')}</span>
+                <CaretDown size={14} />
+              </>
+            )}
+          </button>
+        </div>
       )}
 
-      {/* Review nội bộ: tích luỹ qua mọi phòng theo external_key */}
-      {reviewKey && (
-        <InternalReviews
-          key={reviewKey}
-          externalKey={reviewKey}
-          remindToReview={room.status === 'COMPLETED' && !!existingPlace}
-        />
-      )}
+      {/* Thong tin chi tiet (nac 2): dia chi, google card, review */}
+      <div
+        className={`space-y-3 pt-1 ${
+          !isDesktopColumn && snap === 'summary' ? 'hidden sm:block' : 'block'
+        }`}
+      >
+        {address && (
+          <p className="flex items-start gap-2 text-body text-ink-2">
+            <MapPin size={16} className="shrink-0 mt-0.5 text-ink-3" />
+            <span>{address}</span>
+          </p>
+        )}
 
-      {/* Lỗi thêm quán nếu có */}
+        {/* Google Places UI Kit Card */}
+        {externalId && lat != null && lng != null && (
+          <GooglePlaceCard
+            externalId={externalId}
+            name={name}
+            lat={lat}
+            lng={lng}
+            googlePlaceId={googlePlaceId}
+          />
+        )}
+
+        {/* Review noi bo */}
+        {reviewKey && (
+          <InternalReviews
+            key={reviewKey}
+            externalKey={reviewKey}
+            remindToReview={room.status === 'COMPLETED' && !!existingPlace}
+          />
+        )}
+      </div>
+
+      {/* Loi them quan neu co */}
       {addError && (
-        <div className="mb-3 text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+        <div className="my-2.5 text-caption text-danger bg-danger-soft p-2.5 rounded-field border border-danger/20">
           {addError}
         </div>
       )}
 
-      {/* Nút hành động */}
-      <div className="pt-3 border-t border-slate-100">
+      {/* Nut hanh dong (luon o duoi de bam nhanh) */}
+      <div className="pt-3 border-t border-line mt-auto">
         {existingPlace ? (
           <div className="flex items-center justify-between gap-3" data-testid="already-added-section">
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                <span>✓</span> Đã trong lựa chọn
+              <span className="text-label font-semibold text-success flex items-center gap-1">
+                <span>✓</span> {t('map.place.alreadyAdded')}
               </span>
-              <span className="text-[11px] text-slate-400">
-                Điểm vote: {existingPlace.score}
+              <span className="text-caption text-ink-3 tabular-nums">
+                {t('map.place.voteScore', { score: existingPlace.score })}
               </span>
             </div>
             <VoteButtons
@@ -206,11 +265,10 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
             <Button
               variant="primary"
               className="w-full"
-              isLoading={isAdding}
+              loading={isAdding}
               onClick={handleAdd}
-              leftIcon={<span>+</span>}
             >
-              Thêm vào lựa chọn
+              {t('map.place.add')}
             </Button>
           </div>
         )}
