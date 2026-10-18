@@ -274,3 +274,48 @@ Thêm vào mục 4.1/4.2: `CHAT_MESSAGE` (payload theo code hiện tại) và `M
 ### 2. Đề xuất
 Thêm 5 route trên vào mục 3.3 theo hành vi hiện tại (PATCH/DELETE place: Submitter hoặc Host; DELETE schedule item: mọi member). Tương thích ngược hoàn toàn.
 
+
+---
+
+## CR-06: Mã và tham số cho chữ do backend sinh ra (phục vụ song ngữ VI/EN)
+
+- **Người đề xuất**: Session lập kế hoạch giai đoạn 3 (2026-10-18)
+- **Ngày tạo**: 2026-10-18
+- **Trạng thái**: PROPOSED (CHỜ NGƯỜI DÙNG DUYỆT)
+- **Kế hoạch liên quan**: `docs/phase3/PLAN.md` §6; triển khai ở T-42 (BE), dùng ở T-43, T-46, T-48 (FE)
+- **Task đã DONE bị ảnh hưởng**: T-05/T-12 (conflict rules, `ConflictService`), T-30 (`SmartPick`), T-34/T-35 (`HeuristicItineraryPlanner`, auto-plan), T-31 (`result_payload` của phiên SMART). Chỉ **thêm** trường, không đổi hay bỏ trường cũ.
+
+### 1. Vấn đề
+Giai đoạn 3 thêm tiếng Anh với yêu cầu "EN thì toàn bộ tiếng Anh, không trộn". Lỗi API đã có `error.code` nên frontend dịch được. Nhưng 4 chỗ backend trả **câu tiếng Việt tự do**, frontend không dịch được:
+1. `ConflictAlert.message` (ví dụ "Trùng lặp thời gian: 'Cà Phê Trứng 3T' (09:00 - 10:30) bị đè khung giờ với ..."); có `rule_code` + `entity_ids` nhưng thiếu số liệu (phút di chuyển, ngân sách...).
+2. `ScoredPick.reasons` (`smart_pick.py`: "Gần điểm hẹn nhất (1.2 km)", "Vừa ngân sách (45,000đ / 100,000đ)"...), cũng nằm trong `result_payload.reasons` của phiên SMART.
+3. `PlannedSlot.reasons` (`planner.py:340-348`: "Rơi vào khung tối 18:00–20:00", "Di chuyển khoảng 12 phút từ ...").
+4. `DroppedPlace.reason` (`planner.py:352-355`).
+
+### 2. Đề xuất (tương thích ngược)
+- **Conflict:** thêm `params: dict` vào `ConflictResult`, `ConflictResponse`, bảng `conflicts` (cột `params JSONB NOT NULL DEFAULT '{}'`, migration `003`) và payload WS `CONFLICT_DETECTED`. Tham số theo `rule_code`:
+  | `rule_code` | `params` |
+  | :--- | :--- |
+  | `TIME_OVERLAP` | `item_ids[2]`, `place_names[2]`, `ranges[2]` (`{start_minute, end_minute, day_offset}`) |
+  | `TRAVEL_TIME` | `from_item_id`, `to_item_id`, `place_names[2]`, `gap_min`, `travel_min`, `distance_km` |
+  | `OPENING_HOURS` | `item_id`, `place_name`, `start_minute`, `end_minute`, `open_minute`, `close_minute` |
+  | `DUPLICATE_PLACE` | `place_ids[2]`, `place_names[2]`, `similarity`, `distance_m` |
+  | `BUDGET_THRESHOLD` | `total_cost`, `budget_limit` |
+- **Lý do (chọn hộ, lên lịch):** thêm `reason_codes: list[{code: str, params: dict}]` cạnh `reasons` ở `ScoredPick`, `PlannedSlot` (và `result_payload` phiên SMART); thêm `reason_code` + `reason_params` cạnh `reason` ở `DroppedPlace`. Bảng mã:
+  | Nhóm | `code` | `params` |
+  | :--- | :--- | :--- |
+  | SmartPick | `TOP_VOTED`, `SUPPORTED` | `score`, `upvotes` |
+  | | `NEAREST`, `NEAR`, `DISTANCE` | `distance_km` |
+  | | `OPEN_AT` | `minute` |
+  | | `FREE`, `WITHIN_BUDGET`, `CHEAPEST`, `COST_ESTIMATE` | `cost`, `budget_limit` (nếu có) |
+  | | `QUALITY_PICK` | `category`, `total_score` |
+  | Planner slot | `MEAL_WINDOW` | `window` (`lunch`/`dinner`/...), `start_minute`, `end_minute` |
+  | | `OFF_MEAL_WINDOW`, `AFTER_MEAL`, `DRINK` | – |
+  | | `TRAVEL_FROM` | `travel_min`, `from_name` (hoặc `from_origin: true`) |
+  | Planner dropped | `CLOSED_OR_NO_FIT`, `OUT_OF_TIME` | – |
+- Danh sách mã ghi vào `CONTRACTS.md` (bảng mới ở mục 1 hoặc cạnh endpoint #20, #25) để FE và BE cùng một nguồn.
+- Trường cũ (`message`, `reasons`, `reason`) giữ nguyên, vẫn tiếng Việt, đánh dấu "chỉ để tương thích/log".
+
+### 3. Phương án nếu không duyệt
+FE tự dựng câu xung đột từ `rule_code` + `entity_ids` + dữ liệu trong store (thiếu số phút di chuyển); ở chế độ EN ẩn phần lý do chi tiết của chọn hộ/lên lịch, chỉ hiện điểm số và thời gian. Không bao giờ hiện câu tiếng Việt của server ở chế độ EN.
+
