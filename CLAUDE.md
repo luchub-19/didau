@@ -8,6 +8,10 @@ Toàn bộ các task từ T-01 đến T-55 (Giai đoạn 1, 2 và 3) đã hoàn 
 - Lịch sử tiến độ & review Giai đoạn 3: xem `docs/phase3/PROGRESS.md` và `docs/phase3/AUDIT.md`.
 - Lịch sử Giai đoạn 1–2: xem `docs/PROGRESS.md` và `docs/TASKS.md`.
 - Dự án sẵn sàng cho Production Deployment hoặc các giai đoạn mở rộng tiếp theo theo yêu cầu của người dùng.
+- Sau giai đoạn 3 (2026-10-18): CR-05 đã áp vào CONTRACTS §3.3 (mục 28–32); kiểm tra trực quan
+  `docs/phase3/reviews/VISUAL-QA-2026-10-18.md`, T-56 đã sửa V1/V3/V4/V5/V7.
+- **Việc mở**: CR-07 (PROPOSED, chờ người dùng duyệt) sửa V2 ở backend; V6, V8 chưa làm. Xem mục "Việc mở sau T-56"
+  trong `docs/phase3/PROGRESS.md`.
 
 ## Bắt đầu session
 1. Đọc file tiến độ của giai đoạn hiện tại. Nếu người dùng không chỉ định task, lấy task **đầu tiên còn TODO**

@@ -9,6 +9,7 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | CR-06 (mã lý do/tham số từ backend) | ĐÃ DUYỆT (ACCEPTED) |
 | Duyệt trang mẫu T-38 | ĐÃ DUYỆT (đồng ý màu/font) |
 | Duyệt bản đứng yên sau T-51 | ĐÃ DUYỆT |
+| CR-07 (TRAVEL_TIME bỏ qua cặp chồng giờ, lỗi V2) | CHỜ DUYỆT (PROPOSED) |
 
 ## Bảng task
 | Task | Trạng thái | Session | Review | Ghi chú |
@@ -47,3 +48,13 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 - Toàn bộ các task T-38 đến T-55 đã hoàn thành đạt chuẩn hợp đồng và tiêu chí thiết kế.
 - Mọi vấn đề code, token, i18n, motion và Docker orchestration đã được xử lý triệt để.
 - Việc chụp bộ ảnh/GIF màn hình thực tế trên thiết bị di động thật (390px, touch swipe, Dark mode) sẽ do người dùng thực hiện khi có môi trường trình duyệt giao diện đồ họa.
+
+## Việc mở sau T-56 (2026-10-18, session 30167b2e)
+- **CR-07** (PROPOSED): `TravelTimeConflictRule` bỏ qua cặp có `gap < 0` (lỗi V2). Duyệt xong mới sửa backend +
+  test unit + một dòng CONTRACTS §1.13 A; chạy `ruff` + `pytest` với Postgres.
+- **V6** (thẻ lịch lặp toàn bộ xung đột của cặp), **V8** (cảnh báo `[WebSocket] Connection error` trong console khi
+  tải trang; chưa điều tra): chưa làm, chưa có task.
+- Môi trường: container `didau_frontend` build sẵn code, phải `docker compose up -d --build frontend` mới thấy
+  T-56. Backend từ chối WebSocket từ Origin lạ (`websocket.py:163`), nên chạy vite dev ở cổng khác 5173 sẽ hiện
+  "Mất kết nối" — không phải lỗi app.
+- DB local còn phòng thử `RTGNWK` (3 quán, 2 mục lịch chồng giờ) dùng để chụp VISUAL-QA; xoá hay giữ tuỳ người dùng.
