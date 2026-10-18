@@ -3,14 +3,11 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn hiện tại: 3, làm lại giao diện + song ngữ VI/EN (T-38 → T-55)
-**Đọc `docs/phase3/README.md` trước tiên**: thứ tự task, cổng chờ người dùng, luật riêng, cách bàn giao.
-Mỗi task là một file nhỏ `docs/phase3/tasks/T-xx.md` ghi rõ cần đọc gì; tiến độ ở `docs/phase3/PROGRESS.md`.
-Trong giai đoạn 3 **không đọc** `docs/TASKS.md`, `docs/PROGRESS.md`, `docs/ARCHITECTURE.md` (lưu trữ giai đoạn 1–2,
-mỗi file khoảng 50 KB). Skill dự án `didau-ui` (`.claude/skills/`) áp dụng khi sửa giao diện.
-Người dùng bảo "review" / "kiểm tra code" → đây là session reviewer: làm theo `docs/phase3/REVIEW.md`, không nhận task mới.
-
-Giai đoạn 1–2 (T-01 → T-37) đã DONE; lịch sử ở `docs/PROGRESS.md`, chi tiết task ở `docs/TASKS.md`.
+## Giai đoạn: Giai đoạn 3 (T-38 → T-55) — ĐÃ HOÀN THÀNH (DONE)
+Toàn bộ các task từ T-01 đến T-55 (Giai đoạn 1, 2 và 3) đã hoàn thành, kiểm thử tự động xanh 100%.
+- Lịch sử tiến độ & review Giai đoạn 3: xem `docs/phase3/PROGRESS.md` và `docs/phase3/AUDIT.md`.
+- Lịch sử Giai đoạn 1–2: xem `docs/PROGRESS.md` và `docs/TASKS.md`.
+- Dự án sẵn sàng cho Production Deployment hoặc các giai đoạn mở rộng tiếp theo theo yêu cầu của người dùng.
 
 ## Bắt đầu session
 1. Đọc file tiến độ của giai đoạn hiện tại. Nếu người dùng không chỉ định task, lấy task **đầu tiên còn TODO**

@@ -145,11 +145,29 @@ PLACES_PROVIDER=google GOOGLE_MAPS_SERVER_KEY=... VITE_GOOGLE_MAPS_BROWSER_KEY=.
 
 ---
 
+## 🎨 Giai đoạn 3: Làm lại giao diện & Song ngữ (UI Redesign & i18n)
+
+1. **Hệ thống Design Token & Theme**:
+   - Palette màu tối giản, ấm áp: Họ xám ấm (`stone`), màu nhấn san hô (`#FF6B4A` coral) đại diện cho lựa chọn của nhóm, 7 cặp màu danh mục trực quan đạt tương phản ≥3:1.
+   - Hỗ trợ **Chế độ Tối (Dark Mode)** tự nhiên: Nền `#141210`, thẻ `#1F1D1A`, chữ đạt tương phản WCAG AAA (15.4:1–17.1:1). Nút primary tự điều chỉnh màu chữ để đạt 6.6:1 (không dùng chữ trắng trên coral).
+   - Tùy chọn 3 chế độ: *Theo máy* (hệ điều hành), *Sáng*, *Tối* tại tab Nhóm hoặc tự nhận diện theo `prefers-color-scheme`.
+
+2. **Song ngữ Tiếng Việt & English**:
+   - Chuyển đổi ngôn ngữ tức thì qua nút `LanguageSwitcher` trên thanh tiêu đề hoặc cài đặt trong tab Nhóm.
+   - Toàn bộ nhãn, danh mục, thông báo lỗi kỹ thuật, lý do thuật toán chọn hộ và cảnh báo xung đột lịch trình được bản địa hóa và định dạng chuẩn qua `Intl` (tiền tệ VND/USD, khoảng cách m/km, ngày giờ, số ít/số nhiều).
+
+3. **Trải Nghiệm Di Động & Chuyển Động (Mobile-First & Motion)**:
+   - Thanh tab dưới 56px hỗ trợ safe-area, tự ẩn khi mở bàn phím ảo, vạch chọn trượt chuyển tab mượt mà.
+   - Bottom Sheet trượt từ đáy màn hình thay thế modal truyền thống, hỗ trợ vuốt xuống để đóng, phím `Esc` và bẫy focus khép kín chuẩn A11y.
+   - Hoạt ảnh phản hồi bấm (`pressable`), nảy số vote tức thì, quét màu khi chốt quán (`ACCEPTED`), hiệu ứng lộ diện kết quả chọn hộ. Tự động tắt hoạt ảnh khi bật `prefers-reduced-motion`.
+
+---
+
 ## 🧪 Kiểm Thử Tự Động (Automated Testing)
 
 Toàn bộ hệ thống đạt độ phủ kiểm thử 100% các tiêu chí hợp đồng:
 
-### 1. Backend Tests (513 Tests Pass)
+### 1. Backend Tests (519 Tests Pass)
 ```bash
 # Chạy trong container Docker:
 docker exec didau_backend poetry run pytest -v
@@ -159,7 +177,7 @@ cd backend
 poetry run pytest -v
 ```
 
-### 2. Frontend Tests (150 Tests Pass)
+### 2. Frontend Tests (270 Tests Pass across 20 suites)
 ```bash
 cd frontend
 npm test

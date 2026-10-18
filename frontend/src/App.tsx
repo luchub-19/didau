@@ -65,7 +65,7 @@ export default function App(): React.ReactElement {
 
   if (coldStart.status === 'error') {
     return (
-      <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen min-h-dvh bg-bg flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 mb-4 rounded-2xl bg-danger-soft flex items-center justify-center text-danger">
           <WarningCircle size={32} aria-hidden="true" />
         </div>
@@ -80,7 +80,7 @@ export default function App(): React.ReactElement {
 
   if (coldStart.status === 'waking') {
     return (
-      <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen min-h-dvh bg-bg flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 mb-4 rounded-2xl bg-accent-soft flex items-center justify-center text-accent-text">
           <Coffee size={32} aria-hidden="true" />
         </div>

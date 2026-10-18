@@ -104,7 +104,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 
   return (
     <footer
-      className={`fixed bottom-0 left-0 right-0 z-tabbar bg-surface border-t border-line lg:hidden transition-transform duration-200 ${
+      className={`fixed bottom-0 left-0 right-0 z-tabbar bg-surface border-t border-line lg:hidden transition-transform duration-[var(--t-ui)] ${
         isKeyboardOpen ? 'translate-y-full pointer-events-none' : 'translate-y-0'
       }`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
