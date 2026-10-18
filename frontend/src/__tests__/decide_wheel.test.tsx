@@ -430,6 +430,52 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       expect(html).not.toContain('rotate(NaNdeg)');
     });
 
+    it('WS PLACE_UPDATED chỉ có {id, status} (server gửi khi chốt) không xoá tên quán đang vẽ trên vòng quay', () => {
+      const target = mockPlaces[0];
+      usePlaceStore.getState().upsertPlace({ id: target.id, status: 'ACCEPTED' });
+
+      const merged = usePlaceStore.getState().places.find((p) => p.id === target.id);
+      expect(merged?.status).toBe('ACCEPTED');
+      expect(merged?.name).toBe(target.name);
+      expect(merged?.category).toBe(target.category);
+      expect(() =>
+        renderToStaticMarkup(
+          <SpinWheel roomId={mockRoom.id} isHost={true} wheelWinnerId={target.id} />,
+        ),
+      ).not.toThrow();
+    });
+
+    it('"Quay lại" khi phiên vòng quay trước chưa chốt: huỷ phiên cũ rồi tạo phiên mới, không bị 409', async () => {
+      const req = {
+        mode: 'WHEEL' as const,
+        candidate_place_ids: [mockPlaces[0].id, mockPlaces[1].id],
+      };
+      const first = await useDecisionStore.getState().createDecision(mockRoom.id, req);
+      const second = await useDecisionStore.getState().createDecision(mockRoom.id, req);
+
+      expect(second.session.id).not.toBe(first.session.id);
+      expect(useDecisionStore.getState().currentSession?.id).toBe(second.session.id);
+      expect(useDecisionStore.getState().actionError).toBeNull();
+
+      // Phiên mới vẫn chốt được bình thường
+      await useDecisionStore.getState().acceptDecision(mockRoom.id, second.session.id);
+      expect(useDecisionStore.getState().currentSession?.status).toBe('RESOLVED');
+    });
+
+    it('phiên OPEN mồ côi sau khi tải lại trang (store trống) không chặn lần quay mới', async () => {
+      const req = {
+        mode: 'WHEEL' as const,
+        candidate_place_ids: [mockPlaces[0].id, mockPlaces[1].id],
+      };
+      const stale = await useDecisionStore.getState().createDecision(mockRoom.id, req);
+      // Tải lại trang: store mất phiên đang mở nhưng server vẫn giữ nó ở trạng thái OPEN
+      useDecisionStore.getState().reset();
+
+      const fresh = await useDecisionStore.getState().createDecision(mockRoom.id, req);
+      expect(fresh.session.id).not.toBe(stale.session.id);
+      expect(useDecisionStore.getState().actionError).toBeNull();
+    });
+
     it('SpinWheel phòng thủ an toàn: không crash khi dữ liệu quán thiếu thuộc tính name hoặc rỗng', () => {
       const corruptedPlaces = [
         { ...mockPlaces[0], name: undefined as unknown as string },

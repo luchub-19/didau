@@ -59,4 +59,10 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 - Môi trường: container `didau_frontend` build sẵn code, phải `docker compose up -d --build frontend` mới thấy
   T-56. Backend từ chối WebSocket từ Origin lạ (`websocket.py:163`), nên chạy vite dev ở cổng khác 5173 sẽ hiện
   "Mất kết nối" — không phải lỗi app.
+- **Chọn hộ / vòng quay** (2026-10-18, sau 289a929): màn trắng khi chốt là do WS `PLACE_UPDATED` chỉ có
+  `{id, status}` (`PlaceStatusChangedEvent` không kèm `place`) mà `upsertPlace` cũ thay nguyên object → `SpinWheel`
+  đọc `name.length` của undefined; 289a929 đã sửa (merge) nhưng container chưa build lại. Lỗi 409 khi "Quay lại":
+  phiên WHEEL/LADDER/SMART giữ `OPEN` tới lúc chốt và không có `closes_at`, nên phiên mới luôn đụng luật 1 phiên OPEN.
+  Sửa ở FE (giữ luật 409 của TASKS): `useDecisionStore.createDecision` huỷ `currentSession` đang OPEN trước khi tạo,
+  và nếu vẫn 409 thì huỷ phiên `details.session_id` (mồ côi sau reload) rồi tạo lại 1 lần. MSW trả thêm `details`.
 - DB local còn phòng thử `RTGNWK` (3 quán, 2 mục lịch chồng giờ) dùng để chụp VISUAL-QA; xoá hay giữ tuỳ người dùng.

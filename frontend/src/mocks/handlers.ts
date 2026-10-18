@@ -768,7 +768,13 @@ export const handlers = [
     for (const session of decisionSessions.values()) {
       if (session.room_id === roomId && session.status === 'OPEN') {
         return HttpResponse.json(
-          { error: { code: 'CONFLICT', message: 'Phòng đã có phiên chọn hộ đang mở' } },
+          {
+            error: {
+              code: 'CONFLICT',
+              message: 'Phòng đã có phiên chọn hộ đang mở',
+              details: { session_id: session.id },
+            },
+          },
           { status: 409 },
         );
       }

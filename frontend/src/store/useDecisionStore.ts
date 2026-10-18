@@ -3,6 +3,7 @@ import { decisionApi } from '../services/api/decisionApi';
 import { usePlaceStore } from './usePlaceStore';
 import { useRoomStore } from './useRoomStore';
 import type {
+  ApiError,
   CreateDecisionRequest,
   CreateDecisionResponse,
   DeciderHint,
@@ -66,6 +67,14 @@ export interface DecisionState {
   reset: () => void;
 }
 
+// Lỗi 409 CONFLICT của POST /decisions mang id phiên OPEN đang chặn trong details.session_id
+function openSessionIdFromConflict(err: unknown): string | null {
+  const apiErr = err as ApiError | null;
+  if (apiErr?.code !== 'CONFLICT') return null;
+  const sessionId = apiErr.details?.session_id;
+  return typeof sessionId === 'string' && sessionId ? sessionId : null;
+}
+
 export const useDecisionStore = create<DecisionState>((set, get) => ({
   hints: [],
   smartPicks: [],
@@ -113,7 +122,22 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
   createDecision: async (roomId: string, req: CreateDecisionRequest) => {
     set({ isSubmitting: true, actionError: null });
     try {
-      const res = await decisionApi.createDecision(roomId, req);
+      // Mỗi phòng chỉ có 1 phiên OPEN (server trả 409 nếu đã có). Phiên WHEEL/LADDER/SMART vẫn OPEN
+      // cho tới khi chốt, nên "Quay lại" phải huỷ phiên đang mở trước rồi mới tạo phiên mới.
+      const open = get().currentSession;
+      if (open?.id && open.status === 'OPEN') {
+        await decisionApi.cancelDecision(roomId, open.id).catch(() => undefined);
+      }
+      let res: CreateDecisionResponse;
+      try {
+        res = await decisionApi.createDecision(roomId, req);
+      } catch (err: unknown) {
+        // Phiên OPEN mồ côi mà store không biết (vd. tải lại trang khi chưa chốt): huỷ rồi tạo lại 1 lần
+        const staleId = openSessionIdFromConflict(err);
+        if (!staleId) throw err;
+        await decisionApi.cancelDecision(roomId, staleId);
+        res = await decisionApi.createDecision(roomId, req);
+      }
       const stopAngle = (res.result_payload?.stop_angle_deg as number) ?? null;
       set({
         currentSession: res.session,
