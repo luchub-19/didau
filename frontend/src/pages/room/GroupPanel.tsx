@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Member, Room } from '../../types';
-import { MemberList } from '../../components/room';
-import { Button, LanguageSwitcher } from '../../components/ui';
+import { InviteCard, MemberList } from '../../components/room';
+import { Button, Card, LanguageSwitcher } from '../../components/ui';
 import { formatMoney } from '../../i18n/format';
 import { useLanguage } from '../../i18n/useLanguage';
 
@@ -11,6 +11,7 @@ export interface GroupPanelProps {
   members: Member[];
   currentMember?: Member | null;
   isHost: boolean;
+  isConnected?: boolean;
   placesCount: number;
   scheduleCount: number;
   onOpenTieBreakModal?: () => void;
@@ -21,6 +22,7 @@ export const GroupPanel: React.FC<GroupPanelProps> = ({
   members,
   currentMember,
   isHost,
+  isConnected = true,
   placesCount,
   scheduleCount,
   onOpenTieBreakModal,
@@ -42,72 +44,76 @@ export const GroupPanel: React.FC<GroupPanelProps> = ({
     return room.event_date;
   })();
 
+  const alone = members.length <= 1;
+
+  const summaryRows: Array<[string, React.ReactNode]> = [
+    [t('room.summary.status'), t(`group.status.${room.status}`)],
+    [t('room.summary.eventDate'), formattedDate],
+    [t('room.summary.totalPlaces'), placesCount],
+    [t('room.summary.totalSchedule'), scheduleCount],
+    [t('room.summary.tieBreakStrategy'), t(`group.strategy.${room.tie_break_strategy}`)],
+  ];
+  if (room.budget_limit) {
+    summaryRows.push([
+      t('room.summary.budgetPerPerson'),
+      formatMoney(room.budget_limit, lang),
+    ]);
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Danh sách thành viên */}
-      <MemberList members={members} currentMemberId={currentMember?.id} />
-
-      {/* Thông tin chuyến đi */}
-      <div className="bg-surface rounded-card border border-line p-4 shadow-xs space-y-3">
-        <h3 className="text-label font-bold uppercase tracking-wider text-ink-2">
-          {t('room.summary.title')}
-        </h3>
-
-        <div className="space-y-2 text-caption">
-          <div className="flex justify-between py-1.5 border-b border-line">
-            <span className="text-ink-2">{t('room.summary.status')}:</span>
-            <span className="font-semibold text-ink">{room.status}</span>
-          </div>
-
-          <div className="flex justify-between py-1.5 border-b border-line">
-            <span className="text-ink-2">{t('room.summary.eventDate')}:</span>
-            <span className="font-semibold text-ink">{formattedDate}</span>
-          </div>
-
-          <div className="flex justify-between py-1.5 border-b border-line">
-            <span className="text-ink-2">{t('room.summary.totalPlaces')}:</span>
-            <span className="font-semibold text-ink">{placesCount}</span>
-          </div>
-
-          <div className="flex justify-between py-1.5 border-b border-line">
-            <span className="text-ink-2">{t('room.summary.totalSchedule')}:</span>
-            <span className="font-semibold text-ink">{scheduleCount}</span>
-          </div>
-
-          <div className="flex justify-between py-1.5 border-b border-line">
-            <span className="text-ink-2">{t('room.summary.tieBreakStrategy')}:</span>
-            <span className="font-semibold text-ink">{room.tie_break_strategy}</span>
-          </div>
-
-          {room.budget_limit && (
-            <div className="flex justify-between py-1.5 border-b border-line">
-              <span className="text-ink-2">{t('room.summary.budgetPerPerson')}:</span>
-              <span className="font-semibold text-ink">
-                {formatMoney(room.budget_limit, lang)}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {isHost && onOpenTieBreakModal && room.status !== 'FINALIZED' && (
-          <div className="pt-2">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={onOpenTieBreakModal}
-            >
-              {t('room.summary.tieBreakAction')}
-            </Button>
-          </div>
-        )}
+    <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
+      <div className="space-y-4">
+        <InviteCard
+          roomId={room.id}
+          code={room.code}
+          title={room.title}
+          alone={alone}
+        />
+        <MemberList
+          members={members}
+          currentMemberId={currentMember?.id}
+          isConnected={isConnected}
+        />
       </div>
 
-      {/* Cài đặt ngôn ngữ */}
-      <div className="bg-surface rounded-card border border-line p-4 shadow-xs flex items-center justify-between">
-        <span className="text-label text-ink-2 font-medium">
-          {lang === 'en' ? t('lang.en') : t('lang.vi')}
-        </span>
-        <LanguageSwitcher />
+      <div className="space-y-4">
+        {/* Thông tin chuyến đi */}
+        <Card as="section" aria-labelledby="trip-heading">
+          <h2 id="trip-heading" className="text-heading text-ink">
+            {t('room.summary.title')}
+          </h2>
+          <dl className="mt-2 text-body">
+            {summaryRows.map(([label, value]) => (
+              <div
+                key={label}
+                className="flex justify-between gap-4 py-2 border-b border-line last:border-b-0"
+              >
+                <dt className="text-ink-2">{label}</dt>
+                <dd className="font-medium text-ink text-right tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {isHost && onOpenTieBreakModal && room.status !== 'FINALIZED' && (
+            <div className="pt-3">
+              <Button variant="secondary" fullWidth onClick={onOpenTieBreakModal}>
+                {t('room.summary.tieBreakAction')}
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        {/* Cài đặt */}
+        <Card as="section" aria-labelledby="settings-heading">
+          <h2 id="settings-heading" className="text-heading text-ink">
+            {t('group.settings')}
+          </h2>
+          <div className="mt-2 flex items-center justify-between gap-4 min-h-[44px]">
+            <span className="text-body text-ink">{t('group.language')}</span>
+            <LanguageSwitcher />
+          </div>
+          {/* Chỗ trống cho "Giao diện sáng/tối" (T-54 điền vào đây) */}
+        </Card>
       </div>
     </div>
   );

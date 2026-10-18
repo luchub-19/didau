@@ -297,6 +297,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
           members={members}
           currentMember={currentMember}
           isHost={isHost}
+          isConnected={ws.isConnected}
           placesCount={places.length}
           scheduleCount={schedule.length}
           onOpenTieBreakModal={() => setIsTieBreakOpen(true)}

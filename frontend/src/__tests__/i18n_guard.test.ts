@@ -80,7 +80,6 @@ export const PENDING_FILES = new Set<string>([
   'components/decide/SwipeDeck.tsx',
 
   // T-50: Tab Nhóm + chia sẻ
-  'components/room/MemberList.tsx',
 ]);
 
 function walkDirectory(dir: string): string[] {

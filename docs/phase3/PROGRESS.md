@@ -25,7 +25,7 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | T-47 | TODO | | | |
 | T-48 | TODO | | | |
 | T-49 | TODO | | | |
-| T-50 | TODO | | | |
+| T-50 | DONE | (session) | | - Thêm `InviteCard` (mã phòng to, "Mời bạn bè" qua navigator.share, đường lùi sao chép + toast, "Sao chép mã"), `shareRoom.ts` (`shareRoom`, `copyText`, `buildInviteUrl`) dùng chung với `RoomTopBar`.<br>- Viết lại `MemberList` (Avatar, nhãn Chủ phòng/Bạn, chấm online kèm chữ, online xếp trước, mất kết nối → "Không rõ"); `GroupPanel` thành 2 cột ở lg, tóm tắt chuyến đi dịch status/strategy qua `group.*`, mục Cài đặt có hàng Ngôn ngữ (chỗ trống cho T-54).<br>- Khoá `group.*`, `invite.*`, `member.*`; `MemberList` ra khỏi PENDING_FILES. 207/207 test FE xanh, lint, build xanh.<br>- Lệch: `RoomHeader` gỡ khỏi `index.ts` nhưng giữ file + còn trong PENDING_FILES (T-51 xoá); nút "Rời phòng" **không làm** vì chưa có logic rời phòng.<br>- Câu mời gửi đi theo ngôn ngữ hiện tại, tên app truyền qua `{{app}}` để qua i18n_parity.<br>- **Chưa kiểm tra trực quan** (Chrome không kết nối); chưa chụp ảnh §12. |
 | T-51 | TODO | | | |
 | T-52 | TODO | | | |
 | T-53 | TODO | | | |

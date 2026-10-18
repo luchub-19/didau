@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Copy, ShareNetwork, IconButton, toast } from '../ui';
+import { ArrowLeft, Copy, ShareNetwork, IconButton } from '../ui';
+import { copyText, shareRoom } from '../room/shareRoom';
 
 export interface RoomTopBarProps {
   title: string;
@@ -21,44 +22,10 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const handleCopyCode = async () => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(code);
-        toast.success(t('room.codeCopied'));
-      }
-    } catch {
-      // Bỏ qua lỗi sao chép không được cấp quyền
-    }
-  };
+  const handleCopyCode = () =>
+    copyText(code, t('room.codeCopied'), t('invite.copyFailed'));
 
-  const handleShare = async () => {
-    const shareUrl =
-      typeof window !== 'undefined'
-        ? `${window.location.origin}/rooms/${roomId}?code=${code}`
-        : '';
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          url: shareUrl,
-        });
-        return;
-      } catch {
-        // Người dùng huỷ bỏ chia sẻ hoặc hệ điều hành từ chối
-      }
-    }
-
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success(t('room.linkCopied'));
-      }
-    } catch {
-      // Fallback khi không hỗ trợ clipboard
-    }
-  };
+  const handleShare = () => shareRoom({ roomId, code, title, t });
 
   return (
     <header className="bg-surface border-b border-line sticky top-0 z-tabbar">

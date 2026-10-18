@@ -12,7 +12,9 @@ import { Button, Input, Modal, Badge, CategoryIcon, Header } from '../components
 import { CATEGORY_METADATA } from '../components/common/categoryMetadata';
 
 // Room components
-import { CreateRoomModal, JoinRoomModal, RoomHeader, MemberList } from '../components/room';
+import { CreateRoomModal, JoinRoomModal, MemberList, InviteCard } from '../components/room';
+// RoomHeader đã gỡ khỏi index (T-50), file giữ đến T-51
+import { RoomHeader } from '../components/room/RoomHeader';
 
 // Places components
 import { CategoryFilter, PlaceCard, PlaceForm, PlaceList } from '../components/places';
@@ -92,19 +94,45 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     expect(html).toContain('Sao chép mã phòng');
   });
 
-  it('MemberList hiển thị avatar, nickname, vai trò và trạng thái online', () => {
-    const members = [mockHostMember, mockGuestMember];
+  it('MemberList hiển thị avatar, nickname, nhãn Chủ phòng, Bạn và trạng thái online', () => {
+    const members = [mockGuestMember, mockHostMember];
     const html = renderToStaticMarkup(
       <MemberList members={members} currentMemberId={mockHostMember.id} />,
     );
 
     expect(html).toContain('Thành viên');
-    expect(html).toContain('2');
     expect(html).toContain(mockHostMember.nickname);
     expect(html).toContain(mockGuestMember.nickname);
-    expect(html).toContain('HOST');
-    expect(html).toContain('MEMBER');
+    expect(html).toContain('Chủ phòng');
     expect(html).toContain('Bạn');
+    expect(html).toContain('Đang online');
+  });
+
+  it('MemberList xếp online trước và đổi sang "Không rõ" khi mất kết nối', () => {
+    const offline = { ...mockGuestMember, is_active: false };
+    const html = renderToStaticMarkup(
+      <MemberList members={[offline, mockHostMember]} />,
+    );
+    expect(html.indexOf(mockHostMember.nickname)).toBeLessThan(
+      html.indexOf(offline.nickname),
+    );
+    expect(html).toContain('Đã rời phòng');
+
+    const disconnected = renderToStaticMarkup(
+      <MemberList members={[mockHostMember]} isConnected={false} />,
+    );
+    expect(disconnected).toContain('Không rõ');
+    expect(disconnected).not.toContain('Đang online');
+  });
+
+  it('InviteCard hiển thị mã phòng, nút mời và gợi ý khi chỉ có một mình', () => {
+    const html = renderToStaticMarkup(
+      <InviteCard roomId={mockRoom.id} code={mockRoom.code} title={mockRoom.title} alone />,
+    );
+    expect(html).toContain(mockRoom.code);
+    expect(html).toContain('Mời bạn bè');
+    expect(html).toContain('Sao chép mã');
+    expect(html).toContain('Chưa có ai khác trong phòng');
   });
 
   it('tạo phòng mới qua store và modal hoạt động', async () => {

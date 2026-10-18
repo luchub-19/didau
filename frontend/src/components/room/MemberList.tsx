@@ -1,90 +1,88 @@
 import React from 'react';
-import { Badge } from '../common';
+import { useTranslation } from 'react-i18next';
+import { Avatar, Card } from '../ui';
 import type { Member } from '../../types';
 
 export interface MemberListProps {
   members: Member[];
   currentMemberId?: string;
+  /** WebSocket đang kết nối; mất kết nối thì trạng thái online chuyển thành "không rõ" */
+  isConnected?: boolean;
   className?: string;
 }
+
+type Presence = 'online' | 'offline' | 'unknown';
+
+function presenceOf(member: Member, isConnected: boolean): Presence {
+  if (!isConnected) return 'unknown';
+  return member.is_active ? 'online' : 'offline';
+}
+
+const DOT_CLASS: Record<Presence, string> = {
+  online: 'bg-success',
+  offline: 'bg-ink-3',
+  unknown: 'bg-warning',
+};
 
 export const MemberList: React.FC<MemberListProps> = ({
   members,
   currentMemberId,
+  isConnected = true,
   className = '',
 }) => {
-  return (
-    <div className={`bg-white rounded-2xl border border-slate-200 p-4 shadow-xs ${className}`}>
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-          <span>👥 Thành viên</span>
-          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[11px] font-bold">
-            {members.length}
-          </span>
-        </h3>
-        <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          Realtime
-        </span>
-      </div>
+  const { t } = useTranslation();
 
-      <div className="mt-3 divide-y divide-slate-50 max-h-72 overflow-y-auto">
-        {members.map((member) => {
+  // Online trước; Array.sort ổn định nên thứ tự cũ được giữ trong cùng nhóm
+  const sorted = [...members].sort(
+    (a, b) => Number(b.is_active) - Number(a.is_active),
+  );
+
+  return (
+    <Card as="section" aria-labelledby="member-heading" className={className}>
+      <h2 id="member-heading" className="text-heading text-ink flex items-center gap-2">
+        {t('member.title')}
+        <span className="text-label text-ink-2 tabular-nums">{members.length}</span>
+      </h2>
+
+      <ul className="mt-2 divide-y divide-line">
+        {sorted.map((member) => {
           const isMe = member.id === currentMemberId;
-          const avatarUrl =
-            member.avatar_url ||
-            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
-              member.nickname,
-            )}`;
+          const presence = presenceOf(member, isConnected);
+          const presenceLabel = t(`member.presence.${presence}`);
 
           return (
-            <div
-              key={member.id}
-              className={`flex items-center justify-between py-2 px-1 rounded-xl transition ${
-                isMe ? 'bg-sky-50/50' : 'hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative">
-                  <img
-                    src={avatarUrl}
-                    alt={member.nickname}
-                    className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 object-cover"
-                  />
-                  {member.is_active && (
-                    <span
-                      title="Online"
-                      className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white"
-                    />
+            <li key={member.id} className="flex items-center gap-3 py-3 min-h-[56px]">
+              <Avatar name={member.nickname} showTitle={false} />
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-body font-medium text-ink truncate">
+                    {member.nickname}
+                  </span>
+                  {isMe && (
+                    <span className="text-caption text-ink-2 flex-shrink-0">
+                      ({t('member.you')})
+                    </span>
                   )}
                 </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-800 truncate">
-                      {member.nickname}
-                    </span>
-                    {isMe && (
-                      <span className="text-[10px] text-sky-600 font-bold bg-sky-100/70 px-1.5 py-0.2 rounded">
-                        Bạn
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {member.is_active ? 'Đang hoạt động' : 'Đã rời phòng'}
-                  </div>
+                <div className="flex items-center gap-1.5 text-caption text-ink-2">
+                  <span
+                    aria-hidden="true"
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${DOT_CLASS[presence]}`}
+                  />
+                  <span>{presenceLabel}</span>
                 </div>
               </div>
 
-              <div>
-                <Badge variant={member.role} size="sm">
-                  {member.role}
-                </Badge>
-              </div>
-            </div>
+              {member.role === 'HOST' && (
+                <span className="text-caption font-medium text-ink bg-surface-2 border border-line rounded-full px-2.5 py-0.5 flex-shrink-0">
+                  {t('member.host')}
+                </span>
+              )}
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </Card>
   );
 };
