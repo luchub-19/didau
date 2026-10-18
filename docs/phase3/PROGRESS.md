@@ -14,7 +14,7 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | Task | Trạng thái | Session | Review | Ghi chú |
 | :--- | :---: | :---: | :---: | :--- |
 | T-38 | DONE | a99b8130 | ĐẠT ([review](reviews/T-38.md)) | - Thêm token màu, z-index, radius, motion; 7 cặp màu danh mục đạt ≥3:1.<br>- Cấu hình Be Vietnam Pro, font scale, tailwind tokens; giữ màu cũ.<br>- Thêm base.css, favicon SVG ghim coral, dev/StyleGuide.tsx tại `/_styleguide`.<br>- 150/150 test FE xanh, build xanh; ảnh lưu `docs/phase3/screens/T-38-*.png`.<br>- Cấm chữ trắng trên coral; nút primary dùng `bg-accent text-ink font-semibold`.<br>- Task sau dùng token trong tailwind và component mới. |
-| T-39 | TODO | | | |
+| T-39 | DONE | d576ece6 | | - Thêm lõi i18n (i18next 26.5.2, react-i18next 17.1.0), tài nguyên gói sẵn, fallback 'vi'.<br>- Thêm useLanguage(), format.ts (chuẩn Intl vi-VN/en-US: time, duration, money, distance, relative).<br>- Thêm LanguageSwitcher (aria-pressed, aria-label); hiển thị thử nghiệm trên /_styleguide.<br>- Chuyển màn waking/error App.tsx sang t(); main.tsx và useMinuteFormat dùng format.ts.<br>- 168/168 test FE xanh (150 cũ + 18 mới), lint 0 cảnh báo, build xanh; PENDING_FILES: 48 file.<br>- Task sau gọi t() qua useTranslation(), thêm khoá vào vi/en.ts và xoá file khỏi PENDING_FILES khi xong. Chưa kiểm tra trực quan (không có Chrome). |
 | T-40 | TODO | | | |
 | T-41 | TODO | | | |
 | T-42 | TODO | | | |

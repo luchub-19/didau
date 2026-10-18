@@ -1,53 +1,30 @@
+import {
+  formatTime,
+  timeStringToMinute as timeStringToMinuteHelper,
+  formatTimeRange,
+  formatDuration as formatDurationHelper,
+} from '../i18n/format';
+
 /**
- * Tiện ích và hook định dạng thời gian dạng số phút (0 - 1439) sang định dạng giờ phút HH:mm.
- * Tuân thủ múi giờ Asia/Ho_Chi_Minh và quy ước hệ thống Đi Đâu.
+ * Tiện ích và hook định dạng thời gian dạng số phút (0 - 1439).
+ * Gọi lại các hàm từ module i18n/format để đảm bảo tính nhất quán và hỗ trợ song ngữ,
+ * đồng thời giữ nguyên chữ ký hàm cũ cho các component hiện có.
  */
 
 export function minuteToTimeString(minute?: number | null): string {
-  if (minute === undefined || minute === null || isNaN(minute) || minute < 0) {
-    return '00:00';
-  }
-  const normalized = Math.min(1439, Math.max(0, Math.floor(minute)));
-  const hours = Math.floor(normalized / 60);
-  const mins = normalized % 60;
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  return formatTime(minute, 'vi');
 }
 
 export function timeStringToMinute(timeStr: string): number {
-  if (!timeStr || typeof timeStr !== 'string') {
-    return 0;
-  }
-  const parts = timeStr.trim().split(':');
-  if (parts.length < 2) {
-    return 0;
-  }
-  const hours = parseInt(parts[0], 10);
-  const mins = parseInt(parts[1], 10);
-  if (isNaN(hours) || isNaN(mins)) {
-    return 0;
-  }
-  const total = hours * 60 + mins;
-  return Math.min(1439, Math.max(0, total));
+  return timeStringToMinuteHelper(timeStr);
 }
 
 export function formatMinuteRange(startMinute: number, endMinute: number): string {
-  return `${minuteToTimeString(startMinute)} - ${minuteToTimeString(endMinute)}`;
+  return formatTimeRange(startMinute, endMinute, 'vi');
 }
 
 export function formatDuration(minutes: number): string {
-  if (isNaN(minutes) || minutes <= 0) {
-    return '0 phút';
-  }
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-
-  if (hours > 0 && remainingMinutes > 0) {
-    return `${hours}h ${remainingMinutes}m`;
-  }
-  if (hours > 0) {
-    return `${hours} tiếng`;
-  }
-  return `${remainingMinutes} phút`;
+  return formatDurationHelper(minutes, 'vi', 'short');
 }
 
 export function useMinuteFormat() {

@@ -20,6 +20,10 @@ import {
   XCircle,
   Info,
 } from '@phosphor-icons/react';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
+import { useLanguage } from '../i18n/useLanguage';
+import { formatTime, formatDuration, formatMoney, formatDistance } from '../i18n/format';
 
 interface ColorSwatchProps {
   name: string;
@@ -62,6 +66,8 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
 );
 
 export const StyleGuide: React.FC = () => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
   const [activeTab, setActiveTab] = useState<'places' | 'map' | 'schedule' | 'group'>('places');
   const [selectedCategory, setSelectedCategory] = useState<string>('FOOD');
   const [voteCount, setVoteCount] = useState<number>(5);
@@ -137,20 +143,63 @@ export const StyleGuide: React.FC = () => {
     <div className="min-h-screen bg-bg text-ink pb-28 pt-6 px-4 sm:px-8 max-w-5xl mx-auto">
       {/* Header */}
       <header className="mb-8 border-b border-line pb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="w-3 h-3 rounded-full bg-accent" />
-          <span className="text-caption font-semibold text-accent-text">
-            Hệ thống thiết kế · Mốc 1
-          </span>
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-accent" />
+            <span className="text-caption font-semibold text-accent-text">
+              Hệ thống thiết kế · Mốc 1
+            </span>
+          </div>
+          <LanguageSwitcher />
         </div>
         <h1 className="text-display font-bold text-ink mb-2">
           Đi Đâu — Bảng phong cách mẫu (Style Guide)
         </h1>
         <p className="text-body text-ink-2 max-w-2xl">
-          Trang kiểm tra token màu, font Be Vietnam Pro, độ tương phản WCAG 2.2 AA, 7 icon danh mục Phosphor
-          và các khối mẫu cho giai đoạn 3 (T-38).
+          Trang kiểm tra token màu, font Be Vietnam Pro, độ tương phản WCAG 2.2 AA, 7 icon danh mục Phosphor,
+          song ngữ i18n (T-39) và các khối mẫu cho giai đoạn 3.
         </p>
       </header>
+
+      {/* 0. SONG NGỮ (i18n & Intl) */}
+      <section className="mb-10 p-5 rounded-field bg-surface border border-line">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-title font-bold text-ink mb-1">Song ngữ i18n & Định dạng Intl (T-39)</h2>
+            <p className="text-caption text-ink-3">
+              Chuyển đổi ngôn ngữ tức thì, không tải lại trang. Các chuỗi thuộc nhóm common và app tự động đồng bộ.
+            </p>
+          </div>
+          <LanguageSwitcher />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-3 rounded-field bg-surface-2 border border-line">
+            <span className="text-caption text-ink-3 block mb-1">app.name / app.tagline</span>
+            <p className="font-semibold text-sm text-ink">{t('app.name')}</p>
+            <p className="text-caption text-ink-2">{t('app.tagline')}</p>
+          </div>
+          <div className="p-3 rounded-field bg-surface-2 border border-line">
+            <span className="text-caption text-ink-3 block mb-1">common (hành động mẫu)</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              <span className="px-2 py-0.5 rounded bg-surface border border-line text-caption font-medium text-ink">{t('common.save')}</span>
+              <span className="px-2 py-0.5 rounded bg-surface border border-line text-caption font-medium text-ink">{t('common.cancel')}</span>
+              <span className="px-2 py-0.5 rounded bg-surface border border-line text-caption font-medium text-ink">{t('common.retry')}</span>
+              <span className="px-2 py-0.5 rounded bg-surface border border-line text-caption font-medium text-ink">{t('common.delete')}</span>
+            </div>
+          </div>
+          <div className="p-3 rounded-field bg-surface-2 border border-line">
+            <span className="text-caption text-ink-3 block mb-1">formatTime / formatDuration</span>
+            <p className="font-mono text-xs text-ink">{formatTime(1020, lang)} - {formatTime(1380, lang)}</p>
+            <p className="text-caption text-ink-2 mt-1">{formatDuration(90, lang)} · {formatDuration(90, lang, 'short')}</p>
+          </div>
+          <div className="p-3 rounded-field bg-surface-2 border border-line">
+            <span className="text-caption text-ink-3 block mb-1">formatMoney / formatDistance</span>
+            <p className="font-mono text-xs text-ink">{formatMoney(45000, lang)}</p>
+            <p className="text-caption text-ink-2 mt-1">{formatDistance(1.2, lang)}</p>
+          </div>
+        </div>
+      </section>
 
       {/* 1. BẢNG MÀU TOKEN */}
       <section className="mb-10">

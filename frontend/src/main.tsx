@@ -1,12 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './i18n';
 import App from './App';
 import './index.css';
 
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  throw new Error("Phần tử gốc 'root' không tồn tại trong tài liệu HTML.");
+  throw new Error("Root element 'root' not found in HTML document.");
 }
 
 async function prepareApp(): Promise<void> {
@@ -31,5 +32,6 @@ prepareApp()
     );
   })
   .catch((err) => {
-    console.error('Lỗi khi khởi tạo ứng dụng:', err);
+    // Ghi log lỗi nếu không khởi tạo được ứng dụng
+    console.error('Failed to initialize application:', err);
   });
