@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { conflictApi } from '../services/api/conflictApi';
 import type { ConflictAlert } from '../types';
+import { errorKey } from '../i18n/serverText';
 
 interface ConflictState {
   conflicts: ConflictAlert[];
@@ -26,8 +27,7 @@ export const useConflictStore = create<ConflictState>((set) => ({
       set({ conflicts, isLoading: false });
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể lấy danh sách cảnh báo xung đột.';
+        errorKey(err, 'LOAD_CONFLICTS_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -41,8 +41,7 @@ export const useConflictStore = create<ConflictState>((set) => ({
       return conflicts;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể đánh giá cảnh báo xung đột.';
+        errorKey(err, 'EVALUATE_CONFLICTS_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }

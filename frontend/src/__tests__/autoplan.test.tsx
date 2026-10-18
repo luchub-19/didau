@@ -310,9 +310,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
         }),
       ).rejects.toThrow();
 
-      expect(useScheduleStore.getState().autoPlanError).toContain(
-        'Dữ liệu phòng đã thay đổi, vui lòng xem trước lại',
-      );
+      expect(useScheduleStore.getState().autoPlanError).toBe('errors.STALE_PLAN');
     });
 
     it('AutoPlanPreview hiển thị cảnh báo "dữ liệu vừa thay đổi" khi có cảnh báo stale', () => {

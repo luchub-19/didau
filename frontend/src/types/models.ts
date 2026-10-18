@@ -92,7 +92,10 @@ export interface ConflictAlert {
   id: string;
   rule_code: string;
   level: ConflictLevel;
+  /** Câu tiếng Việt của server: chỉ để log/tương thích, không hiện lên giao diện ở chế độ EN. */
   message: string;
+  /** Tham số theo rule_code (CR-06, có thể thiếu ở dữ liệu cũ). */
+  params?: Record<string, unknown>;
   entity_type: 'SCHEDULE' | 'PLACE' | 'ROOM';
   entity_ids: string[];
   resolved: boolean;
@@ -162,10 +165,17 @@ export interface DeciderHint {
   candidate_place_ids: string[];
 }
 
+/** Mã lý do + tham số (CR-06). */
+export interface ReasonCode {
+  code: string;
+  params?: Record<string, unknown>;
+}
+
 export interface ScoredPick {
   place_id: string;
   score: number;
   reasons: string[];
+  reason_codes?: ReasonCode[];
 }
 
 export interface DecisionHintsResponse {
@@ -180,11 +190,14 @@ export interface PlannedSlot {
   end_minute: number;
   travel_from_prev_min: number;
   reasons: string[];
+  reason_codes?: ReasonCode[];
 }
 
 export interface DroppedPlace {
   place_id: string;
   reason: string;
+  reason_code?: string;
+  reason_params?: Record<string, unknown>;
 }
 
 export interface AutoPlanPreviewResponse {

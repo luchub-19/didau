@@ -12,6 +12,7 @@ import type {
   DecisionStartedPayload,
   ScoredPick,
 } from '../types';
+import { errorKey } from '../i18n/serverText';
 
 export interface DecisionState {
   hints: DeciderHint[];
@@ -103,7 +104,7 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
     } catch (err: unknown) {
       set({
         isLoadingHints: false,
-        hintsError: (err as { message?: string })?.message || 'Không thể tải gợi ý chọn hộ',
+        hintsError: errorKey(err, 'LOAD_HINTS_FAILED'),
       });
     }
   },
@@ -127,7 +128,7 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
       });
       return res;
     } catch (err: unknown) {
-      const message = (err as { message?: string })?.message || 'Không thể tạo phiên chọn hộ';
+      const message = errorKey(err, 'CREATE_DECISION_FAILED');
       set({ isSubmitting: false, actionError: message });
       throw err;
     }
@@ -140,7 +141,7 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
         localSwipes: { ...state.localSwipes, [placeId]: liked },
       }));
     } catch (err: unknown) {
-      const message = (err as { message?: string })?.message || 'Không thể quẹt thẻ';
+      const message = errorKey(err, 'SWIPE_FAILED');
       set({ actionError: message });
       throw err;
     }
@@ -159,7 +160,7 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
         usePlaceStore.getState().upsertPlace(res.resolved_place);
       }
     } catch (err: unknown) {
-      const message = (err as { message?: string })?.message || 'Không thể chốt kết quả';
+      const message = errorKey(err, 'ACCEPT_DECISION_FAILED');
       set({ isSubmitting: false, actionError: message });
       throw err;
     }
@@ -176,7 +177,7 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
         isDecideModalOpen: false,
       });
     } catch (err: unknown) {
-      const message = (err as { message?: string })?.message || 'Không thể hủy phiên';
+      const message = errorKey(err, 'CANCEL_DECISION_FAILED');
       set({ isSubmitting: false, actionError: message });
       throw err;
     }

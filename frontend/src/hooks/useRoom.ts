@@ -5,6 +5,8 @@ import { useScheduleStore } from '../store/useScheduleStore';
 import { useConflictStore } from '../store/useConflictStore';
 import { useDecisionStore } from '../store/useDecisionStore';
 import { useWebSocket } from './useWebSocket';
+import i18n from '../i18n';
+import { describeApiError } from '../i18n/serverText';
 
 export function useRoom(roomId?: string) {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -49,10 +51,10 @@ export function useRoom(roomId?: string) {
     ])
       .catch((err) => {
         if (isMounted) {
-          const { code, message } = err as { code?: string; message?: string };
+          const { code } = err as { code?: string };
           // Chưa có token hoặc token thuộc phòng khác: cần nhập mã phòng để vào.
           setNeedsJoin(code === 'UNAUTHORIZED' || code === 'FORBIDDEN');
-          setInitError(message || 'Không thể tải dữ liệu phòng.');
+          setInitError(describeApiError(err, i18n.t.bind(i18n), 'LOAD_ROOM_FAILED'));
         }
       })
       .finally(() => {

@@ -4,7 +4,7 @@ import { server } from '../mocks/server';
 import { roomApi } from '../services/api';
 import { coldStartManager, type ColdStartState } from '../services/api/coldStart';
 
-let last: ColdStartState = { status: 'idle', message: '' };
+let last: ColdStartState = { status: 'idle', message: '', reason: '' };
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
@@ -27,7 +27,8 @@ describe('Cold start: chỉ "đánh thức" khi timeout/502/503', () => {
     );
     await expect(roomApi.getRoom('x')).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
     expect(last.status).toBe('error');
-    expect(last.message).toContain('HTML');
+    expect(last.message).toBe('');
+    expect(last.reason).toContain('HTML');
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('/api/v1/rooms/x'));
   });
 

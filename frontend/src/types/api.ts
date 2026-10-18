@@ -26,6 +26,14 @@ export interface ApiErrorEnvelope {
   };
 }
 
+/** Lỗi đã chuẩn hoá mà `apiClient` ném ra. `message` là chữ gốc của server, chỉ dùng để log. */
+export interface ApiError {
+  code: string;
+  status?: number;
+  details?: Record<string, unknown> | null;
+  message?: string;
+}
+
 export interface CreateRoomRequest {
   title: string;
   description?: string;

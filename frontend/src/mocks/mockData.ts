@@ -136,6 +136,14 @@ export const mockConflicts: ConflictAlert[] = [
     level: 'CRITICAL',
     message:
       "Trùng lặp thời gian: 'Cà Phê Trứng 3T' (09:00 - 10:30) bị đè khung giờ với 'Cơm Tấm Ba Ghiền' (10:00 - 11:30)",
+    params: {
+      item_ids: ['4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d', '5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e'],
+      place_names: ['Cà Phê Trứng 3T', 'Cơm Tấm Ba Ghiền'],
+      ranges: [
+        { start_minute: 540, end_minute: 630, day_offset: 0 },
+        { start_minute: 600, end_minute: 690, day_offset: 0 },
+      ],
+    },
     entity_type: 'SCHEDULE',
     entity_ids: [
       '4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d',

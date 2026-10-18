@@ -34,15 +34,6 @@ export const PENDING_FILES = new Set<string>([
   'components/room/RoomHeader.tsx',
 
   // T-43: FE dịch chữ từ server (lỗi, thông báo, ws, store)
-  'hooks/useRoom.ts',
-  'services/api/client.ts',
-  'services/websocket/wsClient.ts',
-  'store/useConflictStore.ts',
-  'store/useDecisionStore.ts',
-  'store/useMapStore.ts',
-  'store/usePlaceStore.ts',
-  'store/useRoomStore.ts',
-  'store/useScheduleStore.ts',
 
 
   // T-45: Tab Quán + vote (đã chuyển qua i18n ở T-45)

@@ -750,6 +750,11 @@ export const handlers = [
       place_id: id,
       score: Number((0.95 - idx * 0.1).toFixed(2)),
       reasons: ['Gần điểm hẹn nhất (~1,2 km)', 'Đang mở cửa lúc 18:00', 'Vừa ngân sách'],
+      reason_codes: [
+        { code: 'NEAREST', params: { distance_km: 1.2 } },
+        { code: 'OPEN_AT', params: { minute: 1080 } },
+        { code: 'WITHIN_BUDGET', params: { cost: 45000, budget_limit: 100000 } },
+      ],
     }));
 
     return HttpResponse.json({ hints, smart_picks });
@@ -932,12 +937,22 @@ export const handlers = [
             : 'Điểm tiếp theo theo tuyến đường',
           'Cách điểm trước ~15 phút di chuyển',
         ],
+        reason_codes: [
+          p.category === 'FOOD'
+            ? { code: 'MEAL_WINDOW', params: { window: 'dinner', start_minute: 1050, end_minute: 1230 } }
+            : { code: 'DRINK', params: {} },
+          i === 0
+            ? { code: 'TRAVEL_FROM', params: { travel_min: 15, from_origin: true } }
+            : { code: 'TRAVEL_FROM', params: { travel_min: 15, from_name: candidates[i - 1].name } },
+        ],
       };
     });
 
     const dropped = candidates.slice(3).map((p) => ({
       place_id: p.id,
       reason: 'Hết khung thời gian trong buổi (23:00)',
+      reason_code: 'OUT_OF_TIME',
+      reason_params: {},
     }));
 
     const planHash = `hash_${slots.map((s) => `${s.place_id}:${s.start_minute}:${s.end_minute}`).join('_')}`;

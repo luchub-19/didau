@@ -10,6 +10,7 @@ import type {
   Room,
   UpdateRoomRequest,
 } from '../types';
+import { errorKey } from '../i18n/serverText';
 
 interface RoomState {
   room: Room | null;
@@ -55,7 +56,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       return res;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể tạo phòng.';
+        errorKey(err, 'CREATE_ROOM_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -75,7 +76,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       return res;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể tham gia phòng.';
+        errorKey(err, 'JOIN_ROOM_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -101,8 +102,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       });
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể lấy thông tin phòng.';
+        errorKey(err, 'LOAD_ROOM_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }

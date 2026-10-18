@@ -8,6 +8,7 @@ import type {
   CreateScheduleItemRequest,
   ScheduleItem,
 } from '../types';
+import { errorKey } from '../i18n/serverText';
 
 interface ScheduleState {
   items: ScheduleItem[];
@@ -70,8 +71,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       set({ items, isLoading: false });
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể lấy danh sách lịch trình.';
+        errorKey(err, 'LOAD_SCHEDULE_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -90,8 +90,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       return item;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể thêm vào lịch trình.';
+        errorKey(err, 'ADD_SCHEDULE_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -105,8 +104,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       return updated;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể cập nhật lịch trình.';
+        errorKey(err, 'UPDATE_SCHEDULE_FAILED');
       set({ error: errorMsg });
       throw err;
     }
@@ -120,7 +118,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       }));
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể xóa mục lịch trình.';
+        errorKey(err, 'DELETE_SCHEDULE_FAILED');
       set({ error: errorMsg });
       throw err;
     }
@@ -134,9 +132,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       return preview;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message ||
-        (err as { message?: string })?.message ||
-        'Không thể xem trước lịch trình tự động.';
+        errorKey(err, 'AUTOPLAN_PREVIEW_FAILED');
       set({ autoPlanError: errorMsg, isAutoPlanLoading: false });
       throw err;
     }
@@ -151,9 +147,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       return sorted;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message ||
-        (err as { message?: string })?.message ||
-        'Không thể áp dụng lịch trình tự động.';
+        errorKey(err, 'AUTOPLAN_APPLY_FAILED');
       set({ autoPlanError: errorMsg, isAutoPlanLoading: false });
       throw err;
     }

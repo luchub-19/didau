@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { poiApi } from '../services/api/poiApi';
 import type { Poi } from '../types';
+import { errorKey } from '../i18n/serverText';
 
 /** Kích thước ô lưới cache (độ). Backend giới hạn bbox ≤ 0,2° mỗi chiều. */
 export const GRID_DEG = 0.02;
@@ -135,7 +136,7 @@ export const useMapStore = create<MapState>((set, get) => ({
             },
           }));
         } catch (err: unknown) {
-          set({ error: (err as { message?: string })?.message || 'Không tải được địa điểm.' });
+          set({ error: errorKey(err, 'LOAD_POI_FAILED') });
         }
       }),
     );

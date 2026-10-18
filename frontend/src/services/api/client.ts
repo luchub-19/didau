@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from '../storage/tokenStorage';
-import type { ApiErrorEnvelope } from '../../types';
+import type { ApiError, ApiErrorEnvelope } from '../../types';
 import { API_BASE } from '../../config';
 import { coldStartManager } from './coldStart';
 
@@ -44,13 +44,17 @@ const hasErrorEnvelope = (data: unknown): data is ApiErrorEnvelope =>
   typeof data === 'object' && data !== null && 'error' in data;
 
 // Không chạm được backend (hoặc nhận nhầm trang HTML): ghi log rõ URL + lý do, hiện màn lỗi nếu chưa từng thành công.
-const reportUnreachable = (config: InternalAxiosRequestConfig | undefined, reason: string) => {
+// `reason` là mã kỹ thuật (tiếng Anh) để log; người dùng chỉ thấy câu dịch của errors.NETWORK_ERROR.
+const reportUnreachable = (
+  config: InternalAxiosRequestConfig | undefined,
+  reason: string,
+  status?: number,
+): ApiError => {
   console.error(`[api] ${calledUrl(config)} → ${reason}`);
-  const message = `Không kết nối được máy chủ (${reason}).`;
   if (!coldStartManager.isCompleted()) {
-    coldStartManager.setStatus('error', message);
+    coldStartManager.setStatus('error', reason);
   }
-  return { code: 'NETWORK_ERROR', message };
+  return { code: 'NETWORK_ERROR', status, message: reason };
 };
 
 apiClient.interceptors.request.use(
@@ -72,7 +76,7 @@ apiClient.interceptors.response.use(
     // Vercel rewrite trả index.html cho mọi đường dẫn lạ: URL sai, không phải backend.
     if (isHtml(response.headers?.['content-type'])) {
       return Promise.reject(
-        reportUnreachable(response.config, `nhận về HTML thay vì JSON (HTTP ${response.status})`),
+        reportUnreachable(response.config, `HTML_RESPONSE (HTTP ${response.status})`, response.status),
       );
     }
     coldStartManager.markCompleted();
@@ -89,14 +93,14 @@ apiClient.interceptors.response.use(
         return apiClient(config);
       }
       return Promise.reject(
-        reportUnreachable(config, `máy chủ không phản hồi (${error.response?.status ?? error.code})`),
+        reportUnreachable(config, `SERVER_UNRESPONSIVE (${error.response?.status ?? error.code})`, error.response?.status),
       );
     }
 
     if (!error.response) {
       // Không có response và không phải timeout: CORS, DNS, offline.
       return Promise.reject(
-        reportUnreachable(config, `${error.code ?? 'NETWORK_ERROR'}: ${error.message} (kiểm tra CORS/ALLOWED_ORIGINS)`),
+        reportUnreachable(config, `${error.code ?? 'NETWORK_ERROR'}: ${error.message} (check CORS/ALLOWED_ORIGINS)`),
       );
     }
 
@@ -104,14 +108,20 @@ apiClient.interceptors.response.use(
     if (isHtml(headers?.['content-type']) || !hasErrorEnvelope(data)) {
       // 404 từ proxy/Vercel hoặc route không tồn tại: không phải lỗi nghiệp vụ của API.
       return Promise.reject(
-        reportUnreachable(config, `HTTP ${status} không phải phản hồi của API (sai VITE_API_URL hoặc đường dẫn?)`),
+        reportUnreachable(config, `NOT_API_RESPONSE (HTTP ${status}; wrong VITE_API_URL or path?)`, status),
       );
     }
 
     // Lỗi nghiệp vụ (401, 404 phòng, 422...) từ API: server đã thức, trả lỗi cho nơi gọi xử lý.
     console.error(`[api] ${calledUrl(config)} → HTTP ${status} ${data.error.code}: ${data.error.message}`);
     coldStartManager.markCompleted();
-    return Promise.reject(data.error);
+    const normalized: ApiError = {
+      code: data.error.code,
+      status,
+      details: data.error.details ?? null,
+      message: data.error.message, // chữ gốc của server: chỉ để log, không hiện lên giao diện
+    };
+    return Promise.reject(normalized);
   },
 );
 

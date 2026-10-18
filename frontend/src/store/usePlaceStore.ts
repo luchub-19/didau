@@ -10,6 +10,7 @@ import type {
   ResolveVotingResponse,
   VoteValue,
 } from '../types';
+import { errorKey } from '../i18n/serverText';
 
 interface PlaceState {
   places: Place[];
@@ -66,8 +67,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       set({ places, isLoading: false });
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể lấy danh sách địa điểm.';
+        errorKey(err, 'LOAD_PLACES_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -84,7 +84,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       return newPlace;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể thêm địa điểm.';
+        errorKey(err, 'ADD_PLACE_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }
@@ -149,8 +149,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       return updated;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể cập nhật địa điểm.';
+        errorKey(err, 'UPDATE_PLACE_FAILED');
       set({ error: errorMsg });
       throw err;
     }
@@ -164,7 +163,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       }));
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể xóa địa điểm.';
+        errorKey(err, 'DELETE_PLACE_FAILED');
       set({ error: errorMsg });
       throw err;
     }
@@ -212,7 +211,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       // Revert optimistic update on failure
       set({ places: previousPlaces });
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể bỏ phiếu.';
+        errorKey(err, 'VOTE_FAILED');
       set({ error: errorMsg });
       throw err;
     }
@@ -255,7 +254,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
     } catch (err: unknown) {
       set({ places: previousPlaces });
       const errorMsg =
-        (err as { message?: string })?.message || 'Không thể hủy phiếu bầu.';
+        errorKey(err, 'UNVOTE_FAILED');
       set({ error: errorMsg });
       throw err;
     }
@@ -275,8 +274,7 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       return res;
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message ||
-        'Không thể chốt kết quả bình chọn.';
+        errorKey(err, 'RESOLVE_VOTING_FAILED');
       set({ error: errorMsg, isLoading: false });
       throw err;
     }

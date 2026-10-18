@@ -55,7 +55,7 @@ export class WebSocketClient {
       this.ws = new WebSocket(this.url);
       this.setupSocketHandlers();
     } catch (err) {
-      console.error('[WebSocket] Lỗi khởi tạo socket:', err);
+      console.error('[WebSocket] Failed to create socket:', err);
       this.scheduleReconnect();
     }
   }
@@ -82,7 +82,7 @@ export class WebSocketClient {
       return true;
     }
 
-    console.warn('[WebSocket] Không thể gửi message khi socket chưa OPEN:', envelope);
+    console.warn('[WebSocket] Cannot send while the socket is not OPEN:', envelope);
     return false;
   }
 
@@ -139,12 +139,12 @@ export class WebSocketClient {
           this.dispatchEvent('*', envelope.payload, envelope);
         }
       } catch (err) {
-        console.error('[WebSocket] Lỗi giải mã message:', err, event.data);
+        console.error('[WebSocket] Failed to parse message:', err, event.data);
       }
     };
 
     this.ws.onerror = (err) => {
-      console.warn('[WebSocket] Lỗi kết nối:', err);
+      console.warn('[WebSocket] Connection error:', err);
     };
 
     this.ws.onclose = () => {
@@ -163,7 +163,7 @@ export class WebSocketClient {
         try {
           handler(payload, envelope);
         } catch (err) {
-          console.error(`[WebSocket] Lỗi trong handler của sự kiện ${type}:`, err);
+          console.error(`[WebSocket] Handler failed for event ${type}:`, err);
         }
       });
     }
@@ -190,7 +190,7 @@ export class WebSocketClient {
   private scheduleReconnect(): void {
     if (this.reconnectTimer || this.isIntentionallyClosed) return;
     if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      console.error('[WebSocket] Đã đạt giới hạn số lần kết nối lại.');
+      console.error('[WebSocket] Reached the reconnect attempt limit.');
       return;
     }
 
