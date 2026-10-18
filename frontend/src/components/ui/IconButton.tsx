@@ -30,19 +30,19 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     switch (variant) {
       case 'primary':
         variantClasses =
-          'bg-accent text-ink font-semibold [@media(hover:hover)]:hover:bg-accent-hover active:opacity-90';
+          'bg-accent text-ink font-semibold [@media(hover:hover)]:hover:bg-accent-hover';
         break;
       case 'secondary':
         variantClasses =
-          'bg-surface-2 text-ink border border-line [@media(hover:hover)]:hover:bg-line active:opacity-90';
+          'bg-surface-2 text-ink border border-line [@media(hover:hover)]:hover:bg-line';
         break;
       case 'ghost':
         variantClasses =
-          'bg-transparent text-ink-2 [@media(hover:hover)]:hover:bg-surface-2 [@media(hover:hover)]:hover:text-ink active:opacity-90';
+          'bg-transparent text-ink-2 [@media(hover:hover)]:hover:bg-surface-2 [@media(hover:hover)]:hover:text-ink';
         break;
       case 'danger':
         variantClasses =
-          'bg-danger-soft text-danger border border-danger/20 [@media(hover:hover)]:hover:bg-danger/20 active:opacity-90';
+          'bg-danger-soft text-danger border border-danger/20 [@media(hover:hover)]:hover:bg-danger/20';
         break;
     }
 
@@ -60,7 +60,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           }
           onClick?.(e);
         }}
-        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full inline-flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text focus-visible:outline-offset-2 ${
+        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-full inline-flex items-center justify-center pressable focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text focus-visible:outline-offset-2 ${
           isActuallyDisabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
         } ${variantClasses} ${className}`}
         {...rest}

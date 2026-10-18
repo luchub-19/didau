@@ -1,0 +1,193 @@
+/* Motion tokens and animation rules (DESIGN.md §8, T-52) */
+
+/* Phản hồi nhấn nút / điều khiển */
+.pressable {
+  transition-property: transform, background-color, border-color, color, opacity;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--t-press);
+}
+
+@media (hover: hover) {
+  .pressable:hover {
+    transition-duration: var(--t-hover);
+  }
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Bottom Sheet mobile & Dialog desktop */
+@keyframes sheet-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-slide-down {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes dialog-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dialog-scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.sheet-backdrop-enter {
+  animation: sheet-backdrop-in var(--t-ui) var(--ease-out) forwards;
+}
+
+.sheet-backdrop-exit {
+  animation: sheet-backdrop-out 160ms var(--ease-out) forwards;
+}
+
+.sheet-content-enter {
+  animation: sheet-slide-up var(--t-sheet) var(--ease-out) forwards;
+}
+
+.sheet-content-exit {
+  animation: sheet-slide-down 220ms var(--ease-out) forwards;
+}
+
+@media (min-width: 768px) {
+  .sheet-content-enter {
+    animation: dialog-scale-in var(--t-ui) var(--ease-out) forwards;
+  }
+
+  .sheet-content-exit {
+    animation: dialog-scale-out 160ms var(--ease-out) forwards;
+  }
+}
+
+/* Toast animations */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+.toast-enter {
+  animation: toast-enter var(--t-ui) var(--ease-out) forwards;
+}
+
+.toast-exit {
+  animation: toast-exit 160ms var(--ease-out) forwards;
+}
+
+/* Skeleton nhịp thở chậm / tĩnh khi reduced-motion */
+@keyframes skeleton-slow-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse,
+.skeleton-pulse {
+  animation: skeleton-slow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Tab indicator */
+.tab-indicator {
+  transition-property: transform, width;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--t-ui);
+}
+
+/* A11y: prefers-reduced-motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  .pressable:active:not(:disabled) {
+    transform: none !important;
+  }
+
+  .sheet-content-enter {
+    animation: sheet-backdrop-in var(--t-ui) var(--ease-out) forwards !important;
+    transform: none !important;
+  }
+
+  .sheet-content-exit {
+    animation: sheet-backdrop-out 160ms var(--ease-out) forwards !important;
+    transform: none !important;
+  }
+
+  .toast-enter {
+    animation: sheet-backdrop-in var(--t-ui) var(--ease-out) forwards !important;
+    transform: none !important;
+  }
+
+  .toast-exit {
+    animation: sheet-backdrop-out 160ms var(--ease-out) forwards !important;
+    transform: none !important;
+  }
+
+  .animate-pulse,
+  .skeleton-pulse {
+    animation: none !important;
+    opacity: 0.8 !important;
+  }
+
+  .tab-indicator {
+    transition: none !important;
+  }
+}

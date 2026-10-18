@@ -54,7 +54,9 @@ export function Segmented<T extends string | number>({
                 onChange(option.value);
               }
             }}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-full transition-colors whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text ${itemPadding} ${
+            className={`inline-flex items-center justify-center gap-1.5 rounded-full ${
+              !isOptionDisabled ? 'pressable' : ''
+            } whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text ${itemPadding} ${
               isSelected
                 ? 'bg-surface text-ink font-semibold shadow-sm'
                 : 'text-ink-2 font-medium [@media(hover:hover)]:hover:text-ink'

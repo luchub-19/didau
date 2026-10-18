@@ -94,7 +94,9 @@ export const Chip: React.FC<ChipProps> = ({
       aria-pressed={selected}
       disabled={disabled}
       onClick={isClickable ? onClick : undefined}
-      className={`min-h-[44px] px-3.5 py-1.5 rounded-full text-label font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text focus-visible:outline-offset-2 ${
+      className={`min-h-[44px] px-3.5 py-1.5 rounded-full text-label font-medium inline-flex items-center gap-1.5 ${
+        isClickable ? 'pressable' : 'transition-colors'
+      } whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text focus-visible:outline-offset-2 ${
         disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
       } ${!isClickable ? 'cursor-default' : 'cursor-pointer'} ${stateClasses} ${className}`}
     >

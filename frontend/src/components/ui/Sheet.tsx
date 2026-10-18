@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X } from './Icon';
@@ -37,9 +37,47 @@ export const Sheet: React.FC<SheetProps> = ({
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const sheetId = useRef(Symbol('sheet'));
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [isRendered, setIsRendered] = useState(isOpen);
+  const [isClosing, setIsClosing] = useState(false);
+
+  // Kéo xuống để đóng trên mobile (DESIGN.md §8, T-52)
+  const touchStartY = useRef<number | null>(null);
+  const touchStartTime = useRef<number>(0);
+  const currentDeltaY = useRef<number>(0);
+
+  const handleRequestClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+      setIsRendered(false);
+      setIsClosing(false);
+      closeTimerRef.current = null;
+    }, 220); // Thời lượng đóng thoát 220ms (--t-ui)
+  }, [isClosing, onClose]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (isOpen) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setIsRendered(true);
+      setIsClosing(false);
+    } else if (isRendered && !isClosing) {
+      setIsClosing(true);
+      closeTimerRef.current = setTimeout(() => {
+        setIsRendered(false);
+        setIsClosing(false);
+        closeTimerRef.current = null;
+      }, 220);
+    }
+  }, [isOpen, isRendered, isClosing]);
+
+  useEffect(() => {
+    if (!isRendered) return;
 
     if (typeof document !== 'undefined') {
       previousActiveElement.current = document.activeElement as HTMLElement | null;
@@ -50,7 +88,9 @@ export const Sheet: React.FC<SheetProps> = ({
         overflowBeforeLock = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
       }
-      openSheets.push(id);
+      if (!openSheets.includes(id)) {
+        openSheets.push(id);
+      }
 
       // Chuyển focus vào tiêu đề dialog
       const timer = setTimeout(() => {
@@ -66,10 +106,10 @@ export const Sheet: React.FC<SheetProps> = ({
         previousActiveElement.current?.focus?.();
       };
     }
-  }, [isOpen]);
+  }, [isRendered]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isRendered) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // Sheet chồng nhau: chỉ Sheet trên cùng xử lý phím
@@ -77,7 +117,7 @@ export const Sheet: React.FC<SheetProps> = ({
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        handleRequestClose();
         return;
       }
 
@@ -117,16 +157,61 @@ export const Sheet: React.FC<SheetProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isRendered, handleRequestClose]);
 
-  if (!isOpen) return null;
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = Date.now();
+    currentDeltaY.current = 0;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null || !dialogRef.current) return;
+    const currentY = e.touches[0].clientY;
+    const delta = currentY - touchStartY.current;
+    if (delta > 0) {
+      currentDeltaY.current = delta;
+      dialogRef.current.style.transition = 'none';
+      dialogRef.current.style.transform = `translateY(${delta}px)`;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartY.current === null || !dialogRef.current) return;
+    const delta = currentDeltaY.current;
+    const duration = Date.now() - touchStartTime.current;
+    const velocity = duration > 0 ? delta / duration : 0;
+    const height = dialogRef.current.offsetHeight || 300;
+    const ratio = delta / height;
+
+    touchStartY.current = null;
+
+    if (ratio > 0.3 || velocity > 0.5) {
+      dialogRef.current.style.transition = 'transform 220ms var(--ease-out)';
+      dialogRef.current.style.transform = 'translateY(100%)';
+      handleRequestClose();
+    } else if (delta > 0) {
+      dialogRef.current.style.transition = 'transform 220ms var(--ease-out)';
+      dialogRef.current.style.transform = 'translateY(0)';
+      setTimeout(() => {
+        if (dialogRef.current) {
+          dialogRef.current.style.transition = '';
+          dialogRef.current.style.transform = '';
+        }
+      }, 220);
+    }
+  };
+
+  if (!isRendered) return null;
 
   const content = (
     <div
-      className="fixed inset-0 z-sheet bg-ink/40 flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4"
+      className={`fixed inset-0 z-sheet bg-ink/40 flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4 ${
+        isClosing ? 'sheet-backdrop-exit' : 'sheet-backdrop-enter'
+      }`}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          onClose();
+          handleRequestClose();
         }
       }}
     >
@@ -136,35 +221,45 @@ export const Sheet: React.FC<SheetProps> = ({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        className={`w-full max-h-[90dvh] rounded-t-card flex flex-col bg-surface shadow-float overflow-hidden md:rounded-card md:max-h-[85vh] md:w-full md:max-w-lg ${className}`}
+        className={`w-full max-h-[90dvh] rounded-t-card flex flex-col bg-surface shadow-float overflow-hidden md:rounded-card md:max-h-[85vh] md:w-full md:max-w-lg ${
+          isClosing ? 'sheet-content-exit' : 'sheet-content-enter'
+        } ${className}`}
       >
-        {/* Tay nắm kéo trên mobile (DESIGN.md §5) */}
-        <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0" aria-hidden="true">
-          <div className="w-10 h-1 rounded-full bg-line" />
-        </div>
-
-        {/* Tiêu đề và nút đóng X */}
-        <div className="flex items-start justify-between gap-4 p-4 md:p-6 pb-2 md:pb-4 flex-shrink-0">
-          <div className="min-w-0 flex-1">
-            <h2
-              id={titleId}
-              ref={titleRef}
-              tabIndex={-1}
-              className="text-title font-bold text-ink outline-none"
-            >
-              {title}
-            </h2>
-            {description && (
-              <p id={descId} className="text-caption text-ink-2 mt-1">
-                {description}
-              </p>
-            )}
+        {/* Khu vực tay nắm kéo và header cho phép vuốt kéo xuống trên mobile */}
+        <div
+          className="touch-none flex-shrink-0"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Tay nắm kéo trên mobile (DESIGN.md §5, T-52) */}
+          <div className="md:hidden flex justify-center pt-3 pb-1 cursor-grab" aria-hidden="true">
+            <div className="w-10 h-1 rounded-full bg-line" />
           </div>
-          <IconButton
-            aria-label={closeLabel || t('ui.close')}
-            icon={<X size={20} />}
-            onClick={onClose}
-          />
+
+          {/* Tiêu đề và nút đóng X */}
+          <div className="flex items-start justify-between gap-4 p-4 md:p-6 pb-2 md:pb-4">
+            <div className="min-w-0 flex-1">
+              <h2
+                id={titleId}
+                ref={titleRef}
+                tabIndex={-1}
+                className="text-title font-bold text-ink outline-none"
+              >
+                {title}
+              </h2>
+              {description && (
+                <p id={descId} className="text-caption text-ink-2 mt-1">
+                  {description}
+                </p>
+              )}
+            </div>
+            <IconButton
+              aria-label={closeLabel || t('ui.close')}
+              icon={<X size={20} />}
+              onClick={handleRequestClose}
+            />
+          </div>
         </div>
 
         {/* Nội dung cuộn bên trong */}
@@ -188,3 +283,4 @@ export const Sheet: React.FC<SheetProps> = ({
 
   return content;
 };
+

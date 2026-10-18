@@ -10,16 +10,25 @@ interface ToastCardProps {
 
 const ToastCard: React.FC<ToastCardProps> = ({ item, onDismiss }) => {
   const { t } = useTranslation();
+  const [isExiting, setIsExiting] = React.useState(false);
+
+  const handleDismiss = React.useCallback(() => {
+    if (isExiting) return;
+    setIsExiting(true);
+    setTimeout(() => {
+      onDismiss(item.id);
+    }, 160);
+  }, [isExiting, item.id, onDismiss]);
 
   useEffect(() => {
     const duration = item.duration ?? 4000;
     if (duration > 0) {
       const timer = setTimeout(() => {
-        onDismiss(item.id);
+        handleDismiss();
       }, duration);
       return () => clearTimeout(timer);
     }
-  }, [item.id, item.duration, onDismiss]);
+  }, [item.duration, handleDismiss]);
 
   const isError = item.type === 'error';
 
@@ -36,7 +45,9 @@ const ToastCard: React.FC<ToastCardProps> = ({ item, onDismiss }) => {
     <div
       role={isError ? 'alert' : 'status'}
       aria-live={isError ? 'assertive' : 'polite'}
-      className="pointer-events-auto w-full max-w-md p-3.5 rounded-card bg-surface border border-line shadow-float flex items-center justify-between gap-3 animate-fade-in"
+      className={`pointer-events-auto w-full max-w-md p-3.5 rounded-card bg-surface border border-line shadow-float flex items-center justify-between gap-3 ${
+        isExiting ? 'toast-exit' : 'toast-enter'
+      }`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {iconNode}
@@ -45,8 +56,8 @@ const ToastCard: React.FC<ToastCardProps> = ({ item, onDismiss }) => {
       <button
         type="button"
         aria-label={t('ui.close')}
-        onClick={() => onDismiss(item.id)}
-        className="p-1 rounded-full text-ink-3 hover:text-ink hover:bg-surface-2 transition-colors flex-shrink-0"
+        onClick={handleDismiss}
+        className="p-1 rounded-full text-ink-3 hover:text-ink hover:bg-surface-2 pressable flex-shrink-0"
       >
         <X size={16} />
       </button>
