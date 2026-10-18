@@ -171,7 +171,7 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
           </div>
           <div className="w-full bg-surface-2 rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-accent h-full rounded-full transition-all duration-300"
+              className="bg-accent h-full rounded-full transition-[width] duration-300"
               style={{ width: `${scorePct}%` }}
             />
           </div>

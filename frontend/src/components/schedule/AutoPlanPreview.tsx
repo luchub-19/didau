@@ -311,7 +311,7 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          className="w-7 h-7 rounded-button bg-surface-2 hover:bg-line text-ink flex items-center justify-center font-bold transition-colors"
+                          className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-surface-2 hover:bg-line text-ink flex items-center justify-center font-bold transition-colors text-body"
                           onClick={() =>
                             setDurationOverride(
                               slot.place_id,
@@ -330,7 +330,7 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
                         </span>
                         <button
                           type="button"
-                          className="w-7 h-7 rounded-button bg-surface-2 hover:bg-line text-ink flex items-center justify-center font-bold transition-colors"
+                          className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-surface-2 hover:bg-line text-ink flex items-center justify-center font-bold transition-colors text-body"
                           onClick={() =>
                             setDurationOverride(
                               slot.place_id,

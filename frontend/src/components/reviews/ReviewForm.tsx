@@ -31,6 +31,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     const errorKey = validateReview(rating, comment);
     if (errorKey === 'review.error.commentTooLong') {
       setError(t('review.error.commentTooLong', { max: REVIEW_COMMENT_MAX }));

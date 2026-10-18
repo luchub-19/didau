@@ -26,28 +26,7 @@ function stripComments(code: string): string {
  * Mỗi task màn hình (T-40 → T-50) khi xử lý xong file nào PHẢI xoá file đó khỏi danh sách này.
  * Test sẽ FAIL nếu file trong danh sách đã sạch (đảm bảo danh sách chỉ giảm dần).
  */
-export const PENDING_FILES = new Set<string>([
-  // T-40: Bộ khung component ui/
-  'components/common/Modal.tsx',
-
-  // T-41: Khung phòng + thanh tab dưới
-  'components/room/RoomHeader.tsx',
-
-  // T-43: FE dịch chữ từ server (lỗi, thông báo, ws, store)
-
-
-  // T-45: Tab Quán + vote (đã chuyển qua i18n ở T-45)
-
-  // T-46: Tab Lịch + xung đột + auto-plan (đã chuyển qua i18n ở T-46)
-
-  // T-47: Tab Bản đồ + đánh giá (đã chuyển qua i18n ở T-47)
-
-  // T-48: Chọn hộ phần 1 (đã chuyển qua i18n ở T-48)
-
-  // T-49: Chọn hộ phần 2 (vòng quay, quẹt, thang - đã chuyển qua i18n ở T-49)
-
-  // T-50: Tab Nhóm + chia sẻ
-]);
+export const PENDING_FILES = new Set<string>([]);
 
 function walkDirectory(dir: string): string[] {
   let results: string[] = [];

@@ -312,7 +312,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
             <button
               type="button"
               onClick={() => setSelectedDay('ALL')}
-              className={`px-3 py-1.5 rounded-chip text-caption font-semibold whitespace-nowrap transition-colors ${
+              className={`px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-chip text-caption font-semibold whitespace-nowrap transition-colors ${
                 selectedDay === 'ALL'
                   ? 'bg-ink text-surface shadow-xs'
                   : 'bg-surface-2 text-ink-2 hover:bg-line'
@@ -328,7 +328,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
                     key={day}
                     type="button"
                     onClick={() => setSelectedDay(day)}
-                    className={`px-3 py-1.5 rounded-chip text-caption font-semibold whitespace-nowrap transition-colors ${
+                    className={`px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-chip text-caption font-semibold whitespace-nowrap transition-colors ${
                       selectedDay === day
                         ? 'bg-accent text-ink font-semibold shadow-xs'
                         : 'bg-surface-2 text-ink-2 hover:bg-line'

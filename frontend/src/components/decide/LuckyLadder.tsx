@@ -375,7 +375,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
             type="button"
             data-testid="ladder-variant-place"
             onClick={() => setVariant('PLACE')}
-            className={`px-3 py-1 rounded-full text-caption font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 min-h-[44px] rounded-full text-caption font-semibold transition-colors flex items-center gap-1.5 ${
               variant === 'PLACE'
                 ? 'bg-accent text-ink shadow-xs'
                 : 'text-ink-2 hover:text-ink'
@@ -388,7 +388,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
             type="button"
             data-testid="ladder-variant-member"
             onClick={() => setVariant('MEMBER')}
-            className={`px-3 py-1 rounded-full text-caption font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 min-h-[44px] rounded-full text-caption font-semibold transition-colors flex items-center gap-1.5 ${
               variant === 'MEMBER'
                 ? 'bg-accent text-ink shadow-xs'
                 : 'text-ink-2 hover:text-ink'

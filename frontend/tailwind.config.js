@@ -7,14 +7,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Giữ màu primary cũ cho các màn cũ
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-        },
         // Token màu mới giai đoạn 3 (DESIGN.md §2)
         bg: 'rgb(var(--color-bg) / <alpha-value>)',
         surface: 'rgb(var(--color-surface) / <alpha-value>)',

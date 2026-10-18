@@ -192,7 +192,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
       </div>
 
       {/* Nút hành động: Lên, Xuống, Xoá */}
-      <div className="flex items-center gap-1 self-start pt-0.5 shrink-0">
+      <div className="flex items-center gap-0.5 self-start pt-0.5 shrink-0">
         {onMoveUp && (
           <button
             type="button"
@@ -200,7 +200,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
             onClick={() => onMoveUp(item.id)}
             title={t('schedule.moveUp')}
             aria-label={t('schedule.moveUp')}
-            className="w-8 h-8 rounded-button text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
           >
             <CaretUp size={16} weight="bold" />
           </button>
@@ -213,7 +213,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
             onClick={() => onMoveDown(item.id)}
             title={t('schedule.moveDown')}
             aria-label={t('schedule.moveDown')}
-            className="w-8 h-8 rounded-button text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
           >
             <CaretDown size={16} weight="bold" />
           </button>
@@ -225,7 +225,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
             onClick={() => onDelete?.(item.id)}
             title={t('schedule.deleteItem')}
             aria-label={t('schedule.deleteItem')}
-            className="w-8 h-8 rounded-button text-ink-3 hover:text-danger hover:bg-danger-soft transition-colors ml-0.5 flex items-center justify-center"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full text-ink-3 hover:text-danger hover:bg-danger-soft transition-colors flex items-center justify-center"
           >
             <Trash size={16} />
           </button>

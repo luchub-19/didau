@@ -5,8 +5,7 @@ import { Coffee, WarningCircle } from './components/ui/Icon';
 import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
 import { coldStartManager, type ColdStartState } from './services/api/coldStart';
-import { Button } from './components/common';
-import { ToastViewport } from './components/ui';
+import { Button, ToastViewport } from './components/ui';
 import { StyleGuide } from './dev/StyleGuide';
 
 function parseRoomIdFromPath(): string | null {

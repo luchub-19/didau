@@ -298,7 +298,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
         />,
       );
       expect(memberHtml).not.toContain('Quay ngay!');
-      expect(memberHtml).toContain('Đang chờ Host bắt đầu quay... 👀');
+      expect(memberHtml).toContain('Đang chờ Host bắt đầu quay...');
     });
 
     it('tính góc dừng tất định: 2 client độc lập nhận cùng stop_angle_deg đều dừng chính xác cùng một góc', () => {

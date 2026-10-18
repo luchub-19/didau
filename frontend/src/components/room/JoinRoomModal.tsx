@@ -35,6 +35,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setCodeError(null);
     setNicknameError(null);
 

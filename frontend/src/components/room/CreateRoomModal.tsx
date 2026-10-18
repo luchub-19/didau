@@ -57,6 +57,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
 
     const next: FieldErrors = {};
     const startMinute = timeStringToMinute(startTime);

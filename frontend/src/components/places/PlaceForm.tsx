@@ -88,6 +88,7 @@ export const PlaceForm: React.FC<PlaceFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setError(null);
 
     const trimmedInput = nameOrUrl.trim();

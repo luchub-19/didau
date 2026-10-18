@@ -4,7 +4,7 @@ import { MapPin } from '../ui/Icon';
 import { LanguageSwitcher } from '../ui/LanguageSwitcher';
 
 /** Thanh trên của trang chủ: wordmark bên trái, đổi ngôn ngữ bên phải (trong phòng dùng RoomTopBar). */
-export const Header: React.FC = () => {
+export const HomeHeader: React.FC = () => {
   const { t } = useTranslation();
 
   return (
@@ -17,3 +17,5 @@ export const Header: React.FC = () => {
     </header>
   );
 };
+
+export const Header = HomeHeader;

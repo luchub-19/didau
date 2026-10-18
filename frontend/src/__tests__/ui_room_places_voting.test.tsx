@@ -7,14 +7,14 @@ import { mockRoom, mockHostMember, mockGuestMember, mockPlaces, MOCK_HOST_TOKEN 
 import { useRoomStore } from '../store/useRoomStore';
 import { usePlaceStore } from '../store/usePlaceStore';
 
-// Common components
-import { Button, Input, Modal, Badge, CategoryIcon, Header } from '../components/common';
+// Common & UI components
+import { CategoryIcon } from '../components/common';
 import { CATEGORY_METADATA } from '../components/common/categoryMetadata';
+import { Button, TextField, Sheet } from '../components/ui';
+import { HomeHeader as Header, RoomTopBar } from '../components/shell';
 
 // Room components
 import { CreateRoomModal, JoinRoomModal, MemberList, InviteCard } from '../components/room';
-// RoomHeader đã gỡ khỏi index (T-50), file giữ đến T-51
-import { RoomHeader } from '../components/room/RoomHeader';
 
 // Places components
 import { CategoryFilter, PlaceCard, PlaceForm, PlaceList } from '../components/places';
@@ -45,54 +45,51 @@ afterAll(() => {
 });
 
 describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => {
-  it('render Common UI components (Button, Input, Badge, Header, Modal) chính xác', () => {
+  it('render UI components (Button, TextField, Header, Sheet) chính xác', () => {
     const btnHtml = renderToStaticMarkup(
       <Button variant="primary" size="md">
         Khởi tạo
       </Button>,
     );
     expect(btnHtml).toContain('Khởi tạo');
-    expect(btnHtml).toContain('bg-sky-500');
+    expect(btnHtml).toContain('bg-accent');
+    expect(btnHtml).toContain('text-ink');
 
     const inputHtml = renderToStaticMarkup(
-      <Input label="Biệt danh" placeholder="Nhập tên..." value="HoangNam" readOnly />,
+      <TextField label="Biệt danh" placeholder="Nhập tên..." value="HoangNam" readOnly />,
     );
     expect(inputHtml).toContain('Biệt danh');
     expect(inputHtml).toContain('HoangNam');
-
-    const badgeHtml = renderToStaticMarkup(<Badge variant="HOST">HOST</Badge>);
-    expect(badgeHtml).toContain('HOST');
-    expect(badgeHtml).toContain('bg-amber-100');
 
     const headerHtml = renderToStaticMarkup(<Header />);
     expect(headerHtml).toContain('Đi Đâu');
     expect(headerHtml).toContain('VI');
 
-    const modalHtml = renderToStaticMarkup(
-      <Modal isOpen={true} onClose={() => {}} title="Tiêu đề Modal">
+    const sheetHtml = renderToStaticMarkup(
+      <Sheet isOpen={true} onClose={() => {}} title="Tiêu đề Sheet">
         <div>Nội dung bên trong</div>
-      </Modal>,
+      </Sheet>,
     );
-    expect(modalHtml).toContain('Tiêu đề Modal');
-    expect(modalHtml).toContain('Nội dung bên trong');
+    expect(sheetHtml).toContain('Tiêu đề Sheet');
+    expect(sheetHtml).toContain('Nội dung bên trong');
   });
 
-  it('RoomHeader hiển thị tiêu đề, ngày hẹn, mã phòng và vai trò Host/Member', () => {
+  it('RoomTopBar hiển thị tiêu đề, mã phòng và vai trò/trực tiếp', () => {
     const html = renderToStaticMarkup(
-      <RoomHeader
-        room={mockRoom}
-        currentMember={mockHostMember}
+      <RoomTopBar
+        roomId={mockRoom.id}
+        title={mockRoom.title}
+        code={mockRoom.code}
+        isConnected={true}
         onGoHome={() => {}}
-        onOpenTieBreakModal={() => {}}
       />,
     );
 
     expect(html).toContain(mockRoom.title);
     expect(html).toContain(mockRoom.code);
-    expect(html).toContain('HOST');
-    expect(html).toContain('Chốt kết quả (TieBreak)');
-    expect(html).toContain('Sao chép mã phòng');
+    expect(html).toContain('Trực tiếp');
   });
+
 
   it('MemberList hiển thị avatar, nickname, nhãn Chủ phòng, Bạn và trạng thái online', () => {
     const members = [mockGuestMember, mockHostMember];

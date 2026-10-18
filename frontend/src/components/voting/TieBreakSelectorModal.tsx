@@ -84,6 +84,7 @@ export const TieBreakSelectorModal: React.FC<TieBreakSelectorModalProps> = ({
   ];
 
   const handleConfirm = async () => {
+    if (isLoading) return;
     setError(null);
     if (maxAcceptedPlaces < 1) {
       setError(t('tiebreak.minPlacesError'));

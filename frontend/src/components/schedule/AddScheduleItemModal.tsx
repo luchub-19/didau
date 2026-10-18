@@ -74,6 +74,7 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!selectedPlaceId) {
       setErrorMessage(t('schedule.selectPlacePlaceholder'));
       return;

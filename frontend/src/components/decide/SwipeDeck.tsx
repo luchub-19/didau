@@ -18,6 +18,7 @@ import {
   CurrencyCircleDollar,
   ForkKnife,
   Check,
+  Users,
 } from '../ui';
 import type { DecisionSession, Place } from '../../types';
 
@@ -372,13 +373,18 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
           <div className="flex items-center justify-between text-caption font-medium text-ink-2">
             <span
               data-testid="swipe-progress-text"
-              dangerouslySetInnerHTML={{
-                __html: t('decide.swipe.progressText', {
-                  done: doneMemberIds.length,
-                  total: totalMembers || 1,
-                }),
-              }}
-            />
+              className="inline-flex items-center gap-1.5"
+            >
+              <Users size={14} className="text-ink-3 shrink-0" aria-hidden="true" />
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: t('decide.swipe.progressText', {
+                    done: doneMemberIds.length,
+                    total: totalMembers || 1,
+                  }),
+                }}
+              />
+            </span>
             <span data-testid="swipe-card-counter" className="font-semibold text-ink">
               {t('decide.swipe.cardCounter', {
                 current: Math.min(currentCardIndex + 1, candidates.length),
@@ -391,7 +397,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             className="w-full h-2 bg-line rounded-full overflow-hidden"
           >
             <div
-              className="h-full bg-accent transition-all duration-300 rounded-full"
+              className="h-full bg-accent transition-[width] duration-300 rounded-full"
               style={{ width: `${Math.min(100, Math.round(progressRatio * 100))}%` }}
             />
           </div>

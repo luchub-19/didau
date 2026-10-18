@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Header } from '../components/common';
+import { Header } from '../components/shell';
 import { CreateRoomModal, JoinRoomModal } from '../components/room';
 import { ArrowRight, Button, CalendarBlank, ForkKnife, ThumbsUp } from '../components/ui';
 import { tokenStorage } from '../services/storage/tokenStorage';

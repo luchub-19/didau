@@ -4,7 +4,7 @@ import type { Place, Poi, Room } from '../../types';
 import { distanceKm } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { CATEGORY_METADATA } from '../common/categoryMetadata';
-import { Badge, CategoryIcon } from '../common';
+import { CategoryIcon } from '../common';
 import { Button, Check, IconButton } from '../ui';
 import { CaretDown, CaretUp, Clock, MapPin, X } from '../ui/Icon';
 import { VoteButtons } from '../voting/VoteButtons';
@@ -135,9 +135,15 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
               <span className="text-label text-ink-3">· {cuisine}</span>
             )}
             {existingPlace && (
-              <Badge variant={existingPlace.status} size="sm">
-                {existingPlace.status}
-              </Badge>
+              existingPlace.status === 'ACCEPTED' ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-semibold bg-success-soft text-success border border-success/20">
+                  {t('place.accepted')}
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium bg-surface-2 text-ink-3 border border-line">
+                  {t(`place.statusLabel.${existingPlace.status}`)}
+                </span>
+              )
             )}
           </div>
           <h3 className="text-h3 font-bold text-ink leading-snug truncate">
