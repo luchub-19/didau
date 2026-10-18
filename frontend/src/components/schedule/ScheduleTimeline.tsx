@@ -102,12 +102,24 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
       string,
       { level: ConflictLevel; messages: string[] }
     >();
+    // Thứ tự hiển thị của mục lịch (ngày rồi order_index), dùng để chọn thẻ hiện câu mô tả
+    const rank = new Map(
+      [...items]
+        .sort((a, b) => a.day_offset - b.day_offset || a.order_index - b.order_index)
+        .map((item, idx) => [item.id, idx]),
+    );
     for (const c of conflicts) {
       if (c.entity_type === 'SCHEDULE' && Array.isArray(c.entity_ids)) {
         const text = describeConflict(c, { scheduleItems: items, places }, t);
+        // V6: xung đột của một cặp chỉ hiện câu ở thẻ sau; các thẻ còn lại chỉ có huy hiệu
+        const ownerId = c.entity_ids.reduce<string | undefined>(
+          (best, id) =>
+            best === undefined || (rank.get(id) ?? -1) > (rank.get(best) ?? -1) ? id : best,
+          undefined,
+        );
         for (const id of c.entity_ids) {
           const entry = map.get(id) || { level: c.level, messages: [] };
-          entry.messages.push(text);
+          if (id === ownerId) entry.messages.push(text);
           if (c.level === 'CRITICAL') entry.level = 'CRITICAL';
           else if (c.level === 'ERROR' && entry.level !== 'CRITICAL') entry.level = 'ERROR';
           map.set(id, entry);
@@ -423,7 +435,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
           {displayedItems.map((item, idx) => {
             const place = placeMap.get(item.place_id);
             const conflictEntry = itemConflictMap.get(item.id);
-            const isConflict = Boolean(conflictEntry && conflictEntry.messages.length > 0);
+            const isConflict = Boolean(conflictEntry);
 
             // Tính toán khoảng trống và thời gian di chuyển tới mục tiếp theo
             let travelInfoNode: React.ReactNode = null;

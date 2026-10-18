@@ -64,7 +64,19 @@ export class WebSocketClient {
     this.isIntentionallyClosed = true;
     this.clearTimers();
     if (this.ws) {
-      this.ws.close();
+      const ws = this.ws;
+      // V8: gỡ handler trước để socket cũ không báo lỗi/đổi trạng thái sau khi đã chủ động đóng
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      if (ws.readyState === WebSocket.CONNECTING) {
+        // Đóng giữa lúc bắt tay thì trình duyệt in lỗi "closed before the connection is established"
+        // (StrictMode ở dev mount/unmount effect 2 lần): đợi mở xong mới đóng
+        ws.onopen = () => ws.close();
+      } else {
+        ws.close();
+      }
       this.ws = null;
     }
     this.notifyStatus('CLOSED');

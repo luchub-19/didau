@@ -380,6 +380,34 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       expect(html).toContain('Chi tiết (1)');
     });
 
+    it('V6: xung đột của một cặp chỉ hiện câu mô tả ở thẻ sau, cả 2 thẻ đều có huy hiệu', () => {
+      const second: ScheduleItem = {
+        ...mockScheduleItems[0],
+        id: '5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e',
+        place_name: 'Cơm Tấm Ba Ghiền',
+        start_minute: 600,
+        end_minute: 690,
+        order_index: 1,
+        note: null,
+      };
+      const html = renderToStaticMarkup(
+        <ScheduleTimeline
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          items={[second, mockScheduleItems[0]]}
+          places={mockPlaces}
+          conflicts={mockConflicts}
+        />,
+      );
+
+      // Huy hiệu "Xung đột" trên cả 2 thẻ, nhưng chỉ 1 hộp mô tả xung đột
+      expect(html.match(/>Xung đột</g)?.length).toBe(2);
+      expect(html.match(/mt-2\.5 p-2\.5 rounded-card/g)?.length).toBe(1);
+      // Hộp mô tả nằm sau tên quán thứ hai (thẻ sau)
+      const secondName = html.indexOf('Cơm Tấm Ba Ghiền</h4>');
+      expect(secondName).toBeGreaterThan(-1);
+      expect(html.indexOf('mt-2.5 p-2.5 rounded-card')).toBeGreaterThan(secondName);
+    });
+
     it('T-56: thanh công cụ không chen câu giải thích khi chưa đủ điều kiện lên lịch tự động', () => {
       // Không quán nào đã chốt, chưa ai vote
       const notEligiblePlaces = mockPlaces.map((p) => ({

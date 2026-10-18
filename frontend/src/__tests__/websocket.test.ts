@@ -127,6 +127,30 @@ describe('T-17: WebSocket Client & Realtime Hook Engine', () => {
     client.disconnect();
   });
 
+  it('V8: disconnect khi socket còn CONNECTING không đóng giữa lúc bắt tay và không in cảnh báo', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const client = new WebSocketClient('ws://localhost:8000/ws');
+    const statuses: string[] = [];
+    client.onStatusChange((s) => statuses.push(s));
+
+    client.connect();
+    const wsInstance = MockWebSocket.instances[0];
+    const closeSpy = vi.spyOn(wsInstance, 'close');
+    client.disconnect();
+
+    // Chưa đóng ngay; trình duyệt có thể bắn lỗi nhưng handler đã gỡ
+    expect(closeSpy).not.toHaveBeenCalled();
+    wsInstance.onerror?.(new Event('error'));
+    expect(warn).not.toHaveBeenCalled();
+
+    // Mở xong thì đóng luôn, không báo OPEN và không kết nối lại
+    await new Promise((r) => setTimeout(r, 20));
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(statuses).not.toContain('OPEN');
+    await new Promise((r) => setTimeout(r, 1100));
+    expect(MockWebSocket.instances).toHaveLength(1);
+  });
+
   it('Realtime message kích hoạt cập nhật trực tiếp vào các Zustand stores', async () => {
     const client = new WebSocketClient('ws://localhost:8000/ws');
     client.connect();
