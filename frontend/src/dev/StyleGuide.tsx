@@ -7,6 +7,8 @@ import {
   Bed,
   ShoppingBag,
   MapPin,
+  Clock,
+  CurrencyCircleDollar,
   ForkKnife,
   MapTrifold,
   CalendarBlank,
@@ -40,7 +42,7 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
 }) => (
   <div className="flex items-center gap-3 p-2 rounded-field bg-surface border border-line">
     <div
-      className={`w-12 h-12 rounded-lg border ${borderClass} ${bgClass} flex-shrink-0 flex items-center justify-center font-bold text-xs ${textClass}`}
+      className={`w-12 h-12 rounded-lg border ${borderClass} ${bgClass} flex-shrink-0 flex items-center justify-center font-bold text-caption ${textClass}`}
     >
       Aa
     </div>
@@ -48,13 +50,13 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
       <div className="flex items-center justify-between">
         <span className="font-semibold text-sm text-ink truncate">{name}</span>
         {contrast && (
-          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-surface-2 text-ink-2">
+          <span className="text-caption font-mono px-1.5 py-0.5 rounded bg-surface-2 text-ink-2">
             {contrast}
           </span>
         )}
       </div>
-      <p className="text-xs font-mono text-ink-3 truncate">{token}</p>
-      {description && <p className="text-[11px] text-ink-2 truncate">{description}</p>}
+      <p className="text-caption font-mono text-ink-3 truncate">{token}</p>
+      {description && <p className="text-caption text-ink-2 truncate">{description}</p>}
     </div>
   </div>
 );
@@ -137,8 +139,8 @@ export const StyleGuide: React.FC = () => {
       <header className="mb-8 border-b border-line pb-6">
         <div className="flex items-center gap-2 mb-2">
           <span className="w-3 h-3 rounded-full bg-accent" />
-          <span className="text-xs font-semibold tracking-wider uppercase text-accent-text">
-            Design System · Mốc 1
+          <span className="text-caption font-semibold text-accent-text">
+            Hệ thống thiết kế · Mốc 1
           </span>
         </div>
         <h1 className="text-display font-bold text-ink mb-2">
@@ -226,25 +228,25 @@ export const StyleGuide: React.FC = () => {
 
         <div className="space-y-4 p-4 rounded-card bg-surface border border-line">
           <div className="border-b border-line pb-3">
-            <span className="text-xs font-mono text-ink-3 block mb-1">Display · 32/40 700 tracking -0.02em</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Display · 32/40 700 tracking -0.02em</span>
             <p className="text-display text-ink font-bold">Ở đâu? Ổn định chưa? Ể Ỗ Ậ Ừ</p>
             <p className="text-display text-ink-2 font-bold">Where to tonight? Quick choices.</p>
           </div>
 
           <div className="border-b border-line pb-3">
-            <span className="text-xs font-mono text-ink-3 block mb-1">Title · 22/30 700</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Title · 22/30 700</span>
             <p className="text-title text-ink font-bold">Ở đâu? Ổn định chưa? Ể Ỗ Ậ Ừ</p>
             <p className="text-title text-ink-2 font-bold">Group decisions without endless debate.</p>
           </div>
 
           <div className="border-b border-line pb-3">
-            <span className="text-xs font-mono text-ink-3 block mb-1">Heading · 18/26 600</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Heading · 18/26 600</span>
             <p className="text-heading text-ink font-semibold">Ở đâu? Ổn định chưa? Ể Ỗ Ậ Ừ</p>
             <p className="text-heading text-ink-2 font-semibold">Phở Hoà Pasteur & Trà Sữa Đậm Vị</p>
           </div>
 
           <div className="border-b border-line pb-3">
-            <span className="text-xs font-mono text-ink-3 block mb-1">Body · 16/24 400</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Body · 16/24 400</span>
             <p className="text-body text-ink">
               Ở đâu? Ổn định chưa? Ể Ỗ Ậ Ừ. Sinh viên và người trẻ mở link phòng trên điện thoại, thống nhất địa điểm chỉ trong vài phút.
             </p>
@@ -254,17 +256,17 @@ export const StyleGuide: React.FC = () => {
           </div>
 
           <div className="border-b border-line pb-3">
-            <span className="text-xs font-mono text-ink-3 block mb-1">Label · 14/20 500</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Label · 14/20 500</span>
             <p className="text-label text-ink font-medium">Ở đâu? Ổn định chưa? Ể Ỗ Ậ Ừ · Thêm quán mới</p>
           </div>
 
           <div className="border-b border-line pb-3">
-            <span className="text-xs font-mono text-ink-3 block mb-1">Caption · 13/18 400</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Caption · 13/18 400</span>
             <p className="text-caption text-ink-3">Ở đâu? Ổn định chưa? Ể Ỗ Ậ Ừ · 260C Pasteur, Phường 8, Quận 3, TP.HCM</p>
           </div>
 
           <div>
-            <span className="text-xs font-mono text-ink-3 block mb-1">Mã phòng & Số (tabular-nums .num + 0.08em tracking)</span>
+            <span className="text-caption font-mono text-ink-3 block mb-1">Mã phòng & Số (tabular-nums .num + 0.08em tracking)</span>
             <p className="text-heading font-bold text-accent-text tracking-[0.08em] num">
               DIDAU8 · 17:30 – 21:00 · ₫45,000 · 12/15 phiếu
             </p>
@@ -319,7 +321,7 @@ export const StyleGuide: React.FC = () => {
           </div>
 
           <div className="pt-2 border-t border-line flex flex-wrap items-center gap-3">
-            <span className="text-xs text-ink-3">Icon Button (44×44):</span>
+            <span className="text-caption text-ink-3">Icon Button (44×44):</span>
             <button
               type="button"
               aria-label="Thích quán"
@@ -405,7 +407,7 @@ export const StyleGuide: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-label font-semibold text-ink truncate">{cat.label}</p>
                   <p className="text-caption font-mono text-ink-3 truncate">{cat.token}</p>
-                  <p className="text-[11px] text-ink-2">Tương phản: {cat.contrast}</p>
+                  <p className="text-caption text-ink-2">Tương phản: {cat.contrast}</p>
                 </div>
               </div>
             );
@@ -432,7 +434,7 @@ export const StyleGuide: React.FC = () => {
                 <h3 className="text-heading font-semibold text-ink leading-tight">Phở Hoà Pasteur</h3>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-accent-soft text-accent-text">
+            <span className="px-2.5 py-1 rounded-full text-caption font-semibold bg-accent-soft text-accent-text">
               Dẫn đầu
             </span>
           </div>
@@ -444,8 +446,8 @@ export const StyleGuide: React.FC = () => {
               <span className="truncate">260C Pasteur, Phường 8, Quận 3, TP.HCM</span>
             </div>
             <div className="flex items-center gap-3 text-ink-3 num">
-              <span>⏰ 17:00 – 22:00</span>
-              <span>💰 ₫75,000 – ₫110,000</span>
+              <span className="inline-flex items-center gap-1"><Clock size={16} />17:00 – 22:00</span>
+              <span className="inline-flex items-center gap-1"><CurrencyCircleDollar size={16} />₫75,000 – ₫110,000</span>
             </div>
           </div>
 
@@ -559,7 +561,7 @@ export const StyleGuide: React.FC = () => {
               }`}
             >
               <ForkKnife size={24} weight={activeTab === 'places' ? 'fill' : 'regular'} />
-              <span className="text-[11px] mt-0.5">Quán</span>
+              <span className="text-caption mt-0.5">Quán</span>
             </button>
 
             <button
@@ -570,7 +572,7 @@ export const StyleGuide: React.FC = () => {
               }`}
             >
               <MapTrifold size={24} weight={activeTab === 'map' ? 'fill' : 'regular'} />
-              <span className="text-[11px] mt-0.5">Bản đồ</span>
+              <span className="text-caption mt-0.5">Bản đồ</span>
             </button>
 
             <button
@@ -581,7 +583,7 @@ export const StyleGuide: React.FC = () => {
               }`}
             >
               <CalendarBlank size={24} weight={activeTab === 'schedule' ? 'fill' : 'regular'} />
-              <span className="text-[11px] mt-0.5">Lịch</span>
+              <span className="text-caption mt-0.5">Lịch</span>
             </button>
 
             <button
@@ -592,7 +594,7 @@ export const StyleGuide: React.FC = () => {
               }`}
             >
               <Users size={24} weight={activeTab === 'group' ? 'fill' : 'regular'} />
-              <span className="text-[11px] mt-0.5">Nhóm</span>
+              <span className="text-caption mt-0.5">Nhóm</span>
             </button>
           </nav>
         </div>

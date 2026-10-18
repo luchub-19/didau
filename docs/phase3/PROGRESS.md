@@ -13,7 +13,7 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 ## Bảng task
 | Task | Trạng thái | Session | Review | Ghi chú |
 | :--- | :---: | :---: | :---: | :--- |
-| T-38 | DONE | a99b8130 | | - Thêm token màu, z-index, radius, motion; 7 cặp màu danh mục đạt ≥3:1.<br>- Cấu hình Be Vietnam Pro, font scale, tailwind tokens; giữ màu cũ.<br>- Thêm base.css, favicon SVG ghim coral, dev/StyleGuide.tsx tại `/_styleguide`.<br>- 150/150 test FE xanh, build xanh; ảnh lưu `docs/phase3/screens/T-38-*.png`.<br>- Cấm chữ trắng trên coral; nút primary dùng `bg-accent text-ink font-semibold`.<br>- Task sau dùng token trong tailwind và component mới. |
+| T-38 | DONE | a99b8130 | ĐẠT ([review](reviews/T-38.md)) | - Thêm token màu, z-index, radius, motion; 7 cặp màu danh mục đạt ≥3:1.<br>- Cấu hình Be Vietnam Pro, font scale, tailwind tokens; giữ màu cũ.<br>- Thêm base.css, favicon SVG ghim coral, dev/StyleGuide.tsx tại `/_styleguide`.<br>- 150/150 test FE xanh, build xanh; ảnh lưu `docs/phase3/screens/T-38-*.png`.<br>- Cấm chữ trắng trên coral; nút primary dùng `bg-accent text-ink font-semibold`.<br>- Task sau dùng token trong tailwind và component mới. |
 | T-39 | TODO | | | |
 | T-40 | TODO | | | |
 | T-41 | TODO | | | |
