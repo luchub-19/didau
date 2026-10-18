@@ -151,7 +151,7 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
         <div className="flex flex-wrap items-center gap-2 text-caption text-ink-2">
           {place?.category && (
             <span className="px-2 py-0.5 rounded-full font-semibold bg-surface-2 text-ink">
-              {t(`category.${place.category}`, { defaultValue: place.category })}
+              {t(`category.${place.category.toLowerCase()}`, { defaultValue: t('category.other') })}
             </span>
           )}
           {place?.estimated_cost !== undefined && place.estimated_cost !== null && (
@@ -216,7 +216,7 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
             {t('decide.smart.lockIn')}
           </Button>
         ) : (
-          <div className="flex-1 px-4 py-2.5 text-center text-caption text-ink-2 italic bg-surface-2 rounded-card border border-line">
+          <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[10rem] px-4 py-2.5 text-center text-caption text-ink-2 bg-surface-2 rounded-card border border-line">
             {t('decide.smart.waitingHost')}
           </div>
         )}
