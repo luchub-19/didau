@@ -85,7 +85,7 @@
 }
 
 .sheet-content-enter {
-  animation: sheet-slide-up var(--t-sheet) var(--ease-out) forwards;
+  animation: sheet-slide-up var(--t-sheet) var(--ease-out);
 }
 
 .sheet-content-exit {
@@ -94,7 +94,7 @@
 
 @media (min-width: 768px) {
   .sheet-content-enter {
-    animation: dialog-scale-in var(--t-ui) var(--ease-out) forwards;
+    animation: dialog-scale-in var(--t-ui) var(--ease-out);
   }
 
   .sheet-content-exit {
@@ -162,7 +162,7 @@
   }
 
   .sheet-content-enter {
-    animation: sheet-backdrop-in var(--t-ui) var(--ease-out) forwards !important;
+    animation: sheet-backdrop-in var(--t-ui) var(--ease-out) !important;
     transform: none !important;
   }
 

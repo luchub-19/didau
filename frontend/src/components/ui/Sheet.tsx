@@ -83,6 +83,12 @@ export const Sheet: React.FC<SheetProps> = ({
   }, [isOpen, isRendered, isClosing]);
 
   useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isRendered) return;
 
     if (typeof document !== 'undefined') {
@@ -193,6 +199,8 @@ export const Sheet: React.FC<SheetProps> = ({
     touchStartY.current = null;
 
     if (ratio > 0.3 || velocity > 0.5) {
+      // Tắt keyframe thoát để hoạt ảnh không kéo sheet nhảy về 0 rồi mới trượt xuống
+      dialogRef.current.style.animation = 'none';
       dialogRef.current.style.transition = 'transform 220ms var(--ease-out)';
       dialogRef.current.style.transform = 'translateY(100%)';
       handleRequestClose();
@@ -205,6 +213,16 @@ export const Sheet: React.FC<SheetProps> = ({
           dialogRef.current.style.transform = '';
         }
       }, 220);
+    }
+  };
+
+  // Hệ thống huỷ cử chỉ (cuộc gọi đến, cuộn trang): bật sheet về vị trí cũ
+  const handleTouchCancel = () => {
+    touchStartY.current = null;
+    currentDeltaY.current = 0;
+    if (dialogRef.current) {
+      dialogRef.current.style.transition = '';
+      dialogRef.current.style.transform = '';
     }
   };
 
@@ -237,6 +255,7 @@ export const Sheet: React.FC<SheetProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
         >
           {/* Tay nắm kéo trên mobile (DESIGN.md §5, T-52) */}
           <div className="md:hidden flex justify-center pt-3 pb-1 cursor-grab" aria-hidden="true">
