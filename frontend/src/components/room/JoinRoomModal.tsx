@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Button, Input, Modal } from '../common';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Button, Sheet, TextField } from '../ui';
 import { useRoomStore } from '../../store/useRoomStore';
+import { describeRoomError, normalizeRoomCode } from './roomErrors';
 
 export interface JoinRoomModalProps {
   isOpen: boolean;
@@ -9,30 +11,40 @@ export interface JoinRoomModalProps {
   initialCode?: string;
 }
 
+const FORM_ID = 'join-room-form';
+
 export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
   initialCode = '',
 }) => {
+  const { t } = useTranslation();
   const joinRoom = useRoomStore((s) => s.joinRoom);
   const isLoading = useRoomStore((s) => s.isLoading);
-  const [error, setError] = useState<string | null>(null);
 
-  const [roomCode, setRoomCode] = useState(initialCode);
+  const [roomCode, setRoomCode] = useState(normalizeRoomCode(initialCode));
   const [nickname, setNickname] = useState('');
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
+
+  // Mở lại sheet với mã khác (ví dụ chạm "Tiếp tục phòng") thì điền lại mã
+  useEffect(() => {
+    if (isOpen) setRoomCode(normalizeRoomCode(initialCode));
+  }, [isOpen, initialCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setCodeError(null);
+    setNicknameError(null);
 
-    const cleanCode = roomCode.trim().toUpperCase();
-    if (!cleanCode) {
-      setError('Vui lòng nhập mã phòng 6 ký tự.');
+    const cleanCode = normalizeRoomCode(roomCode);
+    if (cleanCode.length !== 6) {
+      setCodeError(t('room.join.errCode'));
       return;
     }
     if (!nickname.trim()) {
-      setError('Vui lòng nhập biệt danh của bạn.');
+      setNicknameError(t('room.join.errNickname'));
       return;
     }
 
@@ -44,59 +56,57 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           nickname.trim(),
         )}`,
       });
-
       onClose();
       onSuccess(res.room.id);
     } catch (err: unknown) {
-      const msg =
-        (err as { message?: string })?.message ||
-        'Không thể tham gia phòng. Vui lòng kiểm tra lại mã phòng hoặc thử nickname khác.';
-      setError(msg);
+      const code = (err as { code?: string } | null)?.code;
+      const message = describeRoomError(err, t, 'room.join.errGeneric');
+      // Biệt danh trùng báo ở ô biệt danh, còn lại báo ở ô mã
+      if (code === 'NICKNAME_TAKEN') setNicknameError(message);
+      else setCodeError(message);
     }
   };
 
   return (
-    <Modal
+    <Sheet
       isOpen={isOpen}
       onClose={onClose}
-      title="Tham gia phòng lập kế hoạch"
-      description="Nhập mã phòng do bạn bè chia sẻ để cùng chọn quán và bỏ phiếu."
-      maxWidth="sm"
+      title={t('room.join.title')}
+      description={t('room.join.desc')}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form={FORM_ID} loading={isLoading}>
+            {t('room.join.submit')}
+          </Button>
+        </>
+      }
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
-            {error}
-          </div>
-        )}
-
-        <Input
-          label="Mã phòng (Room Code)"
-          placeholder="Ví dụ: DIDAU8"
+      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4 pb-2" noValidate>
+        <TextField
+          label={t('room.join.codeLabel')}
+          hint={t('room.join.codeHint')}
+          error={codeError}
           value={roomCode}
-          onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-          maxLength={10}
+          onChange={(e) => setRoomCode(normalizeRoomCode(e.target.value))}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          inputMode="text"
           required
-          autoFocus
         />
-
-        <Input
-          label="Biệt danh của bạn"
-          placeholder="Ví dụ: ThuTrang"
+        <TextField
+          label={t('room.join.nicknameLabel')}
+          placeholder={t('room.join.nicknamePlaceholder')}
+          error={nicknameError}
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
+          maxLength={30}
           required
         />
-
-        <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-            Hủy
-          </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading}>
-            Vào phòng
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Sheet>
   );
 };

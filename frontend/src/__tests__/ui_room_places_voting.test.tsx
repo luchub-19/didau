@@ -62,9 +62,9 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     expect(badgeHtml).toContain('HOST');
     expect(badgeHtml).toContain('bg-amber-100');
 
-    const headerHtml = renderToStaticMarkup(<Header onGoHome={() => {}} />);
+    const headerHtml = renderToStaticMarkup(<Header />);
     expect(headerHtml).toContain('Đi Đâu');
-    expect(headerHtml).toContain('Planner');
+    expect(headerHtml).toContain('VI');
 
     const modalHtml = renderToStaticMarkup(
       <Modal isOpen={true} onClose={() => {}} title="Tiêu đề Modal">
@@ -122,8 +122,8 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     const modalHtml = renderToStaticMarkup(
       <CreateRoomModal isOpen={true} onClose={() => {}} onSuccess={() => {}} />,
     );
-    expect(modalHtml).toContain('Tạo phòng lập kế hoạch mới');
-    expect(modalHtml).toContain('Tên chuyến đi / Tiêu đề');
+    expect(modalHtml).toContain('Tạo phòng mới');
+    expect(modalHtml).toContain('Tên phòng');
   });
 
   it('tham gia phòng qua store và modal hoạt động', async () => {
@@ -139,8 +139,8 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     const modalHtml = renderToStaticMarkup(
       <JoinRoomModal isOpen={true} onClose={() => {}} onSuccess={() => {}} />,
     );
-    expect(modalHtml).toContain('Tham gia phòng lập kế hoạch');
-    expect(modalHtml).toContain('Mã phòng (Room Code)');
+    expect(modalHtml).toContain('Vào phòng');
+    expect(modalHtml).toContain('Mã phòng');
   });
 });
 
@@ -339,16 +339,13 @@ describe('T-20: Frontend UI - Realtime Voting & Host TieBreak Modal', () => {
 });
 
 describe('Page Integration & App Routing', () => {
-  it('HomePage render với đầy đủ thông tin, hero banner và tính năng', () => {
+  it('HomePage render tiêu đề, hai nút chính và 3 bước cách chơi', () => {
     const html = renderToStaticMarkup(<HomePage onNavigateToRoom={() => {}} />);
-    expect(html).toContain('Hôm nay nhóm mình');
-    expect(html).toContain('Đi Đâu?');
-    expect(html).toContain('Tạo phòng ngay');
+    expect(html).toContain('Tối nay nhóm mình đi đâu?');
+    expect(html).toContain('Tạo phòng');
     expect(html).toContain('Nhập mã phòng');
-    expect(html).toContain('Tự động phân loại danh mục');
-    expect(html).toContain('Bình chọn Realtime');
-    expect(html).toContain('TieBreak');
-    expect(html).toContain('Phát hiện xung đột thông minh');
+    expect(html).toContain('Cách chơi');
+    expect(html.match(/<li/g)?.length).toBe(3);
   });
 
   it('RoomPage render trạng thái loading ban đầu khi chưa mount', () => {
@@ -361,7 +358,6 @@ describe('Page Integration & App Routing', () => {
 
   it('App render mặc định vào HomePage', () => {
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Hôm nay nhóm mình');
-    expect(html).toContain('Đi Đâu?');
+    expect(html).toContain('Tối nay nhóm mình đi đâu?');
   });
 });

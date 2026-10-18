@@ -32,7 +32,6 @@ export const PENDING_FILES = new Set<string>([
   'components/common/categoryMetadata.ts',
 
   // T-41: Khung phòng + thanh tab dưới
-  'components/common/Header.tsx',
   'components/room/RoomHeader.tsx',
 
   // T-43: FE dịch chữ từ server (lỗi, thông báo, ws, store)
@@ -46,10 +45,6 @@ export const PENDING_FILES = new Set<string>([
   'store/useRoomStore.ts',
   'store/useScheduleStore.ts',
 
-  // T-44: Trang chủ, tạo/vào phòng
-  'components/room/CreateRoomModal.tsx',
-  'components/room/JoinRoomModal.tsx',
-  'pages/HomePage.tsx',
 
   // T-45: Tab Quán + vote
   'components/places/CategoryFilter.tsx',
