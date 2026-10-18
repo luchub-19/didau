@@ -25,18 +25,18 @@ export interface SpinWheelProps {
 
 // Bảng màu xen kẽ giữa các màu cat-*-soft và surface-2
 const SLICE_SOFT_COLORS = [
-  '#FFF7ED', // cat-food-soft
-  '#F5F5F4', // surface-2
-  '#ECFDF5', // cat-drink-soft
-  '#F5F5F4', // surface-2
-  '#FAF5FF', // cat-entertainment-soft
-  '#F5F5F4', // surface-2
-  '#EFF6FF', // cat-sightseeing-soft
-  '#F5F5F4', // surface-2
-  '#FFF1F2', // cat-accommodation-soft
-  '#F5F5F4', // surface-2
-  '#F0FDFA', // cat-shopping-soft
-  '#F5F5F4', // surface-2
+  'rgb(var(--color-cat-food-soft))', // cat-food-soft
+  'rgb(var(--color-surface-2))', // surface-2
+  'rgb(var(--color-cat-drink-soft))', // cat-drink-soft
+  'rgb(var(--color-surface-2))', // surface-2
+  'rgb(var(--color-cat-entertainment-soft))', // cat-entertainment-soft
+  'rgb(var(--color-surface-2))', // surface-2
+  'rgb(var(--color-cat-sightseeing-soft))', // cat-sightseeing-soft
+  'rgb(var(--color-surface-2))', // surface-2
+  'rgb(var(--color-cat-accommodation-soft))', // cat-accommodation-soft
+  'rgb(var(--color-surface-2))', // surface-2
+  'rgb(var(--color-cat-shopping-soft))', // cat-shopping-soft
+  'rgb(var(--color-surface-2))', // surface-2
 ];
 
 function polarToCartesian(cx: number, cy: number, r: number, angleInDegrees: number) {
@@ -133,7 +133,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
 
       const isWinnerSlice = hasRevealedWinner && place.id === wheelWinnerId;
       const sliceColor = isWinnerSlice
-        ? '#FF6B4A' // accent khi thắng
+        ? 'rgb(var(--color-accent))' // accent khi thắng
         : SLICE_SOFT_COLORS[idx % SLICE_SOFT_COLORS.length];
 
       return {
@@ -262,11 +262,11 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
           <svg width="28" height="34" viewBox="0 0 28 34" fill="none">
             <path
               d="M14 34L2 6C0.5 3 2.5 0 6 0H22C25.5 0 27.5 3 26 6L14 34Z"
-              fill="#FF6B4A"
-              stroke="#FFFFFF"
+              fill="rgb(var(--color-accent))"
+              stroke="rgb(var(--color-surface))"
               strokeWidth="2"
             />
-            <circle cx="14" cy="8" r="3" fill="#FFFFFF" />
+            <circle cx="14" cy="8" r="3" fill="rgb(var(--color-surface))" />
           </svg>
         </div>
 
@@ -288,7 +288,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
                   <path
                     d={describeArc(150, 150, 148, slice.startAngle, slice.endAngle)}
                     fill={slice.color}
-                    stroke="#E7E5E4"
+                    stroke="rgb(var(--color-line))"
                     strokeWidth="1.5"
                   />
                 )}
@@ -297,7 +297,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
                     x="150"
                     y="60"
                     textAnchor="middle"
-                    fill="#1C1917"
+                    fill="rgb(var(--color-ink))"
                     fontWeight="600"
                     fontSize="11"
                     className="select-none"
@@ -310,9 +310,9 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
               </g>
             ))}
             {/* Center Pin Hub */}
-            <circle cx="150" cy="150" r="22" fill="#FFFFFF" stroke="#E7E5E4" strokeWidth="3" />
-            <circle cx="150" cy="150" r="14" fill="#1C1917" />
-            <circle cx="150" cy="150" r="5" fill="#FFFFFF" />
+            <circle cx="150" cy="150" r="22" fill="rgb(var(--color-surface))" stroke="rgb(var(--color-line))" strokeWidth="3" />
+            <circle cx="150" cy="150" r="14" fill="rgb(var(--color-ink))" />
+            <circle cx="150" cy="150" r="5" fill="rgb(var(--color-surface))" />
           </svg>
         </div>
       </div>

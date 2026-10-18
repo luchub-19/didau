@@ -468,8 +468,8 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   width={64}
                   height={32}
                   rx={8}
-                  fill={isWinnerTop && isSessionResolved ? '#FFF1EC' : '#F5F5F4'}
-                  stroke={isWinnerTop && isSessionResolved ? '#FF6B4A' : '#E7E5E4'}
+                  fill={isWinnerTop && isSessionResolved ? 'rgb(var(--color-accent-soft))' : 'rgb(var(--color-surface-2))'}
+                  stroke={isWinnerTop && isSessionResolved ? 'rgb(var(--color-accent))' : 'rgb(var(--color-line))'}
                   strokeWidth={isWinnerTop && isSessionResolved ? 2 : 1}
                 />
                 <text
@@ -477,7 +477,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   y={28}
                   textAnchor="middle"
                   className="text-[11px] font-semibold"
-                  fill="#1C1917"
+                  fill="rgb(var(--color-ink))"
                 >
                   {c.name.length > 7 ? `${c.name.slice(0, 7)}…` : c.name}
                 </text>
@@ -486,7 +486,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   y={39}
                   textAnchor="middle"
                   className="text-[8px] font-medium"
-                  fill="#57534E"
+                  fill="rgb(var(--color-ink-2))"
                 >
                   {c.subtitle || ''}
                 </text>
@@ -505,7 +505,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                 y1={yTop}
                 x2={x}
                 y2={yBottom}
-                stroke="#E7E5E4"
+                stroke="rgb(var(--color-line))"
                 strokeWidth={3}
                 strokeLinecap="round"
               />
@@ -525,21 +525,21 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                 y1={y}
                 x2={x2}
                 y2={y}
-                stroke="#D6D3D1"
+                stroke="rgb(var(--color-ink-3))" strokeOpacity={0.5}
                 strokeWidth={3}
                 strokeLinecap="round"
               />
             );
           })}
 
-          {/* Winning Path Overlay (accent token #FF6B4A) */}
+          {/* Winning Path Overlay (token accent) */}
           {winningPathCoords && (
             <path
               ref={pathRef}
               data-testid="ladder-winning-path"
               d={winningPathCoords}
               fill="none"
-              stroke="#FF6B4A"
+              stroke="rgb(var(--color-accent))"
               strokeWidth={4}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -561,8 +561,8 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   cx={x}
                   cy={yBottom + 26}
                   r={16}
-                  fill={isWinningBottom ? '#FFF1EC' : '#F5F5F4'}
-                  stroke={isWinningBottom ? '#FF6B4A' : '#E7E5E4'}
+                  fill={isWinningBottom ? 'rgb(var(--color-accent-soft))' : 'rgb(var(--color-surface-2))'}
+                  stroke={isWinningBottom ? 'rgb(var(--color-accent))' : 'rgb(var(--color-line))'}
                   strokeWidth={2}
                 />
                 <text
@@ -570,7 +570,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   y={yBottom + 31}
                   textAnchor="middle"
                   className="text-xs font-bold"
-                  fill={isWinningBottom ? '#FF6B4A' : '#78716C'}
+                  fill={isWinningBottom ? 'rgb(var(--color-accent-text))' : 'rgb(var(--color-ink-3))'}
                 >
                   {isWinningBottom ? '★' : '•'}
                 </text>

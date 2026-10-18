@@ -173,6 +173,9 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     if (!isSessionOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Đang gõ chữ hoặc chọn trong ô nhập: mũi tên là để di chuyển con trỏ, không phải vuốt thẻ
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         handleSwipe(false);

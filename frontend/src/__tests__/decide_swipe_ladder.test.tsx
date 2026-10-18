@@ -259,7 +259,7 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
       );
 
       expect(html).toContain('ladder-winning-path');
-      expect(html).toContain('stroke="#FF6B4A"');
+      expect(html).toContain('stroke="rgb(var(--color-accent))"');
     });
 
     it('hỗ trợ chuyển đổi biến thể "Chọn người quyết định" với danh sách thành viên', () => {
