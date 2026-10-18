@@ -230,7 +230,7 @@ export const Sheet: React.FC<SheetProps> = ({
 
   const content = (
     <div
-      className={`fixed inset-0 z-sheet bg-ink/40 flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4 ${
+      className={`fixed inset-0 z-sheet bg-[var(--scrim)] flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4 ${
         isClosing ? 'sheet-backdrop-exit' : 'sheet-backdrop-enter'
       }`}
       onClick={(e) => {

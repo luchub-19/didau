@@ -133,6 +133,7 @@ describe('i18n parity test (tính tương đồng vi / en)', () => {
       // Khôi phục trạng thái
       coldStartManager.markCompleted();
       await i18n.changeLanguage('vi');
-    });
+      // import động cả cây App mất ~3s, quá 5s mặc định khi chạy song song (T-56)
+    }, 20000);
   });
 });

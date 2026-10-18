@@ -88,8 +88,9 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
         data-testid="conflict-alert-banner"
         className={`w-full px-4 py-3 sm:px-6 transition-colors ${bannerTheme.container}`}
       >
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3 min-w-0">
+        {/* Mobile: một hàng, chỉ giữ nút Chi tiết; đánh giá lại có trong sheet chi tiết, tab Lịch có ở thanh dưới (T-56) */}
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
             {isCriticalOrError ? (
               <WarningCircle size={22} weight="fill" className="shrink-0 mt-0.5 sm:mt-0" />
             ) : (
@@ -116,12 +117,12 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          <div className="flex items-center gap-2 shrink-0">
             {onSwitchToSchedule && (
               <button
                 type="button"
                 onClick={onSwitchToSchedule}
-                className="text-caption font-semibold underline hover:opacity-80 transition-opacity px-2 py-1"
+                className="hidden sm:inline text-caption font-semibold underline hover:opacity-80 transition-opacity px-2 py-1"
               >
                 {t('conflict.viewSchedule')}
               </button>
@@ -131,6 +132,7 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
               variant="secondary"
               onClick={handleReevaluate}
               loading={isEvaluating}
+              className="hidden sm:inline-flex"
             >
               {t('conflict.reevaluate')}
             </Button>

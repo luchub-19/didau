@@ -341,6 +341,7 @@ export const vi = {
     nearby: {
       title: 'Gợi ý quanh điểm hẹn',
       emptyDesc: 'Phòng chưa có địa điểm nào. Thử các quán gần nhất:',
+      desc: 'Các quán gần điểm hẹn nhất:',
       close: 'Đóng gợi ý',
       add: '+ Thêm',
     },

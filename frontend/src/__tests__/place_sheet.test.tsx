@@ -222,6 +222,37 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
       // Chứa các POI mẫu gần Q.1 trong mockPois
       expect(html).toContain('km');
     });
+
+    it('T-56: cột desktop khi phòng đã có quán không ghi "Phòng chưa có địa điểm nào"', () => {
+      const existingPlace: Place = {
+        id: 'p1',
+        room_id: sampleRoom.id,
+        submitted_by_id: 'host-1',
+        name: 'Quán cũ',
+        category: 'FOOD',
+        status: 'PROPOSED',
+        estimated_cost: 50000,
+        upvotes: 0,
+        downvotes: 0,
+        score: 0,
+        current_user_vote: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      const html = renderToStaticMarkup(
+        <NearbySuggestions
+          room={sampleRoom}
+          places={[existingPlace]}
+          pois={mockPois}
+          onSelectPoi={() => {}}
+          isDesktopColumn
+        />,
+      );
+
+      expect(html).toContain('Gợi ý quanh điểm hẹn');
+      expect(html).toContain('Các quán gần điểm hẹn nhất');
+      expect(html).not.toContain('Phòng chưa có địa điểm nào');
+    });
   });
 
   describe('5. PlaceCard badges & "Xem trên bản đồ"', () => {

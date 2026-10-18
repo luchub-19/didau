@@ -343,6 +343,7 @@ export const en: Messages = {
     nearby: {
       title: 'Suggestions near meeting point',
       emptyDesc: 'Room has no places yet. Try the nearest spots:',
+      desc: 'Closest spots to the meeting point:',
       close: 'Dismiss suggestions',
       add: '+ Add',
     },

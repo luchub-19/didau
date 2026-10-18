@@ -234,11 +234,14 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
       scheduleCount={schedule.length}
       hasConflicts={conflicts.length > 0}
       topBanner={
-        <ConflictAlertBanner
-          roomId={roomId}
-          conflicts={conflicts}
-          onSwitchToSchedule={() => setTab('schedule')}
-        />
+        // Tab Lịch đã có dải tóm tắt xung đột riêng, không báo hai lần (T-56)
+        activeTab !== 'schedule' ? (
+          <ConflictAlertBanner
+            roomId={roomId}
+            conflicts={conflicts}
+            onSwitchToSchedule={() => setTab('schedule')}
+          />
+        ) : null
       }
     >
       {/* Panel 1: Quán & Bỏ phiếu */}

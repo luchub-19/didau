@@ -358,6 +358,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
             </Button>
           )}
 
+          {/* Chưa đủ điều kiện thì ẩn khỏi thanh công cụ; trạng thái trống vẫn giải thích lý do (T-56) */}
           <AutoPlanButton
             roomId={roomId}
             places={places}
@@ -365,6 +366,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
             isHost={isHost}
             onOpenPreview={handleOpenAutoPlan}
             onOpenDecideModal={onOpenDecideModal}
+            hideWhenNotEligible
           />
 
           {onOpenAddModal && (

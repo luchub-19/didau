@@ -379,5 +379,39 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       expect(html).toContain('1 vấn đề trong lịch');
       expect(html).toContain('Chi tiết (1)');
     });
+
+    it('T-56: thanh công cụ không chen câu giải thích khi chưa đủ điều kiện lên lịch tự động', () => {
+      // Không quán nào đã chốt, chưa ai vote
+      const notEligiblePlaces = mockPlaces.map((p) => ({
+        ...p,
+        status: 'PROPOSED' as const,
+        upvotes: 0,
+        downvotes: 0,
+      }));
+      const html = renderToStaticMarkup(
+        <ScheduleTimeline
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          items={mockScheduleItems}
+          places={notEligiblePlaces}
+          conflicts={[]}
+        />,
+      );
+
+      expect(html).not.toContain('data-testid="auto-plan-button"');
+      expect(html).not.toContain('Cần ít nhất 1 quán đã chốt');
+    });
+
+    it('T-56: banner xung đột ở mobile chỉ giữ nút Chi tiết (Đánh giá lại, Xem lịch trình ẩn dưới sm)', () => {
+      const html = renderToStaticMarkup(
+        <ConflictAlertBanner
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          conflicts={mockConflicts}
+          onSwitchToSchedule={() => {}}
+        />,
+      );
+
+      expect(html).toMatch(/class="[^"]*hidden sm:inline-flex[^"]*"[^>]*>(?:(?!<\/button>).)*Đánh giá lại/);
+      expect(html).toMatch(/class="hidden sm:inline [^"]*"[^>]*>Xem lịch trình/);
+    });
   });
 });

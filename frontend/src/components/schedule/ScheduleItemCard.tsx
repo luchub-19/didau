@@ -76,7 +76,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
       onDrop={(e) => onDrop?.(e, item.id)}
       onDragEnd={onDragEnd}
       data-testid={`schedule-item-${item.id}`}
-      className={`group relative flex items-start gap-3.5 p-4 rounded-card bg-surface border transition-colors duration-150 ${
+      className={`group relative flex flex-wrap sm:flex-nowrap items-start gap-x-3.5 gap-y-1 p-4 rounded-card bg-surface border transition-colors duration-150 ${
         isConflict
           ? isCriticalOrError
             ? 'border-danger/50 ring-1 ring-danger/25 shadow-xs'
@@ -151,8 +151,8 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
 
         {/* Tên quán và icon danh mục */}
         <div className="flex items-center gap-2 mt-1">
-          <CategoryIcon category={category} size="sm" />
-          <h4 className="text-body font-bold text-ink truncate">
+          <CategoryIcon category={category} size="sm" className="shrink-0 whitespace-nowrap" />
+          <h4 className="text-body font-bold text-ink line-clamp-2 min-w-0">
             {item.place_name}
           </h4>
         </div>
@@ -191,8 +191,8 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
         )}
       </div>
 
-      {/* Nút hành động: Lên, Xuống, Xoá */}
-      <div className="flex items-center gap-0.5 self-start pt-0.5 shrink-0">
+      {/* Nút hành động: Lên, Xuống, Xoá. Mobile xuống hàng riêng để không bóp tên quán (T-56) */}
+      <div className="flex items-center justify-end gap-0.5 basis-full -mb-2 sm:basis-auto sm:mb-0 self-start sm:pt-0.5 shrink-0">
         {onMoveUp && (
           <button
             type="button"

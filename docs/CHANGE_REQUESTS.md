@@ -321,3 +321,26 @@ Giai đoạn 3 thêm tiếng Anh với yêu cầu "EN thì toàn bộ tiếng An
 ### 3. Phương án nếu không duyệt
 FE tự dựng câu xung đột từ `rule_code` + `entity_ids` + dữ liệu trong store (thiếu số phút di chuyển); ở chế độ EN ẩn phần lý do chi tiết của chọn hộ/lên lịch, chỉ hiện điểm số và thời gian. Không bao giờ hiện câu tiếng Việt của server ở chế độ EN.
 
+
+---
+
+## CR-07: TRAVEL_TIME bỏ qua cặp mục lịch đã chồng giờ
+
+- **Người đề xuất**: Session kiểm tra trực quan (2026-10-18), lỗi V2 trong `docs/phase3/reviews/VISUAL-QA-2026-10-18.md`
+- **Ngày tạo**: 2026-10-18
+- **Trạng thái**: PROPOSED (CHỜ NGƯỜI DÙNG DUYỆT)
+- **Task đã DONE bị ảnh hưởng**: T-05/T-12 (`TravelTimeConflictRule` trong `conflict_rule/implementations.py`). Không đổi schema, API hay WS.
+
+### 1. Vấn đề
+Hai mục lịch liền nhau chồng giờ (ví dụ 18:00–19:30 và 19:00–20:30) sinh **hai** xung đột: `TIME_OVERLAP` (đúng) và
+`TRAVEL_TIME` với `gap_minutes = -30`. Giao diện hiện câu "cần khoảng 10 phút di chuyển nhưng chỉ có -30 phút",
+vô nghĩa với người dùng và đếm trùng (banner báo 2 vấn đề cho một lỗi).
+
+### 2. Đề xuất
+`TravelTimeConflictRule` chỉ xét cặp có `gap_minutes >= 0`; cặp chồng giờ để `TIME_OVERLAP` báo. Thêm test unit
+cho trường hợp chồng giờ (chỉ còn 1 xung đột) và giữ test cũ cho gap dương nhỏ hơn thời gian di chuyển.
+Ghi một dòng vào CONTRACTS §1.13 A (`TRAVEL_TIME` chỉ sinh khi `gap_min >= 0`).
+
+### 3. Phương án nếu không duyệt
+Frontend tự ẩn xung đột `TRAVEL_TIME` có `params.gap_min < 0` khi đã có `TIME_OVERLAP` cho cùng cặp; số đếm trên
+banner vẫn lệch với server.

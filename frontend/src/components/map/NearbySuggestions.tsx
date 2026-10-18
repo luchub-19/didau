@@ -94,7 +94,7 @@ export const NearbySuggestions: React.FC<NearbySuggestionsProps> = ({
             <span>{t('map.nearby.title')}</span>
           </h4>
           <p className="text-caption text-ink-3 mt-0.5">
-            {t('map.nearby.emptyDesc')}
+            {t(places.length === 0 ? 'map.nearby.emptyDesc' : 'map.nearby.desc')}
           </p>
         </div>
         {!isDesktopColumn && (
