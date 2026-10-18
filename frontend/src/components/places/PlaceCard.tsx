@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../i18n/useLanguage';
 import { formatMoney, formatTimeRange } from '../../i18n/format';
@@ -14,6 +14,7 @@ import {
   MapPin,
   MapTrifold,
   ArrowRight,
+  Check,
 } from '../ui/Icon';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { VoteButtons } from '../voting/VoteButtons';
@@ -47,6 +48,22 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   const { lang } = useLanguage();
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Khoảnh khắc chốt quán đặc trưng (T-53)
+  const prevStatusRef = useRef(place.status);
+  const [isJustAccepted, setIsJustAccepted] = useState(false);
+
+  useEffect(() => {
+    if (prevStatusRef.current !== 'ACCEPTED' && place.status === 'ACCEPTED') {
+      setIsJustAccepted(true);
+      toast.success(t('place.acceptedToast', { name: place.name }));
+      const timer = setTimeout(() => {
+        setIsJustAccepted(false);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+    prevStatusRef.current = place.status;
+  }, [place.status, place.name, t]);
 
   const isOwner = Boolean(currentMemberId && place.submitted_by_id === currentMemberId);
   const canDelete = isHost || isOwner;
@@ -90,7 +107,9 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   // Viền và nền thẻ: chốt > dẫn đầu > bình thường
   let borderAndBg = 'border-line bg-surface';
   if (place.status === 'ACCEPTED') {
-    borderAndBg = 'border-success ring-1 ring-success/20 bg-surface';
+    borderAndBg = isJustAccepted
+      ? 'place-card-lock-in bg-surface'
+      : 'border-success ring-1 ring-success/20 bg-surface';
   } else if (isTopPick) {
     borderAndBg = 'border-accent/40 bg-accent-soft/30';
   } else if (place.status === 'REJECTED') {
@@ -113,7 +132,12 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
 
               {place.status === 'ACCEPTED' ? (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-semibold bg-success-soft text-success border border-success/20">
-                  {t('place.accepted')}
+                  <Check
+                    size={14}
+                    weight="bold"
+                    className={`mr-1 shrink-0 ${isJustAccepted ? 'checkmark-draw' : ''}`}
+                  />
+                  <span>{t('place.accepted')}</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium bg-surface-2 text-ink-3 border border-line">

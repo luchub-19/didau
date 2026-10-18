@@ -260,7 +260,8 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
                 return (
                   <div
                     key={slot.place_id}
-                    className="p-3.5 bg-surface border border-line rounded-card space-y-2.5 shadow-xs"
+                    className="p-3.5 bg-surface border border-line rounded-card space-y-2.5 shadow-xs slot-stagger"
+                    style={{ animationDelay: `${Math.min(index * 35, 260)}ms` }}
                     data-testid={`slot-${slot.place_id}`}
                   >
                     {slot.travel_from_prev_min > 0 && (

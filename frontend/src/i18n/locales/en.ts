@@ -173,6 +173,7 @@ export const en: Messages = {
     sortUpvotes: 'Most upvotes',
     topPick: 'Top pick',
     accepted: 'Locked in',
+    acceptedToast: 'Locked in {{name}}',
     statusLabel: {
       PROPOSED: 'Proposed',
       VOTING: 'Voting',

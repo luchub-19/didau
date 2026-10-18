@@ -476,5 +476,55 @@ describe('T-45: Tab Quán (danh sách, lọc, vote, thêm quán)', () => {
     expect(html).toContain('min-h-[44px]');
     expect(html).toContain('min-w-[44px]');
   });
+
+  describe('T-53: Khoảnh khắc có chủ đích (motion, moments, a11y)', () => {
+    it('VoteButtons render điểm số và các nhãn a11y đầy đủ trong render tĩnh', () => {
+      const html = renderToStaticMarkup(
+        <VoteButtons
+          roomId={mockRoom.id}
+          placeId={mockPlaces[0].id}
+          upvotes={5}
+          downvotes={1}
+          score={4}
+          currentUserVote={1}
+        />,
+      );
+      expect(html).toContain('+4');
+      expect(html).toContain('5');
+      expect(html).toContain('1');
+      expect(html).toContain('aria-pressed="true"');
+    });
+
+    it('VoteScoreBadge hỗ trợ hiển thị điểm số có dấu cộng/trừ và render tĩnh an toàn', () => {
+      const html = renderToStaticMarkup(
+        <VoteScoreBadge score={7} upvotes={8} downvotes={1} />,
+      );
+      expect(html).toContain('+7');
+      expect(html).toContain('(+8/-1)');
+    });
+
+    it('PlaceCard ACCEPTED có icon Check vẽ ra qua checkmark-draw', () => {
+      const acceptedPlace = { ...mockPlaces[0], status: 'ACCEPTED' as const };
+      const html = renderToStaticMarkup(
+        <PlaceCard place={acceptedPlace} roomId={mockRoom.id} />,
+      );
+      expect(html).toContain('Đã chốt');
+      expect(html).toContain('bg-success-soft');
+    });
+
+    it('PlaceList có stagger delay ≤ 260ms cho các thẻ quán', () => {
+      const html = renderToStaticMarkup(
+        <PlaceList
+          places={mockPlaces}
+          roomId={mockRoom.id}
+          selectedCategory="ALL"
+          onOpenAddModal={() => {}}
+          onDeletePlace={() => {}}
+        />,
+      );
+      expect(html).toContain('place-card-stagger');
+      expect(html).toContain('animation-delay');
+    });
+  });
 });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export interface VoteScoreBadgeProps {
@@ -15,6 +15,22 @@ export const VoteScoreBadge: React.FC<VoteScoreBadgeProps> = ({
   className = '',
 }) => {
   const { t } = useTranslation();
+  const [scoreAnim, setScoreAnim] = useState<'up' | 'down' | null>(null);
+  const prevScoreRef = useRef(score);
+  const scoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (score !== prevScoreRef.current) {
+      const dir = score > prevScoreRef.current ? 'up' : 'down';
+      prevScoreRef.current = score;
+      if (scoreTimeoutRef.current) clearTimeout(scoreTimeoutRef.current);
+      setScoreAnim(dir);
+      scoreTimeoutRef.current = setTimeout(() => setScoreAnim(null), 180);
+    }
+    return () => {
+      if (scoreTimeoutRef.current) clearTimeout(scoreTimeoutRef.current);
+    };
+  }, [score]);
 
   const scoreColor =
     score > 0
@@ -25,10 +41,16 @@ export const VoteScoreBadge: React.FC<VoteScoreBadgeProps> = ({
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-card border text-caption font-bold tabular-nums ${scoreColor} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-card border text-caption font-bold tabular-nums overflow-hidden ${scoreColor} ${className}`}
       title={t('vote.scoreTitle', { score, upvotes, downvotes })}
     >
-      <span>{score > 0 ? `+${score}` : score}</span>
+      <span
+        className={`inline-block ${
+          scoreAnim === 'up' ? 'num-slide-up' : scoreAnim === 'down' ? 'num-slide-down' : ''
+        }`}
+      >
+        {score > 0 ? `+${score}` : score}
+      </span>
       <span className="text-caption font-medium opacity-75">
         (+{upvotes}/-{downvotes})
       </span>

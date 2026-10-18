@@ -275,7 +275,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
           data-testid="wheel-disc"
           style={{
             transform: `rotate(${currentRotation}deg)`,
-            transition: isSpinning ? 'transform 4s cubic-bezier(0.15, 0.9, 0.2, 1.0)' : 'none',
+            transition: isSpinning ? 'transform 4s var(--ease-out)' : 'none',
           }}
           className="w-[280px] h-[280px] rounded-full shadow-md border-4 border-surface bg-surface-2 relative overflow-hidden"
         >
@@ -322,7 +322,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
         <div
           data-testid="winner-announcement"
           aria-live="polite"
-          className="w-full p-4 rounded-card bg-accent-soft/40 border border-accent/40 text-center space-y-2 animate-fade-in"
+          className="w-full p-4 rounded-card bg-accent-soft/40 border border-accent/40 text-center space-y-2 winner-reveal-card"
         >
           <div className="flex justify-center text-accent-text">
             <Sparkle size={28} weight="fill" />
@@ -338,7 +338,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
           </p>
 
           {isHost ? (
-            <div className="pt-2 flex items-center justify-center gap-2">
+            <div className="pt-2 flex items-center justify-center gap-2 winner-actions-in">
               <Button
                 variant="primary"
                 size="md"
@@ -359,7 +359,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
               </Button>
             </div>
           ) : (
-            <p className="text-caption text-ink-3 italic pt-1">
+            <p className="text-caption text-ink-3 italic pt-1 winner-actions-in">
               {t('decide.wheel.waitingHostToAccept')}
             </p>
           )}

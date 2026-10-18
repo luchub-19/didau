@@ -155,6 +155,147 @@
   transition-duration: var(--t-ui);
 }
 
+/* Vote interaction (T-53): pop nút và chuyển số mượt mà */
+@keyframes vote-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+.vote-pop {
+  animation: vote-pop 160ms var(--ease-out);
+}
+
+@keyframes num-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes num-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.num-slide-up {
+  animation: num-slide-up 160ms var(--ease-out);
+}
+
+.num-slide-down {
+  animation: num-slide-down 160ms var(--ease-out);
+}
+
+/* Danh sách quán & Chốt quán (T-53) */
+@keyframes place-card-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.place-card-stagger {
+  animation: place-card-stagger-in var(--t-ui) var(--ease-out) both;
+}
+
+@keyframes place-lock-in-sweep {
+  0% {
+    border-color: rgb(var(--color-accent));
+    box-shadow: 0 0 0 2px rgb(var(--color-accent) / 0.4), inset 0 0 16px rgb(var(--color-accent-soft) / 0.8);
+    background-color: rgb(var(--color-accent-soft) / 0.4);
+  }
+  60% {
+    border-color: rgb(var(--color-accent));
+    box-shadow: 0 0 0 2px rgb(var(--color-accent) / 0.25), inset 0 0 8px rgb(var(--color-accent-soft) / 0.3);
+    background-color: rgb(var(--color-surface));
+  }
+  100% {
+    border-color: rgb(var(--color-success));
+    box-shadow: 0 0 0 1px rgb(var(--color-success) / 0.2);
+    background-color: rgb(var(--color-surface));
+  }
+}
+
+.place-card-lock-in {
+  animation: place-lock-in-sweep var(--t-moment) var(--ease-out) forwards;
+}
+
+@keyframes checkmark-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.checkmark-draw {
+  animation: checkmark-draw var(--t-moment) var(--ease-out) forwards;
+}
+
+/* Quán thắng lộ diện (T-53) */
+@keyframes winner-reveal {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0 round var(--radius-card));
+    transform: translateY(12px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round var(--radius-card));
+    transform: translateY(0) scale(1);
+  }
+}
+
+.winner-reveal-card {
+  animation: winner-reveal 400ms var(--ease-out) both;
+}
+
+@keyframes winner-actions-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.winner-actions-in {
+  animation: winner-actions-in 220ms var(--ease-out) 260ms both;
+}
+
+/* Slot lịch trình tự động (T-53) */
+@keyframes slot-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slot-stagger {
+  animation: slot-stagger-in var(--t-ui) var(--ease-out) both;
+}
+
 /* A11y: prefers-reduced-motion overrides */
 @media (prefers-reduced-motion: reduce) {
   .pressable:active:not(:disabled) {
@@ -189,5 +330,19 @@
 
   .tab-indicator {
     transition: none !important;
+  }
+
+  .vote-pop,
+  .num-slide-up,
+  .num-slide-down,
+  .place-card-stagger,
+  .place-card-lock-in,
+  .checkmark-draw,
+  .winner-reveal-card,
+  .winner-actions-in,
+  .slot-stagger {
+    animation: none !important;
+    clip-path: none !important;
+    transform: none !important;
   }
 }

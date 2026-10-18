@@ -171,6 +171,7 @@ export const vi = {
     sortUpvotes: 'Nhiều vote nhất',
     topPick: 'Dẫn đầu',
     accepted: 'Đã chốt',
+    acceptedToast: 'Đã chốt {{name}}',
     statusLabel: {
       PROPOSED: 'Mới đề xuất',
       VOTING: 'Đang bình chọn',

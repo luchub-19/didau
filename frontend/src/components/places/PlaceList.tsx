@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PlaceCard } from './PlaceCard';
 import { Button } from '../ui/Button';
@@ -26,6 +26,9 @@ export interface PlaceListProps {
 
 type SortOption = 'SCORE' | 'NEWEST';
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 export const PlaceList: React.FC<PlaceListProps> = ({
   places,
   roomId,
@@ -43,6 +46,56 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('SCORE');
+
+  // Hiệu ứng xuất hiện lần lượt cho danh sách tải lần đầu (T-53)
+  const [shouldAnimateInitial, setShouldAnimateInitial] = useState(true);
+
+  useEffect(() => {
+    // Tự động tắt stagger sau khi hoàn tất đợt xuất hiện đầu tiên
+    const timer = setTimeout(() => {
+      setShouldAnimateInitial(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // FLIP Animation khi đổi thứ tự sắp xếp do vote (T-53)
+  const cardElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const prevRectsRef = useRef<Map<string, DOMRect>>(new Map());
+
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const currentRects = new Map<string, DOMRect>();
+    cardElementsRef.current.forEach((el, id) => {
+      if (el) {
+        currentRects.set(id, el.getBoundingClientRect());
+      }
+    });
+
+    if (prevRectsRef.current.size > 0 && !shouldAnimateInitial) {
+      cardElementsRef.current.forEach((el, id) => {
+        const prevRect = prevRectsRef.current.get(id);
+        const currentRect = currentRects.get(id);
+        if (prevRect && currentRect) {
+          const deltaX = prevRect.left - currentRect.left;
+          const deltaY = prevRect.top - currentRect.top;
+          if (deltaX !== 0 || deltaY !== 0) {
+            el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            el.style.transition = 'none';
+
+            requestAnimationFrame(() => {
+              el.style.transition = 'transform var(--t-ui) var(--ease-out)';
+              el.style.transform = '';
+            });
+          }
+        }
+      });
+    }
+
+    prevRectsRef.current = currentRects;
+  });
 
   // Lọc theo danh mục
   const categoryFiltered = useMemo(() => {
@@ -117,20 +170,34 @@ export const PlaceList: React.FC<PlaceListProps> = ({
       {/* Lưới danh sách quán */}
       {sorted.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sorted.map((place) => {
+          {sorted.map((place, index) => {
             const isTopPick = maxScore > 0 && place.score === maxScore;
             return (
-              <PlaceCard
+              <div
                 key={place.id}
-                place={place}
-                roomId={roomId}
-                currentMemberId={currentMemberId}
-                isHost={isHost}
-                isVotingDisabled={isVotingDisabled}
-                isTopPick={isTopPick}
-                onDeletePlace={onDeletePlace}
-                onViewOnMap={onViewOnMap}
-              />
+                ref={(el) => {
+                  if (el) cardElementsRef.current.set(place.id, el);
+                  else cardElementsRef.current.delete(place.id);
+                }}
+                className={shouldAnimateInitial ? 'place-card-stagger flex flex-col' : 'flex flex-col'}
+                style={
+                  shouldAnimateInitial
+                    ? { animationDelay: `${Math.min(index * 35, 260)}ms` }
+                    : undefined
+                }
+              >
+                <PlaceCard
+                  place={place}
+                  roomId={roomId}
+                  currentMemberId={currentMemberId}
+                  isHost={isHost}
+                  isVotingDisabled={isVotingDisabled}
+                  isTopPick={isTopPick}
+                  onDeletePlace={onDeletePlace}
+                  onViewOnMap={onViewOnMap}
+                  className="h-full"
+                />
+              </div>
             );
           })}
         </div>
