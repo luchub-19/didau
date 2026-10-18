@@ -161,7 +161,7 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
       const meta = CATEGORY_METADATA[cat];
       const expectedLabel = meta.label.replace('&', '&amp;');
       expect(html).toContain(expectedLabel);
-      expect(html).toContain(meta.icon);
+      expect(html).toContain('<svg');
     });
   });
 
@@ -193,7 +193,7 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
     );
 
     expect(html).toContain(place.name);
-    expect(html).toContain('55.000 đ');
+    expect(html).toContain('55.000');
     expect(html).toContain('07:00 - 23:00');
     expect(html).toContain('HoangNam');
     expect(html).toContain('VOTING');
@@ -214,12 +214,11 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
     const formHtml = renderToStaticMarkup(
       <PlaceForm isOpen={true} onClose={() => {}} roomId={mockRoom.id} />,
     );
-    expect(formHtml).toContain('Đề xuất địa điểm mới');
-    expect(formHtml).toContain('Tên địa điểm / Quán');
-    expect(formHtml).toContain('Chi phí ước lượng');
+    expect(formHtml).toContain('Đề xuất quán mới');
+    expect(formHtml).toContain('Tên quán hoặc link');
   });
 
-  it('PlaceList hiển thị danh sách các quán và thanh tìm kiếm/sắp xếp', () => {
+  it('PlaceList hiển thị danh sách các quán và thanh sắp xếp', () => {
     const html = renderToStaticMarkup(
       <PlaceList
         places={mockPlaces}
@@ -232,12 +231,29 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
       />,
     );
 
-    expect(html).toContain('Tìm theo tên quán, địa chỉ...');
     expect(html).toContain('Điểm cao nhất');
     expect(html).toContain('Thêm quán');
     mockPlaces.forEach((p) => {
       expect(html).toContain(p.name);
     });
+  });
+
+  it('PlaceList hiển thị ô tìm kiếm khi danh sách có hơn 8 quán', () => {
+    const manyPlaces = Array.from({ length: 9 }, (_, i) => ({
+      ...mockPlaces[0],
+      id: `p-${i}`,
+      name: `Quán ăn số ${i + 1}`,
+    }));
+    const html = renderToStaticMarkup(
+      <PlaceList
+        places={manyPlaces}
+        roomId={mockRoom.id}
+        selectedCategory="ALL"
+        onOpenAddModal={() => {}}
+        onDeletePlace={() => {}}
+      />,
+    );
+    expect(html).toContain('Tìm theo tên quán, địa chỉ…');
   });
 });
 
@@ -249,7 +265,7 @@ describe('T-20: Frontend UI - Realtime Voting & Host TieBreak Modal', () => {
     expect(scoreBadgeHtml).toContain('+4');
     expect(scoreBadgeHtml).toContain('(+5/-1)');
 
-    // Upvoted state (currentUserVote = 1) -> green active style
+    // Upvoted state (currentUserVote = 1) -> accent-soft active style
     const upvotedButtonsHtml = renderToStaticMarkup(
       <VoteButtons
         roomId={mockRoom.id}
@@ -260,10 +276,10 @@ describe('T-20: Frontend UI - Realtime Voting & Host TieBreak Modal', () => {
         currentUserVote={1}
       />,
     );
-    expect(upvotedButtonsHtml).toContain('bg-emerald-500');
+    expect(upvotedButtonsHtml).toContain('bg-accent-soft');
     expect(upvotedButtonsHtml).toContain('+4');
 
-    // Downvoted state (currentUserVote = -1) -> red active style
+    // Downvoted state (currentUserVote = -1) -> danger-soft active style
     const downvotedButtonsHtml = renderToStaticMarkup(
       <VoteButtons
         roomId={mockRoom.id}
@@ -274,7 +290,7 @@ describe('T-20: Frontend UI - Realtime Voting & Host TieBreak Modal', () => {
         currentUserVote={-1}
       />,
     );
-    expect(downvotedButtonsHtml).toContain('bg-rose-500');
+    expect(downvotedButtonsHtml).toContain('bg-danger-soft');
     expect(downvotedButtonsHtml).toContain('-1');
   });
 
@@ -361,3 +377,79 @@ describe('Page Integration & App Routing', () => {
     expect(html).toContain('Tối nay nhóm mình đi đâu?');
   });
 });
+
+describe('T-45: Tab Quán (danh sách, lọc, vote, thêm quán)', () => {
+  it('tên quán dài 80 ký tự hiển thị an toàn với line-clamp-2', () => {
+    const longNamePlace = {
+      ...mockPlaces[0],
+      name: 'Quán ăn ngon ơi là ngon có một không hai tại số 123 đường Nguyễn Huệ quận nhất Sài Gòn',
+    };
+    const html = renderToStaticMarkup(
+      <PlaceCard place={longNamePlace} roomId={mockRoom.id} onDeletePlace={() => {}} />,
+    );
+    expect(html).toContain('line-clamp-2');
+    expect(html).toContain(longNamePlace.name);
+  });
+
+  it('danh sách 50 quán render thành công không gặp lỗi', () => {
+    const fiftyPlaces = Array.from({ length: 50 }, (_, i) => ({
+      ...mockPlaces[0],
+      id: `place-${i}`,
+      name: `Quán ăn thử nghiệm ${i + 1}`,
+    }));
+    const html = renderToStaticMarkup(
+      <PlaceList
+        places={fiftyPlaces}
+        roomId={mockRoom.id}
+        selectedCategory="ALL"
+        onOpenAddModal={() => {}}
+        onDeletePlace={() => {}}
+      />,
+    );
+    expect(html).toContain('Quán ăn thử nghiệm 1');
+    expect(html).toContain('Quán ăn thử nghiệm 50');
+  });
+
+  it('quán đang dẫn đầu được nhấn bằng viền/nền coral nhẹ', () => {
+    const places = [
+      { ...mockPlaces[0], id: 'p-1', score: 10 },
+      { ...mockPlaces[1], id: 'p-2', score: 3 },
+    ];
+    const html = renderToStaticMarkup(
+      <PlaceList
+        places={places}
+        roomId={mockRoom.id}
+        selectedCategory="ALL"
+        onOpenAddModal={() => {}}
+        onDeletePlace={() => {}}
+      />,
+    );
+    expect(html).toContain('bg-accent-soft/30');
+  });
+
+  it('quán ACCEPTED hiển thị nhãn Đã chốt màu success', () => {
+    const acceptedPlace = { ...mockPlaces[0], status: 'ACCEPTED' as const };
+    const html = renderToStaticMarkup(
+      <PlaceCard place={acceptedPlace} roomId={mockRoom.id} />,
+    );
+    expect(html).toContain('Đã chốt');
+    expect(html).toContain('bg-success-soft');
+    expect(html).toContain('text-success');
+  });
+
+  it('nút vote có kích thước chạm tối thiểu 44x44px phục vụ mobile', () => {
+    const html = renderToStaticMarkup(
+      <VoteButtons
+        roomId={mockRoom.id}
+        placeId={mockPlaces[0].id}
+        upvotes={3}
+        downvotes={0}
+        score={3}
+        currentUserVote={0}
+      />,
+    );
+    expect(html).toContain('min-h-[44px]');
+    expect(html).toContain('min-w-[44px]');
+  });
+});
+

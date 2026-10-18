@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PlaceCategory } from '../../types';
 import { CATEGORY_METADATA } from './categoryMetadata';
 
@@ -15,37 +16,42 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({
   size = 'md',
   className = '',
 }) => {
+  const { t } = useTranslation();
   const meta = CATEGORY_METADATA[category] || CATEGORY_METADATA.OTHER;
+  const label: string = t(meta.labelKey);
 
   const sizeClasses = {
-    sm: 'text-xs px-2 py-0.5 gap-1',
-    md: 'text-xs px-2.5 py-1 gap-1.5',
-    lg: 'text-sm px-3 py-1.5 gap-2',
+    sm: 'text-caption px-2 py-0.5 gap-1',
+    md: 'text-label px-2.5 py-1 gap-1.5',
+    lg: 'text-body px-3 py-1.5 gap-2',
   }[size];
 
   const iconSizes = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-base',
+    sm: 14,
+    md: 16,
+    lg: 18,
   }[size];
+
+  const IconComp = meta.IconComponent;
 
   if (!showLabel) {
     return (
       <span
-        title={meta.label}
-        className={`inline-flex items-center justify-center rounded-lg border ${meta.bg} ${meta.border} p-1.5 ${className}`}
+        title={label}
+        aria-label={label}
+        className={`inline-flex items-center justify-center rounded-lg border ${meta.softBg} ${meta.softText} ${meta.border} p-1.5 ${className}`}
       >
-        <span className={iconSizes}>{meta.icon}</span>
+        <IconComp size={iconSizes} weight="fill" className="shrink-0" />
       </span>
     );
   }
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full border ${meta.bg} ${meta.text} ${meta.border} ${sizeClasses} ${className}`}
+      className={`inline-flex items-center font-medium rounded-full border ${meta.softBg} ${meta.softText} ${meta.border} ${sizeClasses} ${className}`}
     >
-      <span className={iconSizes}>{meta.icon}</span>
-      <span>{meta.label}</span>
+      <IconComp size={iconSizes} weight="fill" className="shrink-0" />
+      <span>{label}</span>
     </span>
   );
 };

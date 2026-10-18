@@ -1,6 +1,23 @@
-import { Badge, CategoryIcon } from '../common';
-import { VoteButtons } from '../voting/VoteButtons';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../i18n/useLanguage';
+import { formatMoney, formatTimeRange } from '../../i18n/format';
 import { useMapStore } from '../../store/useMapStore';
+import { Card } from '../ui/Card';
+import { Avatar } from '../ui/Avatar';
+import { ConfirmSheet } from '../ui/ConfirmSheet';
+import { IconButton } from '../ui/IconButton';
+import {
+  DotsThree,
+  Clock,
+  CurrencyCircleDollar,
+  MapPin,
+  MapTrifold,
+  ArrowRight,
+} from '../ui/Icon';
+import { CategoryIcon } from '../common/CategoryIcon';
+import { VoteButtons } from '../voting/VoteButtons';
+import { toast } from '../ui/toastStore';
 import type { Place } from '../../types';
 
 export interface PlaceCardProps {
@@ -9,17 +26,10 @@ export interface PlaceCardProps {
   currentMemberId?: string;
   isHost?: boolean;
   isVotingDisabled?: boolean;
+  isTopPick?: boolean;
   onDeletePlace?: (placeId: string) => void;
   onViewOnMap?: (place: Place) => void;
   className?: string;
-}
-
-// Convert minutes from 0:00 to "HH:mm"
-function formatMinutes(minutes?: number | null): string | null {
-  if (minutes === undefined || minutes === null) return null;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
 
 export const PlaceCard: React.FC<PlaceCardProps> = ({
@@ -28,16 +38,24 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   currentMemberId,
   isHost = false,
   isVotingDisabled = false,
+  isTopPick = false,
   onDeletePlace,
   onViewOnMap,
   className = '',
 }) => {
-  const isOwner = currentMemberId && place.submitted_by_id === currentMemberId;
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isOwner = Boolean(currentMemberId && place.submitted_by_id === currentMemberId);
   const canDelete = isHost || isOwner;
 
-  const openStr = formatMinutes(place.open_minute);
-  const closeStr = formatMinutes(place.close_minute);
-  const hoursDisplay = openStr && closeStr ? `${openStr} - ${closeStr}` : null;
+  const hasHours = place.open_minute != null && place.close_minute != null;
+  const hoursDisplay = hasHours
+    ? formatTimeRange(place.open_minute as number, place.close_minute as number, lang)
+    : null;
+
   const hasCoordinates =
     (place.latitude != null && place.longitude != null) || Boolean(place.external_id);
 
@@ -49,170 +67,188 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!onDeletePlace) return;
+    setIsDeleting(true);
+    try {
+      await onDeletePlace(place.id);
+      setIsConfirmDeleteOpen(false);
+      toast.success(t('place.deleteSuccess'));
+    } catch {
+      toast.error(t('place.deleteError'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const isOsm = place.source === 'OSM' || (place.source as unknown as string) === 'osm';
   const isGoogle =
     place.source === 'GOOGLE' ||
     (place.source as unknown as string) === 'google' ||
     Boolean(place.google_place_id);
 
-  return (
-    <div
-      className={`bg-white rounded-2xl border transition-all hover:shadow-md overflow-hidden flex flex-col justify-between ${
-        place.status === 'ACCEPTED'
-          ? 'border-emerald-300 ring-2 ring-emerald-500/20'
-          : place.status === 'REJECTED'
-          ? 'border-slate-200 opacity-70 bg-slate-50/50'
-          : 'border-slate-200 shadow-xs'
-      } ${className}`}
-    >
-      <div className="p-4 sm:p-5 space-y-3">
-        {/* Header: Category + Status Badge + Source Badge + Delete */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <CategoryIcon category={place.category} size="sm" />
-            <Badge variant={place.status} size="sm">
-              {place.status}
-            </Badge>
+  // Viền và nền thẻ: chốt > dẫn đầu > bình thường
+  let borderAndBg = 'border-line bg-surface';
+  if (place.status === 'ACCEPTED') {
+    borderAndBg = 'border-success ring-1 ring-success/20 bg-surface';
+  } else if (isTopPick) {
+    borderAndBg = 'border-accent/40 bg-accent-soft/30';
+  } else if (place.status === 'REJECTED') {
+    borderAndBg = 'border-line opacity-60 bg-surface-2';
+  }
 
-            {isOsm && (
-              <span
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
-                title="Nguồn: OpenStreetMap"
-                data-testid="badge-source-osm"
-              >
-                🗺️ OSM
-              </span>
-            )}
-            {isGoogle && (
-              <span
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                title="Nguồn: Google Places"
-                data-testid="badge-source-google"
-              >
-                G Google
-              </span>
+  const proposerName = place.submitted_by_nickname || t('place.defaultMember');
+
+  return (
+    <>
+      <Card
+        as="article"
+        className={`flex flex-col justify-between overflow-hidden p-4 sm:p-5 transition-colors ${borderAndBg} ${className}`}
+      >
+        <div className="space-y-3">
+          {/* Hàng trên: Danh mục + Trạng thái + Nguồn + Menu thao tác */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <CategoryIcon category={place.category} size="sm" />
+
+              {place.status === 'ACCEPTED' ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-semibold bg-success-soft text-success border border-success/20">
+                  {t('place.accepted')}
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium bg-surface-2 text-ink-3 border border-line">
+                  {place.status}
+                </span>
+              )}
+
+              {isOsm && (
+                <span
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-surface-2 text-ink-2 border border-line"
+                  title="OpenStreetMap"
+                  data-testid="badge-source-osm"
+                >
+                  OSM
+                </span>
+              )}
+              {isGoogle && (
+                <span
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-surface-2 text-ink-2 border border-line"
+                  title="Google Places"
+                  data-testid="badge-source-google"
+                >
+                  Google
+                </span>
+              )}
+            </div>
+
+            {canDelete && onDeletePlace && (
+              <IconButton
+                icon={<DotsThree size={20} weight="bold" />}
+                aria-label={t('place.deletePlace')}
+                onClick={() => setIsConfirmDeleteOpen(true)}
+                variant="ghost"
+              />
             )}
           </div>
 
-          {canDelete && onDeletePlace && (
-            <button
-              type="button"
-              onClick={() => onDeletePlace(place.id)}
-              className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition"
-              title="Xóa địa điểm này"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          {/* Tên quán và địa chỉ */}
+          <div>
+            <h4 className="text-body font-bold text-ink leading-snug line-clamp-2">
+              {place.name}
+            </h4>
+
+            {place.address && (
+              <p className="mt-1 text-caption text-ink-2 flex items-start gap-1">
+                <MapPin size={14} className="shrink-0 mt-0.5 text-ink-3" />
+                <span className="line-clamp-2">{place.address}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Chi tiết: Giá, Giờ mở cửa, Link ngoài, Xem bản đồ */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption text-ink-2 pt-2 border-t border-line/60">
+            {place.estimated_cost > 0 && (
+              <div className="flex items-center gap-1 font-semibold text-ink">
+                <CurrencyCircleDollar size={15} className="text-ink-2" />
+                <span>{formatMoney(place.estimated_cost, lang)}</span>
+              </div>
+            )}
+
+            {hoursDisplay && (
+              <div className="flex items-center gap-1 text-ink-2">
+                <Clock size={15} className="text-ink-3" />
+                <span>{hoursDisplay}</span>
+              </div>
+            )}
+
+            {place.url && (
+              <a
+                href={place.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-accent-text hover:underline font-medium"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
+                <span>{t('place.openLink')}</span>
+                <ArrowRight size={13} />
+              </a>
+            )}
 
-        {/* Place Title & Info */}
-        <div>
-          <h4 className="text-base font-bold text-slate-900 tracking-tight leading-snug">
-            {place.name}
-          </h4>
+            {hasCoordinates && (
+              <button
+                type="button"
+                onClick={handleViewOnMap}
+                className="inline-flex items-center gap-1 text-accent-text hover:underline font-medium cursor-pointer"
+                title={t('place.viewOnMap')}
+                data-testid="btn-view-on-map"
+              >
+                <MapTrifold size={14} />
+                <span>{t('place.viewOnMap')}</span>
+              </button>
+            )}
+          </div>
 
-          {place.address && (
-            <p className="mt-1 text-xs text-slate-500 flex items-start gap-1">
-              <span className="shrink-0 mt-0.5">📍</span>
-              <span className="line-clamp-2">{place.address}</span>
+          {/* Ghi chú */}
+          {place.notes && (
+            <p className="text-caption text-ink-2 italic bg-surface-2 p-2.5 rounded-field border border-line">
+              &ldquo;{place.notes}&rdquo;
             </p>
           )}
         </div>
 
-        {/* Details: Cost & Opening Hours */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 pt-1 border-t border-slate-50">
-          {place.estimated_cost > 0 && (
-            <div className="flex items-center gap-1 font-semibold text-slate-800">
-              <span>💰</span>
-              <span>{place.estimated_cost.toLocaleString('vi-VN')} đ</span>
-            </div>
-          )}
+        {/* Chân thẻ: Người đề xuất + Khối vote */}
+        <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={proposerName} size="sm" />
+            <span className="text-caption text-ink-2 truncate">
+              {t('place.suggestedBy', { name: proposerName })}
+            </span>
+          </div>
 
-          {hoursDisplay && (
-            <div className="flex items-center gap-1 text-slate-500">
-              <span>🕒</span>
-              <span>{hoursDisplay}</span>
-            </div>
-          )}
-
-          {place.url && (
-            <a
-              href={place.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 hover:underline font-medium"
-            >
-              <span>🔗 Link</span>
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-            </a>
-          )}
-
-          {hasCoordinates && (
-            <button
-              type="button"
-              onClick={handleViewOnMap}
-              className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 hover:underline font-medium cursor-pointer"
-              title="Xem vị trí quán trên bản đồ"
-              data-testid="btn-view-on-map"
-            >
-              <span>🗺️ Xem trên bản đồ</span>
-            </button>
-          )}
+          <VoteButtons
+            roomId={roomId}
+            placeId={place.id}
+            upvotes={place.upvotes}
+            downvotes={place.downvotes}
+            score={place.score}
+            currentUserVote={place.current_user_vote}
+            disabled={isVotingDisabled}
+          />
         </div>
+      </Card>
 
-        {/* Notes */}
-        {place.notes && (
-          <p className="text-xs text-slate-600 italic bg-slate-50 p-2 rounded-xl border border-slate-100">
-            &ldquo;{place.notes}&rdquo;
-          </p>
-        )}
-      </div>
-
-      {/* Card Footer: Proposer & Vote Buttons */}
-      <div className="bg-slate-50/60 px-4 sm:px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
-        <div className="text-[11px] text-slate-400 truncate">
-          Gợi ý bởi:{' '}
-          <span className="font-semibold text-slate-700">
-            {place.submitted_by_nickname || 'Thành viên'}
-          </span>
-        </div>
-
-        {/* T-20 Voting action buttons */}
-        <VoteButtons
-          roomId={roomId}
-          placeId={place.id}
-          upvotes={place.upvotes}
-          downvotes={place.downvotes}
-          score={place.score}
-          currentUserVote={place.current_user_vote}
-          disabled={isVotingDisabled}
+      {/* Xác nhận xoá quán qua Sheet */}
+      {canDelete && (
+        <ConfirmSheet
+          isOpen={isConfirmDeleteOpen}
+          onClose={() => setIsConfirmDeleteOpen(false)}
+          onConfirm={handleDeleteConfirm}
+          title={t('place.deleteConfirmTitle', { name: place.name })}
+          description={t('place.deleteConfirmDesc')}
+          confirmLabel={t('place.deletePlace')}
+          variant="danger"
+          loading={isDeleting}
         />
-      </div>
-    </div>
+      )}
+    </>
   );
 };

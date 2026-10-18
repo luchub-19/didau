@@ -15,6 +15,7 @@ export interface PlacesPanelProps {
   onDeletePlace: (placeId: string) => void;
   onViewOnMap: (place: Place) => void;
   onOpenDecide: () => void;
+  onSwitchToMap?: () => void;
 }
 
 export const PlacesPanel: React.FC<PlacesPanelProps> = ({
@@ -29,12 +30,15 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
   onDeletePlace,
   onViewOnMap,
   onOpenDecide,
+  onSwitchToMap,
 }) => {
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Banner chọn hộ (T-48 giữ nguyên vị trí) */}
       <DeciderBanner roomId={roomId} onOpenDecide={onOpenDecide} />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3.5 rounded-card border border-line shadow-xs">
+      {/* Dải cuộn chip lọc danh mục */}
+      <div className="bg-surface p-2.5 sm:p-3 rounded-card border border-line">
         <CategoryFilter
           places={places}
           selectedCategory={selectedCategory}
@@ -42,6 +46,7 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
         />
       </div>
 
+      {/* Danh sách thẻ quán + sắp xếp + tìm kiếm + nút thêm */}
       <PlaceList
         places={places}
         roomId={roomId}
@@ -52,6 +57,8 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
         onOpenAddModal={onOpenAddModal}
         onDeletePlace={onDeletePlace}
         onViewOnMap={onViewOnMap}
+        onSwitchToMap={onSwitchToMap}
+        onResetCategory={() => onSelectCategory('ALL')}
       />
     </div>
   );

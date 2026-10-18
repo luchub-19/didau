@@ -1,56 +1,137 @@
+import React from 'react';
 import type { PlaceCategory } from '../../types';
+import i18n from '../../i18n';
+import {
+  BowlFood,
+  Coffee,
+  GameController,
+  Camera,
+  Bed,
+  ShoppingBag,
+  MapPin,
+  type IconProps,
+} from '../ui/Icon';
 
-export const CATEGORY_METADATA: Record<
-  PlaceCategory,
-  { label: string; icon: string; bg: string; text: string; border: string }
-> = {
+export type CategoryLabelKey =
+  | 'category.all'
+  | 'category.food'
+  | 'category.drink'
+  | 'category.entertainment'
+  | 'category.sightseeing'
+  | 'category.accommodation'
+  | 'category.shopping'
+  | 'category.other';
+
+export interface CategoryMetadataItem {
+  key: PlaceCategory;
+  labelKey: CategoryLabelKey;
+  label: string;
+  icon: React.ReactNode;
+  IconComponent: React.ComponentType<IconProps>;
+  bg: string;
+  text: string;
+  border: string;
+  softBg: string;
+  softText: string;
+}
+
+export const CATEGORY_METADATA: Record<PlaceCategory, CategoryMetadataItem> = {
   FOOD: {
-    label: 'Ăn uống',
-    icon: '🍜',
-    bg: 'bg-amber-50',
-    text: 'text-amber-700',
-    border: 'border-amber-200',
+    key: 'FOOD',
+    labelKey: 'category.food',
+    get label() {
+      return i18n.t('category.food');
+    },
+    IconComponent: BowlFood,
+    icon: React.createElement(BowlFood, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-food-soft',
+    text: 'text-cat-food',
+    border: 'border-cat-food/20',
+    softBg: 'bg-cat-food-soft',
+    softText: 'text-cat-food',
   },
   DRINK: {
-    label: 'Cà phê & Đồ uống',
-    icon: '☕',
-    bg: 'bg-emerald-50',
-    text: 'text-emerald-700',
-    border: 'border-emerald-200',
+    key: 'DRINK',
+    labelKey: 'category.drink',
+    get label() {
+      return i18n.t('category.drink');
+    },
+    IconComponent: Coffee,
+    icon: React.createElement(Coffee, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-drink-soft',
+    text: 'text-cat-drink',
+    border: 'border-cat-drink/20',
+    softBg: 'bg-cat-drink-soft',
+    softText: 'text-cat-drink',
   },
   ENTERTAINMENT: {
-    label: 'Vui chơi giải trí',
-    icon: '🎮',
-    bg: 'bg-purple-50',
-    text: 'text-purple-700',
-    border: 'border-purple-200',
+    key: 'ENTERTAINMENT',
+    labelKey: 'category.entertainment',
+    get label() {
+      return i18n.t('category.entertainment');
+    },
+    IconComponent: GameController,
+    icon: React.createElement(GameController, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-entertainment-soft',
+    text: 'text-cat-entertainment',
+    border: 'border-cat-entertainment/20',
+    softBg: 'bg-cat-entertainment-soft',
+    softText: 'text-cat-entertainment',
   },
   SIGHTSEEING: {
-    label: 'Tham quan check-in',
-    icon: '🏛️',
-    bg: 'bg-blue-50',
-    text: 'text-blue-700',
-    border: 'border-blue-200',
+    key: 'SIGHTSEEING',
+    labelKey: 'category.sightseeing',
+    get label() {
+      return i18n.t('category.sightseeing');
+    },
+    IconComponent: Camera,
+    icon: React.createElement(Camera, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-sightseeing-soft',
+    text: 'text-cat-sightseeing',
+    border: 'border-cat-sightseeing/20',
+    softBg: 'bg-cat-sightseeing-soft',
+    softText: 'text-cat-sightseeing',
   },
   ACCOMMODATION: {
-    label: 'Khách sạn / Homestay',
-    icon: '🏨',
-    bg: 'bg-rose-50',
-    text: 'text-rose-700',
-    border: 'border-rose-200',
+    key: 'ACCOMMODATION',
+    labelKey: 'category.accommodation',
+    get label() {
+      return i18n.t('category.accommodation');
+    },
+    IconComponent: Bed,
+    icon: React.createElement(Bed, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-accommodation-soft',
+    text: 'text-cat-accommodation',
+    border: 'border-cat-accommodation/20',
+    softBg: 'bg-cat-accommodation-soft',
+    softText: 'text-cat-accommodation',
   },
   SHOPPING: {
-    label: 'Mua sắm',
-    icon: '🛍️',
-    bg: 'bg-teal-50',
-    text: 'text-teal-700',
-    border: 'border-teal-200',
+    key: 'SHOPPING',
+    labelKey: 'category.shopping',
+    get label() {
+      return i18n.t('category.shopping');
+    },
+    IconComponent: ShoppingBag,
+    icon: React.createElement(ShoppingBag, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-shopping-soft',
+    text: 'text-cat-shopping',
+    border: 'border-cat-shopping/20',
+    softBg: 'bg-cat-shopping-soft',
+    softText: 'text-cat-shopping',
   },
   OTHER: {
-    label: 'Khác',
-    icon: '📍',
-    bg: 'bg-slate-50',
-    text: 'text-slate-700',
-    border: 'border-slate-200',
+    key: 'OTHER',
+    labelKey: 'category.other',
+    get label() {
+      return i18n.t('category.other');
+    },
+    IconComponent: MapPin,
+    icon: React.createElement(MapPin, { weight: 'fill', className: 'w-4 h-4 inline-block shrink-0' }),
+    bg: 'bg-cat-other-soft',
+    text: 'text-cat-other',
+    border: 'border-cat-other/20',
+    softBg: 'bg-cat-other-soft',
+    softText: 'text-cat-other',
   },
 };

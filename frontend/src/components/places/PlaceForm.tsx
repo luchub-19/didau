@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
-import { Button, Input, Modal } from '../common';
+import { useTranslation } from 'react-i18next';
 import { usePlaceStore } from '../../store/usePlaceStore';
+import { Sheet } from '../ui/Sheet';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
+import { MapTrifold, CaretDown, CaretUp } from '../ui/Icon';
+import { toast } from '../ui/toastStore';
+import { CATEGORY_METADATA } from '../common/categoryMetadata';
+import { useRoomTab } from '../shell/useRoomTab';
 import type { PlaceCategory } from '../../types';
 
 export interface PlaceFormProps {
   isOpen: boolean;
   onClose: () => void;
   roomId: string;
+  onSwitchToMap?: () => void;
 }
 
-// Convert "HH:mm" to minutes (0 - 1439)
+// Chuyển chuỗi "HH:mm" thành số phút nguyên (0 - 1439)
 function timeToMinutes(timeStr: string): number | undefined {
   if (!timeStr) return undefined;
   const parts = timeStr.split(':');
@@ -20,16 +28,28 @@ function timeToMinutes(timeStr: string): number | undefined {
   return hours * 60 + mins;
 }
 
+const CATEGORY_LIST: PlaceCategory[] = [
+  'OTHER',
+  'FOOD',
+  'DRINK',
+  'ENTERTAINMENT',
+  'SIGHTSEEING',
+  'ACCOMMODATION',
+  'SHOPPING',
+];
+
 export const PlaceForm: React.FC<PlaceFormProps> = ({
   isOpen,
   onClose,
   roomId,
+  onSwitchToMap,
 }) => {
+  const { t } = useTranslation();
+  const { setTab } = useRoomTab();
   const addPlace = usePlaceStore((s) => s.addPlace);
   const isLoading = usePlaceStore((s) => s.isLoading);
-  const [error, setError] = useState<string | null>(null);
 
-  const [name, setName] = useState('');
+  const [nameOrUrl, setNameOrUrl] = useState('');
   const [category, setCategory] = useState<PlaceCategory>('OTHER');
   const [address, setAddress] = useState('');
   const [url, setUrl] = useState('');
@@ -37,9 +57,11 @@ export const PlaceForm: React.FC<PlaceFormProps> = ({
   const [openTime, setOpenTime] = useState('');
   const [closeTime, setCloseTime] = useState('');
   const [notes, setNotes] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
-    setName('');
+    setNameOrUrl('');
     setCategory('OTHER');
     setAddress('');
     setUrl('');
@@ -47,166 +69,217 @@ export const PlaceForm: React.FC<PlaceFormProps> = ({
     setOpenTime('');
     setCloseTime('');
     setNotes('');
+    setShowDetails(false);
     setError(null);
+  };
+
+  const handleSwitchToMap = () => {
+    resetForm();
+    onClose();
+    if (onSwitchToMap) {
+      onSwitchToMap();
+    } else {
+      setTab('map');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
-      setError('Vui lòng nhập tên địa điểm hoặc quán ăn.');
+    const trimmedInput = nameOrUrl.trim();
+    if (!trimmedInput) {
+      setError(t('place.form.errName'));
       return;
     }
 
+    const isUrl = trimmedInput.startsWith('http://') || trimmedInput.startsWith('https://');
+    const finalUrl = isUrl ? trimmedInput : (url.trim() || undefined);
+    const finalName = isUrl
+      ? trimmedInput.replace(/^https?:\/\//i, '').split('/')[0] || trimmedInput
+      : trimmedInput;
+
     try {
       await addPlace(roomId, {
-        name: name.trim(),
-        category: category,
+        name: finalName,
+        category,
         address: address.trim() || undefined,
-        url: url.trim() || undefined,
+        url: finalUrl,
         estimated_cost: estimatedCost ? Number(estimatedCost) : undefined,
         open_minute: timeToMinutes(openTime),
         close_minute: timeToMinutes(closeTime),
         notes: notes.trim() || undefined,
       });
 
+      toast.success(t('place.form.success'));
       resetForm();
       onClose();
-    } catch (err: unknown) {
-      const msg =
-        (err as { message?: string })?.message ||
-        'Không thể thêm địa điểm. Vui lòng thử lại.';
-      setError(msg);
+    } catch {
+      setError(t('place.form.errGeneric'));
     }
   };
 
   return (
-    <Modal
+    <Sheet
       isOpen={isOpen}
       onClose={() => {
         resetForm();
         onClose();
       }}
-      title="Đề xuất địa điểm mới"
-      description="Thêm quán ăn, cafe hoặc điểm vui chơi để cả nhóm cùng bình chọn."
-      maxWidth="md"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
-            {error}
-          </div>
-        )}
-
-        <Input
-          label="Tên địa điểm / Quán"
-          placeholder="Ví dụ: Cà Phê Trứng 3T, Phở Lệ..."
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          helperText="Hệ thống tự động phát hiện danh mục nếu để 'Tự động (OTHER)'"
-          required
-          autoFocus
-        />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="w-full space-y-1">
-            <label
-              htmlFor="place-category"
-              className="block text-xs font-semibold text-slate-700 uppercase tracking-wider"
-            >
-              Danh mục
-            </label>
-            <select
-              id="place-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as PlaceCategory)}
-              className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="OTHER">✨ Tự động nhận diện (OTHER)</option>
-              <option value="FOOD">🍜 Quán ăn / Nhà hàng (FOOD)</option>
-              <option value="DRINK">☕ Cà phê / Đồ uống (DRINK)</option>
-              <option value="ENTERTAINMENT">🎮 Giải trí / Vui chơi (ENTERTAINMENT)</option>
-              <option value="SIGHTSEEING">🏛️ Tham quan / Check-in (SIGHTSEEING)</option>
-              <option value="ACCOMMODATION">🏨 Khách sạn / Homestay (ACCOMMODATION)</option>
-              <option value="SHOPPING">🛍️ Mua sắm (SHOPPING)</option>
-            </select>
-          </div>
-
-          <Input
-            label="Chi phí ước lượng (VNĐ/người)"
-            type="number"
-            min="0"
-            step="5000"
-            placeholder="Ví dụ: 55000"
-            value={estimatedCost}
-            onChange={(e) => setEstimatedCost(e.target.value)}
-          />
-        </div>
-
-        <Input
-          label="Địa chỉ"
-          placeholder="Ví dụ: 1A Tôn Đức Thắng, Bến Nghé, Quận 1..."
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-        />
-
-        <Input
-          label="Link tham khảo (Google Maps / ShopeeFood / TikTok)"
-          placeholder="https://shopeefood.vn/..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Giờ mở cửa"
-            type="time"
-            value={openTime}
-            onChange={(e) => setOpenTime(e.target.value)}
-          />
-          <Input
-            label="Giờ đóng cửa"
-            type="time"
-            value={closeTime}
-            onChange={(e) => setCloseTime(e.target.value)}
-          />
-        </div>
-
-        <div className="w-full space-y-1">
-          <label
-            htmlFor="place-notes"
-            className="block text-xs font-semibold text-slate-700 uppercase tracking-wider"
-          >
-            Lý do đề xuất / Món nên gọi
-          </label>
-          <textarea
-            id="place-notes"
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="View bờ sông Sài Gòn cực đẹp, nhớ thử cà phê trứng..."
-            className="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-          />
-        </div>
-
-        <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100">
+      title={t('place.form.title')}
+      footer={
+        <>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             onClick={() => {
               resetForm();
               onClose();
             }}
             disabled={isLoading}
           >
-            Hủy
+            {t('common.cancel')}
           </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading}>
-            Thêm địa điểm
+          <Button
+            type="submit"
+            variant="primary"
+            form="place-form"
+            loading={isLoading}
+          >
+            {t('place.form.submit')}
           </Button>
+        </>
+      }
+    >
+      <form id="place-form" onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="p-3 bg-danger-soft border border-danger/20 text-danger rounded-card text-caption font-medium">
+            {error}
+          </div>
+        )}
+
+        {/* Ô đầu tiên: Tên quán hoặc link */}
+        <TextField
+          label={t('place.form.nameOrUrlLabel')}
+          placeholder={t('place.form.nameOrUrlPlaceholder')}
+          value={nameOrUrl}
+          onChange={(e) => setNameOrUrl(e.target.value)}
+          required
+          autoFocus
+        />
+
+        {/* Danh mục tự nhận diện */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="place-category-select"
+            className="block text-label font-medium text-ink"
+          >
+            {t('place.form.categoryLabel')}
+          </label>
+          <select
+            id="place-category-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as PlaceCategory)}
+            className="block w-full min-h-[44px] rounded-field border border-line bg-surface px-3 py-2 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+          >
+            {CATEGORY_LIST.map((catKey) => (
+              <option key={catKey} value={catKey}>
+                {catKey === 'OTHER'
+                  ? t('place.form.autoCategory')
+                  : CATEGORY_METADATA[catKey].label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Nút bật/tắt Thêm chi tiết */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="inline-flex items-center gap-1.5 text-label font-medium text-ink-2 [@media(hover:hover)]:hover:text-ink cursor-pointer select-none"
+          >
+            {showDetails ? <CaretUp size={16} /> : <CaretDown size={16} />}
+            <span>{showDetails ? t('place.form.hideDetails') : t('place.form.moreDetails')}</span>
+          </button>
+        </div>
+
+        {/* Vùng chi tiết thu gọn */}
+        {showDetails && (
+          <div className="space-y-3 pt-1 border-t border-line/60">
+            <TextField
+              label={t('place.form.addressLabel')}
+              placeholder={t('place.form.addressPlaceholder')}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+
+            <TextField
+              label={t('place.form.costLabel')}
+              type="number"
+              min="0"
+              step="5000"
+              placeholder={t('place.form.costPlaceholder')}
+              value={estimatedCost}
+              onChange={(e) => setEstimatedCost(e.target.value)}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <TextField
+                label={t('place.form.openTimeLabel')}
+                type="time"
+                value={openTime}
+                onChange={(e) => setOpenTime(e.target.value)}
+              />
+              <TextField
+                label={t('place.form.closeTimeLabel')}
+                type="time"
+                value={closeTime}
+                onChange={(e) => setCloseTime(e.target.value)}
+              />
+            </div>
+
+            <TextField
+              label={t('place.form.urlLabel')}
+              placeholder={t('place.form.urlPlaceholder')}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="place-notes"
+                className="block text-label font-medium text-ink"
+              >
+                {t('place.form.notesLabel')}
+              </label>
+              <textarea
+                id="place-notes"
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={t('place.form.notesPlaceholder')}
+                className="block w-full rounded-field border border-line bg-surface p-3 text-body text-ink placeholder:text-ink-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Gợi ý chọn trên bản đồ */}
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={handleSwitchToMap}
+            className="inline-flex items-center gap-1.5 text-caption font-semibold text-accent-text hover:underline cursor-pointer"
+          >
+            <MapTrifold size={16} />
+            <span>{t('place.orPickOnMap')}</span>
+          </button>
         </div>
       </form>
-    </Modal>
+    </Sheet>
   );
 };

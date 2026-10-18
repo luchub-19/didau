@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PlaceCard } from './PlaceCard';
-import { Button } from '../common';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
+import { Segmented, type SegmentedOption } from '../ui/Segmented';
+import { EmptyState } from '../ui/EmptyState';
+import { Plus, MagnifyingGlass, BowlFood, MapTrifold } from '../ui/Icon';
+import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import type { Place, PlaceCategory } from '../../types';
 
 export interface PlaceListProps {
@@ -13,137 +19,186 @@ export interface PlaceListProps {
   onOpenAddModal: () => void;
   onDeletePlace: (placeId: string) => void;
   onViewOnMap?: (place: Place) => void;
+  onSwitchToMap?: () => void;
+  onResetCategory?: () => void;
   className?: string;
 }
 
-type SortOption = 'SCORE' | 'UPVOTES' | 'NEWEST';
+type SortOption = 'SCORE' | 'NEWEST';
 
 export const PlaceList: React.FC<PlaceListProps> = ({
   places,
   roomId,
   selectedCategory,
   currentMemberId,
-  isHost,
-  isVotingDisabled,
+  isHost = false,
+  isVotingDisabled = false,
   onOpenAddModal,
   onDeletePlace,
   onViewOnMap,
+  onSwitchToMap,
+  onResetCategory,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('SCORE');
 
-  // Filter by category
-  let filtered =
-    selectedCategory === 'ALL'
-      ? places
-      : places.filter((p) => p.category === selectedCategory);
+  // Lọc theo danh mục
+  const categoryFiltered = useMemo(() => {
+    if (selectedCategory === 'ALL') return places;
+    return places.filter((p) => p.category === selectedCategory);
+  }, [places, selectedCategory]);
 
-  // Filter by search query
-  if (search.trim()) {
+  // Lọc theo từ khoá tìm kiếm
+  const searchFiltered = useMemo(() => {
+    if (!search.trim()) return categoryFiltered;
     const q = search.toLowerCase().trim();
-    filtered = filtered.filter(
+    return categoryFiltered.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.address && p.address.toLowerCase().includes(q)) ||
         (p.notes && p.notes.toLowerCase().includes(q)),
     );
-  }
+  }, [categoryFiltered, search]);
 
-  // Sort
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'SCORE') {
-      if (b.score !== a.score) return b.score - a.score;
-      return b.upvotes - a.upvotes;
-    }
-    if (sortBy === 'UPVOTES') {
-      return b.upvotes - a.upvotes;
-    }
-    // NEWEST
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  // Sắp xếp
+  const sorted = useMemo(() => {
+    return [...searchFiltered].sort((a, b) => {
+      if (sortBy === 'SCORE') {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.upvotes - a.upvotes;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [searchFiltered, sortBy]);
+
+  // Tìm điểm cao nhất để gắn highlight quán dẫn đầu
+  const maxScore = useMemo(() => {
+    if (places.length === 0) return 0;
+    return Math.max(...places.map((p) => p.score));
+  }, [places]);
+
+  const sortOptions: SegmentedOption<SortOption>[] = [
+    { value: 'SCORE', label: t('place.sortScore') },
+    { value: 'NEWEST', label: t('place.sortNewest') },
+  ];
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Search and Sort Toolbar */}
+    <div className={`space-y-4 relative pb-20 sm:pb-16 ${className}`}>
+      {/* Thanh công cụ: Sắp xếp Segmented và Ô tìm kiếm (chỉ hiện khi > 8 quán) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            placeholder="Tìm theo tên quán, địa chỉ..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-          />
-          <span className="absolute left-3 top-2.5 text-slate-400 text-xs">
-            🔍
-          </span>
-        </div>
+        {places.length > 8 ? (
+          <div className="flex-1 max-w-md">
+            <TextField
+              label={t('place.searchPlaceholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('place.searchPlaceholder')}
+            />
+          </div>
+        ) : (
+          <div />
+        )}
 
-        <div className="flex items-center gap-2">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-          >
-            <option value="SCORE">Điểm cao nhất</option>
-            <option value="UPVOTES">Nhiều vote nhất</option>
-            <option value="NEWEST">Mới đề xuất</option>
-          </select>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onOpenAddModal}
-            leftIcon={<span>+</span>}
-          >
-            Thêm quán
-          </Button>
-        </div>
+        {places.length > 0 && (
+          <div className="flex items-center justify-end gap-2">
+            <Segmented
+              size="sm"
+              options={sortOptions}
+              value={sortBy}
+              onChange={setSortBy}
+              aria-label={t('place.sortBy')}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Place Cards Grid */}
+      {/* Lưới danh sách quán */}
       {sorted.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sorted.map((place) => (
-            <PlaceCard
-              key={place.id}
-              place={place}
-              roomId={roomId}
-              currentMemberId={currentMemberId}
-              isHost={isHost}
-              isVotingDisabled={isVotingDisabled}
-              onDeletePlace={onDeletePlace}
-              onViewOnMap={onViewOnMap}
-            />
-          ))}
+          {sorted.map((place) => {
+            const isTopPick = maxScore > 0 && place.score === maxScore;
+            return (
+              <PlaceCard
+                key={place.id}
+                place={place}
+                roomId={roomId}
+                currentMemberId={currentMemberId}
+                isHost={isHost}
+                isVotingDisabled={isVotingDisabled}
+                isTopPick={isTopPick}
+                onDeletePlace={onDeletePlace}
+                onViewOnMap={onViewOnMap}
+              />
+            );
+          })}
         </div>
+      ) : places.length === 0 ? (
+        /* Trạng thái trống hoàn toàn */
+        <EmptyState
+          icon={<BowlFood size={32} weight="fill" className="text-ink-2" />}
+          title={t('place.emptyTitle')}
+          description={t('place.emptyDesc')}
+          action={
+            <div className="flex flex-col sm:flex-row items-center gap-2.5">
+              <Button
+                variant="primary"
+                onClick={onOpenAddModal}
+                leftIcon={<Plus size={18} weight="bold" />}
+              >
+                {t('place.suggestPlaceAction')}
+              </Button>
+              {onSwitchToMap && (
+                <Button
+                  variant="secondary"
+                  onClick={onSwitchToMap}
+                  leftIcon={<MapTrifold size={18} />}
+                >
+                  {t('place.orPickOnMap')}
+                </Button>
+              )}
+            </div>
+          }
+        />
       ) : (
-        /* Empty state */
-        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center space-y-3">
-          <div className="text-4xl">🍽️</div>
-          <h4 className="text-sm font-bold text-slate-800">
-            {places.length === 0
-              ? 'Chưa có địa điểm nào được đề xuất'
-              : 'Không tìm thấy địa điểm phù hợp bộ lọc'}
-          </h4>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            {places.length === 0
-              ? 'Hãy là người đầu tiên gợi ý quán ăn, cà phê hoặc địa điểm check-in cho chuyến đi này!'
-              : 'Thử tìm với từ khóa khác hoặc chọn xem "Tất cả" danh mục.'}
-          </p>
-          <div className="pt-2">
+        /* Trạng thái lọc hoặc tìm kiếm không thấy kết quả */
+        <EmptyState
+          icon={<MagnifyingGlass size={32} weight="bold" className="text-ink-2" />}
+          title={t('place.emptyFilterTitle', {
+            category:
+              selectedCategory === 'ALL'
+                ? ''
+                : CATEGORY_METADATA[selectedCategory]?.label || t('category.all'),
+          })}
+          description={t('place.emptyFilterDesc')}
+          action={
             <Button
-              variant="primary"
-              size="sm"
-              onClick={onOpenAddModal}
-              leftIcon={<span>+</span>}
+              variant="secondary"
+              onClick={() => {
+                setSearch('');
+                if (onResetCategory) onResetCategory();
+              }}
             >
-              Gợi ý địa điểm ngay
+              {t('place.viewAll')}
             </Button>
-          </div>
-        </div>
+          }
+        />
       )}
+
+      {/* Nút nổi Thêm quán ở góc dưới phải (trên thanh tab bar) */}
+      <div className="fixed bottom-[72px] right-4 sm:bottom-6 sm:right-6 z-20">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={onOpenAddModal}
+          leftIcon={<Plus size={20} weight="bold" />}
+          className="shadow-float"
+          aria-label={t('place.addPlace')}
+        >
+          <span>{t('place.addPlace')}</span>
+        </Button>
+      </div>
     </div>
   );
 };

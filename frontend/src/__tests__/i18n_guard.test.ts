@@ -29,7 +29,6 @@ function stripComments(code: string): string {
 export const PENDING_FILES = new Set<string>([
   // T-40: Bộ khung component ui/
   'components/common/Modal.tsx',
-  'components/common/categoryMetadata.ts',
 
   // T-41: Khung phòng + thanh tab dưới
   'components/room/RoomHeader.tsx',
@@ -46,13 +45,7 @@ export const PENDING_FILES = new Set<string>([
   'store/useScheduleStore.ts',
 
 
-  // T-45: Tab Quán + vote
-  'components/places/CategoryFilter.tsx',
-  'components/places/PlaceCard.tsx',
-  'components/places/PlaceForm.tsx',
-  'components/places/PlaceList.tsx',
-  'components/voting/VoteButtons.tsx',
-  'components/voting/VoteScoreBadge.tsx',
+  // T-45: Tab Quán + vote (đã chuyển qua i18n ở T-45)
 
   // T-46: Tab Lịch + xung đột + auto-plan
   'components/conflicts/ConflictAlertBanner.tsx',
