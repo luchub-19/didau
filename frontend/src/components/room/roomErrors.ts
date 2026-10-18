@@ -2,7 +2,8 @@ import type { TFunction } from 'i18next';
 
 /**
  * Chọn câu lỗi theo mã lỗi của server (không hiển thị nguyên văn message tiếng Việt).
- * T-43 sẽ thay bằng describeApiError; tới lúc đó chỉ map vài mã hay gặp ở tạo/vào phòng.
+ * Giữ riêng khỏi describeApiError (serverText.ts) vì câu ở đây theo ngữ cảnh tạo/vào phòng
+ * (ví dụ biệt danh trùng báo ở ô biệt danh); mã lạ rơi về câu chung của form.
  */
 export function describeRoomError(
   err: unknown,
