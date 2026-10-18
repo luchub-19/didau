@@ -365,6 +365,7 @@ export const vi = {
     remind: 'Đánh giá các quán hôm nay?',
     loadError: 'Không tải được đánh giá.',
     write: 'Viết đánh giá',
+    tagsLabel: 'Thẻ nhận xét',
     starsAria: 'Số sao',
     starCount: '{{n}} sao',
     commentLabel: 'Nhận xét',

@@ -367,6 +367,7 @@ export const en: Messages = {
     remind: 'Review places from today?',
     loadError: 'Could not load reviews.',
     write: 'Write a review',
+    tagsLabel: 'Quick tags',
     starsAria: 'Star rating',
     starCount: '{{n}} stars',
     commentLabel: 'Comment',

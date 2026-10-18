@@ -80,6 +80,7 @@ export function installPoiLayer(
   const colorExpression = buildColorExpression();
   const infoColor = getCssColor('--color-info', '#0369A1');
   const inkColor = getCssColor('--color-ink', '#1C1917');
+  const surfaceColor = getCssColor('--color-surface', '#FFFFFF');
 
   map.addLayer({
     id: POI_CLUSTER_LAYER,
@@ -87,10 +88,10 @@ export function installPoiLayer(
     source: POI_SOURCE,
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': ['step', ['get', 'point_count'], '#0284c7', 25, infoColor, 100, '#075985'],
+      'circle-color': infoColor,
       'circle-radius': ['step', ['get', 'point_count'], 16, 25, 20, 100, 26],
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff',
+      'circle-stroke-color': surfaceColor,
     },
   });
 
@@ -104,7 +105,7 @@ export function installPoiLayer(
       'text-font': ['Noto Sans Bold'],
       'text-size': 12,
     },
-    paint: { 'text-color': '#ffffff' },
+    paint: { 'text-color': surfaceColor },
   });
 
   map.addLayer({
@@ -116,7 +117,7 @@ export function installPoiLayer(
       'circle-color': colorExpression,
       'circle-radius': 7,
       'circle-stroke-width': 1.5,
-      'circle-stroke-color': '#ffffff',
+      'circle-stroke-color': surfaceColor,
     },
   });
 

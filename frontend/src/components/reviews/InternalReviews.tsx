@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ReviewSummary } from '../../types';
 import { reviewApi } from '../../services/api';
 import { tokenStorage } from '../../services/storage/tokenStorage';
-import { Button, Chip } from '../ui';
+import { Button, Chip, Star } from '../ui';
 import { Users } from '../ui/Icon';
 import { ReviewForm } from './ReviewForm';
 
@@ -85,7 +85,15 @@ export const InternalReviews: React.FC<InternalReviewsProps> = ({
             <li key={r.id} className="text-caption text-ink-2 border-b border-line/60 pb-1.5 last:border-b-0">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-ink">{r.nickname}</span>
-                <span className="text-amber-500">{'★'.repeat(r.rating)}</span>
+                <span
+                  className="inline-flex text-warning"
+                  role="img"
+                  aria-label={t('review.starCount', { n: r.rating })}
+                >
+                  {Array.from({ length: r.rating }, (_, i) => (
+                    <Star key={i} size={14} weight="fill" aria-hidden="true" />
+                  ))}
+                </span>
               </div>
               {r.comment && <p className="mt-0.5 text-ink-2 leading-relaxed">{r.comment}</p>}
             </li>

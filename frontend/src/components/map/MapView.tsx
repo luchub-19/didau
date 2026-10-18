@@ -285,7 +285,7 @@ export function MapView({
 
         {/* Trang thai loi tai ban do */}
         {mapError && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/95 p-6 backdrop-blur-xs">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface p-6">
             <EmptyState
               icon={<WarningCircle size={32} className="text-danger" />}
               title={t('map.error.title')}

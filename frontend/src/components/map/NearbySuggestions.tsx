@@ -83,7 +83,7 @@ export const NearbySuggestions: React.FC<NearbySuggestionsProps> = ({
 
   const containerClasses = isDesktopColumn
     ? 'flex flex-col h-full'
-    : 'absolute bottom-3 left-3 right-3 sm:right-auto sm:w-96 z-10 rounded-card border border-line bg-surface/95 p-4 shadow-float backdrop-blur-xs';
+    : 'absolute bottom-3 left-3 right-3 sm:right-auto sm:w-96 z-10 rounded-card border border-line bg-surface p-4 shadow-float';
 
   return (
     <div className={containerClasses} data-testid="nearby-suggestions">

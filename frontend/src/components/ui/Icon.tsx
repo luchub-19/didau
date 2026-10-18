@@ -15,6 +15,7 @@ export {
   // Điều hướng và thao tác
   X,
   Check,
+  Star,
   Plus,
   Trash,
   PencilSimple,

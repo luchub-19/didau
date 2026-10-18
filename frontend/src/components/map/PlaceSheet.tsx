@@ -5,7 +5,7 @@ import { distanceKm } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { Badge, CategoryIcon } from '../common';
-import { Button, IconButton } from '../ui';
+import { Button, Check, IconButton } from '../ui';
 import { CaretDown, CaretUp, Clock, MapPin, X } from '../ui/Icon';
 import { VoteButtons } from '../voting/VoteButtons';
 import { InternalReviews, reviewKeyFor } from '../reviews';
@@ -244,7 +244,7 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
           <div className="flex items-center justify-between gap-3" data-testid="already-added-section">
             <div className="flex flex-col">
               <span className="text-label font-semibold text-success flex items-center gap-1">
-                <span>✓</span> {t('map.place.alreadyAdded')}
+                <Check size={16} weight="bold" aria-hidden="true" /> {t('map.place.alreadyAdded')}
               </span>
               <span className="text-caption text-ink-3 tabular-nums">
                 {t('map.place.voteScore', { score: existingPlace.score })}

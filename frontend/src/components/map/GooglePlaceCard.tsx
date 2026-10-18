@@ -96,7 +96,7 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
       data-testid="google-place-card"
     >
       <div className="mb-2 flex items-center gap-1.5 text-label font-semibold text-ink">
-        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-info text-[10px] font-bold text-surface">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-info text-caption font-bold text-surface">
           G
         </span>
         <span>{t('map.place.googleReviews')}</span>

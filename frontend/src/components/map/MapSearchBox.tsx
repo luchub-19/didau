@@ -72,7 +72,7 @@ export function MapSearchBox({ getCenter, onPick, className = '' }: MapSearchBox
           onFocus={() => setOpen(true)}
           placeholder={t('map.search.placeholder')}
           aria-label={t('map.search.ariaLabel')}
-          className="w-full rounded-full border border-line bg-surface/95 pl-10 pr-9 py-2.5 text-body text-ink placeholder:text-ink-3 shadow-float outline-none transition-all focus:border-accent-text focus:ring-2 focus:ring-accent-text/20"
+          className="w-full rounded-full border border-line bg-surface/95 pl-10 pr-9 py-2.5 text-body text-ink placeholder:text-ink-3 shadow-float outline-none transition-colors focus:border-accent-text focus:ring-2 focus:ring-accent-text/20"
         />
         {text && (
           <button

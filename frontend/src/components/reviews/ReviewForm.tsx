@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlaceReview } from '../../types';
 import { reviewApi } from '../../services/api';
-import { Button, Chip, TextField } from '../ui';
+import { Button, Chip, TextField, Star } from '../ui';
 import { describeApiError } from '../../i18n/serverText';
 import { REVIEW_COMMENT_MAX, REVIEW_TAGS, validateReview } from './reviewUtils';
 
@@ -81,18 +81,18 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               }}
               className={`min-h-[44px] min-w-[44px] flex items-center justify-center text-2xl leading-none transition-colors rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text ${
                 n <= rating
-                  ? 'text-amber-500'
-                  : 'text-ink-3/40 hover:text-amber-400'
+                  ? 'text-warning'
+                  : 'text-ink-3 hover:text-warning'
               }`}
             >
-              ★
+              <Star size={28} weight={n <= rating ? 'fill' : 'regular'} aria-hidden="true" />
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tags">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('review.tagsLabel')}>
           {REVIEW_TAGS.map((tag) => (
             <Chip
               key={tag}

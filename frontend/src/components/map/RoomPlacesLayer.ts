@@ -36,6 +36,7 @@ export function installRoomPlacesLayer(
   const accentColor = getCssColor('--color-accent', '#FF6B4A');
   const successColor = getCssColor('--color-success', '#047857');
   const inkColor = getCssColor('--color-ink', '#1C1917');
+  const surfaceColor = getCssColor('--color-surface', '#FFFFFF');
 
   // Quan da chot = pin success, quan them vao phong = pin coral (accent)
   map.addLayer({
@@ -51,7 +52,7 @@ export function installRoomPlacesLayer(
       ],
       'circle-radius': 13,
       'circle-stroke-width': 3,
-      'circle-stroke-color': '#FFFFFF',
+      'circle-stroke-color': surfaceColor,
     },
   });
 
@@ -70,7 +71,7 @@ export function installRoomPlacesLayer(
       'text-color': [
         'case',
         ['==', ['get', 'is_accepted'], true],
-        '#FFFFFF',
+        surfaceColor,
         inkColor,
       ],
     },
