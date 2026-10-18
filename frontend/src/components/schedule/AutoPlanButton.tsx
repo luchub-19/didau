@@ -113,7 +113,7 @@ export const AutoPlanButton: React.FC<AutoPlanButtonProps> = ({
         >
           {resolvedLabel}
         </Button>
-        <p className="text-[11px] text-ink-3 max-w-xs leading-normal">
+        <p className="text-caption text-ink-3 max-w-xs leading-normal">
           {t('autoplan.notEligibleHint')}
         </p>
       </div>

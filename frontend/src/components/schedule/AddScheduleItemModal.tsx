@@ -198,7 +198,7 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
                 selectedPlace.open_minute !== null &&
                 selectedPlace.close_minute !== undefined &&
                 selectedPlace.close_minute !== null && (
-                  <span className="text-[11px] text-ink-3 bg-surface px-2 py-0.5 rounded-chip border border-line shrink-0 flex items-center gap-1">
+                  <span className="text-caption text-ink-3 bg-surface px-2 py-0.5 rounded-chip border border-line shrink-0 flex items-center gap-1">
                     <Clock size={12} className="text-ink-3" />
                     <span>
                       {t('schedule.openingHoursBadge', {
@@ -236,7 +236,7 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
                 key={day}
                 type="button"
                 onClick={() => setDayOffset(day)}
-                className={`px-3 py-1.5 rounded-chip text-caption font-semibold border transition-all ${
+                className={`px-3 py-1.5 rounded-chip text-caption font-semibold border transition-colors ${
                   dayOffset === day
                     ? 'bg-accent text-ink font-semibold border-accent shadow-xs'
                     : 'bg-surface text-ink-2 border-line hover:bg-surface-2'

@@ -312,7 +312,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
             <button
               type="button"
               onClick={() => setSelectedDay('ALL')}
-              className={`px-3 py-1.5 rounded-chip text-caption font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-chip text-caption font-semibold whitespace-nowrap transition-colors ${
                 selectedDay === 'ALL'
                   ? 'bg-ink text-surface shadow-xs'
                   : 'bg-surface-2 text-ink-2 hover:bg-line'
@@ -328,7 +328,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
                     key={day}
                     type="button"
                     onClick={() => setSelectedDay(day)}
-                    className={`px-3 py-1.5 rounded-chip text-caption font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-chip text-caption font-semibold whitespace-nowrap transition-colors ${
                       selectedDay === day
                         ? 'bg-accent text-ink font-semibold shadow-xs'
                         : 'bg-surface-2 text-ink-2 hover:bg-line'
@@ -444,7 +444,7 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
                   conflictTravelMin ?? estimateTravelMinutes(place, nextPlace);
 
                 travelInfoNode = (
-                  <div className="py-1 px-4 flex items-center justify-between text-[11px] text-ink-3">
+                  <div className="py-1 px-4 flex items-center justify-between text-caption text-ink-3">
                     {/* Thời gian di chuyển hiển thị giữa hai mục */}
                     {estimatedTravel && estimatedTravel > 0 ? (
                       <span className="flex items-center gap-1.5 font-medium text-ink-2 bg-surface-2 px-2.5 py-0.5 rounded-chip">

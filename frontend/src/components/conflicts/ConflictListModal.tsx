@@ -127,10 +127,10 @@ export const ConflictListModal: React.FC<ConflictListModalProps> = ({
                       }`}
                     >
                       <WarningCircle size={14} weight="fill" />
-                      <span>{conflict.level}</span>
+                      <span>{t(`conflict.levelLabel.${conflict.level}`)}</span>
                     </span>
 
-                    <span className="text-[11px] font-semibold text-ink-3 uppercase tracking-wide">
+                    <span className="text-caption font-semibold text-ink-3">
                       {ruleTitle}
                     </span>
                   </div>
@@ -141,14 +141,11 @@ export const ConflictListModal: React.FC<ConflictListModalProps> = ({
 
                   {Array.isArray(conflict.entity_ids) &&
                     conflict.entity_ids.length > 0 && (
-                      <div className="mt-2.5 pt-2 border-t border-line flex items-center gap-1.5 text-[11px] text-ink-3">
+                      <div className="mt-2.5 pt-2 border-t border-line flex items-center gap-1.5 text-caption text-ink-3">
                         <span>
                           {t('conflict.relatedEntities', {
                             count: conflict.entity_ids.length,
                           })}
-                        </span>
-                        <span className="font-mono bg-surface px-1.5 py-0.5 rounded-md border border-line text-ink-2">
-                          {conflict.entity_type}
                         </span>
                       </div>
                     )}

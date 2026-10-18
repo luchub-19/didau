@@ -76,7 +76,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
       onDrop={(e) => onDrop?.(e, item.id)}
       onDragEnd={onDragEnd}
       data-testid={`schedule-item-${item.id}`}
-      className={`group relative flex items-start gap-3.5 p-4 rounded-card bg-surface border transition-all duration-150 ${
+      className={`group relative flex items-start gap-3.5 p-4 rounded-card bg-surface border transition-colors duration-150 ${
         isConflict
           ? isCriticalOrError
             ? 'border-danger/50 ring-1 ring-danger/25 shadow-xs'
@@ -125,19 +125,19 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
             <span className="tabular-nums">{formattedTimeRange}</span>
           </span>
 
-          <span className="text-[11px] text-ink-3 font-medium">
+          <span className="text-caption text-ink-3 font-medium">
             ({formatDuration(duration, language, 'short')})
           </span>
 
           {item.day_offset > 0 && (
-            <span className="px-2 py-0.5 rounded-chip text-[11px] font-semibold bg-surface-2 text-ink-2 border border-line">
+            <span className="px-2 py-0.5 rounded-chip text-caption font-semibold bg-surface-2 text-ink-2 border border-line">
               {t('schedule.dayBadge', { day: item.day_offset + 1 })}
             </span>
           )}
 
           {isConflict && (
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-chip text-[11px] font-bold ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-chip text-caption font-bold ${
                 isCriticalOrError
                   ? 'bg-danger text-surface'
                   : 'bg-warning text-surface'

@@ -289,6 +289,12 @@ export const en: Messages = {
     modalDescription: 'Detected {{count}} issues needing adjustment in the trip plan.',
     emptyTitle: 'Great! No schedule conflicts found.',
     emptyDescription: 'All time slots, places, and travel times are valid.',
+    levelLabel: {
+      INFO: 'Notice',
+      WARNING: 'Warning',
+      ERROR: 'Error',
+      CRITICAL: 'Critical',
+    },
     relatedEntities: 'Related items: {{count}}',
     ruleLabels: {
       TIME_OVERLAP: 'Time overlap',

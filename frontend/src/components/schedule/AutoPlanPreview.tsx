@@ -199,19 +199,19 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
         {preview && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-surface-2 border border-line rounded-card text-center">
             <div>
-              <div className="text-[11px] text-ink-3">{t('autoplan.summaryPlaces')}</div>
+              <div className="text-caption text-ink-3">{t('autoplan.summaryPlaces')}</div>
               <div className="text-body font-bold text-ink">
                 {t('autoplan.placesCount', { count: preview.slots.length })}
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-ink-3">{t('autoplan.summaryTravel')}</div>
+              <div className="text-caption text-ink-3">{t('autoplan.summaryTravel')}</div>
               <div className="text-body font-bold text-ink tabular-nums">
                 ~{formatDuration(preview.total_travel_min, language, 'short')}
               </div>
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <div className="text-[11px] text-ink-3">{t('autoplan.summaryCost')}</div>
+              <div className="text-caption text-ink-3">{t('autoplan.summaryCost')}</div>
               <div className="text-body font-bold text-success tabular-nums">
                 {formatMoney(preview.total_cost, language)}
               </div>
@@ -264,7 +264,7 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
                     data-testid={`slot-${slot.place_id}`}
                   >
                     {slot.travel_from_prev_min > 0 && (
-                      <div className="text-[11px] font-medium text-ink-2 flex items-center gap-1.5 pb-0.5">
+                      <div className="text-caption font-medium text-ink-2 flex items-center gap-1.5 pb-0.5">
                         <Clock size={14} className="text-ink-3" />
                         <span>
                           {t('autoplan.travelFromPrev', {
@@ -296,7 +296,7 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
                         {reasons.map((reason, rIdx) => (
                           <span
                             key={rIdx}
-                            className="text-[11px] bg-accent-soft text-accent-text px-2 py-0.5 rounded-chip border border-accent/20 flex items-center gap-1"
+                            className="text-caption bg-accent-soft text-accent-text px-2 py-0.5 rounded-chip border border-accent/20 flex items-center gap-1"
                           >
                             <Sparkle size={12} weight="fill" className="shrink-0" />
                             <span>{reason}</span>
@@ -377,7 +377,7 @@ export const AutoPlanPreview: React.FC<AutoPlanPreviewProps> = ({
                       {place?.name || d.place_id}
                     </span>
                     {dropReason && (
-                      <span className="text-danger italic text-[11px] text-right">
+                      <span className="text-danger italic text-caption text-right">
                         {dropReason}
                       </span>
                     )}

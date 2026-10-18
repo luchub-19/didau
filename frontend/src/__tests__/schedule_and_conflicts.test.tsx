@@ -211,7 +211,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       expect(html).toContain('data-testid="conflict-alert-banner"');
       expect(html).toContain('bg-danger-soft');
       expect(html).toContain('border-danger');
-      expect(html).toContain('CRITICAL');
+      expect(html).toContain('Nghiêm trọng');
       expect(html).toContain('Xung đột nghiêm trọng cần xử lý ngay');
       expect(html).toContain('bị trùng giờ với');
       expect(html).toContain('Chi tiết (1)');
@@ -241,7 +241,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
 
       expect(html).toContain('bg-warning-soft');
       expect(html).toContain('border-warning');
-      expect(html).toContain('WARNING (1)');
+      expect(html).toContain('Cảnh báo (1)');
       expect(html).toContain('Cảnh báo xung đột lịch trình');
       expect(html).toContain('Không đủ thời gian di chuyển');
     });
@@ -258,7 +258,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
 
       expect(html).toContain('Chi tiết cảnh báo xung đột lịch trình');
       expect(html).toContain('Trùng lặp thời gian');
-      expect(html).toContain('CRITICAL');
+      expect(html).toContain('Nghiêm trọng');
       expect(html).toContain('Cơm Tấm Ba Ghiền');
       expect(html).toContain('Đánh giá lại');
       expect(html).toContain('Đóng');

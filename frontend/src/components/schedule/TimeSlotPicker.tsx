@@ -74,7 +74,7 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
 
       <div className="grid grid-cols-2 gap-3 items-center">
         <div>
-          <span className="block text-[11px] font-medium text-ink-3 mb-1">
+          <span className="block text-caption font-medium text-ink-3 mb-1">
             {t('schedule.startTime')}
           </span>
           <input
@@ -88,7 +88,7 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
         </div>
 
         <div>
-          <span className="block text-[11px] font-medium text-ink-3 mb-1">
+          <span className="block text-caption font-medium text-ink-3 mb-1">
             {t('schedule.endTime')}
           </span>
           <input
@@ -109,13 +109,13 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
       {/* Quick duration presets */}
       {!disabled && (
         <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-          <span className="text-[11px] text-ink-3">{t('schedule.presets')}:</span>
+          <span className="text-caption text-ink-3">{t('schedule.presets')}:</span>
           {presetValues.map((mins) => (
             <button
               key={mins}
               type="button"
               onClick={() => handlePresetDuration(mins)}
-              className={`px-2.5 py-1 text-[11px] rounded-chip font-medium transition-colors ${
+              className={`px-2.5 py-1 text-caption rounded-chip font-medium transition-colors ${
                 duration === mins
                   ? 'bg-accent text-ink font-semibold'
                   : 'bg-surface-2 text-ink-2 hover:bg-line'

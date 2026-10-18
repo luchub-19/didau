@@ -287,6 +287,12 @@ export const vi = {
     modalDescription: 'Hệ thống phát hiện {{count}} vấn đề cần điều chỉnh trong kế hoạch chuyến đi.',
     emptyTitle: 'Tuyệt vời! Lịch trình không có xung đột nào.',
     emptyDescription: 'Mọi khung giờ, địa điểm và thời gian di chuyển đều hợp lệ.',
+    levelLabel: {
+      INFO: 'Lưu ý',
+      WARNING: 'Cảnh báo',
+      ERROR: 'Lỗi',
+      CRITICAL: 'Nghiêm trọng',
+    },
     relatedEntities: 'Mục liên quan: {{count}}',
     ruleLabels: {
       TIME_OVERLAP: 'Trùng lặp thời gian',
