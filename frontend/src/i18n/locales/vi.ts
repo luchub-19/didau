@@ -274,7 +274,8 @@ export const vi = {
     dragHandle: 'Kéo thả để sắp xếp',
   },
   conflict: {
-    summary: '{{count}} vấn đề trong lịch',
+    summary_one: '{{count}} vấn đề trong lịch',
+    summary_other: '{{count}} vấn đề trong lịch',
     bannerCriticalTitle: 'Xung đột nghiêm trọng cần xử lý ngay',
     bannerErrorTitle: 'Lỗi lịch trình cần điều chỉnh',
     bannerWarningTitle: 'Cảnh báo xung đột lịch trình',

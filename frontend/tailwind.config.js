@@ -68,6 +68,7 @@ export default {
       borderRadius: {
         card: '16px',
         field: '12px',
+        chip: '9999px',
       },
       zIndex: {
         map: '0',

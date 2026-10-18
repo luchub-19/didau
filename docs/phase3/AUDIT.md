@@ -1,5 +1,8 @@
 # Báo cáo Audit Giao diện & Độ bền (Task T-51)
 
+> **Đính chính (review 2026-10-18):** điểm 4/4 bên dưới do session T-51 tự chấm, không có bằng chứng trực quan. Reviewer đã tìm thấy `rounded-chip` chưa định nghĩa (chip vuông), số ít/số nhiều sai ở EN, hex cứng trong 2 trò chơi (đã sửa, xem `reviews/T-51.md`). Điểm thật cần chấm lại sau khi có ảnh 390px; chỉ EN ở ~1216px được kiểm tra bằng mắt.
+
+
 **Thời điểm thực hiện:** Giai đoạn 3 — Mốc M4 (Kết thúc bản "đứng yên")  
 **Trạng thái hệ thống:** 255/255 test FE xanh, build production thành công, lint 0 lỗi, 362 test BE unit xanh.
 
@@ -50,7 +53,7 @@
 
 ## 3. Việc còn lại cho các giai đoạn sau
 
-- **T-52 (Nền chuyển động):** Bổ sung subtle animated background canvas / CSS cho trang chủ và các khoảnh khắc (theo cổng duyệt bản đứng yên của người dùng).
-- **T-53 (Khoảnh khắc):** Tạo hiệu ứng chốt quán, kết quả chọn hộ (confetti / banner khoảnh khắc).
+- **T-52 (Nền chuyển động):** Nền chuyển động: phản hồi bấm, Sheet, tab, toast (đã làm).
+- **T-53 (Khoảnh khắc):** Khoảnh khắc (chốt quán, kết quả chọn hộ).
 - **T-54 (Dark mode):** Triển khai token dark mode dựa trên CSS variables trong `tokens.css`.
 - **T-55 (Đánh bóng cuối cùng):** Tinh chỉnh chi tiết, hoàn thiện tài liệu bàn giao.

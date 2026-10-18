@@ -276,7 +276,8 @@ export const en: Messages = {
     dragHandle: 'Drag to reorder',
   },
   conflict: {
-    summary: '{{count}} issues in schedule',
+    summary_one: '{{count}} issue in schedule',
+    summary_other: '{{count}} issues in schedule',
     bannerCriticalTitle: 'Critical conflict requires attention',
     bannerErrorTitle: 'Schedule error requires adjustment',
     bannerWarningTitle: 'Schedule conflict warning',
