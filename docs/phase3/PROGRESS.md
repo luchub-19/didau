@@ -43,4 +43,6 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | M6 (T-54→T-55) | |
 
 ## Cho task sau (việc ngoài phạm vi phát hiện được)
-- `components/ui/Sheet.tsx` (T-52): lỗi Esc/X không đóng được đã sửa (xem `reviews/T-48.md`); T-52 vẫn cần review và test tương tác (chưa có testing-library).
+- `components/ui/Sheet.tsx` (T-52): đã review (`reviews/T-52.md`), sửa kéo-xuống-để-đóng. Chưa kiểm tra bằng mắt: kéo cảm ứng, reduced-motion, tab Bản đồ; chưa có GIF chuyển động thật (cần quay màn hình tay ở 390px, lưu `screens/T-52/`).
+- T-51 vẫn `CẦN SỬA`: thiếu ảnh 390px + VI + Map + sheet; chấm lại `AUDIT.md` sau khi có ảnh; kiểm dữ liệu xấu, mạng chập chờn, Tab, zoom 200%.
+- T-49: chưa có ảnh từng trò (trước, chờ, kết quả). `tsconfig.tsbuildinfo` đang bị commit (người dùng quyết có đưa vào .gitignore không). `BottomTabBar` còn `duration-200` thay vì token `--t-ui` (T-53/T-55). App.tsx `min-h-screen` nên `min-h-dvh` (T-55).
