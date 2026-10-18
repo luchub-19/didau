@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { X } from './Icon';
 import { IconButton } from './IconButton';
 
+// Ngăn xếp các Sheet đang mở: chỉ Sheet trên cùng nhận Esc, và khoá cuộn chỉ trả lại khi Sheet cuối đóng.
+const openSheets: symbol[] = [];
+let overflowBeforeLock = '';
+
 export interface SheetProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +36,7 @@ export const Sheet: React.FC<SheetProps> = ({
   const titleRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+  const sheetId = useRef(Symbol('sheet'));
 
   useEffect(() => {
     if (!isOpen) return;
@@ -40,8 +45,12 @@ export const Sheet: React.FC<SheetProps> = ({
       previousActiveElement.current = document.activeElement as HTMLElement | null;
 
       // Khoá cuộn nền khi Sheet mở (DESIGN.md §5, T-40)
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      const id = sheetId.current;
+      if (openSheets.length === 0) {
+        overflowBeforeLock = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+      }
+      openSheets.push(id);
 
       // Chuyển focus vào tiêu đề dialog
       const timer = setTimeout(() => {
@@ -50,7 +59,9 @@ export const Sheet: React.FC<SheetProps> = ({
 
       return () => {
         clearTimeout(timer);
-        document.body.style.overflow = originalOverflow;
+        const idx = openSheets.indexOf(id);
+        if (idx !== -1) openSheets.splice(idx, 1);
+        if (openSheets.length === 0) document.body.style.overflow = overflowBeforeLock;
         // Trả focus về phần tử đã mở Sheet
         previousActiveElement.current?.focus?.();
       };
@@ -61,6 +72,9 @@ export const Sheet: React.FC<SheetProps> = ({
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Sheet chồng nhau: chỉ Sheet trên cùng xử lý phím
+      if (openSheets[openSheets.length - 1] !== sheetId.current) return;
+
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
@@ -77,6 +91,13 @@ export const Sheet: React.FC<SheetProps> = ({
 
         const firstElement = focusableElements[0];
         const lastElement = focusableElements[focusableElements.length - 1];
+
+        // Focus đang nằm ngoài dialog (ví dụ trên nền): kéo vào lại
+        if (!dialogRef.current.contains(document.activeElement)) {
+          event.preventDefault();
+          (event.shiftKey ? lastElement : firstElement).focus();
+          return;
+        }
 
         if (event.shiftKey) {
           if (document.activeElement === firstElement || document.activeElement === titleRef.current) {

@@ -571,6 +571,7 @@ export const vi = {
     selectOption: 'Chọn một mục',
     previous: 'Trước',
     next: 'Sau',
+    notifications: 'Thông báo',
   },
 } as const;
 

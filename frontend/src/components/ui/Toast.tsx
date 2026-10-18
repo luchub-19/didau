@@ -55,6 +55,7 @@ const ToastCard: React.FC<ToastCardProps> = ({ item, onDismiss }) => {
 };
 
 export const ToastViewport: React.FC = () => {
+  const { t } = useTranslation();
   const storeToasts = useToastStore((state) => state.toasts);
   const toasts = typeof window === 'undefined' ? useToastStore.getState().toasts : storeToasts;
   const removeToast = useToastStore((state) => state.removeToast);
@@ -63,7 +64,7 @@ export const ToastViewport: React.FC = () => {
 
   return (
     <div
-      aria-label="Notifications"
+      aria-label={t('ui.notifications')}
       className="fixed bottom-20 md:bottom-6 left-0 right-0 z-toast pointer-events-none flex flex-col items-center gap-2 px-4"
     >
       {toasts.map((item) => (

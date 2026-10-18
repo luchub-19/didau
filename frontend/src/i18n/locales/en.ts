@@ -573,5 +573,6 @@ export const en: Messages = {
     selectOption: 'Select an option',
     previous: 'Previous',
     next: 'Next',
+    notifications: 'Notifications',
   },
 };
