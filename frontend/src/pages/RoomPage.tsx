@@ -86,7 +86,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
       toast.success(t('room.originChangeSuccess'));
     } catch (err: unknown) {
       const key = errorMessageKey(err);
-      toast.error(key === 'errors.generic.unknown' ? t('room.originChangeError') : t(key));
+      toast.error(key === 'errors.generic.unknown' ? t('room.originChangeError') : describeApiError(err, t));
     }
   };
 
