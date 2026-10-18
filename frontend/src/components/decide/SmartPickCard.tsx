@@ -103,8 +103,8 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
       {/* Thanh tiêu đề thẻ */}
       <div className="flex items-center justify-between border-b border-line pb-3">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-accent" />
-          <span className="text-caption font-bold uppercase tracking-wider text-accent-text">
+          <Sparkle size={16} weight="fill" className="text-accent" aria-hidden="true" />
+          <span className="text-caption font-semibold text-accent-text">
             {t('decide.smart.badge')}
           </span>
         </div>
@@ -141,7 +141,7 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
               <ThumbsUp size={12} weight="fill" />
               <span>{place?.score ?? 0}</span>
             </span>
-            <span className="text-[11px] text-ink-3 font-medium">
+            <span className="text-caption text-ink-3 font-medium">
               {t('decide.smart.upvotesCount', { count: place?.upvotes ?? 0 })}
             </span>
           </div>

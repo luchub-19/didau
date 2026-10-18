@@ -42,7 +42,7 @@ export const TieBreakSelectorModal: React.FC<TieBreakSelectorModalProps> = ({
     propIsHost ?? (storeCurrentMember ? storeCurrentMember.role === 'HOST' : true);
 
   const [strategy, setStrategy] = useState<TieBreakStrategyName>(defaultStrategy);
-  const [maxAcceptedPlaces, setMaxAcceptedPlaces] = useState<number>(3);
+  const [maxAcceptedPlaces, setMaxAcceptedPlaces] = useState<string>('3');
   const [error, setError] = useState<string | null>(null);
 
   const strategies: {
@@ -86,7 +86,8 @@ export const TieBreakSelectorModal: React.FC<TieBreakSelectorModalProps> = ({
   const handleConfirm = async () => {
     if (isLoading) return;
     setError(null);
-    if (maxAcceptedPlaces < 1) {
+    const maxPlaces = Math.min(20, parseInt(maxAcceptedPlaces, 10) || 0);
+    if (maxPlaces < 1) {
       setError(t('tiebreak.minPlacesError'));
       return;
     }
@@ -94,7 +95,7 @@ export const TieBreakSelectorModal: React.FC<TieBreakSelectorModalProps> = ({
     try {
       await resolveVoting(roomId, {
         strategy,
-        max_accepted_places: maxAcceptedPlaces,
+        max_accepted_places: maxPlaces,
       });
       toast.success(t('tiebreak.success'));
       onSuccess?.();
@@ -154,26 +155,23 @@ export const TieBreakSelectorModal: React.FC<TieBreakSelectorModalProps> = ({
               min={1}
               max={20}
               value={maxAcceptedPlaces}
-              onChange={(e) =>
-                setMaxAcceptedPlaces(parseInt(e.target.value, 10) || 1)
-              }
+              onChange={(e) => setMaxAcceptedPlaces(e.target.value)}
               hint={t('tiebreak.maxPlacesHelper')}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-caption font-semibold text-ink uppercase tracking-wider">
+          <fieldset className="space-y-2">
+            <legend className="block text-caption font-semibold text-ink mb-2">
               {t('tiebreak.strategyLabel')}
-            </label>
+            </legend>
 
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {strategies.map((item) => {
                 const isSelected = strategy === item.id;
                 return (
-                  <div
+                  <label
                     key={item.id}
-                    onClick={() => setStrategy(item.id)}
-                    className={`p-3 rounded-card border text-left cursor-pointer transition flex items-start gap-3 ${
+                    className={`p-3 min-h-11 rounded-card border text-left cursor-pointer transition-colors flex items-start gap-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
                       isSelected
                         ? 'border-accent bg-accent-soft/30 shadow-xs'
                         : 'border-line hover:border-accent/40 bg-surface'
@@ -199,16 +197,16 @@ export const TieBreakSelectorModal: React.FC<TieBreakSelectorModalProps> = ({
                           name="tiebreak-strategy"
                           checked={isSelected}
                           onChange={() => setStrategy(item.id)}
-                          className="accent-accent h-4 w-4"
+                          className="accent-accent h-5 w-5"
                         />
                       </div>
                       <p className="text-caption text-ink-2 mt-0.5">{item.desc}</p>
                     </div>
-                  </div>
+                  </label>
                 );
               })}
             </div>
-          </div>
+          </fieldset>
         </div>
       ) : (
         <div className="py-8 flex flex-col items-center justify-center text-center">

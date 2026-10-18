@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
@@ -49,6 +49,11 @@ export const DecideModal: React.FC<DecideModalProps> = ({
   // View state: cho phép chuyển giữa danh sách chọn chế độ và màn chơi trực tiếp
   const [isChoosingMode, setIsChoosingMode] = useState(false);
 
+  // Mở lại sheet luôn bắt đầu ở màn chơi, không kẹt ở danh sách chế độ
+  useEffect(() => {
+    if (!isOpen) setIsChoosingMode(false);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const modeDefinitions: {
@@ -98,8 +103,14 @@ export const DecideModal: React.FC<DecideModalProps> = ({
     },
   ];
 
+  // Chế độ đã lưu mà không còn đủ điều kiện (ví dụ < 2 quán) thì lùi về Gợi ý thông minh
+  const requestedDef = modeDefinitions.find((m) => m.mode === selectedMode);
   const currentModeDef =
-    modeDefinitions.find((m) => m.mode === selectedMode) || modeDefinitions[0];
+    requestedDef && requestedDef.eligible
+      ? requestedDef
+      : modeDefinitions.find((m) => m.eligible) || modeDefinitions[0];
+  const activeMode = currentModeDef.mode;
+  const firstLocked = modeDefinitions.find((m) => !m.eligible);
 
   const segmentedOptions = modeDefinitions.map((m) => ({
     value: m.mode,
@@ -126,7 +137,7 @@ export const DecideModal: React.FC<DecideModalProps> = ({
         <div className="overflow-x-auto pb-1 no-scrollbar">
           <Segmented
             options={segmentedOptions}
-            value={selectedMode}
+            value={activeMode}
             onChange={(mode) => {
               handleSelectMode(mode);
               setIsChoosingMode(false);
@@ -134,23 +145,21 @@ export const DecideModal: React.FC<DecideModalProps> = ({
             size="sm"
             className="w-full flex justify-between"
           />
+          {firstLocked?.disabledReason && (
+            <p className="text-caption text-ink-2 mt-2">{firstLocked.disabledReason}</p>
+          )}
         </div>
 
         {/* Danh sách chọn chế độ khi bật isChoosingMode */}
         {isChoosingMode ? (
           <div className="space-y-3">
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label={t('decide.modal.title')}>
               {modeDefinitions.map((item) => {
-                const isSelected = selectedMode === item.mode;
+                const isSelected = activeMode === item.mode;
                 return (
-                  <div
+                  <label
                     key={item.mode}
-                    onClick={() => {
-                      if (item.eligible) {
-                        setSelectedMode(item.mode);
-                      }
-                    }}
-                    className={`p-3.5 rounded-card border transition flex items-start gap-3 ${
+                    className={`p-3.5 min-h-11 rounded-card border transition-colors flex items-start gap-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
                       !item.eligible
                         ? 'opacity-60 cursor-not-allowed border-line bg-surface-2'
                         : isSelected
@@ -181,17 +190,17 @@ export const DecideModal: React.FC<DecideModalProps> = ({
                           onChange={() => {
                             if (item.eligible) setSelectedMode(item.mode);
                           }}
-                          className="accent-accent h-4 w-4"
+                          className="accent-accent h-5 w-5"
                         />
                       </div>
                       <p className="text-caption text-ink-2 mt-0.5">{item.desc}</p>
                       {!item.eligible && item.disabledReason && (
-                        <p className="text-[11px] font-medium text-danger mt-1">
+                        <p className="text-caption font-medium text-danger mt-1">
                           {item.disabledReason}
                         </p>
                       )}
                     </div>
-                  </div>
+                  </label>
                 );
               })}
             </div>
@@ -214,14 +223,14 @@ export const DecideModal: React.FC<DecideModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsChoosingMode(true)}
-                className="text-caption font-semibold text-accent-text hover:underline flex-shrink-0 ml-2"
+                className="min-h-11 px-2 text-caption font-semibold text-accent-text hover:underline flex-shrink-0 ml-2"
               >
                 {t('decide.modal.changeMode')}
               </button>
             </div>
 
             {/* Nội dung theo chế độ đã chọn */}
-            {selectedMode === 'SMART' && (
+            {activeMode === 'SMART' && (
               <SmartPickCard
                 roomId={roomId}
                 isHost={isHost}
@@ -234,15 +243,15 @@ export const DecideModal: React.FC<DecideModalProps> = ({
               />
             )}
 
-            {selectedMode === 'WHEEL' && (
+            {activeMode === 'WHEEL' && (
               <SpinWheel roomId={roomId} isHost={isHost} places={places} />
             )}
 
-            {selectedMode === 'SWIPE' && (
+            {activeMode === 'SWIPE' && (
               <SwipeDeck roomId={roomId} isHost={isHost} places={places} />
             )}
 
-            {selectedMode === 'LADDER' && (
+            {activeMode === 'LADDER' && (
               <LuckyLadder
                 roomId={roomId}
                 isHost={isHost}

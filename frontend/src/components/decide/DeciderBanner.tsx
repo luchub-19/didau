@@ -61,12 +61,7 @@ export const DeciderBanner: React.FC<DeciderBannerProps> = ({
             {icon}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-label font-bold text-ink">{title}</h3>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-semibold bg-surface-2 text-ink-2">
-                {topHint.type}
-              </span>
-            </div>
+            <h3 className="text-label font-bold text-ink">{title}</h3>
             <p className="text-caption text-ink-2 mt-0.5">{desc}</p>
           </div>
         </div>

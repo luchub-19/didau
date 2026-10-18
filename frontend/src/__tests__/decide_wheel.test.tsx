@@ -83,7 +83,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       expect(html).toContain('Hoà điểm cao nhất');
       expect(html).toContain('2 quán đang hoà điểm, để app chọn hộ nhé?');
       expect(html).toContain('Chọn hộ nhóm');
-      expect(html).toContain('TIE_AT_TOP');
+      expect(html).not.toContain('TIE_AT_TOP');
       expect(html).not.toContain('🎲');
     });
 
@@ -96,7 +96,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
         <DeciderBanner roomId={mockRoom.id} hints={otherHints} onOpenDecide={() => {}} />,
       );
       expect(html).toContain('Điểm số suýt soát');
-      expect(html).toContain('NEAR_TIE');
+      expect(html).not.toContain('NEAR_TIE');
 
       const tooManyHints: DeciderHint[] = [{ type: 'TOO_MANY', category: 'FOOD', candidate_place_ids: [] }];
       useDecisionStore.setState({ hints: tooManyHints });
@@ -441,7 +441,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       expect(wheelModalHtml).toContain('spin-wheel-container');
     });
 
-    it('các tab chưa triển khai (SWIPE, LADDER) hiển thị thông báo "Sắp có ở T-33"', () => {
+    it('chế độ SWIPE render SwipeDeck khi đủ quán', () => {
       useDecisionStore.setState({
         isDecideModalOpen: true,
         selectedMode: 'SWIPE',
@@ -454,10 +454,10 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
           roomId={mockRoom.id}
           isHost={true}
           selectedMode="SWIPE"
+          places={mockPlaces}
         />,
       );
-      expect(swipeModalHtml).toContain('Chế độ Quẹt thẻ nhóm');
-      expect(swipeModalHtml).toContain('Task T-33');
+      expect(swipeModalHtml).toContain('swipe-deck-container');
     });
 
     it('chế độ chưa đủ điều kiện (ví dụ cần ≥ 2 quán) bị disabled trong danh sách chọn chế độ', () => {
