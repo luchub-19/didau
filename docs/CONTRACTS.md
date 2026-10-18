@@ -779,6 +779,37 @@ Khi có lỗi (status $\ge 400$):
 #### Mã lỗi bổ sung (CR-03)
 - `PLACE_ALREADY_ADDED` (409): `POST /rooms/{room_id}/places` trùng `(room_id, external_id)`; `details.place_id` là id quán đã có.
 
+#### 28. Lấy thành viên hiện tại (CR-05)
+- **Method & Path**: `GET /api/v1/members/me`
+- **Auth**: Header `X-Member-Token: <token>`
+- **Response 200 OK**: `MemberResponse` của thành viên ứng với token.
+- **Error Codes**: `UNAUTHORIZED` (401).
+
+#### 29. Chi tiết một địa điểm trong phòng (CR-05)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/places/{place_id}`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Response 200 OK**: `PlaceResponse` (kèm vote summary và `current_user_vote` như endpoint 5).
+- **Error Codes**: `PLACE_NOT_FOUND` (404) khi quán không tồn tại hoặc không thuộc `room_id`.
+
+#### 30. Chỉnh sửa địa điểm (CR-05)
+- **Method & Path**: `PATCH /api/v1/rooms/{room_id}/places/{place_id}`
+- **Auth**: Header `X-Member-Token: <token>` (người đề xuất quán hoặc Host)
+- **Payload**: mọi trường tuỳ chọn (`UpdatePlaceRequest`): `name`, `address`, `latitude`, `longitude`, `category`, `status`, `url`, `notes`, `estimated_cost`, `open_minute`, `close_minute`, `cuisine`, `opening_hours_raw`.
+- **Response 200 OK**: `PlaceResponse`. Nếu `status` đổi thì phát WS `PLACE_UPDATED`.
+- **Error Codes**: `PLACE_NOT_FOUND` (404), `FORBIDDEN_HOST_ONLY` (403) khi không phải người đề xuất hay Host, `VALIDATION_ERROR` (422).
+
+#### 31. Xoá địa điểm (CR-05)
+- **Method & Path**: `DELETE /api/v1/rooms/{room_id}/places/{place_id}`
+- **Auth**: Header `X-Member-Token: <token>` (người đề xuất quán hoặc Host)
+- **Response 200 OK**: `{ "success": true, "place_id": "...", "message": "..." }`; phát WS `PLACE_DELETED`.
+- **Error Codes**: `PLACE_NOT_FOUND` (404), `FORBIDDEN_HOST_ONLY` (403).
+
+#### 32. Xoá mục lịch trình (CR-05)
+- **Method & Path**: `DELETE /api/v1/rooms/{room_id}/schedule/{item_id}`
+- **Auth**: Header `X-Member-Token: <token>` (mọi thành viên của phòng)
+- **Response 200 OK**: `{ "success": true, "item_id": "...", "message": "..." }`; đánh giá lại xung đột, lưu lại bảng `conflicts` và phát WS `SCHEDULE_UPDATED`.
+- **Error Codes**: `ROOM_NOT_FOUND` (404), `SCHEDULE_ITEM_NOT_FOUND` (404).
+
 ---
 
 ## 4. GIAO THỨC VÀ SỰ KIỆN WEBSOCKET (WEBSOCKET CONTRACT)

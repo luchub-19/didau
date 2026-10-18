@@ -265,7 +265,7 @@ Thêm vào mục 4.1/4.2: `CHAT_MESSAGE` (payload theo code hiện tại) và `M
 
 - **Người đề xuất**: Session review tích hợp (2026-10-17)
 - **Ngày tạo**: 2026-10-17
-- **Trạng thái**: PROPOSED (CHỜ NGƯỜI DÙNG DUYỆT)
+- **Trạng thái**: ACCEPTED (người dùng duyệt 2026-10-18; đã ghi vào CONTRACTS §3.3 mục 28–32)
 - **Task đã DONE bị ảnh hưởng**: T-08 (`api/v1/members.py`), T-09 (`api/v1/places.py`), T-11 (`api/v1/schedule.py`). Chỉ ghi tài liệu, không đổi code.
 
 ### 1. Vấn đề
