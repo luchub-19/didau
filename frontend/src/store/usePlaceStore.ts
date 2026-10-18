@@ -41,7 +41,7 @@ interface PlaceState {
 
   // Realtime updates & local state
   setPlaces: (places: Place[]) => void;
-  upsertPlace: (place: Place) => void;
+  upsertPlace: (place: Partial<Place> & { id: string }) => void;
   removePlace: (placeId: string) => void;
   updatePlaceVote: (
     placeId: string,
@@ -286,10 +286,35 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
       const exists = state.places.some((p) => p.id === place.id);
       if (exists) {
         return {
-          places: state.places.map((p) => (p.id === place.id ? place : p)),
+          places: state.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return {
+              ...p,
+              ...place,
+              upvotes: place.upvotes !== undefined ? place.upvotes : (p.upvotes ?? 0),
+              downvotes: place.downvotes !== undefined ? place.downvotes : (p.downvotes ?? 0),
+              score: place.score !== undefined ? place.score : (p.score ?? 0),
+              current_user_vote:
+                place.current_user_vote !== undefined
+                  ? place.current_user_vote
+                  : (p.current_user_vote ?? 0),
+            };
+          }),
         };
       }
-      return { places: [place, ...state.places] };
+      const newPlace: Place = {
+        name: '',
+        category: 'OTHER',
+        status: 'PROPOSED',
+        estimated_cost: 0,
+        upvotes: 0,
+        downvotes: 0,
+        score: 0,
+        current_user_vote: 0,
+        created_at: new Date().toISOString(),
+        ...place,
+      } as Place;
+      return { places: [newPlace, ...state.places] };
     }),
   removePlace: (placeId) =>
     set((state) => ({

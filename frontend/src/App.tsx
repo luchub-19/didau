@@ -7,6 +7,7 @@ import { RoomPage } from './pages/RoomPage';
 import { coldStartManager, type ColdStartState } from './services/api/coldStart';
 import { Button, ToastViewport } from './components/ui';
 import { StyleGuide } from './dev/StyleGuide';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 function parseRoomIdFromPath(): string | null {
   if (typeof window === 'undefined') return null;
@@ -111,9 +112,9 @@ export default function App(): React.ReactElement {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       {mainContent}
       <ToastViewport />
-    </>
+    </ErrorBoundary>
   );
 }

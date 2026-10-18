@@ -130,6 +130,14 @@ export function useWebSocket(roomId?: string) {
           }
         });
       }
+      const currentRoom = useRoomStore.getState().room;
+      if (currentRoom) {
+        setRoom({
+          ...currentRoom,
+          status: 'FINALIZED',
+          tie_break_strategy: payload.strategy ?? 'GROUP_DECISION',
+        });
+      }
     });
 
     const unsubScheduleUpdated = client.on<ScheduleUpdatedPayload>('SCHEDULE_UPDATED', (payload) => {

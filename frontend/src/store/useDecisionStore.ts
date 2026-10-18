@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { decisionApi } from '../services/api/decisionApi';
 import { usePlaceStore } from './usePlaceStore';
+import { useRoomStore } from './useRoomStore';
 import type {
   CreateDecisionRequest,
   CreateDecisionResponse,
@@ -158,6 +159,20 @@ export const useDecisionStore = create<DecisionState>((set, get) => ({
       });
       if (res.resolved_place) {
         usePlaceStore.getState().upsertPlace(res.resolved_place);
+      } else if (res.session?.result_place_id) {
+        const currentPlaces = usePlaceStore.getState().places;
+        const target = currentPlaces.find((p) => p.id === res.session.result_place_id);
+        if (target) {
+          usePlaceStore.getState().upsertPlace({ ...target, status: 'ACCEPTED' });
+        }
+      }
+      const currentRoom = useRoomStore.getState().room;
+      if (currentRoom) {
+        useRoomStore.getState().setRoom({
+          ...currentRoom,
+          status: 'FINALIZED',
+          tie_break_strategy: res.strategy ?? 'GROUP_DECISION',
+        });
       }
     } catch (err: unknown) {
       const message = errorKey(err, 'ACCEPT_DECISION_FAILED');

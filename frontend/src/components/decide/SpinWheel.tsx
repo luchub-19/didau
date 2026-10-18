@@ -196,7 +196,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
   };
 
   const handleAcceptWinner = async () => {
-    if (!isHost || !currentSession?.id) return;
+    if (!isHost || !currentSession?.id || isSubmitting) return;
     setErrorMsg(null);
     try {
       await acceptDecision(roomId, currentSession.id);
@@ -302,9 +302,9 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
                     fontSize="11"
                     className="select-none"
                   >
-                    {slice.place.name.length > 13
-                      ? `${slice.place.name.slice(0, 12)}…`
-                      : slice.place.name}
+                    {(slice.place?.name || '').length > 13
+                      ? `${(slice.place?.name || '').slice(0, 12)}…`
+                      : (slice.place?.name || '')}
                   </text>
                 </g>
               </g>
@@ -331,10 +331,10 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
             {t('decide.wheel.winnerBadge')}
           </p>
           <h4 className="text-title font-bold text-ink">
-            {winnerPlace.name}
+            {winnerPlace?.name || ''}
           </h4>
           <p className="text-caption text-ink-2">
-            {winnerPlace.category} • {t('decide.wheel.scoreText', { score: winnerPlace.score ?? 0 })}
+            {winnerPlace?.category || ''} • {t('decide.wheel.scoreText', { score: winnerPlace?.score ?? 0 })}
           </p>
 
           {isHost ? (
@@ -426,7 +426,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
                   className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-surface border border-line"
                 >
                   <span className="truncate max-w-[200px] font-medium text-ink">
-                    {s.place.name}
+                    {s.place?.name || ''}
                   </span>
                   <span className="font-bold text-ink tabular-nums">{s.percentage}%</span>
                 </div>

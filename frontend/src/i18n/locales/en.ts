@@ -38,6 +38,8 @@ export const en: Messages = {
       errorTitle: "Couldn't connect to server",
       errorDesc: "Couldn't reach the server. Please check your connection and try again.",
     },
+    crashTitle: 'An unexpected error occurred',
+    crashDesc: 'The system encountered an error displaying the interface. Please reload the page to continue.',
   },
   lang: {
     code: 'en',

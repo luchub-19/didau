@@ -532,6 +532,13 @@ class DecisionService:
         resolved_place = await self.place_repo.get_by_id(session.result_place_id)
         resolved_place_data: dict[str, Any] | None = None
         if resolved_place:
+            vote_summary = await self.vote_repo.get_vote_summary_by_room(room_id)
+            summary = vote_summary.get(
+                session.result_place_id, {"upvotes": 0, "downvotes": 0, "score": 0}
+            )
+            vote_obj = await self.vote_repo.get_vote(session.result_place_id, host_member.id)
+            current_user_vote = vote_obj.vote_value if vote_obj else 0
+
             cat_val = (
                 resolved_place.category.value
                 if hasattr(resolved_place.category, "value")
@@ -569,6 +576,10 @@ class DecisionService:
                 "open_minute": resolved_place.open_minute,
                 "close_minute": resolved_place.close_minute,
                 "submitted_by_id": resolved_place.submitted_by_id,
+                "upvotes": summary["upvotes"],
+                "downvotes": summary["downvotes"],
+                "score": summary["score"],
+                "current_user_vote": current_user_vote,
                 "created_at": resolved_place.created_at or now_utc(),
                 "updated_at": resolved_place.updated_at,
             }

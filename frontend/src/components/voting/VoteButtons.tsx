@@ -18,10 +18,10 @@ export interface VoteButtonsProps {
 export const VoteButtons: React.FC<VoteButtonsProps> = ({
   roomId,
   placeId,
-  upvotes,
-  downvotes,
-  score,
-  currentUserVote,
+  upvotes = 0,
+  downvotes = 0,
+  score = 0,
+  currentUserVote = 0,
   disabled = false,
 }) => {
   const { t } = useTranslation();

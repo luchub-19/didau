@@ -318,7 +318,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
   };
 
   const handleAccept = async () => {
-    if (!session?.id) return;
+    if (!session?.id || isSubmitting) return;
     if (onAcceptWinner) {
       await onAcceptWinner();
       return;
@@ -327,7 +327,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
   };
 
   const handleCancel = async () => {
-    if (!session?.id) return;
+    if (!session?.id || isSubmitting) return;
     if (onCancelSession) {
       await onCancelSession();
       return;

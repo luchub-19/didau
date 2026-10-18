@@ -36,6 +36,8 @@ export const vi = {
       errorTitle: 'Không kết nối được máy chủ',
       errorDesc: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng và thử lại.',
     },
+    crashTitle: 'Đã xảy ra lỗi không mong muốn',
+    crashDesc: 'Hệ thống đã gặp lỗi khi hiển thị giao diện. Vui lòng tải lại trang để tiếp tục.',
   },
   lang: {
     code: 'vi',

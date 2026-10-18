@@ -289,7 +289,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
 
   // Host Accept Winner
   const handleAccept = async () => {
-    if (!session?.id) return;
+    if (!session?.id || isSubmitting) return;
     if (onAcceptWinner) {
       await onAcceptWinner();
       return;
@@ -299,7 +299,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
 
   // Host Cancel Session
   const handleCancel = async () => {
-    if (!session?.id) return;
+    if (!session?.id || isSubmitting) return;
     if (onCancelSession) {
       await onCancelSession();
       return;
@@ -453,11 +453,11 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
               {t('decide.swipe.resultBadge')}
             </span>
             <h4 className="text-title font-bold text-ink mt-2">
-              {winnerPlace ? winnerPlace.name : t('decide.swipe.winnerPlaceDefault')}
+              {winnerPlace?.name || t('decide.swipe.winnerPlaceDefault')}
             </h4>
             {winnerPlace && (
               <p className="text-caption text-ink-2 mt-1 max-w-md mx-auto">
-                {winnerPlace.category} • {winnerPlace.address || t('decide.swipe.centerArea')}
+                {winnerPlace.category || ''} • {winnerPlace.address || t('decide.swipe.centerArea')}
                 {winnerPlace.estimated_cost
                   ? ` • ${formatMoney(winnerPlace.estimated_cost)}`
                   : ''}

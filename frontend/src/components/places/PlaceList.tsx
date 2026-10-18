@@ -109,7 +109,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
     const q = search.toLowerCase().trim();
     return categoryFiltered.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
+        (p.name || '').toLowerCase().includes(q) ||
         (p.address && p.address.toLowerCase().includes(q)) ||
         (p.notes && p.notes.toLowerCase().includes(q)),
     );
@@ -119,17 +119,22 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   const sorted = useMemo(() => {
     return [...searchFiltered].sort((a, b) => {
       if (sortBy === 'SCORE') {
-        if (b.score !== a.score) return b.score - a.score;
-        return b.upvotes - a.upvotes;
+        const scoreB = b.score ?? 0;
+        const scoreA = a.score ?? 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.upvotes ?? 0) - (a.upvotes ?? 0);
       }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return (
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+      );
     });
   }, [searchFiltered, sortBy]);
 
   // Tìm điểm cao nhất để gắn highlight quán dẫn đầu
   const maxScore = useMemo(() => {
     if (places.length === 0) return 0;
-    return Math.max(...places.map((p) => p.score));
+    return Math.max(...places.map((p) => p.score ?? 0));
   }, [places]);
 
   const sortOptions: SegmentedOption<SortOption>[] = [

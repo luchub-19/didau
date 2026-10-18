@@ -53,7 +53,7 @@ export interface PlaceAddedPayload {
 }
 
 export interface PlaceUpdatedPayload {
-  place: Place;
+  place: Partial<Place> & { id: string };
 }
 
 export interface PlaceDeletedPayload {

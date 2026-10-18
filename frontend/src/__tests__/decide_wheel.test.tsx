@@ -18,6 +18,7 @@ import { SmartPickCard } from '../components/decide/SmartPickCard';
 import { SpinWheel } from '../components/decide/SpinWheel';
 import { DecideModal } from '../components/decide/DecideModal';
 import { TieBreakSelectorModal } from '../components/voting/TieBreakSelectorModal';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import type { DeciderHint, DecisionStartedPayload, ScoredPick } from '../types';
 
 beforeAll(() => {
@@ -396,6 +397,68 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
         />,
       );
       expect(html).toBeDefined();
+    });
+
+    it('chốt quán sau khi quay số: upsertPlace merge an toàn dữ liệu, không làm mất tên, điểm vote và không gây màn hình đen', async () => {
+      usePlaceStore.getState().setPlaces(mockPlaces);
+      const originalPlace = mockPlaces[0];
+
+      const createRes = await useDecisionStore.getState().createDecision(mockRoom.id, {
+        mode: 'WHEEL',
+        candidate_place_ids: [mockPlaces[0].id, mockPlaces[1].id],
+      });
+      expect(createRes.session).toBeDefined();
+
+      await useDecisionStore.getState().acceptDecision(mockRoom.id, createRes.session.id);
+
+      const updatedPlace = usePlaceStore.getState().places.find((p) => p.id === originalPlace.id);
+      expect(updatedPlace).toBeDefined();
+      expect(updatedPlace?.status).toBe('ACCEPTED');
+      expect(updatedPlace?.name).toBe(originalPlace.name);
+      expect(updatedPlace?.score).toBe(originalPlace.score);
+      expect(updatedPlace?.upvotes).toBe(originalPlace.upvotes);
+
+      const html = renderToStaticMarkup(
+        <SpinWheel
+          roomId={mockRoom.id}
+          isHost={true}
+          places={usePlaceStore.getState().places}
+          wheelWinnerId={originalPlace.id}
+        />,
+      );
+      expect(html).toContain('data-testid="spin-wheel-container"');
+      expect(html).not.toContain('rotate(NaNdeg)');
+    });
+
+    it('SpinWheel phòng thủ an toàn: không crash khi dữ liệu quán thiếu thuộc tính name hoặc rỗng', () => {
+      const corruptedPlaces = [
+        { ...mockPlaces[0], name: undefined as unknown as string },
+        { ...mockPlaces[1], name: '' },
+      ];
+
+      expect(() => {
+        renderToStaticMarkup(
+          <SpinWheel
+            roomId={mockRoom.id}
+            isHost={true}
+            places={corruptedPlaces}
+            wheelWinnerId={corruptedPlaces[0].id}
+          />,
+        );
+      }).not.toThrow();
+    });
+
+    it('ErrorBoundary hiển thị fallback khi có lỗi', () => {
+      const boundary = new ErrorBoundary({ children: <div>OK</div> });
+      const errorState = ErrorBoundary.getDerivedStateFromError(new Error('Test error'));
+      expect(errorState.hasError).toBe(true);
+
+      boundary.state = errorState;
+      const html = renderToStaticMarkup(boundary.render());
+
+      expect(html).toContain('Đã xảy ra lỗi không mong muốn');
+      expect(html).toContain('Hệ thống đã gặp lỗi khi hiển thị giao diện');
+      expect(html).toContain('Thử lại');
     });
   });
 

@@ -25,7 +25,7 @@ interface RoomState {
   joinRoom: (data: JoinRoomRequest) => Promise<JoinRoomResponse>;
   fetchRoom: (roomId: string) => Promise<void>;
   updateRoom: (roomId: string, data: UpdateRoomRequest) => Promise<Room>;
-  setRoom: (room: Room | null) => void;
+  setRoom: (room: Partial<Room> | null) => void;
   setMembers: (members: Member[]) => void;
   addMember: (member: Member) => void;
   removeMember: (memberId: string) => void;
@@ -113,7 +113,10 @@ export const useRoomStore = create<RoomState>((set) => ({
     set({ room });
     return room;
   },
-  setRoom: (room) => set({ room }),
+  setRoom: (room) =>
+    set((state) => ({
+      room: room ? (state.room ? { ...state.room, ...room } : (room as Room)) : null,
+    })),
   setMembers: (members) => set({ members }),
   addMember: (member) =>
     set((state) => {

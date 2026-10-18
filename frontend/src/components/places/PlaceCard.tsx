@@ -178,7 +178,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
           {/* Tên quán và địa chỉ */}
           <div>
             <h4 className="text-body font-bold text-ink leading-snug line-clamp-2">
-              {place.name}
+              {place.name || ''}
             </h4>
 
             {place.address && (
@@ -191,7 +191,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
 
           {/* Chi tiết: Giá, Giờ mở cửa, Link ngoài, Xem bản đồ */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-caption text-ink-2 pt-2 border-t border-line/60">
-            {place.estimated_cost > 0 && (
+            {(place.estimated_cost ?? 0) > 0 && (
               <div className="flex items-center gap-1 font-semibold text-ink">
                 <CurrencyCircleDollar size={15} className="text-ink-2" />
                 <span>{formatMoney(place.estimated_cost, lang)}</span>
@@ -251,10 +251,10 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
           <VoteButtons
             roomId={roomId}
             placeId={place.id}
-            upvotes={place.upvotes}
-            downvotes={place.downvotes}
-            score={place.score}
-            currentUserVote={place.current_user_vote}
+            upvotes={place.upvotes ?? 0}
+            downvotes={place.downvotes ?? 0}
+            score={place.score ?? 0}
+            currentUserVote={place.current_user_vote ?? 0}
             disabled={isVotingDisabled}
           />
         </div>
