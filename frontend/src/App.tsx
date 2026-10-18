@@ -3,6 +3,7 @@ import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
 import { coldStartManager, type ColdStartState } from './services/api/coldStart';
 import { Button } from './components/common';
+import { StyleGuide } from './dev/StyleGuide';
 
 function parseRoomIdFromPath(): string | null {
   if (typeof window === 'undefined') return null;
@@ -81,6 +82,10 @@ export default function App(): React.ReactElement {
         </div>
       </div>
     );
+  }
+
+  if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.pathname === '/_styleguide') {
+    return <StyleGuide />;
   }
 
   if (currentRoomId) {

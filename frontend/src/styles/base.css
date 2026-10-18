@@ -1,0 +1,45 @@
+/* Base styles (DESIGN.md §2, §3, §4) */
+body {
+  background-color: rgb(var(--color-bg));
+  color: rgb(var(--color-ink));
+  font-family: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  caret-color: rgb(var(--color-accent));
+}
+
+::selection {
+  background-color: rgb(var(--color-accent-soft));
+  color: rgb(var(--color-ink));
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-text));
+  outline-offset: 2px;
+}
+
+/* Scrollbar mảnh màu line */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-line)) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--color-line));
+  border-radius: 9999px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}

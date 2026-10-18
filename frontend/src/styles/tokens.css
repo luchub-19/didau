@@ -1,0 +1,84 @@
+:root {
+  /* Màu nền & bề mặt (DESIGN.md §2) */
+  --color-bg: 250 250 249;         /* #FAFAF9 */
+  --color-surface: 255 255 255;    /* #FFFFFF */
+  --color-surface-2: 245 245 244;  /* #F5F5F4 */
+  --color-line: 231 229 228;       /* #E7E5E4 */
+
+  /* Màu chữ / mực (DESIGN.md §2) */
+  --color-ink: 28 25 23;           /* #1C1917 (16.7:1 trên bg) */
+  --color-ink-2: 87 83 78;         /* #57534E (7.3:1) */
+  --color-ink-3: 120 113 108;      /* #78716C (4.8:1 trên trắng) */
+
+  /* Màu nhấn - Coral (DESIGN.md §2) */
+  --color-accent: 255 107 74;      /* #FF6B4A (chữ ink trên nó: 6.2:1) */
+  --color-accent-hover: 242 92 60; /* #F25C3C (chữ ink trên nó: 5.3:1) */
+  --color-accent-soft: 255 241 236;/* #FFF1EC */
+  --color-accent-text: 199 62 38;  /* #C73E26 (5.1:1 trên trắng) */
+
+  /* Trạng thái (DESIGN.md §2) */
+  --color-success: 4 120 87;         /* #047857 */
+  --color-success-soft: 236 253 245; /* #ECFDF5 */
+  --color-warning: 180 83 9;         /* #B45309 */
+  --color-warning-soft: 255 251 235; /* #FFFBEB */
+  --color-danger: 185 28 28;         /* #B91C1C */
+  --color-danger-soft: 254 242 242;   /* #FEF2F2 */
+  --color-info: 3 105 161;           /* #0369A1 */
+  --color-info-soft: 240 249 255;    /* #F0F9FF */
+
+  /* 7 cặp màu danh mục (≥3:1 trên nền soft và trắng) */
+  --color-cat-food: 194 65 12;                 /* #C2410C (5.18:1 trắng, 4.88:1 soft) */
+  --color-cat-food-soft: 255 247 237;          /* #FFF7ED */
+  --color-cat-drink: 4 120 87;                 /* #047857 (5.48:1 trắng, 5.21:1 soft) */
+  --color-cat-drink-soft: 236 253 245;         /* #ECFDF5 */
+  --color-cat-entertainment: 126 34 206;       /* #7E22CE (6.98:1 trắng, 6.51:1 soft) */
+  --color-cat-entertainment-soft: 250 245 255; /* #FAF5FF */
+  --color-cat-sightseeing: 29 78 216;          /* #1D4ED8 (6.70:1 trắng, 6.16:1 soft) */
+  --color-cat-sightseeing-soft: 239 246 255;   /* #EFF6FF */
+  --color-cat-accommodation: 190 18 60;        /* #BE123C (6.29:1 trắng, 5.72:1 soft) */
+  --color-cat-accommodation-soft: 255 241 242; /* #FFF1F2 */
+  --color-cat-shopping: 15 118 110;            /* #0F766E (5.47:1 trắng, 5.25:1 soft) */
+  --color-cat-shopping-soft: 240 253 250;      /* #F0FDFA */
+  --color-cat-other: 87 83 78;                 /* #57534E (7.63:1 trắng, 6.99:1 soft) */
+  --color-cat-other-soft: 245 245 244;         /* #F5F5F4 */
+
+  /* Alias danh mục */
+  --cat-food: rgb(var(--color-cat-food));
+  --cat-food-soft: rgb(var(--color-cat-food-soft));
+  --cat-drink: rgb(var(--color-cat-drink));
+  --cat-drink-soft: rgb(var(--color-cat-drink-soft));
+  --cat-entertainment: rgb(var(--color-cat-entertainment));
+  --cat-entertainment-soft: rgb(var(--color-cat-entertainment-soft));
+  --cat-sightseeing: rgb(var(--color-cat-sightseeing));
+  --cat-sightseeing-soft: rgb(var(--color-cat-sightseeing-soft));
+  --cat-accommodation: rgb(var(--color-cat-accommodation));
+  --cat-accommodation-soft: rgb(var(--color-cat-accommodation-soft));
+  --cat-shopping: rgb(var(--color-cat-shopping));
+  --cat-shopping-soft: rgb(var(--color-cat-shopping-soft));
+  --cat-other: rgb(var(--color-cat-other));
+  --cat-other-soft: rgb(var(--color-cat-other-soft));
+
+  /* Thang z-index (DESIGN.md §4) */
+  --z-map: 0;
+  --z-content: 10;
+  --z-tabbar: 30;
+  --z-sheet: 40;
+  --z-toast: 50;
+
+  /* Bóng mềm nổi (DESIGN.md §4) */
+  --shadow-float: 0 8px 24px rgb(28 25 23 / 0.12);
+
+  /* Bán kính bo góc (DESIGN.md §4) */
+  --radius-card: 16px;
+  --radius-field: 12px;
+  --radius-full: 9999px;
+
+  /* Token chuyển động (DESIGN.md §8) */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+  --t-press: 120ms;
+  --t-hover: 160ms;
+  --t-ui: 220ms;
+  --t-sheet: 320ms;
+  --t-moment: 600ms;
+}
