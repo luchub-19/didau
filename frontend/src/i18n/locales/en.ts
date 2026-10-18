@@ -55,4 +55,15 @@ export const en: Messages = {
   autoplan: {},
   group: {},
   errors: {},
+  ui: {
+    close: 'Close',
+    loading: 'Loading...',
+    clear: 'Clear',
+    dragHandle: 'Drag handle',
+    dismiss: 'Dismiss',
+    actions: 'Actions',
+    selectOption: 'Select an option',
+    previous: 'Previous',
+    next: 'Next',
+  },
 };

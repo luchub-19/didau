@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
 import { coldStartManager, type ColdStartState } from './services/api/coldStart';
 import { Button } from './components/common';
+import { ToastViewport } from './components/ui';
 import { StyleGuide } from './dev/StyleGuide';
 
 function parseRoomIdFromPath(): string | null {
@@ -100,13 +101,19 @@ export default function App(): React.ReactElement {
     );
   }
 
+  let mainContent: React.ReactElement;
   if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.pathname === '/_styleguide') {
-    return <StyleGuide />;
+    mainContent = <StyleGuide />;
+  } else if (currentRoomId) {
+    mainContent = <RoomPage roomId={currentRoomId} onGoHome={handleGoHome} />;
+  } else {
+    mainContent = <HomePage onNavigateToRoom={handleNavigateToRoom} />;
   }
 
-  if (currentRoomId) {
-    return <RoomPage roomId={currentRoomId} onGoHome={handleGoHome} />;
-  }
-
-  return <HomePage onNavigateToRoom={handleNavigateToRoom} />;
+  return (
+    <>
+      {mainContent}
+      <ToastViewport />
+    </>
+  );
 }

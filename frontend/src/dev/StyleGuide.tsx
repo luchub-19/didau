@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
+  Button,
+  IconButton,
+  TextField,
+  Chip,
+  Card,
+  Sheet,
+  ConfirmSheet,
+  Skeleton,
+  EmptyState,
+  Avatar,
+  Segmented,
+  LanguageSwitcher,
+  toast,
   BowlFood,
   Coffee,
   GameController,
@@ -15,13 +29,10 @@ import {
   Users,
   ThumbsUp,
   ThumbsDown,
-  CheckCircle,
-  WarningCircle,
-  XCircle,
-  Info,
-} from '@phosphor-icons/react';
-import { useTranslation } from 'react-i18next';
-import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
+  Trash,
+  Plus,
+  Sparkle,
+} from '../components/ui';
 import { useLanguage } from '../i18n/useLanguage';
 import { formatTime, formatDuration, formatMoney, formatDistance } from '../i18n/format';
 
@@ -72,6 +83,13 @@ export const StyleGuide: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('FOOD');
   const [voteCount, setVoteCount] = useState<number>(5);
   const [userVote, setUserVote] = useState<1 | -1 | 0>(1);
+
+  // States cho các component UI Kit thử nghiệm
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [segmentedVal, setSegmentedVal] = useState<'day' | 'week' | 'month'>('day');
+  const [textInputVal, setTextInputVal] = useState('Phở Hoà Pasteur');
+  const [selectVal, setSelectVal] = useState('FOOD');
 
   const categories = [
     {
@@ -147,17 +165,17 @@ export const StyleGuide: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-accent" />
             <span className="text-caption font-semibold text-accent-text">
-              Hệ thống thiết kế · Mốc 1
+              Hệ thống thiết kế · Mốc 1 (T-40)
             </span>
           </div>
           <LanguageSwitcher />
         </div>
         <h1 className="text-display font-bold text-ink mb-2">
-          Đi Đâu — Bảng phong cách mẫu (Style Guide)
+          Đi Đâu — Bảng phong cách mẫu & Bộ khung UI Kit
         </h1>
         <p className="text-body text-ink-2 max-w-2xl">
-          Trang kiểm tra token màu, font Be Vietnam Pro, độ tương phản WCAG 2.2 AA, 7 icon danh mục Phosphor,
-          song ngữ i18n (T-39) và các khối mẫu cho giai đoạn 3.
+          Trang mẫu tích hợp toàn bộ component UI Kit chuẩn hoá (`src/components/ui/`), token màu, font Be Vietnam Pro,
+          độ tương phản WCAG 2.2 AA, 7 icon danh mục Phosphor và song ngữ i18n.
         </p>
       </header>
 
@@ -323,155 +341,414 @@ export const StyleGuide: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. MẪU NÚT (BUTTONS) */}
+      {/* 3. BỘ NÚT CHUẨN HOÁ (Button & IconButton từ src/components/ui/) */}
       <section className="mb-10">
-        <h2 className="text-title font-bold text-ink mb-1">3. Mẫu nút (Buttons)</h2>
+        <h2 className="text-title font-bold text-ink mb-1">3. Mẫu nút bấm (Button & IconButton — T-40)</h2>
         <p className="text-caption text-ink-3 mb-4">
-          Vùng chạm tối thiểu 44×44px (md) và 52px (lg). Nút primary có nền accent (#FF6B4A) + chữ ink (#1C1917).
+          Bộ component `Button` và `IconButton` thật, đủ 4 biến thể, 2 cỡ, trạng thái loading, disabled và icon.
         </p>
 
-        <div className="p-4 rounded-card bg-surface border border-line space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="min-h-[44px] px-5 py-2.5 rounded-full bg-accent hover:bg-accent-hover text-ink font-semibold text-label transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text active:opacity-90 inline-flex items-center gap-2"
-            >
-              <ForkKnife size={18} weight="bold" />
-              <span>Chốt quán ngay (Primary md)</span>
-            </button>
+        <Card className="space-y-4">
+          <div>
+            <span className="text-caption text-ink-3 block mb-2 font-medium">Các biến thể & kích cỡ:</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" size="md" leftIcon={<ForkKnife size={18} />}>
+                Chốt quán ngay (Primary md)
+              </Button>
 
-            <button
-              type="button"
-              className="min-h-[52px] px-6 py-3 rounded-full bg-accent hover:bg-accent-hover text-ink font-semibold text-body transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text active:opacity-90 inline-flex items-center gap-2"
-            >
-              <span>Tạo phòng ngay (Primary lg)</span>
-            </button>
+              <Button variant="primary" size="lg" leftIcon={<Plus size={20} />}>
+                Tạo phòng ngay (Primary lg)
+              </Button>
 
-            <button
-              type="button"
-              className="min-h-[44px] px-5 py-2.5 rounded-full bg-surface-2 hover:bg-line text-ink font-semibold text-label transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-            >
-              Thêm vào lịch (Secondary)
-            </button>
+              <Button variant="secondary">
+                Thêm vào lịch (Secondary)
+              </Button>
 
-            <button
-              type="button"
-              className="min-h-[44px] px-4 py-2.5 rounded-full bg-transparent hover:bg-surface-2 text-ink-2 hover:text-ink font-medium text-label transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-            >
-              Bỏ qua (Ghost)
-            </button>
+              <Button variant="ghost">
+                Bỏ qua (Ghost)
+              </Button>
 
-            <button
-              type="button"
-              className="min-h-[44px] px-5 py-2.5 rounded-full bg-danger-soft hover:bg-danger/20 text-danger font-semibold text-label transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-danger"
-            >
-              Xoá quán (Danger)
-            </button>
+              <Button variant="danger">
+                Xoá quán (Danger)
+              </Button>
+            </div>
           </div>
 
-          <div className="pt-2 border-t border-line flex flex-wrap items-center gap-3">
-            <span className="text-caption text-ink-3">Icon Button (44×44):</span>
-            <button
-              type="button"
-              aria-label="Thích quán"
-              className="w-11 h-11 rounded-full bg-surface-2 hover:bg-line text-ink flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-            >
-              <ThumbsUp size={20} weight="regular" />
-            </button>
-            <button
-              type="button"
-              aria-label="Chia sẻ phòng"
-              className="w-11 h-11 rounded-full bg-accent-soft hover:bg-accent/20 text-accent-text flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-            >
-              <Users size={20} weight="bold" />
-            </button>
+          <div className="pt-3 border-t border-line">
+            <span className="text-caption text-ink-3 block mb-2 font-medium">Trạng thái Loading & Disabled:</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" loading>
+                Đang xử lý...
+              </Button>
+              <Button variant="secondary" loading>
+                Đang lưu...
+              </Button>
+              <Button variant="primary" disabled>
+                Không khả dụng
+              </Button>
+              <Button variant="danger" disabled>
+                Không thể xoá
+              </Button>
+            </div>
           </div>
-        </div>
+
+          <div className="pt-3 border-t border-line">
+            <span className="text-caption text-ink-3 block mb-2 font-medium">Nút biểu tượng (IconButton 44×44px, bắt buộc aria-label):</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <IconButton
+                aria-label="Thích quán"
+                icon={<ThumbsUp size={20} />}
+                variant="secondary"
+              />
+              <IconButton
+                aria-label="Chia sẻ phòng"
+                icon={<Users size={20} />}
+                variant="primary"
+              />
+              <IconButton
+                aria-label="Xoá địa điểm"
+                icon={<Trash size={20} />}
+                variant="danger"
+              />
+              <IconButton
+                aria-label="Đang tải dữ liệu"
+                icon={<ThumbsUp size={20} />}
+                variant="secondary"
+                loading
+              />
+              <IconButton
+                aria-label="Bị vô hiệu hoá"
+                icon={<ThumbsDown size={20} />}
+                variant="ghost"
+                disabled
+              />
+            </div>
+          </div>
+        </Card>
       </section>
 
-      {/* 4. CHIP & BỘ LỌC */}
+      {/* 4. TRƯỜNG NHẬP LIỆU (TextField) */}
       <section className="mb-10">
-        <h2 className="text-title font-bold text-ink mb-1">4. Chip & Bộ lọc danh mục</h2>
+        <h2 className="text-title font-bold text-ink mb-1">4. Trường nhập liệu (TextField — T-40)</h2>
         <p className="text-caption text-ink-3 mb-4">
-          Chip bo tròn hẳn (rounded-full), cuộn ngang trên điện thoại, icon danh mục kèm màu soft.
+          Nhãn luôn nằm phía trên, gợi ý và lỗi nằm dưới kèm icon, cỡ chữ 16px tránh phóng to trên iOS.
         </p>
 
-        <div className="p-4 rounded-card bg-surface border border-line">
+        <Card className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TextField
+            label="Tên quán ăn / địa điểm"
+            placeholder="Ví dụ: Phở Hoà Pasteur"
+            value={textInputVal}
+            onChange={(e) => setTextInputVal(e.target.value)}
+            hint="Nhập tên quán để tìm kiếm hoặc tạo mới"
+            required
+          />
+
+          <TextField
+            label="Đường dẫn ShopeeFood / Grab"
+            placeholder="https://shopeefood.vn/..."
+            error="Đường dẫn không hợp lệ. Vui lòng kiểm tra lại."
+            defaultValue="shopeefood/invalid-link"
+          />
+
+          <TextField
+            as="select"
+            label="Danh mục địa điểm"
+            value={selectVal}
+            onChange={(e) => setSelectVal(e.target.value)}
+            hint="Chọn nhóm phù hợp nhất để hiển thị biểu tượng"
+          >
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </TextField>
+
+          <TextField
+            as="textarea"
+            label="Ghi chú cho nhóm"
+            rows={3}
+            placeholder="Ghi chú thêm về chỗ để xe, đặt bàn..."
+            hint="Hiển thị cho tất cả thành viên trong phòng"
+          />
+
+          <TextField
+            label="Trường vô hiệu hoá"
+            defaultValue="Chỉ Host mới có quyền sửa"
+            disabled
+            hint="Ô này đã bị khoá theo quyền hạn"
+          />
+        </Card>
+      </section>
+
+      {/* 5. CHIP & BỘ LỌC */}
+      <section className="mb-10">
+        <h2 className="text-title font-bold text-ink mb-1">5. Chip & Bộ lọc danh mục (Chip — T-40)</h2>
+        <p className="text-caption text-ink-3 mb-4">
+          Component `Chip` chuẩn hoá bo tròn hẳn (`rounded-full`), cuộn ngang, hỗ trợ icon và xoá nhanh.
+        </p>
+
+        <Card>
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            <button
-              type="button"
+            <Chip
+              selected={selectedCategory === 'ALL'}
               onClick={() => setSelectedCategory('ALL')}
-              className={`min-h-[36px] px-4 rounded-full text-label font-medium transition-colors whitespace-nowrap ${
-                selectedCategory === 'ALL'
-                  ? 'bg-accent-soft text-accent-text border border-accent/20'
-                  : 'bg-surface-2 text-ink-2 hover:bg-line'
-              }`}
             >
               Tất cả (7)
-            </button>
+            </Chip>
 
             {categories.map((cat) => {
               const IconComp = cat.icon;
               const isSelected = selectedCategory === cat.id;
               return (
-                <button
+                <Chip
                   key={cat.id}
-                  type="button"
+                  selected={isSelected}
+                  category={
+                    cat.id as
+                      | 'FOOD'
+                      | 'DRINK'
+                      | 'ENTERTAINMENT'
+                      | 'SIGHTSEEING'
+                      | 'ACCOMMODATION'
+                      | 'SHOPPING'
+                      | 'OTHER'
+                  }
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`min-h-[36px] px-3.5 py-1.5 rounded-full text-label font-medium inline-flex items-center gap-2 transition-colors whitespace-nowrap ${
-                    isSelected
-                      ? `${cat.bgSoft} ${cat.color} ring-1 ring-current`
-                      : 'bg-surface-2 text-ink-2 hover:bg-line'
-                  }`}
+                  icon={<IconComp size={16} weight={isSelected ? 'fill' : 'regular'} />}
                 >
-                  <IconComp size={16} weight={isSelected ? 'fill' : 'regular'} />
-                  <span>{cat.label}</span>
-                </button>
+                  {cat.label}
+                </Chip>
               );
             })}
+
+            <Chip
+              selected
+              onRemove={() => toast.info('Đã gỡ bộ lọc nhanh')}
+            >
+              Đang mở cửa
+            </Chip>
+          </div>
+        </Card>
+      </section>
+
+      {/* 6. PHÂN ĐOẠN (Segmented) */}
+      <section className="mb-10">
+        <h2 className="text-title font-bold text-ink mb-1">6. Phân đoạn chuyển chế độ (Segmented — T-40)</h2>
+        <p className="text-caption text-ink-3 mb-4">
+          Dùng cho bộ chọn chế độ chọn hộ (Vòng quay / Quẹt / Thang) và bộ chuyển đổi ngôn ngữ.
+        </p>
+
+        <Card className="flex flex-wrap items-center gap-4">
+          <Segmented
+            value={segmentedVal}
+            onChange={(v) => setSegmentedVal(v)}
+            options={[
+              { value: 'day' as const, label: 'Theo ngày' },
+              { value: 'week' as const, label: 'Theo tuần' },
+              { value: 'month' as const, label: 'Theo tháng' },
+            ]}
+          />
+
+          <Segmented
+            size="sm"
+            value="wheel"
+            onChange={() => {}}
+            options={[
+              { value: 'wheel', label: 'Vòng quay', icon: <Sparkle size={14} /> },
+              { value: 'swipe', label: 'Quẹt thẻ' },
+              { value: 'ladder', label: 'Cầu thang' },
+            ]}
+          />
+        </Card>
+      </section>
+
+      {/* 7. AVATAR BIỆT DANH */}
+      <section className="mb-10">
+        <h2 className="text-title font-bold text-ink mb-1">7. Biệt danh thành viên (Avatar — T-40)</h2>
+        <p className="text-caption text-ink-3 mb-4">
+          Bo 12px (`rounded-field`), chữ cái đầu, màu hash ngẫu nhiên nhưng cố định theo tên từ 6 màu đạt chuẩn WCAG.
+        </p>
+
+        <Card className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Avatar name="An" size="sm" />
+            <span className="text-caption text-ink-2">An (sm 32px)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Avatar name="Bình" size="md" />
+            <span className="text-caption text-ink-2">Bình (md 40px)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Avatar name="Chi" size="lg" />
+            <span className="text-caption text-ink-2">Chi (lg 48px)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Avatar name="Dũng" size="md" />
+            <span className="text-caption text-ink-2">Dũng</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Avatar name="Hương" size="md" />
+            <span className="text-caption text-ink-2">Hương</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Avatar name="Minh" size="md" />
+            <span className="text-caption text-ink-2">Minh</span>
+          </div>
+        </Card>
+      </section>
+
+      {/* 8. SHEET & CONFIRM SHEET */}
+      <section className="mb-10">
+        <h2 className="text-title font-bold text-ink mb-1">8. Khung trượt & Hộp thoại (Sheet & ConfirmSheet — T-40)</h2>
+        <p className="text-caption text-ink-3 mb-4">
+          Dưới `md` là Bottom Sheet gắn chân màn hình có tay nắm kéo; từ `md` hiển thị thành dialog căn giữa. Bẫy focus và phím `Esc`.
+        </p>
+
+        <Card className="flex flex-wrap items-center gap-4">
+          <Button variant="primary" onClick={() => setIsSheetOpen(true)}>
+            Mở Sheet chi tiết quán
+          </Button>
+
+          <Button variant="danger" onClick={() => setIsConfirmOpen(true)}>
+            Mở ConfirmSheet xoá quán
+          </Button>
+        </Card>
+
+        {/* Sheet Demo */}
+        <Sheet
+          isOpen={isSheetOpen}
+          onClose={() => setIsSheetOpen(false)}
+          title="Thông tin chi tiết quán ăn"
+          description="Địa điểm đề xuất bởi thành viên Lan lúc 17:30"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setIsSheetOpen(false)}>
+                {t('common.close')}
+              </Button>
+              <Button variant="primary" onClick={() => {
+                setIsSheetOpen(false);
+                toast.success('Đã thêm quán vào lịch trình!');
+              }}>
+                Chốt vào lịch
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="p-3 rounded-field bg-surface-2 border border-line">
+              <h4 className="font-semibold text-ink text-label mb-1">Phở Hoà Pasteur</h4>
+              <p className="text-caption text-ink-2">260C Pasteur, Phường 8, Quận 3, TP.HCM</p>
+              <p className="text-caption font-mono text-accent-text mt-1">17:00 – 22:00 · ₫75,000 – ₫110,000</p>
+            </div>
+            <p className="text-body text-ink-2">
+              Quán phở truyền thống nổi tiếng với nước dùng thanh ngọt, thịt bò mềm và rau thơm tươi sạch.
+            </p>
+          </div>
+        </Sheet>
+
+        {/* ConfirmSheet Demo */}
+        <ConfirmSheet
+          isOpen={isConfirmOpen}
+          onClose={() => setIsConfirmOpen(false)}
+          onConfirm={() => {
+            setIsConfirmOpen(false);
+            toast.error('Đã xoá quán khỏi danh sách đề xuất');
+          }}
+          title="Xoá quán Phở Hoà Pasteur?"
+          description="Hành động này sẽ xoá toàn bộ số phiếu vote hiện có của quán này trong phòng. Bạn có chắc chắn muốn xoá?"
+          confirmLabel="Xoá quán"
+          variant="danger"
+        />
+      </section>
+
+      {/* 9. TOAST THÔNG BÁO NỔI */}
+      <section className="mb-10">
+        <h2 className="text-title font-bold text-ink mb-1">9. Thông báo nổi (Toast & toastStore — T-40)</h2>
+        <p className="text-caption text-ink-3 mb-4">
+          Tự động ẩn sau 4 giây, hiển thị phía trên thanh tab đáy, hỗ trợ nút đóng nhanh và ARIA status/alert.
+        </p>
+
+        <Card className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => toast.success('Đã sao chép liên kết phòng thành công!')}
+          >
+            Toast Success
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => toast.error('Lỗi kết nối máy chủ, đang thử lại...')}
+          >
+            Toast Error
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => toast.warning('Sắp đến giờ hẹn: còn 15 phút!')}
+          >
+            Toast Warning
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => toast.info('Lan vừa đề xuất một quán cà phê mới.')}
+          >
+            Toast Info
+          </Button>
+        </Card>
+      </section>
+
+      {/* 10. SKELETON (TRẠNG THÁI TẢI NỘI DUNG) */}
+      <section className="mb-10">
+        <h2 className="text-title font-bold text-ink mb-1">10. Khung xương tải nội dung (Skeleton — T-40)</h2>
+        <p className="text-caption text-ink-3 mb-4">
+          Hiệu ứng nhấp nháy mô phỏng đúng cấu trúc nội dung thực tế thay cho spinner giữa màn hình.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="space-y-3">
+            <span className="text-caption font-medium text-ink-3">Khối văn bản & dòng chữ:</span>
+            <Skeleton.Text lines={3} />
+            <Skeleton.Block className="h-16" />
+          </Card>
+
+          <div>
+            <span className="text-caption font-medium text-ink-3 block mb-2">Thẻ quán mô phỏng (PlaceCard Skeleton):</span>
+            <Skeleton.PlaceCard />
           </div>
         </div>
       </section>
 
-      {/* 5. 7 ICON DANH MỤC PHOSPHOR */}
+      {/* 11. TRẠNG THÁI RỖNG (EmptyState) */}
       <section className="mb-10">
-        <h2 className="text-title font-bold text-ink mb-1">5. Bảy cặp màu & Icon danh mục (Phosphor)</h2>
+        <h2 className="text-title font-bold text-ink mb-1">11. Trạng thái rỗng (EmptyState — T-40)</h2>
         <p className="text-caption text-ink-3 mb-4">
-          Tất cả 7 màu đạt tương phản ≥ 3:1 trên cả nền soft và nền trắng (đảm bảo hiển thị rõ cho mắt yếu).
+          Dạy cách dùng và cung cấp đúng một hành động rõ ràng đưa người dùng tiếp tục hành trình.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {categories.map((cat) => {
-            const IconComp = cat.icon;
-            return (
-              <div
-                key={cat.id}
-                className="p-3 rounded-card bg-surface border border-line flex items-center gap-3"
-              >
-                <div
-                  className={`w-11 h-11 rounded-field ${cat.bgSoft} ${cat.color} flex items-center justify-center flex-shrink-0`}
-                >
-                  <IconComp size={22} weight="fill" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-label font-semibold text-ink truncate">{cat.label}</p>
-                  <p className="text-caption font-mono text-ink-3 truncate">{cat.token}</p>
-                  <p className="text-caption text-ink-2">Tương phản: {cat.contrast}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <EmptyState
+          icon={<ForkKnife size={32} />}
+          title="Chưa có quán nào trong danh sách"
+          description="Dán liên kết từ ShopeeFood, GrabFood hoặc chọn trực tiếp trên bản đồ để cả nhóm cùng vote."
+          action={
+            <Button variant="primary" leftIcon={<Plus size={18} />}>
+              Thêm quán đầu tiên
+            </Button>
+          }
+        />
       </section>
 
-      {/* 6. THẺ QUÁN MẪU */}
+      {/* 12. THẺ QUÁN MẪU */}
       <section className="mb-10">
-        <h2 className="text-title font-bold text-ink mb-1">6. Thẻ quán mẫu (Place Card)</h2>
+        <h2 className="text-title font-bold text-ink mb-1">12. Thẻ quán mẫu hoàn chỉnh (Place Card)</h2>
         <p className="text-caption text-ink-3 mb-4">
-          Bo góc card (16px), không lồng thẻ, phân cách bằng nấc màu `surface` trên nền `bg`.
+          Tích hợp component Card, Button, Avatar và các token danh mục chuẩn.
         </p>
 
-        <div className="max-w-md p-4 rounded-card bg-surface border border-line shadow-float">
+        <Card floating className="max-w-md">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
@@ -547,56 +824,24 @@ export const StyleGuide: React.FC = () => {
               </button>
             </div>
 
-            <button
-              type="button"
-              className="text-label text-accent-text hover:underline font-semibold"
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={() => setIsSheetOpen(true)}
             >
               Xem chi tiết
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       </section>
 
-      {/* 7. TRẠNG THÁI FEEDBACK */}
-      <section className="mb-10">
-        <h2 className="text-title font-bold text-ink mb-1">7. Trạng thái thông báo (Feedback Banners)</h2>
-        <div className="space-y-3">
-          <div className="p-3.5 rounded-card bg-success-soft border border-success/20 flex items-center gap-3 text-success">
-            <CheckCircle size={20} weight="fill" className="flex-shrink-0" />
-            <span className="text-label font-medium text-ink">Quán đã được chốt vào lịch trình lúc 19:00.</span>
-          </div>
-
-          <div className="p-3.5 rounded-card bg-warning-soft border border-warning/20 flex items-center gap-3 text-warning">
-            <WarningCircle size={20} weight="fill" className="flex-shrink-0" />
-            <span className="text-label font-medium text-ink">
-              Trùng lịch: Quán đóng cửa lúc 21:00 nhưng lịch kết thúc 21:30.
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-card bg-danger-soft border border-danger/20 flex items-center gap-3 text-danger">
-            <XCircle size={20} weight="fill" className="flex-shrink-0" />
-            <span className="text-label font-medium text-ink">
-              Không lưu được quán. Vui lòng kiểm tra mạng và thử lại.
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-card bg-info-soft border border-info/20 flex items-center gap-3 text-info">
-            <Info size={20} weight="fill" className="flex-shrink-0" />
-            <span className="text-label font-medium text-ink">
-              Gợi ý: Dán link ShopeeFood hoặc GrabFood để tự động điền thông tin.
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 8. THANH TAB DƯỚI MẪU (STATIC BOTTOM TAB BAR) */}
+      {/* 13. THANH TAB DƯỚI MẪU (STATIC BOTTOM TAB BAR) */}
       <section className="mb-6">
-        <h2 className="text-title font-bold text-ink mb-1">8. Thanh tab dưới mẫu (Bottom Tab Bar)</h2>
+        <h2 className="text-title font-bold text-ink mb-1">13. Thanh tab dưới mẫu (Bottom Tab Bar)</h2>
         <p className="text-caption text-ink-3 mb-4">
           Thanh tab đáy cố định trên điện thoại: Quán · Bản đồ · Lịch · Nhóm. Touch target 44×44px, icon 24px kèm nhãn.
         </p>
 
-        {/* Preview tĩnh */}
         <div className="max-w-md mx-auto rounded-2xl overflow-hidden border border-line shadow-float bg-surface">
           <div className="p-6 text-center text-ink-3 text-caption border-b border-line">
             Vùng nội dung màn hình phòng

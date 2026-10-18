@@ -53,6 +53,17 @@ export const vi = {
   autoplan: {},
   group: {},
   errors: {},
+  ui: {
+    close: 'Đóng',
+    loading: 'Đang tải...',
+    clear: 'Xoá',
+    dragHandle: 'Tay nắm kéo',
+    dismiss: 'Bỏ qua',
+    actions: 'Hành động',
+    selectOption: 'Chọn một mục',
+    previous: 'Trước',
+    next: 'Sau',
+  },
 } as const;
 
 export type DeepStringify<T> = {
