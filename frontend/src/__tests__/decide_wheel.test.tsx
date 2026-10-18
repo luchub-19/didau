@@ -16,6 +16,7 @@ import { DeciderBanner } from '../components/decide/DeciderBanner';
 import { SmartPickCard } from '../components/decide/SmartPickCard';
 import { SpinWheel } from '../components/decide/SpinWheel';
 import { DecideModal } from '../components/decide/DecideModal';
+import { TieBreakSelectorModal } from '../components/voting/TieBreakSelectorModal';
 import type { DeciderHint, DecisionStartedPayload, ScoredPick } from '../types';
 
 beforeAll(() => {
@@ -78,11 +79,11 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       const html = renderToStaticMarkup(
         <DeciderBanner roomId={mockRoom.id} hints={sampleHints} onOpenDecide={() => {}} />,
       );
-      expect(html).toContain('Hoà điểm số cao nhất!');
+      expect(html).toContain('Hoà điểm cao nhất');
       expect(html).toContain('2 quán đang hoà điểm, để app chọn hộ nhé?');
-      expect(html).toContain('Chọn hộ ngay');
+      expect(html).toContain('Chọn hộ nhóm');
       expect(html).toContain('TIE_AT_TOP');
-      expect(html).toContain('🎲');
+      expect(html).not.toContain('🎲');
     });
 
     it('hiển thị đúng thông báo cho các loại hint khác (NEAR_TIE, TOO_MANY, STALLED, EMPTY)', () => {
@@ -93,7 +94,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       let html = renderToStaticMarkup(
         <DeciderBanner roomId={mockRoom.id} hints={otherHints} onOpenDecide={() => {}} />,
       );
-      expect(html).toContain('Điểm số đang suýt soát!');
+      expect(html).toContain('Điểm số suýt soát');
       expect(html).toContain('NEAR_TIE');
 
       const tooManyHints: DeciderHint[] = [{ type: 'TOO_MANY', category: 'FOOD', candidate_place_ids: [] }];
@@ -101,14 +102,14 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       html = renderToStaticMarkup(
         <DeciderBanner roomId={mockRoom.id} hints={tooManyHints} onOpenDecide={() => {}} />,
       );
-      expect(html).toContain('Quá nhiều lựa chọn?');
+      expect(html).toContain('Nhiều lựa chọn');
 
       const stalledHints: DeciderHint[] = [{ type: 'STALLED', category: null, candidate_place_ids: [] }];
       useDecisionStore.setState({ hints: stalledHints });
       html = renderToStaticMarkup(
         <DeciderBanner roomId={mockRoom.id} hints={stalledHints} onOpenDecide={() => {}} />,
       );
-      expect(html).toContain('Bình chọn đang chững lại');
+      expect(html).toContain('Bình chọn chững lại');
 
       const emptyHints: DeciderHint[] = [{ type: 'EMPTY', category: 'ENTERTAINMENT', candidate_place_ids: [] }];
       useDecisionStore.setState({ hints: emptyHints });
@@ -147,7 +148,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       expect(html).toContain('smart-pick-reason-chip');
     });
 
-    it('phân quyền: Host có nút "Chốt luôn quán này", Member chỉ thấy "Chờ Host chốt"', () => {
+    it('phân quyền: Host có nút "Chốt quán này", Member chỉ thấy "Chờ Host chốt"', () => {
       useDecisionStore.setState({
         smartPicks: sampleSmartPicks,
         activePickIndex: 0,
@@ -163,7 +164,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
           onOpenWheel={() => {}}
         />,
       );
-      expect(hostHtml).toContain('Chốt luôn quán này');
+      expect(hostHtml).toContain('Chốt quán này');
       expect(hostHtml).not.toContain('Chờ Host chốt quán này');
 
       // Member view
@@ -176,7 +177,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
           onOpenWheel={() => {}}
         />,
       );
-      expect(memberHtml).not.toContain('Chốt luôn quán này');
+      expect(memberHtml).not.toContain('Chốt quán này');
       expect(memberHtml).toContain('Chờ Host chốt quán này');
     });
 
@@ -195,6 +196,41 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       // Gọi nextPick lần nữa quay về 0
       useDecisionStore.getState().nextPick();
       expect(useDecisionStore.getState().activePickIndex).toBe(0);
+    });
+
+    it('hiển thị thanh ngang mảnh điểm tổng hợp và tối đa 3 lý do từ describeReason', () => {
+      const customPicks: ScoredPick[] = [
+        {
+          place_id: mockPlaces[0].id,
+          score: 0.95,
+          reasons: ['Lý do 1', 'Lý do 2', 'Lý do 3', 'Lý do 4 bỏ qua'],
+        },
+      ];
+      useDecisionStore.setState({
+        smartPicks: customPicks,
+        activePickIndex: 0,
+      });
+
+      const html = renderToStaticMarkup(
+        <SmartPickCard
+          roomId={mockRoom.id}
+          isHost={true}
+          smartPicks={customPicks}
+          places={mockPlaces}
+          onOpenWheel={() => {}}
+        />,
+      );
+
+      // Điểm tổng hợp và thanh progress 95%
+      expect(html).toContain('Điểm tổng hợp');
+      expect(html).toContain('95%');
+      expect(html).toContain('style="width:95%"');
+
+      // Tối đa 3 lý do
+      expect(html).toContain('Lý do 1');
+      expect(html).toContain('Lý do 2');
+      expect(html).toContain('Lý do 3');
+      expect(html).not.toContain('Lý do 4');
     });
 
     it('hiển thị empty state khi không có smart picks', () => {
@@ -421,6 +457,57 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       );
       expect(swipeModalHtml).toContain('Chế độ Quẹt thẻ nhóm');
       expect(swipeModalHtml).toContain('Task T-33');
+    });
+
+    it('chế độ chưa đủ điều kiện (ví dụ cần ≥ 2 quán) bị disabled trong danh sách chọn chế độ', () => {
+      const html = renderToStaticMarkup(
+        <DecideModal
+          isOpen={true}
+          onClose={() => {}}
+          roomId={mockRoom.id}
+          isHost={true}
+          selectedMode="SMART"
+          places={[mockPlaces[0]]}
+        />,
+      );
+
+      expect(html).toContain('Gợi ý 1 chạm');
+      expect(html).toContain('Vòng quay');
+      expect(html).toContain('disabled');
+    });
+  });
+
+  describe('6. TieBreakSelectorModal (Sheet phân định hoà cho Host / Member)', () => {
+    it('Host thấy 5 chiến lược phân định và nút chốt kết quả', () => {
+      const html = renderToStaticMarkup(
+        <TieBreakSelectorModal
+          isOpen={true}
+          onClose={() => {}}
+          roomId={mockRoom.id}
+          isHost={true}
+        />,
+      );
+      expect(html).toContain('Chốt kết quả bình chọn');
+      expect(html).toContain('Nhiều Upvote nhất (Most Upvotes)');
+      expect(html).toContain('Đề xuất sớm nhất (Earliest Submission)');
+      expect(html).toContain('Ưu tiên Host (Creator Priority)');
+      expect(html).toContain('Đa dạng danh mục (Category Diversity)');
+      expect(html).toContain('Ngẫu nhiên công bằng (Random)');
+      expect(html).toContain('Chốt kết quả');
+      expect(html).not.toContain('Đang chờ Host chốt kết quả');
+    });
+
+    it('Member chỉ thấy trạng thái chờ và không thấy nút chốt', () => {
+      const html = renderToStaticMarkup(
+        <TieBreakSelectorModal
+          isOpen={true}
+          onClose={() => {}}
+          roomId={mockRoom.id}
+          isHost={false}
+        />,
+      );
+      expect(html).toContain('Đang chờ Host chốt kết quả');
+      expect(html).not.toContain('Chốt kết quả</button>');
     });
   });
 

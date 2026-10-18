@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
-import { Button } from '../common';
+import {
+  Button,
+  EmptyState,
+  toast,
+  Sparkle,
+  Shuffle,
+  Check,
+  MapPin,
+  ThumbsUp,
+} from '../ui';
+import { describeApiError, describeReasons } from '../../i18n/serverText';
+import { formatMoney } from '../../i18n/format';
+import { useLanguage } from '../../i18n/useLanguage';
 import type { Place, ScoredPick } from '../../types';
 
 export interface SmartPickCardProps {
@@ -21,6 +34,9 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
   places: propPlaces,
   onOpenWheel,
 }) => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+
   const storePicks = useDecisionStore((s) => s.smartPicks);
   const smartPicks = propPicks ?? storePicks;
 
@@ -39,23 +55,28 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
 
   if (!smartPicks || smartPicks.length === 0) {
     return (
-      <div className="text-center py-10 px-4 space-y-3">
-        <div className="text-4xl">💡</div>
-        <h4 className="text-sm font-bold text-slate-800">
-          Chưa có đủ dữ liệu để tính toán gợi ý
-        </h4>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          Hãy thêm các địa điểm hoặc bỏ phiếu bình chọn để hệ thống phân tích quán tối ưu nhất cho nhóm.
-        </p>
-        <Button variant="outline" size="sm" onClick={onOpenWheel}>
-          🎡 Chuyển sang Vòng quay may mắn
-        </Button>
-      </div>
+      <EmptyState
+        icon={<Sparkle size={28} className="text-accent" />}
+        title={t('decide.smart.emptyTitle')}
+        description={t('decide.smart.emptyDesc')}
+        action={
+          <Button variant="secondary" size="md" onClick={onOpenWheel} leftIcon={<Shuffle size={16} />}>
+            {t('decide.smart.emptyAction')}
+          </Button>
+        }
+      />
     );
   }
 
   const currentPick = smartPicks[activePickIndex] || smartPicks[0];
   const place = places.find((p) => p.id === currentPick.place_id);
+
+  const scorePct =
+    currentPick.score <= 1
+      ? Math.round(currentPick.score * 100)
+      : Math.min(100, Math.round(currentPick.score));
+
+  const translatedReasons = describeReasons(currentPick.reason_codes, currentPick.reasons, t).slice(0, 3);
 
   const handleAcceptSmartPick = async () => {
     if (!isHost) return;
@@ -67,139 +88,157 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
       });
       if (res && res.session?.id) {
         await acceptDecision(roomId, res.session.id);
+        toast.success(t('decide.smart.success'));
       }
     } catch (err: unknown) {
-      setLocalError((err as { message?: string })?.message || 'Không thể chốt địa điểm này.');
+      setLocalError(describeApiError(err, t, 'VOTE_FAILED'));
     }
   };
 
   return (
     <div
       data-testid="smart-pick-card"
-      className="space-y-5 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs"
+      className="space-y-4 bg-surface rounded-card border border-line p-5 shadow-sm"
     >
-      {/* Header bar of the card */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      {/* Thanh tiêu đề thẻ */}
+      <div className="flex items-center justify-between border-b border-line pb-3">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-            Gợi ý 1 chạm thông minh
+          <span className="w-2.5 h-2.5 rounded-full bg-accent" />
+          <span className="text-caption font-bold uppercase tracking-wider text-accent-text">
+            {t('decide.smart.badge')}
           </span>
         </div>
-        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
-          Gợi ý {activePickIndex + 1} / {smartPicks.length}
+        <span className="text-caption font-semibold px-2.5 py-0.5 rounded-full bg-surface-2 text-ink-2">
+          {t('decide.smart.progress', {
+            current: activePickIndex + 1,
+            total: smartPicks.length,
+          })}
         </span>
       </div>
 
       {localError && (
-        <div className="p-3 text-xs rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-medium">
+        <div className="p-3 text-caption rounded-card bg-danger-soft text-danger border border-danger/20 font-medium">
           {localError}
         </div>
       )}
 
-      {/* Place details */}
+      {/* Thông tin địa điểm */}
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
-              {place?.name || 'Địa điểm được chọn'}
+          <div className="min-w-0 flex-1">
+            <h3 className="text-title font-bold text-ink leading-snug truncate">
+              {place?.name || t('decide.smart.defaultName')}
             </h3>
             {place?.address && (
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                📍 {place.address}
+              <p className="text-caption text-ink-2 mt-1 flex items-center gap-1 line-clamp-2">
+                <MapPin size={14} className="flex-shrink-0 text-ink-3" />
+                <span>{place.address}</span>
               </p>
             )}
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 shadow-xs">
-              ⭐ {place?.score ?? 0}
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-bold bg-accent-soft text-accent-text border border-accent/20">
+              <ThumbsUp size={12} weight="fill" />
+              <span>{place?.score ?? 0}</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-semibold">
-              {place?.upvotes ?? 0} lượt thích
+            <span className="text-[11px] text-ink-3 font-medium">
+              {t('decide.smart.upvotesCount', { count: place?.upvotes ?? 0 })}
             </span>
           </div>
         </div>
 
-        {/* Category & info */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+        {/* Danh mục và chi phí */}
+        <div className="flex flex-wrap items-center gap-2 text-caption text-ink-2">
           {place?.category && (
-            <span className="px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700">
-              {place.category}
+            <span className="px-2 py-0.5 rounded-full font-semibold bg-surface-2 text-ink">
+              {t(`category.${place.category}`, { defaultValue: place.category })}
             </span>
           )}
-          {place?.estimated_cost && (
-            <span className="font-medium text-slate-500">
-              • ~{place.estimated_cost.toLocaleString('vi-VN')} đ
+          {place?.estimated_cost !== undefined && place.estimated_cost !== null && (
+            <span className="font-medium text-ink-2">
+              • ~{formatMoney(place.estimated_cost, lang)}
             </span>
           )}
         </div>
 
-        {/* Reasons as chips */}
+        {/* Điểm tổng hợp thanh ngang mảnh */}
+        <div className="pt-1 space-y-1">
+          <div className="flex items-center justify-between text-caption text-ink-2 font-medium">
+            <span>{t('decide.smart.scoreLabel')}</span>
+            <span className="font-semibold text-ink">
+              {t('decide.smart.scoreValue', { score: scorePct })}
+            </span>
+          </div>
+          <div className="w-full bg-surface-2 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="bg-accent h-full rounded-full transition-all duration-300"
+              style={{ width: `${scorePct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Danh sách lý do tối đa 3 */}
         <div className="pt-2">
-          <p className="text-xs font-bold text-slate-700 mb-2">
-            Vì sao app chọn quán này?
+          <p className="text-caption font-semibold text-ink mb-2">
+            {t('decide.smart.whyTitle')}
           </p>
           <div className="flex flex-wrap gap-2">
-            {currentPick.reasons && currentPick.reasons.length > 0 ? (
-              currentPick.reasons.map((reason: string, idx: number) => (
+            {translatedReasons.length > 0 ? (
+              translatedReasons.map((reason: string, idx: number) => (
                 <span
                   key={idx}
                   data-testid="smart-pick-reason-chip"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption font-medium bg-surface-2 text-ink border border-line"
                 >
-                  <span className="text-emerald-600">✓</span>
-                  {reason}
+                  <Check size={14} className="text-success flex-shrink-0" />
+                  <span>{reason}</span>
                 </span>
               ))
             ) : (
-              <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600">
-                Điểm bình chọn và mức độ phù hợp cao nhất nhóm
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-caption text-ink-2 bg-surface-2">
+                {t('decide.smart.defaultReason')}
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Action buttons (Chốt luôn / Đổi quán khác / Chơi trò) */}
-      <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Chốt luôn button */}
+      {/* Nút hành động */}
+      <div className="pt-3 border-t border-line flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {isHost ? (
           <Button
             variant="primary"
             onClick={handleAcceptSmartPick}
-            isLoading={isSubmitting}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex-1 shadow-xs"
-            leftIcon={<span>✨</span>}
+            loading={isSubmitting}
+            leftIcon={<Sparkle size={16} />}
+            className="flex-1"
           >
-            Chốt luôn quán này
+            {t('decide.smart.lockIn')}
           </Button>
         ) : (
-          <div className="flex-1 px-4 py-2 text-center text-xs text-slate-500 italic bg-slate-50 rounded-xl border border-slate-200">
-            Chờ Host chốt quán này
+          <div className="flex-1 px-4 py-2.5 text-center text-caption text-ink-2 italic bg-surface-2 rounded-card border border-line">
+            {t('decide.smart.waitingHost')}
           </div>
         )}
 
         <div className="flex items-center gap-2">
-          {/* Đổi quán khác button */}
-          <Button
-            variant="outline"
-            onClick={nextPick}
-            disabled={smartPicks.length <= 1 || isSubmitting}
-            className="flex-1 sm:flex-initial text-xs font-bold"
-            leftIcon={<span>🔄</span>}
-          >
-            Đổi quán khác
-          </Button>
-
-          {/* Chơi trò button */}
           <Button
             variant="secondary"
+            onClick={nextPick}
+            disabled={smartPicks.length <= 1 || isSubmitting}
+            className="flex-1 sm:flex-initial"
+          >
+            {t('decide.smart.nextPick')}
+          </Button>
+
+          <Button
+            variant="ghost"
             onClick={onOpenWheel}
             disabled={isSubmitting}
-            className="flex-1 sm:flex-initial text-xs font-bold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200"
-            leftIcon={<span>🎡</span>}
+            leftIcon={<Shuffle size={16} />}
+            className="flex-1 sm:flex-initial"
           >
-            Chơi vòng quay
+            {t('decide.smart.playGame')}
           </Button>
         </div>
       </div>

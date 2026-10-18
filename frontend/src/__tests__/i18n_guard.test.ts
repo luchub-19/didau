@@ -42,11 +42,7 @@ export const PENDING_FILES = new Set<string>([
 
   // T-47: Tab Bản đồ + đánh giá (đã chuyển qua i18n ở T-47)
 
-  // T-48: Chọn hộ phần 1 (banner, gợi ý, phân định hoà)
-  'components/decide/DecideModal.tsx',
-  'components/decide/DeciderBanner.tsx',
-  'components/decide/SmartPickCard.tsx',
-  'components/voting/TieBreakSelectorModal.tsx',
+  // T-48: Chọn hộ phần 1 (đã chuyển qua i18n ở T-48)
 
   // T-49: Chọn hộ phần 2 (vòng quay, quẹt, thang)
   'components/decide/LuckyLadder.tsx',
