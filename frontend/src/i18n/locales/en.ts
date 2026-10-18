@@ -173,6 +173,13 @@ export const en: Messages = {
     sortUpvotes: 'Most upvotes',
     topPick: 'Top pick',
     accepted: 'Locked in',
+    statusLabel: {
+      PROPOSED: 'Proposed',
+      VOTING: 'Voting',
+      ACCEPTED: 'Locked in',
+      REJECTED: 'Rejected',
+      VISITED: 'Visited',
+    },
     suggestedBy: 'Suggested by {{name}}',
     defaultMember: 'Member',
     viewOnMap: 'View on map',

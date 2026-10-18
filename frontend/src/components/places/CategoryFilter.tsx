@@ -52,7 +52,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
         icon={<Sparkle size={16} weight="fill" />}
       >
         <span>{t('category.all')}</span>
-        <span className="ml-1 text-[11px] font-bold opacity-75 tabular-nums">
+        <span className="ml-1 text-caption font-bold opacity-75 tabular-nums">
           {counts.ALL}
         </span>
       </Chip>
@@ -72,7 +72,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
             icon={<IconComp size={16} weight="fill" />}
           >
             <span>{meta.label}</span>
-            <span className="ml-1 text-[11px] font-bold opacity-75 tabular-nums">
+            <span className="ml-1 text-caption font-bold opacity-75 tabular-nums">
               {counts[catKey] || 0}
             </span>
           </Chip>

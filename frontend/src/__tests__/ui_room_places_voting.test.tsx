@@ -224,7 +224,7 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
     expect(html).toContain('55.000');
     expect(html).toContain('07:00 - 23:00');
     expect(html).toContain('HoangNam');
-    expect(html).toContain('VOTING');
+    expect(html).toContain('Đang bình chọn');
   });
 
   it('PlaceForm hiển thị đầy đủ trường nhập và thêm quán thành công qua MSW', async () => {

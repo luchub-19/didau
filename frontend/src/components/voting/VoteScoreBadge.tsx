@@ -29,7 +29,7 @@ export const VoteScoreBadge: React.FC<VoteScoreBadgeProps> = ({
       title={t('vote.scoreTitle', { score, upvotes, downvotes })}
     >
       <span>{score > 0 ? `+${score}` : score}</span>
-      <span className="text-[10px] font-medium opacity-75">
+      <span className="text-caption font-medium opacity-75">
         (+{upvotes}/-{downvotes})
       </span>
     </div>

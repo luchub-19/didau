@@ -171,6 +171,13 @@ export const vi = {
     sortUpvotes: 'Nhiều vote nhất',
     topPick: 'Dẫn đầu',
     accepted: 'Đã chốt',
+    statusLabel: {
+      PROPOSED: 'Mới đề xuất',
+      VOTING: 'Đang bình chọn',
+      ACCEPTED: 'Đã chốt',
+      REJECTED: 'Đã loại',
+      VISITED: 'Đã đến',
+    },
     suggestedBy: 'Gợi ý bởi {{name}}',
     defaultMember: 'Thành viên',
     viewOnMap: 'Xem trên bản đồ',

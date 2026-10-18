@@ -117,13 +117,13 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
                 </span>
               ) : (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-caption font-medium bg-surface-2 text-ink-3 border border-line">
-                  {place.status}
+                  {t(`place.statusLabel.${place.status}`)}
                 </span>
               )}
 
               {isOsm && (
                 <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-surface-2 text-ink-2 border border-line"
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-caption font-semibold bg-surface-2 text-ink-2 border border-line"
                   title="OpenStreetMap"
                   data-testid="badge-source-osm"
                 >
@@ -132,7 +132,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
               )}
               {isGoogle && (
                 <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-surface-2 text-ink-2 border border-line"
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-caption font-semibold bg-surface-2 text-ink-2 border border-line"
                   title="Google Places"
                   data-testid="badge-source-google"
                 >
