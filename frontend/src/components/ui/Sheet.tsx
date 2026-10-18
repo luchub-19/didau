@@ -38,6 +38,8 @@ export const Sheet: React.FC<SheetProps> = ({
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const sheetId = useRef(Symbol('sheet'));
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Đang chờ hết hoạt ảnh thoát do người dùng yêu cầu đóng (Esc, X, kéo xuống)
+  const closeRequestedRef = useRef(false);
 
   const [isRendered, setIsRendered] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
@@ -48,9 +50,11 @@ export const Sheet: React.FC<SheetProps> = ({
   const currentDeltaY = useRef<number>(0);
 
   const handleRequestClose = useCallback(() => {
-    if (isClosing) return;
+    if (isClosing || closeRequestedRef.current) return;
+    closeRequestedRef.current = true;
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
+      closeRequestedRef.current = false;
       onClose();
       setIsRendered(false);
       setIsClosing(false);
@@ -60,6 +64,8 @@ export const Sheet: React.FC<SheetProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // Đang thoát theo yêu cầu đóng: đừng huỷ timer, để onClose được gọi
+      if (closeRequestedRef.current) return;
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;

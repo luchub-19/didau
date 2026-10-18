@@ -43,4 +43,4 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | M6 (T-54→T-55) | |
 
 ## Cho task sau (việc ngoài phạm vi phát hiện được)
-- **CHẶN** `components/ui/Sheet.tsx` (T-52): Esc/nút X không đóng được Sheet trên trình duyệt thật, xem `reviews/T-48.md`. Sửa trước khi làm T-53.
+- `components/ui/Sheet.tsx` (T-52): lỗi Esc/X không đóng được đã sửa (xem `reviews/T-48.md`); T-52 vẫn cần review và test tương tác (chưa có testing-library).
