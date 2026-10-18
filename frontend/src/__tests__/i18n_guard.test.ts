@@ -44,10 +44,7 @@ export const PENDING_FILES = new Set<string>([
 
   // T-48: Chọn hộ phần 1 (đã chuyển qua i18n ở T-48)
 
-  // T-49: Chọn hộ phần 2 (vòng quay, quẹt, thang)
-  'components/decide/LuckyLadder.tsx',
-  'components/decide/SpinWheel.tsx',
-  'components/decide/SwipeDeck.tsx',
+  // T-49: Chọn hộ phần 2 (vòng quay, quẹt, thang - đã chuyển qua i18n ở T-49)
 
   // T-50: Tab Nhóm + chia sẻ
 ]);

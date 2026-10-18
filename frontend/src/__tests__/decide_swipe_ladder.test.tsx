@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import '../i18n';
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { server } from '../mocks/server';
 import { resetMockDb } from '../mocks/handlers';
@@ -258,7 +259,7 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
       );
 
       expect(html).toContain('ladder-winning-path');
-      expect(html).toContain('stroke="#f59e0b"');
+      expect(html).toContain('stroke="#FF6B4A"');
     });
 
     it('hỗ trợ chuyển đổi biến thể "Chọn người quyết định" với danh sách thành viên', () => {

@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useRoomStore } from '../../store/useRoomStore';
-import { Button } from '../common/Button';
+import {
+  Button,
+  Sheet,
+  SlidersHorizontal,
+  Info,
+  MapPin,
+  Sparkle,
+  Check,
+} from '../ui';
 import type { DecisionSession, Member, Place } from '../../types';
 
 export interface LuckyLadderProps {
@@ -34,7 +43,7 @@ export interface LadderPayload {
   seed: number;
 }
 
-// Simple deterministic PRNG matching Python random.Random(seed) for local simulation / preview
+// PRNG tất định khớp với Python random.Random(seed)
 function pseudoRandom(seed: number) {
   let s = seed % 2147483647;
   if (s <= 0) s += 2147483646;
@@ -66,7 +75,7 @@ function generateLocalLadder(nColumns: number, seed: number, heightLevels?: numb
     rungs.push({ column: 0, height: 1 });
   }
 
-  // Trace paths
+  // Dò đường đi
   const rungForward: Record<number, Record<number, number>> = {};
   const rungBackward: Record<number, Record<number, number>> = {};
   for (const r of rungs) {
@@ -122,6 +131,12 @@ function generateLocalLadder(nColumns: number, seed: number, heightLevels?: numb
   };
 }
 
+interface CandidateItem {
+  id: string;
+  name: string;
+  subtitle?: string;
+}
+
 export const LuckyLadder: React.FC<LuckyLadderProps> = ({
   roomId,
   isHost,
@@ -134,6 +149,8 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
   onAcceptWinner,
   onCancelSession,
 }) => {
+  const { t } = useTranslation();
+
   // Store subscriptions
   const storeSession = useDecisionStore((s) => s.currentSession);
   const storeSeed = useDecisionStore((s) => s.seed);
@@ -155,11 +172,11 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
   // Variant: 'PLACE' (Chọn quán) vs 'MEMBER' (Chọn người quyết định)
   const [variant, setVariant] = useState<'PLACE' | 'MEMBER'>('PLACE');
 
-  // Audit modal state
+  // Audit modal/sheet state
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   // Animation state (3-second path tracing)
-  const [pathProgress, setPathProgress] = useState(1); // 0 to 1, default 1 for static/SSR
+  const [pathProgress, setPathProgress] = useState(1);
   const pathRef = useRef<SVGPathElement | null>(null);
   const [pathLength, setPathLength] = useState(1000);
 
@@ -172,14 +189,14 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
   }, []);
 
   // Candidate items for columns
-  const candidateItems = useMemo(() => {
+  const candidateItems = useMemo<CandidateItem[]>(() => {
     if (variant === 'MEMBER') {
       if (members && members.length >= 2) {
         return members.slice(0, 8).map((m) => ({ id: m.id, name: m.nickname, subtitle: m.role }));
       }
       return [
-        { id: '1', name: 'Tôi', subtitle: 'Host' },
-        { id: '2', name: 'Bạn bè', subtitle: 'Member' },
+        { id: '1', name: t('decide.ladder.defaultMember1'), subtitle: 'Host' },
+        { id: '2', name: t('decide.ladder.defaultMember2'), subtitle: 'Member' },
       ];
     }
 
@@ -192,10 +209,10 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
       return slice.map((p) => ({ id: p.id, name: p.name, subtitle: p.category }));
     }
     return [
-      { id: 'p1', name: 'Quán A', subtitle: 'FOOD' },
-      { id: 'p2', name: 'Quán B', subtitle: 'DRINK' },
+      { id: 'p1', name: 'Place A', subtitle: 'FOOD' },
+      { id: 'p2', name: 'Place B', subtitle: 'DRINK' },
     ];
-  }, [variant, members, places, session?.candidate_place_ids]);
+  }, [variant, members, places, session?.candidate_place_ids, t]);
 
   // Server or Local Ladder Structure
   const ladderData: LadderPayload = useMemo(() => {
@@ -204,11 +221,9 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
 
     if (rawPayload && typeof rawPayload.n_columns === 'number' && Array.isArray(rawPayload.rungs)) {
       const p = rawPayload as unknown as LadderPayload;
-      // If server returned rungs and winning columns
       if (p.paths && p.winning_top_column !== undefined) {
         return p;
       }
-      // Or augment with paths
       return generateLocalLadder(p.n_columns, p.seed || effectiveSeed, p.height);
     }
 
@@ -229,7 +244,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
     setPathProgress(0);
 
     const startTime = Date.now();
-    const duration = 3000; // 3 seconds
+    const duration = 3000;
 
     const timer = setInterval(() => {
       const elapsed = Date.now() - startTime;
@@ -284,7 +299,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
         const len = pathRef.current.getTotalLength();
         if (len > 0) setPathLength(len);
       } catch {
-        // ignore in SSR / jsdom
+        // ignore in SSR
       }
     }
   }, [winningPathCoords]);
@@ -322,18 +337,19 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
 
   // Winning candidate
   const winningCandidate = candidateItems[ladderData.winning_top_column] || candidateItems[0];
+  const winningName = String(winningCandidate?.name || '');
 
   return (
     <div data-testid="lucky-ladder-container" className="space-y-4">
       {/* Header bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div className="flex items-center justify-between pb-3 border-b border-line">
         <div>
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <span>🪜 Chế độ Thang may mắn (Amidakuji)</span>
-            <span className="text-[10px] text-slate-400 font-semibold">(Task T-33)</span>
+          <h3 className="text-body font-bold text-ink flex items-center gap-2">
+            <SlidersHorizontal size={18} className="text-accent-text" />
+            <span>{t('decide.ladder.title')}</span>
           </h3>
-          <p className="text-xs text-slate-500">
-            Trò chơi thả thang Amidakuji (사다리타기) chuẩn xác và công bằng tuyệt đối
+          <p className="text-caption text-ink-2">
+            {t('decide.ladder.subtitle')}
           </p>
         </div>
 
@@ -342,40 +358,44 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
           type="button"
           data-testid="ladder-audit-btn"
           onClick={() => setIsAuditModalOpen(true)}
-          className="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 transition-colors flex items-center gap-1.5 shadow-xs"
+          className="text-caption font-semibold text-accent-text hover:underline flex items-center gap-1.5"
         >
-          <span>🔍</span>
-          <span>Xem cách tính</span>
+          <Info size={14} />
+          <span>{t('decide.ladder.explainLink')}</span>
         </button>
       </div>
 
       {/* Variant Selector: Chọn quán vs Chọn người quyết định */}
-      <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-        <div className="text-xs font-semibold text-slate-700 px-2">Biến thể trò chơi:</div>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between bg-surface-2 p-1.5 rounded-card border border-line">
+        <div className="text-caption font-semibold text-ink px-2">
+          {t('decide.ladder.variantTitle')}
+        </div>
+        <div className="flex items-center gap-1 p-0.5 rounded-full bg-surface border border-line">
           <button
             type="button"
             data-testid="ladder-variant-place"
             onClick={() => setVariant('PLACE')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1 rounded-full text-caption font-semibold transition-all flex items-center gap-1.5 ${
               variant === 'PLACE'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-accent text-ink shadow-xs'
+                : 'text-ink-2 hover:text-ink'
             }`}
           >
-            📍 Chọn quán ăn
+            <MapPin size={14} />
+            <span>{t('decide.ladder.variantPlace')}</span>
           </button>
           <button
             type="button"
             data-testid="ladder-variant-member"
             onClick={() => setVariant('MEMBER')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1 rounded-full text-caption font-semibold transition-all flex items-center gap-1.5 ${
               variant === 'MEMBER'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-accent text-ink shadow-xs'
+                : 'text-ink-2 hover:text-ink'
             }`}
           >
-            👑 Chọn người quyết định
+            <Sparkle size={14} />
+            <span>{t('decide.ladder.variantMember')}</span>
           </button>
         </div>
       </div>
@@ -384,20 +404,21 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
       {isSessionResolved && (
         <div
           data-testid="ladder-winner-banner"
-          className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center space-y-2 animate-fade-in"
+          aria-live="polite"
+          className="bg-accent-soft/40 border border-accent/40 rounded-card p-4 text-center space-y-2 animate-fade-in"
         >
-          <div className="text-3xl">
-            {variant === 'MEMBER' ? '👑' : '🎉'}
+          <div className="flex justify-center text-accent-text">
+            <Sparkle size={32} weight="fill" />
           </div>
-          <h4 className="text-base font-black text-slate-900">
+          <h4 className="text-title font-bold text-ink">
             {variant === 'MEMBER'
-              ? `Thành viên quyết định: ${winningCandidate?.name}`
-              : `Quán trúng giải: ${winningCandidate?.name}`}
+              ? t('decide.ladder.winnerMemberTitle', { name: winningName })
+              : t('decide.ladder.winnerPlaceTitle', { name: winningName })}
           </h4>
-          <p className="text-xs text-slate-600 max-w-sm mx-auto">
+          <p className="text-caption text-ink-2 max-w-sm mx-auto">
             {variant === 'MEMBER'
-              ? `${winningCandidate?.name} đã trúng đích 👑 và có toàn quyền chọn quán hôm nay!`
-              : `Thang may mắn đã phân định quán "${winningCandidate?.name}" về đích 🏆.`}
+              ? t('decide.ladder.winnerMemberDesc', { name: winningName })
+              : t('decide.ladder.winnerPlaceDesc', { name: winningName })}
           </p>
 
           {isHost && variant === 'PLACE' && (
@@ -405,21 +426,21 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
               <Button
                 data-testid="ladder-accept-btn"
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={handleAccept}
-                isLoading={isSubmitting}
-                leftIcon={<span>✨</span>}
+                loading={isSubmitting}
+                leftIcon={<Check size={16} />}
               >
-                Chốt luôn quán này
+                {t('decide.ladder.acceptWinner')}
               </Button>
               <Button
                 data-testid="ladder-cancel-btn"
                 variant="secondary"
-                size="sm"
+                size="md"
                 onClick={handleCancel}
-                isLoading={isSubmitting}
+                loading={isSubmitting}
               >
-                Hủy phiên
+                {t('decide.ladder.cancelSession')}
               </Button>
             </div>
           )}
@@ -427,7 +448,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
       )}
 
       {/* SVG Ladder Board */}
-      <div className="relative bg-white rounded-3xl border border-slate-200 p-4 shadow-sm overflow-x-auto flex flex-col items-center">
+      <div className="relative bg-surface rounded-card border border-line p-4 shadow-xs overflow-x-auto flex flex-col items-center">
         <svg
           data-testid="ladder-svg"
           width={svgWidth}
@@ -447,16 +468,16 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   width={64}
                   height={32}
                   rx={8}
-                  fill={isWinnerTop && isSessionResolved ? '#fef3c7' : '#f1f5f9'}
-                  stroke={isWinnerTop && isSessionResolved ? '#f59e0b' : '#cbd5e1'}
+                  fill={isWinnerTop && isSessionResolved ? '#FFF1EC' : '#F5F5F4'}
+                  stroke={isWinnerTop && isSessionResolved ? '#FF6B4A' : '#E7E5E4'}
                   strokeWidth={isWinnerTop && isSessionResolved ? 2 : 1}
                 />
                 <text
                   x={x}
                   y={28}
                   textAnchor="middle"
-                  className="text-[11px] font-bold"
-                  fill="#1e293b"
+                  className="text-[11px] font-semibold"
+                  fill="#1C1917"
                 >
                   {c.name.length > 7 ? `${c.name.slice(0, 7)}…` : c.name}
                 </text>
@@ -464,8 +485,8 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                   x={x}
                   y={39}
                   textAnchor="middle"
-                  className="text-[8px]"
-                  fill="#64748b"
+                  className="text-[8px] font-medium"
+                  fill="#57534E"
                 >
                   {c.subtitle || ''}
                 </text>
@@ -473,7 +494,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
             );
           })}
 
-          {/* Vertical Columns */}
+          {/* Vertical Columns (line token) */}
           {Array.from({ length: ladderData.n_columns }).map((_, col) => {
             const x = getColX(col);
             return (
@@ -484,14 +505,14 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                 y1={yTop}
                 x2={x}
                 y2={yBottom}
-                stroke="#94a3b8"
+                stroke="#E7E5E4"
                 strokeWidth={3}
                 strokeLinecap="round"
               />
             );
           })}
 
-          {/* Horizontal Rungs */}
+          {/* Horizontal Rungs (line token) */}
           {ladderData.rungs.map((r, idx) => {
             const x1 = getColX(r.column);
             const x2 = getColX(r.column + 1);
@@ -504,22 +525,22 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                 y1={y}
                 x2={x2}
                 y2={y}
-                stroke="#64748b"
+                stroke="#D6D3D1"
                 strokeWidth={3}
                 strokeLinecap="round"
               />
             );
           })}
 
-          {/* Winning Path Overlay (3s animation) */}
+          {/* Winning Path Overlay (accent token #FF6B4A) */}
           {winningPathCoords && (
             <path
               ref={pathRef}
               data-testid="ladder-winning-path"
               d={winningPathCoords}
               fill="none"
-              stroke="#f59e0b"
-              strokeWidth={5}
+              stroke="#FF6B4A"
+              strokeWidth={4}
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeDasharray={pathLength}
@@ -539,18 +560,19 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
                 <circle
                   cx={x}
                   cy={yBottom + 26}
-                  r={18}
-                  fill={isWinningBottom ? '#fef3c7' : '#f8fafc'}
-                  stroke={isWinningBottom ? '#f59e0b' : '#e2e8f0'}
+                  r={16}
+                  fill={isWinningBottom ? '#FFF1EC' : '#F5F5F4'}
+                  stroke={isWinningBottom ? '#FF6B4A' : '#E7E5E4'}
                   strokeWidth={2}
                 />
                 <text
                   x={x}
-                  y={yBottom + 32}
+                  y={yBottom + 31}
                   textAnchor="middle"
-                  className="text-base font-bold"
+                  className="text-xs font-bold"
+                  fill={isWinningBottom ? '#FF6B4A' : '#78716C'}
                 >
-                  {isWinningBottom ? (variant === 'MEMBER' ? '👑' : '🏆') : '💨'}
+                  {isWinningBottom ? '★' : '•'}
                 </text>
               </g>
             );
@@ -558,12 +580,12 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
         </svg>
 
         {/* Path tracing status caption */}
-        <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
-          <span>🎯</span>
+        <div className="text-[11px] text-ink-3 mt-2 flex items-center gap-1.5" aria-live="polite">
+          <Info size={14} />
           <span>
             {pathProgress < 1
-              ? 'Đang dò đường theo bậc thang (3s)...'
-              : `Đường đi kết thúc tại cột đáy số ${ladderData.winning_bottom_column + 1}`}
+              ? t('decide.ladder.tracing')
+              : t('decide.ladder.traceEnded', { column: ladderData.winning_bottom_column + 1 })}
           </span>
         </div>
       </div>
@@ -576,88 +598,72 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
             variant="primary"
             size="md"
             onClick={handleStartLadder}
-            isLoading={isSubmitting}
-            leftIcon={<span>🪜</span>}
+            loading={isSubmitting}
+            leftIcon={<SlidersHorizontal size={18} />}
           >
-            {isSessionResolved ? 'Thả lại thang mới' : 'Thả thang ngay!'}
+            {isSessionResolved ? t('decide.ladder.startAgain') : t('decide.ladder.start')}
           </Button>
         ) : (
           <div
             data-testid="ladder-member-waiting"
-            className="text-xs text-slate-500 italic bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200"
+            aria-live="polite"
+            className="text-caption text-ink-3 italic bg-surface-2 px-4 py-2 rounded-full border border-line"
           >
-            Đang chờ Host bắt đầu thả thang...
+            {t('decide.ladder.waitingHost')}
           </div>
         )}
       </div>
 
-      {/* Fairness & Seed Audit Modal */}
-      {isAuditModalOpen && (
-        <div
-          data-testid="ladder-audit-modal"
-          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in"
-        >
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>🔍</span>
-                <span>Thuật toán Thang Amidakuji</span>
-              </h4>
-              <button
-                type="button"
-                onClick={() => setIsAuditModalOpen(false)}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                ✕
-              </button>
+      {/* Fairness & Seed Audit Sheet */}
+      <Sheet
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        title={t('decide.ladder.audit.title')}
+        description={t('decide.ladder.audit.desc')}
+        closeLabel={t('decide.modal.close')}
+      >
+        <div className="space-y-4 text-caption text-ink-2">
+          <div className="bg-surface-2 p-3.5 rounded-field border border-line space-y-1.5 text-[12px]">
+            <div className="flex justify-between">
+              <span className="font-semibold text-ink-2">{t('decide.ladder.audit.serverSeed')}</span>
+              <code data-testid="ladder-audit-seed" className="font-mono text-accent-text font-bold">
+                {ladderData.seed}
+              </code>
             </div>
-
-            <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1">
-                <div className="flex justify-between">
-                  <span className="font-semibold text-slate-700">Seed máy chủ:</span>
-                  <code data-testid="ladder-audit-seed" className="font-mono text-indigo-700 font-bold">
-                    {ladderData.seed}
-                  </code>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold text-slate-700">Số cột dọc:</span>
-                  <span>{ladderData.n_columns}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold text-slate-700">Số bậc ngang:</span>
-                  <span>{ladderData.rungs.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold text-slate-700">Cột thắng trên đỉnh:</span>
-                  <span className="font-bold text-amber-600">Cột {ladderData.winning_top_column + 1}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold text-slate-700">Vị trí đích ở đáy:</span>
-                  <span className="font-bold text-amber-600">Cột {ladderData.winning_bottom_column + 1}</span>
-                </div>
-              </div>
-
-              <p>
-                <strong>Quy tắc Amidakuji (사다리타기 / あみだくじ):</strong> Mỗi bậc thang ngang biểu thị một phép đổi chỗ liền kề (adjacent transposition). Do tính chất song ánh (bijection), mỗi cột trên đỉnh luôn nối với đúng một vị trí ở đáy mà không bao giờ trùng lặp hay xung đột.
-              </p>
-              <p>
-                Toàn bộ cấu trúc thang và vị trí đích được sinh tất định (deterministic) từ <code>seed</code> lưu tại máy chủ và đồng bộ realtime qua WebSocket.
-              </p>
+            <div className="flex justify-between">
+              <span className="font-semibold text-ink-2">{t('decide.ladder.audit.columnsCount')}</span>
+              <span className="tabular-nums font-medium text-ink">{ladderData.n_columns}</span>
             </div>
-
-            <div className="pt-2 text-right">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setIsAuditModalOpen(false)}
-              >
-                Đã hiểu
-              </Button>
+            <div className="flex justify-between">
+              <span className="font-semibold text-ink-2">{t('decide.ladder.audit.rungsCount')}</span>
+              <span className="tabular-nums font-medium text-ink">{ladderData.rungs.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-semibold text-ink-2">{t('decide.ladder.audit.winningTop')}</span>
+              <span className="font-bold text-accent-text">
+                {t('decide.ladder.audit.columnNumber', { number: ladderData.winning_top_column + 1 })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-semibold text-ink-2">{t('decide.ladder.audit.winningBottom')}</span>
+              <span className="font-bold text-accent-text">
+                {t('decide.ladder.audit.columnNumber', { number: ladderData.winning_bottom_column + 1 })}
+              </span>
             </div>
           </div>
+
+          <div className="pt-2">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsAuditModalOpen(false)}
+              className="w-full"
+            >
+              {t('decide.ladder.audit.understand')}
+            </Button>
+          </div>
         </div>
-      )}
+      </Sheet>
     </div>
   );
 };

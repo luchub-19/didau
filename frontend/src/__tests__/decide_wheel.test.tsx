@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import '../i18n';
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { server } from '../mocks/server';
 import { resetMockDb } from '../mocks/handlers';

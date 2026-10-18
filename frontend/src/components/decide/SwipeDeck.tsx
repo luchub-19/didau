@@ -1,7 +1,24 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../i18n/useLanguage';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
-import { Button } from '../common/Button';
+import { formatMoney } from '../../i18n/format';
+import { cuisineLabel } from '../../i18n/osm';
+import {
+  Button,
+  Chip,
+  Card,
+  HandSwipeLeft,
+  Clock,
+  Sparkle,
+  ThumbsUp,
+  X,
+  MapPin,
+  CurrencyCircleDollar,
+  ForkKnife,
+  Check,
+} from '../ui';
 import type { DecisionSession, Place } from '../../types';
 
 export interface SwipeDeckProps {
@@ -31,7 +48,10 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   onAcceptWinner,
   onCancelSession,
 }) => {
-  // Store fallback hooks
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+
+  // Store subscriptions
   const storeSession = useDecisionStore((s) => s.currentSession);
   const storeDoneMemberIds = useDecisionStore((s) => s.doneMemberIds);
   const storeTotalMembers = useDecisionStore((s) => s.totalMembers);
@@ -76,7 +96,8 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     return Math.min(internalCardIndex, candidates.length);
   }, [candidates, localSwipes, internalCardIndex]);
 
-  // Pointer drag state
+  // Pointer drag state & active pointer ID (impeccable harden.md: multi-touch prevention)
+  const activePointerIdRef = useRef<number | null>(null);
   const [dragState, setDragState] = useState({
     isDragging: false,
     startX: 0,
@@ -84,6 +105,14 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     offsetX: 0,
     offsetY: 0,
   });
+
+  // Reduced motion preference
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+  }, []);
 
   // Countdown timer state
   const calculateRemainingSeconds = useCallback(() => {
@@ -131,7 +160,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
         try {
           await submitSwipe(roomId, session.id, currentPlace.id, liked);
         } catch {
-          // handled in store
+          // Handled in store
         }
       }
     },
@@ -156,9 +185,30 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSessionOpen, handleSwipe]);
 
-  // Pointer event handlers
+  // Window blur: reset dragging state to prevent stuck gestures (harden.md)
+  useEffect(() => {
+    const handleBlur = () => {
+      activePointerIdRef.current = null;
+      setDragState({
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        offsetX: 0,
+        offsetY: 0,
+      });
+    };
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, []);
+
+  // Pointer event handlers with multi-touch & interruption hardening
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isSessionOpen || currentCardIndex >= candidates.length) return;
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+      // Bỏ qua ngón tay thứ 2 (interrupted gesture)
+      return;
+    }
+    activePointerIdRef.current = e.pointerId;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -174,7 +224,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState.isDragging) return;
+    if (!dragState.isDragging || e.pointerId !== activePointerIdRef.current) return;
     const offsetX = e.clientX - dragState.startX;
     const offsetY = e.clientY - dragState.startY;
     setDragState((prev) => ({
@@ -185,7 +235,8 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState.isDragging) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
+    activePointerIdRef.current = null;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -207,14 +258,17 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     }
   };
 
-  const handlePointerCancel = () => {
-    setDragState({
-      isDragging: false,
-      startX: 0,
-      startY: 0,
-      offsetX: 0,
-      offsetY: 0,
-    });
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerId === activePointerIdRef.current) {
+      activePointerIdRef.current = null;
+      setDragState({
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        offsetX: 0,
+        offsetY: 0,
+      });
+    }
   };
 
   // Host Start Session
@@ -266,17 +320,33 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   const allCardsSwiped = isSessionOpen && currentCardIndex >= candidates.length;
   const progressRatio = totalMembers > 0 ? doneMemberIds.length / totalMembers : 0;
 
+  // Tally breakdown parsed into structured places
+  const tallyEntries = useMemo(() => {
+    const rawTally = (session?.result_payload as Record<string, unknown>)?.tally;
+    if (!rawTally || typeof rawTally !== 'object') return null;
+    const entries = Object.entries(rawTally as Record<string, number>);
+    if (entries.length === 0) return null;
+
+    const idMap = new Map(places.map((p) => [p.id, p]));
+    return entries.map(([placeId, count]) => ({
+      placeId,
+      name: idMap.get(placeId)?.name || placeId,
+      count: Number(count),
+    })).sort((a, b) => b.count - a.count);
+  }, [session?.result_payload, places]);
+
   return (
     <div data-testid="swipe-deck-container" className="space-y-4">
       {/* Header bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+      <div className="flex items-center justify-between pb-3 border-b border-line">
         <div>
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <span>👆 Chế độ Quẹt thẻ nhóm</span>
-            <span className="text-[10px] text-slate-400 font-semibold">(Task T-33)</span>
+          <h3 className="text-body font-bold text-ink flex items-center gap-2">
+            <HandSwipeLeft size={18} className="text-accent-text" />
+            <span>{t('decide.swipe.title')}</span>
+            <span className="text-[10px] text-ink-3 font-semibold">({t('decide.swipe.tag')})</span>
           </h3>
-          <p className="text-xs text-slate-500">
-            Quẹt phải thích (💚) hoặc trái thôi (❌) để nhóm cùng tìm ra quán ăn chân ái
+          <p className="text-caption text-ink-2">
+            {t('decide.swipe.subtitle')}
           </p>
         </div>
 
@@ -284,35 +354,44 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
         {session?.status === 'OPEN' && session.mode === 'SWIPE' && (
           <div
             data-testid="swipe-countdown"
-            className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 shadow-xs ${
+            className={`px-3 py-1 rounded-full text-caption font-bold flex items-center gap-1.5 shadow-xs ${
               remainingSeconds <= 15
-                ? 'bg-rose-100 text-rose-700 animate-pulse'
-                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                ? 'bg-danger-soft text-danger border border-danger/30 animate-pulse'
+                : 'bg-accent-soft text-accent-text border border-accent/20'
             }`}
           >
-            <span>⏱️</span>
-            <span>{formatTime(remainingSeconds)}</span>
+            <Clock size={14} />
+            <span className="tabular-nums">{formatTime(remainingSeconds)}</span>
           </div>
         )}
       </div>
 
       {/* Progress Bar (x/y người xong) */}
       {session?.status === 'OPEN' && session.mode === 'SWIPE' && (
-        <div className="space-y-1.5 bg-slate-100/70 p-3 rounded-2xl border border-slate-200">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-600">
-            <span data-testid="swipe-progress-text">
-              👥 <strong>{doneMemberIds.length}</strong>/{totalMembers || 1} người đã xong
-            </span>
-            <span data-testid="swipe-card-counter" className="font-semibold text-slate-700">
-              {Math.min(currentCardIndex + 1, candidates.length)} / {candidates.length} quán
+        <div className="space-y-1.5 bg-surface-2 p-3 rounded-card border border-line">
+          <div className="flex items-center justify-between text-caption font-medium text-ink-2">
+            <span
+              data-testid="swipe-progress-text"
+              dangerouslySetInnerHTML={{
+                __html: t('decide.swipe.progressText', {
+                  done: doneMemberIds.length,
+                  total: totalMembers || 1,
+                }),
+              }}
+            />
+            <span data-testid="swipe-card-counter" className="font-semibold text-ink">
+              {t('decide.swipe.cardCounter', {
+                current: Math.min(currentCardIndex + 1, candidates.length),
+                total: candidates.length,
+              })}
             </span>
           </div>
           <div
             data-testid="swipe-progress-bar"
-            className="w-full h-2 bg-slate-200 rounded-full overflow-hidden"
+            className="w-full h-2 bg-line rounded-full overflow-hidden"
           >
             <div
-              className="h-full bg-emerald-500 transition-all duration-300 rounded-full"
+              className="h-full bg-accent transition-all duration-300 rounded-full"
               style={{ width: `${Math.min(100, Math.round(progressRatio * 100))}%` }}
             />
           </div>
@@ -323,24 +402,27 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
       {isExpired && !isSessionResolved && (
         <div
           data-testid="swipe-expired-alert"
-          className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center space-y-2"
+          aria-live="polite"
+          className="bg-danger-soft border border-danger/30 rounded-card p-4 text-center space-y-2"
         >
-          <div className="text-2xl">⏰</div>
-          <h4 className="text-sm font-bold text-rose-800">
-            Hết giờ quẹt thẻ! Phiên đã đóng (90s)
+          <div className="flex justify-center text-danger">
+            <Clock size={32} />
+          </div>
+          <h4 className="text-body font-bold text-danger">
+            {t('decide.swipe.expiredTitle')}
           </h4>
-          <p className="text-xs text-rose-600 max-w-sm mx-auto">
-            Thời gian bình chọn bằng swipe đã kết thúc. Vui lòng chờ Host tổng kết hoặc tạo phiên mới.
+          <p className="text-caption text-danger/80 max-w-sm mx-auto">
+            {t('decide.swipe.expiredDesc')}
           </p>
           {isHost && (
             <div className="pt-2">
               <Button
                 variant="secondary"
-                size="sm"
+                size="md"
                 onClick={handleCancel}
-                isLoading={isSubmitting}
+                loading={isSubmitting}
               >
-                Đóng phiên này
+                {t('decide.swipe.closeSession')}
               </Button>
             </div>
           )}
@@ -351,37 +433,51 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
       {isSessionResolved && (
         <div
           data-testid="swipe-resolved-winner"
-          className="bg-emerald-50/70 border border-emerald-200 rounded-3xl p-6 text-center space-y-4 animate-fade-in"
+          aria-live="polite"
+          className="bg-accent-soft/40 border border-accent/40 rounded-card p-6 text-center space-y-4 animate-fade-in"
         >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 text-3xl shadow-xs">
-            🏆
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent-soft text-accent-text text-3xl shadow-xs">
+            <Sparkle size={32} weight="fill" />
           </div>
           <div>
-            <span className="text-[11px] font-black tracking-wider uppercase text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
-              Kết quả Quẹt thẻ nhóm
+            <span className="text-caption font-bold tracking-wider uppercase text-accent-text bg-accent-soft px-3 py-1 rounded-full border border-accent/20">
+              {t('decide.swipe.resultBadge')}
             </span>
-            <h4 className="text-xl font-black text-slate-900 mt-1.5">
-              {winnerPlace ? winnerPlace.name : 'Địa điểm đã chọn'}
+            <h4 className="text-title font-bold text-ink mt-2">
+              {winnerPlace ? winnerPlace.name : t('decide.swipe.winnerPlaceDefault')}
             </h4>
             {winnerPlace && (
-              <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
-                {winnerPlace.category} • {winnerPlace.address || 'Khu vực trung tâm'}
+              <p className="text-caption text-ink-2 mt-1 max-w-md mx-auto">
+                {winnerPlace.category} • {winnerPlace.address || t('decide.swipe.centerArea')}
                 {winnerPlace.estimated_cost
-                  ? ` • ~${winnerPlace.estimated_cost.toLocaleString('vi-VN')} đ`
+                  ? ` • ${formatMoney(winnerPlace.estimated_cost)}`
                   : ''}
               </p>
             )}
           </div>
 
-          {/* Tally details if available */}
-          {session?.result_payload && (
-            <div className="text-xs text-emerald-800 bg-white/80 rounded-xl p-3 max-w-xs mx-auto border border-emerald-200/60 shadow-xs">
-              <p className="font-semibold">✨ Quán nhận được nhiều lượt Thích nhất!</p>
-              {Boolean((session.result_payload as Record<string, unknown>)?.tally) && (
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Tổng lượt thích: {JSON.stringify((session.result_payload as Record<string, unknown>).tally)}
-                </p>
-              )}
+          {/* Tally details rendered as list (thay vì JSON.stringify) */}
+          {tallyEntries && (
+            <div className="text-caption text-ink-2 bg-surface rounded-card p-3.5 max-w-sm mx-auto border border-line shadow-xs space-y-2">
+              <p className="font-semibold text-ink flex items-center justify-center gap-1.5">
+                <Sparkle size={16} className="text-accent-text" />
+                <span>{t('decide.swipe.mostLiked')}</span>
+              </p>
+              <div className="space-y-1.5 pt-1">
+                {tallyEntries.map((item) => (
+                  <div
+                    key={item.placeId}
+                    className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-surface-2"
+                  >
+                    <span className="font-medium text-ink truncate max-w-[180px]">
+                      {item.name}
+                    </span>
+                    <span className="font-bold text-accent-text tabular-nums text-caption">
+                      {t('decide.swipe.likesCount', { count: item.count })}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -393,24 +489,24 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
                 variant="primary"
                 size="md"
                 onClick={handleAccept}
-                isLoading={isSubmitting}
-                leftIcon={<span>✨</span>}
+                loading={isSubmitting}
+                leftIcon={<Check size={18} />}
               >
-                Chốt luôn quán này
+                {t('decide.swipe.acceptWinner')}
               </Button>
               <Button
                 data-testid="swipe-cancel-btn"
                 variant="secondary"
                 size="md"
                 onClick={handleCancel}
-                isLoading={isSubmitting}
+                loading={isSubmitting}
               >
-                Hủy phiên
+                {t('decide.swipe.cancelSession')}
               </Button>
             </div>
           ) : (
-            <p className="text-xs text-slate-500 italic">
-              Đang chờ Host xác nhận và chốt kết quả vào lịch trình...
+            <p className="text-caption text-ink-3 italic">
+              {t('decide.swipe.waitingHostConfirm')}
             </p>
           )}
         </div>
@@ -426,33 +522,37 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
+            onLostPointerCapture={handlePointerCancel}
             style={{
               transform: dragState.isDragging
                 ? `translate3d(${dragState.offsetX}px, ${dragState.offsetY * 0.2}px, 0) rotate(${
                     dragState.offsetX * 0.07
                   }deg)`
                 : 'translate3d(0, 0, 0) rotate(0deg)',
-              transition: dragState.isDragging ? 'none' : 'transform 0.25s ease-out',
+              transition:
+                dragState.isDragging || prefersReducedMotion
+                  ? 'none'
+                  : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
               touchAction: 'none',
               cursor: dragState.isDragging ? 'grabbing' : 'grab',
             }}
-            className="relative w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-xl p-6 overflow-hidden select-none"
+            className="relative w-full max-w-sm bg-surface rounded-card border border-line shadow-float p-6 overflow-hidden select-none"
           >
             {/* Visual drag stamp badges */}
             {dragState.offsetX > 25 && (
               <div
                 data-testid="swipe-stamp-like"
-                className="absolute top-4 left-4 z-20 border-2 border-emerald-500 text-emerald-600 bg-emerald-50/90 font-black text-sm px-3 py-1 rounded-xl uppercase tracking-wider rotate-[-12deg] shadow-sm animate-fade-in"
+                className="absolute top-4 left-4 z-20 border-2 border-success text-success bg-success-soft/90 font-bold text-label px-3 py-1 rounded-card uppercase tracking-wider rotate-[-12deg] shadow-xs"
               >
-                THÍCH 💚
+                {t('decide.swipe.stampLike')}
               </div>
             )}
             {dragState.offsetX < -25 && (
               <div
                 data-testid="swipe-stamp-dislike"
-                className="absolute top-4 right-4 z-20 border-2 border-rose-500 text-rose-600 bg-rose-50/90 font-black text-sm px-3 py-1 rounded-xl uppercase tracking-wider rotate-[12deg] shadow-sm animate-fade-in"
+                className="absolute top-4 right-4 z-20 border-2 border-danger text-danger bg-danger-soft/90 font-bold text-label px-3 py-1 rounded-card uppercase tracking-wider rotate-[12deg] shadow-xs"
               >
-                THÔI ❌
+                {t('decide.swipe.stampDislike')}
               </div>
             )}
 
@@ -460,109 +560,118 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  <Chip category={currentPlace.category}>
                     {currentPlace.category}
-                  </span>
-                  <h4 className="text-lg font-bold text-slate-900 mt-1.5 leading-snug">
+                  </Chip>
+                  <h4 className="text-title font-bold text-ink mt-2 leading-snug">
                     {currentPlace.name}
                   </h4>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-100/80 text-amber-800 flex items-center justify-center text-lg font-bold">
-                  🍽️
+                <div className="w-10 h-10 rounded-full bg-surface-2 text-ink-2 flex items-center justify-center text-lg font-bold">
+                  <ForkKnife size={20} />
                 </div>
               </div>
 
-              <div className="text-xs text-slate-600 space-y-1.5 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <div className="flex items-center gap-1.5">
-                  <span>📍</span>
-                  <span className="line-clamp-1">{currentPlace.address || 'Khu vực trung tâm'}</span>
+              <div className="text-caption text-ink-2 space-y-2 bg-surface-2 p-3.5 rounded-field border border-line">
+                <div className="flex items-center gap-2">
+                  <MapPin size={16} className="text-ink-3 flex-shrink-0" />
+                  <span className="line-clamp-1">{currentPlace.address || t('decide.swipe.centerArea')}</span>
                 </div>
                 {currentPlace.estimated_cost && (
-                  <div className="flex items-center gap-1.5">
-                    <span>💵</span>
-                    <span>~{currentPlace.estimated_cost.toLocaleString('vi-VN')} đ/người</span>
+                  <div className="flex items-center gap-2">
+                    <CurrencyCircleDollar size={16} className="text-ink-3 flex-shrink-0" />
+                    <span>{formatMoney(currentPlace.estimated_cost)}</span>
                   </div>
                 )}
                 {currentPlace.cuisine && (
-                  <div className="flex items-center gap-1.5">
-                    <span>🍲</span>
-                    <span>Ẩm thực: {currentPlace.cuisine}</span>
+                  <div className="flex items-center gap-2">
+                    <ForkKnife size={16} className="text-ink-3 flex-shrink-0" />
+                    <span>
+                      {t('decide.swipe.cuisineLabel', {
+                        cuisine: cuisineLabel(currentPlace.cuisine, lang) || currentPlace.cuisine,
+                      })}
+                    </span>
                   </div>
                 )}
               </div>
 
               {/* Drag instruction helper */}
-              <div className="text-[11px] text-center text-slate-400 italic pt-1">
-                Kéo sang phải để Thích • Kéo sang trái để Thôi (hoặc dùng nút bên dưới)
+              <div className="text-[11px] text-center text-ink-3 italic pt-1">
+                {t('decide.swipe.dragHelper')}
               </div>
             </div>
           </div>
 
-          {/* Desktop action buttons */}
+          {/* Action buttons (Luôn có nút Thôi / Thích >= 44px) */}
           <div className="flex items-center gap-6 mt-5">
             <button
               type="button"
               data-testid="swipe-dislike-btn"
               onClick={() => handleSwipe(false)}
-              aria-label="Thôi / Không thích"
-              className="w-14 h-14 rounded-full bg-white hover:bg-rose-50 border-2 border-rose-300 text-rose-600 shadow-md flex items-center justify-center text-2xl font-bold transition-transform active:scale-95"
+              aria-label={t('decide.swipe.skipLabel')}
+              className="w-14 h-14 min-w-[44px] min-h-[44px] rounded-full bg-surface hover:bg-danger-soft border-2 border-danger/40 text-danger shadow-xs flex items-center justify-center transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
             >
-              ❌
+              <X size={26} weight="bold" />
             </button>
             <button
               type="button"
               data-testid="swipe-like-btn"
               onClick={() => handleSwipe(true)}
-              aria-label="Thích quán này"
-              className="w-14 h-14 rounded-full bg-white hover:bg-emerald-50 border-2 border-emerald-400 text-emerald-600 shadow-md flex items-center justify-center text-2xl font-bold transition-transform active:scale-95"
+              aria-label={t('decide.swipe.likeLabel')}
+              className="w-14 h-14 min-w-[44px] min-h-[44px] rounded-full bg-surface hover:bg-success-soft border-2 border-success/40 text-success shadow-xs flex items-center justify-center transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
             >
-              💚
+              <ThumbsUp size={26} weight="fill" />
             </button>
           </div>
-          <div className="text-[10px] text-slate-400 mt-2">
-            Phím tắt: Bấm <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-slate-600 font-mono">←</kbd> Thôi, <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-slate-600 font-mono">→</kbd> Thích
+          <div className="text-[11px] text-ink-3 mt-2">
+            {t('decide.swipe.keyboardShortcut')}
           </div>
         </div>
       )}
 
       {/* 4. STATE: All Cards Swiped by Current Member */}
       {isSessionOpen && allCardsSwiped && (
-        <div
+        <Card
           data-testid="swipe-all-done"
-          className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-3 shadow-sm animate-fade-in"
+          aria-live="polite"
+          className="p-8 text-center space-y-3"
         >
-          <div className="text-4xl animate-bounce">🎉</div>
-          <h4 className="text-base font-bold text-slate-800">
-            Bạn đã quẹt xong toàn bộ địa điểm!
+          <div className="flex justify-center text-accent-text">
+            <Sparkle size={36} weight="fill" />
+          </div>
+          <h4 className="text-title font-bold text-ink">
+            {t('decide.swipe.allDoneTitle')}
           </h4>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Đang chờ các thành viên khác hoàn thành lượt quẹt của mình (
-            <strong>{doneMemberIds.length}</strong>/{totalMembers || 1} người đã xong). Kết quả sẽ tự động hiển thị ngay khi đủ người hoặc hết 90s!
+          <p className="text-caption text-ink-2 max-w-sm mx-auto">
+            {t('decide.swipe.allDoneDesc', {
+              done: doneMemberIds.length,
+              total: totalMembers || 1,
+            })}
           </p>
           <div className="flex justify-center pt-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
-              <span>Đang đồng bộ realtime...</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-2 text-ink-2 text-caption font-semibold">
+              <span className="w-2 h-2 rounded-full bg-accent animate-ping" />
+              <span>{t('decide.swipe.syncing')}</span>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* 5. STATE: Not Started Session */}
       {!session || (session.status !== 'OPEN' && !isSessionResolved) ? (
-        <div
+        <Card
           data-testid="swipe-not-started"
-          className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4"
+          className="p-8 text-center space-y-4"
         >
-          <div className="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-3xl mx-auto shadow-xs">
-            👆
+          <div className="w-14 h-14 rounded-full bg-surface-2 text-accent-text flex items-center justify-center mx-auto shadow-xs">
+            <HandSwipeLeft size={28} />
           </div>
           <div>
-            <h4 className="text-base font-bold text-slate-900">
-              Bình chọn nhanh theo phong cách Swipe
+            <h4 className="text-title font-bold text-ink">
+              {t('decide.swipe.introTitle')}
             </h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
-              Mỗi thành viên trong phòng sẽ có <strong>90 giây</strong> để quẹt Thích (phải) hoặc Thôi (trái) qua danh sách {candidates.length} quán ứng viên. Quán nhiều lượt thích nhất sẽ chiến thắng!
+            <p className="text-caption text-ink-2 max-w-sm mx-auto mt-1 leading-relaxed">
+              {t('decide.swipe.introDesc', { count: candidates.length })}
             </p>
           </div>
 
@@ -573,22 +682,23 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
                 variant="primary"
                 size="md"
                 onClick={handleStartSession}
-                isLoading={isSubmitting}
-                leftIcon={<span>🚀</span>}
+                loading={isSubmitting}
+                leftIcon={<Sparkle size={18} />}
               >
-                Bắt đầu phiên quẹt thẻ (90s)
+                {t('decide.swipe.startSession')}
               </Button>
             </div>
           ) : (
             <div
               data-testid="swipe-member-waiting"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 font-medium"
+              aria-live="polite"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-2 border border-line text-caption text-ink-2 font-medium"
             >
-              <span>⏳</span>
-              <span>Đang chờ Host bắt đầu phiên quẹt thẻ...</span>
+              <Clock size={16} />
+              <span>{t('decide.swipe.waitingHostStart')}</span>
             </div>
           )}
-        </div>
+        </Card>
       ) : null}
     </div>
   );

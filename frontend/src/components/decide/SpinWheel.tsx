@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
-import { Button } from '../common';
+import { describeApiError } from '../../i18n/serverText';
+import {
+  Button,
+  Chip,
+  Sheet,
+  Shuffle,
+  Info,
+  Sparkle,
+  Check,
+} from '../ui';
 import type { DeciderHint, Place } from '../../types';
 
 export interface SpinWheelProps {
@@ -13,15 +23,20 @@ export interface SpinWheelProps {
   wheelWinnerId?: string | null;
 }
 
-const SLICE_COLORS = [
-  '#EF4444', // Đỏ
-  '#3B82F6', // Xanh dương
-  '#10B981', // Xanh lá
-  '#F59E0B', // Vàng cam
-  '#8B5CF6', // Tím
-  '#EC4899', // Hồng
-  '#06B6D4', // Cyan
-  '#84CC16', // Lime
+// Bảng màu xen kẽ giữa các màu cat-*-soft và surface-2
+const SLICE_SOFT_COLORS = [
+  '#FFF7ED', // cat-food-soft
+  '#F5F5F4', // surface-2
+  '#ECFDF5', // cat-drink-soft
+  '#F5F5F4', // surface-2
+  '#FAF5FF', // cat-entertainment-soft
+  '#F5F5F4', // surface-2
+  '#EFF6FF', // cat-sightseeing-soft
+  '#F5F5F4', // surface-2
+  '#FFF1F2', // cat-accommodation-soft
+  '#F5F5F4', // surface-2
+  '#F0FDFA', // cat-shopping-soft
+  '#F5F5F4', // surface-2
 ];
 
 function polarToCartesian(cx: number, cy: number, r: number, angleInDegrees: number) {
@@ -54,6 +69,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
   wheelStopAngle: propWheelStopAngle,
   wheelWinnerId: propWheelWinnerId,
 }) => {
+  const { t } = useTranslation();
   const storePlaces = usePlaceStore((s) => s.places);
   const places = propPlaces ?? storePlaces;
 
@@ -115,16 +131,22 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
       const endAngle = currentAngle + sliceWidth;
       currentAngle = endAngle;
 
+      const isWinnerSlice = hasRevealedWinner && place.id === wheelWinnerId;
+      const sliceColor = isWinnerSlice
+        ? '#FF6B4A' // accent khi thắng
+        : SLICE_SOFT_COLORS[idx % SLICE_SOFT_COLORS.length];
+
       return {
         place,
         startAngle,
         endAngle,
         midAngle: startAngle + sliceWidth / 2,
-        color: SLICE_COLORS[idx % SLICE_COLORS.length],
+        color: sliceColor,
+        isWinner: isWinnerSlice,
         percentage: ((weights[idx] / totalWeight) * 100).toFixed(1),
       };
     });
-  }, [candidatePlaces, isWeighted]);
+  }, [candidatePlaces, isWeighted, hasRevealedWinner, wheelWinnerId]);
 
   // Khi nhận `wheelStopAngle` hoặc `isSpinning` bắt đầu quay
   useEffect(() => {
@@ -169,7 +191,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
         weighted: isWeighted,
       });
     } catch (err: unknown) {
-      setErrorMsg((err as { message?: string })?.message || 'Không thể quay vòng quay.');
+      setErrorMsg(describeApiError(err, t) || t('decide.wheel.errorSpin'));
     }
   };
 
@@ -179,7 +201,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
     try {
       await acceptDecision(roomId, currentSession.id);
     } catch (err: unknown) {
-      setErrorMsg((err as { message?: string })?.message || 'Không thể chốt địa điểm trúng thưởng.');
+      setErrorMsg(describeApiError(err, t) || t('decide.wheel.errorAccept'));
     }
   };
 
@@ -188,58 +210,59 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
   return (
     <div
       data-testid="spin-wheel-container"
-      className="space-y-6 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col items-center"
+      className="space-y-6 bg-surface rounded-card border border-line p-5 sm:p-6 shadow-xs flex flex-col items-center"
     >
       {/* Header controls & fairness toggle */}
-      <div className="w-full flex items-center justify-between border-b border-slate-100 pb-3">
+      <div className="w-full flex items-center justify-between border-b border-line pb-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-800">🎡 Vòng quay may mắn</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
-            {candidatePlaces.length} ứng viên
-          </span>
+          <Shuffle size={18} className="text-accent-text" />
+          <span className="text-body font-bold text-ink">{t('decide.wheel.title')}</span>
+          <Chip>
+            {t('decide.wheel.candidatesCount', { count: candidatePlaces.length })}
+          </Chip>
         </div>
 
         <button
           type="button"
           onClick={() => setShowFairnessModal(true)}
-          className="text-xs font-semibold text-sky-600 hover:text-sky-700 flex items-center gap-1 underline underline-offset-2"
+          className="text-caption font-semibold text-accent-text hover:underline flex items-center gap-1.5"
         >
-          <span>ℹ️</span>
-          <span>Xem cách tính</span>
+          <Info size={14} />
+          <span>{t('decide.wheel.explainLink')}</span>
         </button>
       </div>
 
       {errorMsg && (
-        <div className="w-full p-3 text-xs rounded-xl bg-rose-50 text-rose-700 border border-rose-200 font-medium">
+        <div className="w-full p-3 text-caption rounded-field bg-danger-soft text-danger border border-danger/30 font-medium">
           {errorMsg}
         </div>
       )}
 
       {/* Weight toggle */}
-      <div className="w-full flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-        <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 select-none">
+      <div className="w-full flex items-center justify-between bg-surface-2 p-2.5 rounded-field border border-line text-caption">
+        <label className="flex items-center gap-2 cursor-pointer font-semibold text-ink select-none">
           <input
             type="checkbox"
             checked={isWeighted}
             disabled={isSpinning || isSubmitting}
             onChange={(e) => setIsWeighted(e.target.checked)}
-            className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300"
+            className="w-4 h-4 rounded text-accent focus:ring-accent-text border-line accent-accent"
           />
-          <span>Trọng số theo điểm bình chọn</span>
+          <span>{t('decide.wheel.weightLabel')}</span>
         </label>
-        <span className="text-[11px] text-slate-400">
-          {isWeighted ? 'Quán nhiều vote ô to hơn' : 'Mọi quán chia đều'}
+        <span className="text-[11px] text-ink-3">
+          {isWeighted ? t('decide.wheel.weightDescActive') : t('decide.wheel.weightDescEqual')}
         </span>
       </div>
 
       {/* SVG Wheel Display */}
       <div className="relative w-[300px] h-[300px] flex items-center justify-center my-2 select-none">
-        {/* Pointer (Kim chỉ đỉnh 12h) */}
+        {/* Pointer (Kim chỉ đỉnh 12h) - màu accent */}
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 drop-shadow-md">
           <svg width="28" height="34" viewBox="0 0 28 34" fill="none">
             <path
               d="M14 34L2 6C0.5 3 2.5 0 6 0H22C25.5 0 27.5 3 26 6L14 34Z"
-              fill="#DC2626"
+              fill="#FF6B4A"
               stroke="#FFFFFF"
               strokeWidth="2"
             />
@@ -254,7 +277,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
             transform: `rotate(${currentRotation}deg)`,
             transition: isSpinning ? 'transform 4s cubic-bezier(0.15, 0.9, 0.2, 1.0)' : 'none',
           }}
-          className="w-[280px] h-[280px] rounded-full shadow-lg border-4 border-white bg-slate-100 relative overflow-hidden"
+          className="w-[280px] h-[280px] rounded-full shadow-md border-4 border-surface bg-surface-2 relative overflow-hidden"
         >
           <svg width="280" height="280" viewBox="0 0 300 300" className="w-full h-full">
             {slices.map((slice, idx) => (
@@ -265,8 +288,8 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
                   <path
                     d={describeArc(150, 150, 148, slice.startAngle, slice.endAngle)}
                     fill={slice.color}
-                    stroke="#FFFFFF"
-                    strokeWidth="2"
+                    stroke="#E7E5E4"
+                    strokeWidth="1.5"
                   />
                 )}
                 <g transform={`rotate(${slice.midAngle}, 150, 150)`}>
@@ -274,10 +297,10 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
                     x="150"
                     y="60"
                     textAnchor="middle"
-                    fill="#FFFFFF"
-                    fontWeight="bold"
+                    fill="#1C1917"
+                    fontWeight="600"
                     fontSize="11"
-                    className="drop-shadow-sm select-none"
+                    className="select-none"
                   >
                     {slice.place.name.length > 13
                       ? `${slice.place.name.slice(0, 12)}…`
@@ -287,18 +310,9 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
               </g>
             ))}
             {/* Center Pin Hub */}
-            <circle cx="150" cy="150" r="22" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="3" />
-            <circle cx="150" cy="150" r="15" fill="#1E293B" />
-            <text
-              x="150"
-              y="155"
-              textAnchor="middle"
-              fill="#FFFFFF"
-              fontSize="12"
-              fontWeight="bold"
-            >
-              🎲
-            </text>
+            <circle cx="150" cy="150" r="22" fill="#FFFFFF" stroke="#E7E5E4" strokeWidth="3" />
+            <circle cx="150" cy="150" r="14" fill="#1C1917" />
+            <circle cx="150" cy="150" r="5" fill="#FFFFFF" />
           </svg>
         </div>
       </div>
@@ -307,43 +321,46 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
       {hasRevealedWinner && winnerPlace && (
         <div
           data-testid="winner-announcement"
-          className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-sky-500/15 border border-emerald-300 text-center space-y-2 animate-fade-in"
+          aria-live="polite"
+          className="w-full p-4 rounded-card bg-accent-soft/40 border border-accent/40 text-center space-y-2 animate-fade-in"
         >
-          <div className="text-2xl">🎉</div>
-          <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-            Quán trúng thưởng!
+          <div className="flex justify-center text-accent-text">
+            <Sparkle size={28} weight="fill" />
+          </div>
+          <p className="text-caption font-bold uppercase tracking-wider text-accent-text">
+            {t('decide.wheel.winnerBadge')}
           </p>
-          <h4 className="text-base sm:text-lg font-black text-slate-900">
+          <h4 className="text-title font-bold text-ink">
             {winnerPlace.name}
           </h4>
-          <p className="text-xs text-slate-600">
-            {winnerPlace.category} • ⭐ {winnerPlace.score} điểm
+          <p className="text-caption text-ink-2">
+            {winnerPlace.category} • {t('decide.wheel.scoreText', { score: winnerPlace.score ?? 0 })}
           </p>
 
           {isHost ? (
             <div className="pt-2 flex items-center justify-center gap-2">
               <Button
                 variant="primary"
-                size="sm"
+                size="md"
                 onClick={handleAcceptWinner}
-                isLoading={isSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                leftIcon={<span>✨</span>}
+                loading={isSubmitting}
+                leftIcon={<Check size={16} />}
               >
-                Chốt quán này
+                {t('decide.wheel.acceptWinner')}
               </Button>
               <Button
-                variant="outline"
-                size="sm"
+                variant="secondary"
+                size="md"
                 onClick={handleStartSpin}
                 disabled={isSubmitting || isSpinning}
+                leftIcon={<Shuffle size={16} />}
               >
-                Quay lại
+                {t('decide.wheel.spinAgain')}
               </Button>
             </div>
           ) : (
-            <p className="text-xs text-slate-500 italic pt-1">
-              Đang chờ Host chốt kết quả này...
+            <p className="text-caption text-ink-3 italic pt-1">
+              {t('decide.wheel.waitingHostToAccept')}
             </p>
           )}
         </div>
@@ -356,88 +373,79 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
             variant="primary"
             size="lg"
             onClick={handleStartSpin}
-            isLoading={isSubmitting || isSpinning}
+            loading={isSubmitting || isSpinning}
             disabled={candidatePlaces.length < 2 || isSpinning}
-            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black text-base shadow-sm"
-            leftIcon={<span>🎲</span>}
+            className="w-full font-semibold shadow-xs"
+            leftIcon={<Shuffle size={20} />}
           >
-            {isSpinning ? 'Đang quay...' : 'Quay ngay!'}
+            {isSpinning ? t('decide.wheel.spinning') : t('decide.wheel.spinButton')}
           </Button>
         ) : (
           <div
             data-testid="member-waiting-banner"
-            className="w-full py-3 px-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs font-semibold text-slate-600 italic"
+            aria-live="polite"
+            className="w-full py-3 px-4 rounded-field bg-surface-2 border border-line text-center text-caption font-semibold text-ink-2 italic"
           >
-            {isSpinning ? '🎡 Vòng quay đang chạy...' : 'Đang chờ Host bắt đầu quay... 👀'}
+            {isSpinning ? t('decide.wheel.wheelSpinning') : t('decide.wheel.waitingHost')}
           </div>
         )}
       </div>
 
-      {/* Modal Xem cách tính / Minh bạch thuật toán */}
-      {showFairnessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">
-                🔍 Minh bạch thuật toán vòng quay
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowFairnessModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                ✕
-              </button>
+      {/* Modal / Sheet Xem cách tính / Minh bạch thuật toán */}
+      <Sheet
+        isOpen={showFairnessModal}
+        onClose={() => setShowFairnessModal(false)}
+        title={t('decide.wheel.fairness.title')}
+        description={t('decide.wheel.fairness.desc')}
+        closeLabel={t('decide.modal.close')}
+      >
+        <div className="space-y-4 text-caption text-ink-2">
+          <div className="bg-surface-2 p-3 rounded-field border border-line space-y-1.5 font-mono text-[12px]">
+            <div className="flex justify-between">
+              <span className="text-ink-3">{t('decide.wheel.fairness.serverSeed')}</span>
+              <strong className="text-ink">{seed ?? t('decide.wheel.fairness.notCreated')}</strong>
             </div>
-
-            <div className="space-y-3 text-xs text-slate-600">
-              <p>
-                Kết quả vòng quay được máy chủ sinh ngẫu nhiên trước bằng thuật toán tất định (deterministic) dựa trên mã <strong className="text-slate-900 font-mono">seed</strong> ngẫu nhiên 48-bit.
-              </p>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1 font-mono">
-                <div>
-                  <span className="text-slate-400">Seed máy chủ:</span>{' '}
-                  <strong className="text-slate-800">{seed ?? 'Chưa tạo'}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">Góc dừng (độ):</span>{' '}
-                  <strong className="text-slate-800">{wheelStopAngle ?? '0'}°</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">Trọng số:</span>{' '}
-                  <strong>{isWeighted ? 'Theo điểm vote' : 'Chia đều'}</strong>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="font-bold text-slate-800">Tỉ lệ trúng của từng quán:</p>
-                <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
-                  {slices.map((s) => (
-                    <div
-                      key={s.place.id}
-                      className="flex items-center justify-between py-1 px-2 rounded-lg bg-slate-50 border border-slate-100"
-                    >
-                      <span className="truncate max-w-[200px] font-medium">
-                        {s.place.name}
-                      </span>
-                      <span className="font-bold text-slate-700">{s.percentage}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="flex justify-between">
+              <span className="text-ink-3">{t('decide.wheel.fairness.stopAngle')}</span>
+              <strong className="text-ink">{wheelStopAngle ?? '0'}°</strong>
             </div>
+            <div className="flex justify-between">
+              <span className="text-ink-3">{t('decide.wheel.fairness.weightMode')}</span>
+              <strong className="text-ink">
+                {isWeighted ? t('decide.wheel.fairness.weightByScore') : t('decide.wheel.fairness.weightEqual')}
+              </strong>
+            </div>
+          </div>
 
+          <div className="space-y-2">
+            <p className="font-semibold text-ink">{t('decide.wheel.fairness.chancesTitle')}</p>
+            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
+              {slices.map((s) => (
+                <div
+                  key={s.place.id}
+                  className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-surface border border-line"
+                >
+                  <span className="truncate max-w-[200px] font-medium text-ink">
+                    {s.place.name}
+                  </span>
+                  <span className="font-bold text-ink tabular-nums">{s.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2">
             <Button
-              variant="outline"
-              size="sm"
+              variant="primary"
+              size="md"
               onClick={() => setShowFairnessModal(false)}
-              className="w-full text-xs font-bold"
+              className="w-full"
             >
-              Đã hiểu
+              {t('decide.wheel.fairness.understand')}
             </Button>
           </div>
         </div>
-      )}
+      </Sheet>
     </div>
   );
 };
