@@ -1,7 +1,18 @@
 import React from 'react';
-import type { ScheduleItem, PlaceCategory } from '../../types';
-import { formatMinuteRange, formatDuration } from '../../hooks/useMinuteFormat';
+import { useTranslation } from 'react-i18next';
+import type { ScheduleItem, PlaceCategory, ConflictLevel } from '../../types';
+import { formatTime, formatDuration } from '../../i18n/format';
+import { useLanguage } from '../../i18n/useLanguage';
 import { CategoryIcon } from '../common/CategoryIcon';
+import {
+  Clock,
+  MapPin,
+  WarningCircle,
+  CaretUp,
+  CaretDown,
+  Trash,
+  DotsThree,
+} from '../ui/Icon';
 
 export interface ScheduleItemCardProps {
   item: ScheduleItem;
@@ -9,6 +20,7 @@ export interface ScheduleItemCardProps {
   totalItems: number;
   category?: PlaceCategory;
   isConflict?: boolean;
+  conflictLevel?: ConflictLevel;
   conflictMessages?: string[];
   isHost?: boolean;
   onDelete?: (id: string) => void;
@@ -27,6 +39,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   totalItems,
   category = 'OTHER',
   isConflict = false,
+  conflictLevel = 'CRITICAL',
   conflictMessages = [],
   isHost = false,
   onDelete,
@@ -38,7 +51,22 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   onDrop,
   onDragEnd,
 }) => {
-  const duration = item.end_minute - item.start_minute;
+  const { t } = useTranslation();
+  const { lang: language } = useLanguage();
+
+  let duration = item.end_minute - item.start_minute;
+  const isNextDay = item.end_minute < item.start_minute || item.end_minute >= 1440;
+  if (isNextDay && item.end_minute < item.start_minute) {
+    duration = item.end_minute + 1440 - item.start_minute;
+  }
+  const endMinuteNormalized = item.end_minute % 1440;
+  const formattedTimeRange = `${formatTime(item.start_minute, language)} - ${formatTime(
+    endMinuteNormalized,
+    language,
+  )}${isNextDay ? ` ${t('schedule.nextDay')}` : ''}`;
+
+  const isCriticalOrError =
+    conflictLevel === 'CRITICAL' || conflictLevel === 'ERROR';
 
   return (
     <div
@@ -48,112 +76,133 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
       onDrop={(e) => onDrop?.(e, item.id)}
       onDragEnd={onDragEnd}
       data-testid={`schedule-item-${item.id}`}
-      className={`group relative flex items-start gap-3.5 p-4 rounded-2xl bg-white border transition-all duration-150 ${
+      className={`group relative flex items-start gap-3.5 p-4 rounded-card bg-surface border transition-all duration-150 ${
         isConflict
-          ? 'border-rose-300 ring-2 ring-rose-100 shadow-xs'
-          : 'border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-sm'
+          ? isCriticalOrError
+            ? 'border-danger/50 ring-1 ring-danger/25 shadow-xs'
+            : 'border-warning/50 ring-1 ring-warning/25 shadow-xs'
+          : 'border-line hover:border-line shadow-xs'
       } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
-      {/* Drag handle / Order index */}
-      <div className="flex flex-col items-center gap-1 pt-0.5">
+      {/* Số thứ tự và tay nắm kéo */}
+      <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
         <span
-          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+          className={`w-6 h-6 rounded-full flex items-center justify-center text-caption font-bold tabular-nums ${
             isConflict
-              ? 'bg-rose-500 text-white'
-              : 'bg-slate-100 text-slate-700 group-hover:bg-sky-100 group-hover:text-sky-700'
+              ? isCriticalOrError
+                ? 'bg-danger text-surface'
+                : 'bg-warning text-surface'
+              : 'bg-surface-2 text-ink group-hover:bg-accent-soft group-hover:text-accent-text'
           }`}
         >
           {index + 1}
         </span>
         {isDraggable && (
           <span
-            className="text-slate-300 group-hover:text-slate-400 select-none text-xs"
-            title="Kéo thả để sắp xếp"
+            className="text-ink-3 group-hover:text-ink select-none flex items-center justify-center"
+            title={t('schedule.dragHandle')}
+            aria-hidden="true"
           >
-            ⋮⋮
+            <DotsThree size={16} weight="bold" />
           </span>
         )}
       </div>
 
-      {/* Main item details */}
+      {/* Chi tiết mục lịch trình */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
-          {/* Time range pill */}
+          {/* Khung giờ */}
           <span
-            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-chip text-caption font-semibold ${
               isConflict
-                ? 'bg-rose-100 text-rose-800'
-                : 'bg-sky-50 text-sky-800 border border-sky-100'
+                ? isCriticalOrError
+                  ? 'bg-danger-soft text-danger border border-danger/20'
+                  : 'bg-warning-soft text-warning border border-warning/20'
+                : 'bg-surface-2 text-ink border border-line'
             }`}
           >
-            🕒 {formatMinuteRange(item.start_minute, item.end_minute)}
+            <Clock size={14} className="shrink-0" />
+            <span className="tabular-nums">{formattedTimeRange}</span>
           </span>
 
-          <span className="text-[11px] text-slate-400 font-medium">
-            ({formatDuration(duration)})
+          <span className="text-[11px] text-ink-3 font-medium">
+            ({formatDuration(duration, language, 'short')})
           </span>
 
           {item.day_offset > 0 && (
-            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-              Ngày {item.day_offset + 1}
+            <span className="px-2 py-0.5 rounded-chip text-[11px] font-semibold bg-surface-2 text-ink-2 border border-line">
+              {t('schedule.dayBadge', { day: item.day_offset + 1 })}
             </span>
           )}
 
           {isConflict && (
-            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-500 text-white animate-pulse">
-              ⚠️ Xung đột
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-chip text-[11px] font-bold ${
+                isCriticalOrError
+                  ? 'bg-danger text-surface'
+                  : 'bg-warning text-surface'
+              }`}
+            >
+              <WarningCircle size={12} weight="fill" className="shrink-0" />
+              <span>{t('schedule.conflictBadge')}</span>
             </span>
           )}
         </div>
 
-        {/* Place title and category */}
+        {/* Tên quán và icon danh mục */}
         <div className="flex items-center gap-2 mt-1">
           <CategoryIcon category={category} size="sm" />
-          <h4 className="text-sm font-bold text-slate-900 truncate">
+          <h4 className="text-body font-bold text-ink truncate">
             {item.place_name}
           </h4>
         </div>
 
-        {/* Address */}
+        {/* Địa chỉ */}
         {item.place_address && (
-          <p className="text-xs text-slate-500 truncate mt-0.5 flex items-center gap-1">
-            <span>📍</span>
-            <span>{item.place_address}</span>
+          <p className="text-caption text-ink-2 truncate mt-0.5 flex items-center gap-1">
+            <MapPin size={14} className="shrink-0 text-ink-3" />
+            <span className="truncate">{item.place_address}</span>
           </p>
         )}
 
-        {/* Note */}
+        {/* Ghi chú */}
         {item.note && (
-          <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 mt-2 border border-slate-100 italic">
+          <p className="text-caption text-ink-2 bg-surface-2 rounded-card p-2.5 mt-2 border border-line italic">
             &ldquo;{item.note}&rdquo;
           </p>
         )}
 
-        {/* Conflict messages if any */}
+        {/* Cảnh báo xung đột (nếu có): icon + một dòng mô tả từ describeConflict */}
         {isConflict && conflictMessages.length > 0 && (
-          <div className="mt-2.5 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+          <div
+            className={`mt-2.5 p-2.5 rounded-card text-caption space-y-1 ${
+              isCriticalOrError
+                ? 'bg-danger-soft border border-danger/30 text-danger'
+                : 'bg-warning-soft border border-warning/30 text-warning'
+            }`}
+          >
             {conflictMessages.map((msg, i) => (
-              <p key={i} className="flex items-start gap-1">
-                <span className="shrink-0">⚠️</span>
-                <span>{msg}</span>
+              <p key={i} className="flex items-start gap-1.5 leading-relaxed">
+                <WarningCircle size={16} weight="fill" className="shrink-0 mt-0.5" />
+                <span className="line-clamp-2">{msg}</span>
               </p>
             ))}
           </div>
         )}
       </div>
 
-      {/* Action buttons (Move Up, Move Down, Delete) */}
-      <div className="flex items-center gap-1 self-start pt-0.5">
+      {/* Nút hành động: Lên, Xuống, Xoá */}
+      <div className="flex items-center gap-1 self-start pt-0.5 shrink-0">
         {onMoveUp && (
           <button
             type="button"
             disabled={index === 0}
             onClick={() => onMoveUp(item.id)}
-            title="Di chuyển lên"
-            aria-label="Di chuyển lên"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            title={t('schedule.moveUp')}
+            aria-label={t('schedule.moveUp')}
+            className="w-8 h-8 rounded-button text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
           >
-            ▲
+            <CaretUp size={16} weight="bold" />
           </button>
         )}
 
@@ -162,11 +211,11 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
             type="button"
             disabled={index === totalItems - 1}
             onClick={() => onMoveDown(item.id)}
-            title="Di chuyển xuống"
-            aria-label="Di chuyển xuống"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            title={t('schedule.moveDown')}
+            aria-label={t('schedule.moveDown')}
+            className="w-8 h-8 rounded-button text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
           >
-            ▼
+            <CaretDown size={16} weight="bold" />
           </button>
         )}
 
@@ -174,11 +223,11 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
           <button
             type="button"
             onClick={() => onDelete?.(item.id)}
-            title="Xóa khỏi lịch trình"
-            aria-label="Xóa khỏi lịch trình"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-1"
+            title={t('schedule.deleteItem')}
+            aria-label={t('schedule.deleteItem')}
+            className="w-8 h-8 rounded-button text-ink-3 hover:text-danger hover:bg-danger-soft transition-colors ml-0.5 flex items-center justify-center"
           >
-            ✕
+            <Trash size={16} />
           </button>
         )}
       </div>

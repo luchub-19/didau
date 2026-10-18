@@ -1,20 +1,28 @@
 import React, { useState } from 'react';
-import type { ConflictAlert, ConflictLevel } from '../../types';
-import { Button } from '../common/Button';
+import { useTranslation } from 'react-i18next';
+import type { ConflictAlert, ConflictLevel, ScheduleItem, Place } from '../../types';
+import { Button } from '../ui/Button';
+import { WarningCircle, Info } from '../ui/Icon';
 import { ConflictListModal } from './ConflictListModal';
 import { useConflictStore } from '../../store/useConflictStore';
+import { describeConflict } from '../../i18n/serverText';
 
 export interface ConflictAlertBannerProps {
   roomId: string;
   conflicts: ConflictAlert[];
+  scheduleItems?: ScheduleItem[];
+  places?: Place[];
   onSwitchToSchedule?: () => void;
 }
 
 export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
   roomId,
   conflicts,
+  scheduleItems,
+  places,
   onSwitchToSchedule,
 }) => {
+  const { t } = useTranslation();
   const evaluateConflicts = useConflictStore((s) => s.evaluateConflicts);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -23,7 +31,7 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
     return null;
   }
 
-  // Determine highest conflict level
+  // Xác định mức xung đột cao nhất
   const hasCritical = conflicts.some((c) => c.level === 'CRITICAL');
   const hasError = conflicts.some((c) => c.level === 'ERROR');
   const highestLevel: ConflictLevel = hasCritical
@@ -32,41 +40,43 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
     ? 'ERROR'
     : 'WARNING';
 
+  const isCriticalOrError = highestLevel === 'CRITICAL' || highestLevel === 'ERROR';
+
   const bannerTheme = {
     CRITICAL: {
-      container: 'bg-rose-50 border-rose-300 text-rose-900',
-      badge: 'bg-rose-600 text-white',
-      icon: '🚨',
-      title: 'Xung đột nghiêm trọng cần xử lý ngay',
+      container: 'bg-danger-soft border-b border-danger/25 text-danger',
+      badge: 'bg-danger text-surface',
+      title: t('conflict.bannerCriticalTitle'),
     },
     ERROR: {
-      container: 'bg-orange-50 border-orange-300 text-orange-900',
-      badge: 'bg-orange-600 text-white',
-      icon: '⚠️',
-      title: 'Lỗi lịch trình cần điều chỉnh',
+      container: 'bg-danger-soft border-b border-danger/25 text-danger',
+      badge: 'bg-danger text-surface',
+      title: t('conflict.bannerErrorTitle'),
     },
     WARNING: {
-      container: 'bg-amber-50 border-amber-300 text-amber-900',
-      badge: 'bg-amber-500 text-white',
-      icon: '⚠️',
-      title: 'Cảnh báo xung đột lịch trình',
+      container: 'bg-warning-soft border-b border-warning/25 text-warning',
+      badge: 'bg-warning text-surface',
+      title: t('conflict.bannerWarningTitle'),
     },
     INFO: {
-      container: 'bg-sky-50 border-sky-300 text-sky-900',
-      badge: 'bg-sky-500 text-white',
-      icon: 'ℹ️',
-      title: 'Thông tin lịch trình',
+      container: 'bg-info-soft border-b border-info/25 text-info',
+      badge: 'bg-info text-surface',
+      title: t('conflict.bannerInfoTitle'),
     },
   }[highestLevel];
 
-  const firstMessage = conflicts[0]?.message;
+  // Dịch câu xung đột đầu tiên qua describeConflict thay vì đọc trực tiếp message server
+  const firstConflict = conflicts[0];
+  const firstTranslatedMessage = firstConflict
+    ? describeConflict(firstConflict, { scheduleItems, places }, t)
+    : '';
 
   const handleReevaluate = async () => {
     setIsEvaluating(true);
     try {
       await evaluateConflicts(roomId);
     } catch (err) {
-      console.error('Lỗi khi đánh giá lại xung đột:', err);
+      console.error('Failed to re-evaluate conflicts:', err);
     } finally {
       setIsEvaluating(false);
     }
@@ -76,27 +86,31 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
     <>
       <div
         data-testid="conflict-alert-banner"
-        className={`w-full border-b px-4 py-3 sm:px-6 transition-all duration-200 ${bannerTheme.container}`}
+        className={`w-full px-4 py-3 sm:px-6 transition-colors ${bannerTheme.container}`}
       >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <span className="text-xl shrink-0 animate-bounce">{bannerTheme.icon}</span>
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            {isCriticalOrError ? (
+              <WarningCircle size={22} weight="fill" className="shrink-0 mt-0.5 sm:mt-0" />
+            ) : (
+              <Info size={22} weight="fill" className="shrink-0 mt-0.5 sm:mt-0" />
+            )}
 
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase ${bannerTheme.badge}`}
+                  className={`px-2 py-0.5 rounded-chip text-[11px] font-bold tracking-wide uppercase tabular-nums ${bannerTheme.badge}`}
                 >
                   {highestLevel} ({conflicts.length})
                 </span>
-                <h4 className="text-xs font-bold sm:text-sm">
+                <h4 className="text-caption font-bold sm:text-body truncate">
                   {bannerTheme.title}
                 </h4>
               </div>
 
-              {firstMessage && (
-                <p className="text-xs mt-0.5 opacity-90 line-clamp-1">
-                  {firstMessage}
+              {firstTranslatedMessage && (
+                <p className="text-caption mt-0.5 opacity-90 line-clamp-1">
+                  {firstTranslatedMessage}
                 </p>
               )}
             </div>
@@ -107,27 +121,25 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
               <button
                 type="button"
                 onClick={onSwitchToSchedule}
-                className="text-xs font-semibold underline hover:opacity-80 transition-opacity px-2 py-1"
+                className="text-caption font-semibold underline hover:opacity-80 transition-opacity px-2 py-1"
               >
-                Xem lịch trình
+                {t('conflict.viewSchedule')}
               </button>
             )}
 
             <Button
-              variant="outline"
-              size="sm"
+              variant="secondary"
               onClick={handleReevaluate}
-              isLoading={isEvaluating}
+              loading={isEvaluating}
             >
-              Đánh giá lại
+              {t('conflict.reevaluate')}
             </Button>
 
             <Button
               variant="primary"
-              size="sm"
               onClick={() => setIsModalOpen(true)}
             >
-              Chi tiết ({conflicts.length})
+              {t('conflict.detailsButton', { count: conflicts.length })}
             </Button>
           </div>
         </div>
@@ -138,6 +150,8 @@ export const ConflictAlertBanner: React.FC<ConflictAlertBannerProps> = ({
         onClose={() => setIsModalOpen(false)}
         roomId={roomId}
         conflicts={conflicts}
+        scheduleItems={scheduleItems}
+        places={places}
       />
     </>
   );

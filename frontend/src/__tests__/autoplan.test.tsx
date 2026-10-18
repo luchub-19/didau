@@ -144,7 +144,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       expect(shouldShowAutoPlanButton(placesWithVotes, sampleOnlineMembers)).toBe(true);
     });
 
-    it('AutoPlanButton render null khi không đủ điều kiện', () => {
+    it('AutoPlanButton render disabled kèm giải thích khi không đủ điều kiện', () => {
       const html = renderToStaticMarkup(
         <AutoPlanButton
           roomId={mockRoom.id}
@@ -153,7 +153,9 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
           onOpenPreview={() => {}}
         />,
       );
-      expect(html).toBe('');
+      expect(html).toContain('disabled');
+      expect(html).toContain('data-testid="auto-plan-button"');
+      expect(html).toContain('Cần ít nhất 1 quán đã chốt');
     });
 
     it('AutoPlanButton render button khi đủ điều kiện', () => {
@@ -165,7 +167,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
           onOpenPreview={() => {}}
         />,
       );
-      expect(html).toContain('✨ Lên lịch giúp tôi');
+      expect(html).toContain('Lên lịch giúp tôi');
       expect(html).toContain('data-testid="auto-plan-button"');
     });
   });
@@ -227,7 +229,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       expect(html).toContain('Ăn tối trong khung 17:30–20:30');
       expect(html).toContain('Cách điểm trước ~15 phút di chuyển');
       expect(html).toContain('~15 phút');
-      expect(html).toContain('350.000 đ');
+      expect(html).toMatch(/350\.000\s?[₫đ]/);
 
       // Quán không xếp được
       expect(html).toContain('data-testid="dropped-places-section"');
@@ -410,7 +412,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       );
 
       expect(html).toContain('data-testid="reoptimize-schedule-btn"');
-      expect(html).toContain('⚡ Sắp lại tối ưu');
+      expect(html).toContain('Sắp lại tối ưu');
     });
   });
 });

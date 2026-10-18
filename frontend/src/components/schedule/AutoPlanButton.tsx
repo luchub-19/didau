@@ -1,6 +1,8 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Member, Place } from '../../types';
-import { Button } from '../common/Button';
+import { Button } from '../ui/Button';
+import { Sparkle } from '../ui/Icon';
 import { decisionApi } from '../../services/api/decisionApi';
 
 export interface AutoPlanButtonProps {
@@ -13,13 +15,14 @@ export interface AutoPlanButtonProps {
   onOpenDecideModal?: () => void;
   hasTieHint?: boolean;
   className?: string;
-  variant?: 'primary' | 'outline';
-  size?: 'sm' | 'md';
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
   label?: string;
+  hideWhenNotEligible?: boolean;
 }
 
 /**
- * Kiểm tra điều kiện hiển thị nút '✨ Lên lịch giúp tôi' theo mục 5.1:
+ * Kiểm tra điều kiện tự động lên lịch:
  * - Phòng có ≥ 1 quán ACCEPTED
  * - HOẶC khi mọi thành viên online đã vote
  */
@@ -58,15 +61,20 @@ export const AutoPlanButton: React.FC<AutoPlanButtonProps> = ({
   className,
   variant = 'primary',
   size = 'sm',
-  label = '✨ Lên lịch giúp tôi',
+  label,
+  hideWhenNotEligible = false,
 }) => {
-  const visible = shouldShowAutoPlanButton(places, members, allOnlineVoted);
+  const { t } = useTranslation();
+  const isEligible = shouldShowAutoPlanButton(places, members, allOnlineVoted);
+  const resolvedLabel = label ?? t('autoplan.button');
 
-  if (!visible) {
+  if (!isEligible && hideWhenNotEligible) {
     return null;
   }
 
   const handleClick = async () => {
+    if (!isEligible) return;
+
     // Nếu có hint TIE_AT_TOP thì mở Chọn hộ trước
     let isTie = hasTieHint;
     if (isTie === undefined && onOpenDecideModal) {
@@ -90,15 +98,38 @@ export const AutoPlanButton: React.FC<AutoPlanButtonProps> = ({
     onOpenPreview();
   };
 
+  const buttonSize: 'md' | 'lg' = size === 'lg' ? 'lg' : 'md';
+
+  if (!isEligible) {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <Button
+          variant="secondary"
+          size={buttonSize}
+          className={className}
+          disabled
+          data-testid="auto-plan-button"
+          leftIcon={<Sparkle size={16} />}
+        >
+          {resolvedLabel}
+        </Button>
+        <p className="text-[11px] text-ink-3 max-w-xs leading-normal">
+          {t('autoplan.notEligibleHint')}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <Button
-      variant={variant}
-      size={size}
+      variant={variant === 'primary' ? 'primary' : 'secondary'}
+      size={buttonSize}
       className={className}
       onClick={handleClick}
       data-testid="auto-plan-button"
+      leftIcon={<Sparkle size={16} weight="fill" />}
     >
-      {label}
+      {resolvedLabel}
     </Button>
   );
 };

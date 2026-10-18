@@ -38,15 +38,7 @@ export const PENDING_FILES = new Set<string>([
 
   // T-45: Tab Quán + vote (đã chuyển qua i18n ở T-45)
 
-  // T-46: Tab Lịch + xung đột + auto-plan
-  'components/conflicts/ConflictAlertBanner.tsx',
-  'components/conflicts/ConflictListModal.tsx',
-  'components/schedule/AddScheduleItemModal.tsx',
-  'components/schedule/AutoPlanButton.tsx',
-  'components/schedule/AutoPlanPreview.tsx',
-  'components/schedule/ScheduleItemCard.tsx',
-  'components/schedule/ScheduleTimeline.tsx',
-  'components/schedule/TimeSlotPicker.tsx',
+  // T-46: Tab Lịch + xung đột + auto-plan (đã chuyển qua i18n ở T-46)
 
   // T-47: Tab Bản đồ + đánh giá
   'components/map/GooglePlaceCard.tsx',

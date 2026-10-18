@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Place } from '../../types';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
-import { Input } from '../common/Input';
+import { Sheet } from '../ui/Sheet';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
+import { toast } from '../ui/toastStore';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { TimeSlotPicker } from './TimeSlotPicker';
+import { WarningCircle, Clock } from '../ui/Icon';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { useConflictStore } from '../../store/useConflictStore';
-import { minuteToTimeString } from '../../hooks/useMinuteFormat';
+import { formatTime } from '../../i18n/format';
+import { useLanguage } from '../../i18n/useLanguage';
+import { describeApiError } from '../../i18n/serverText';
 
 export interface AddScheduleItemModalProps {
   isOpen: boolean;
@@ -26,10 +31,14 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
   preselectedPlaceId,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
+  const { lang: language } = useLanguage();
   const addItem = useScheduleStore((s) => s.addItem);
   const evaluateConflicts = useConflictStore((s) => s.evaluateConflicts);
 
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string>('');
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string>(
+    () => preselectedPlaceId || (places.length > 0 ? places[0].id : ''),
+  );
   const [dayOffset, setDayOffset] = useState<number>(0);
   const [startMinute, setStartMinute] = useState<number>(540); // 09:00
   const [endMinute, setEndMinute] = useState<number>(630); // 10:30
@@ -37,7 +46,7 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Initialize or reset form when modal opens
+  // Khởi tạo hoặc đặt lại giá trị khi form mở
   useEffect(() => {
     if (isOpen) {
       const initialPlaceId =
@@ -53,14 +62,29 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
 
   const selectedPlace = places.find((p) => p.id === selectedPlaceId);
 
+  // Cảnh báo ngay nếu khung giờ nằm ngoài giờ mở cửa của quán
+  const isOutsideHours =
+    selectedPlace &&
+    selectedPlace.open_minute !== undefined &&
+    selectedPlace.open_minute !== null &&
+    selectedPlace.close_minute !== undefined &&
+    selectedPlace.close_minute !== null &&
+    (startMinute < selectedPlace.open_minute ||
+      endMinute > selectedPlace.close_minute);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlaceId) {
-      setErrorMessage('Vui lòng chọn một địa điểm.');
+      setErrorMessage(t('schedule.selectPlacePlaceholder'));
       return;
     }
     if (startMinute >= endMinute) {
-      setErrorMessage('Giờ bắt đầu phải sớm hơn giờ kết thúc.');
+      setErrorMessage(
+        t('schedule.invalidTime', {
+          start: formatTime(startMinute, language),
+          end: formatTime(endMinute, language),
+        }),
+      );
       return;
     }
 
@@ -76,105 +100,155 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
         note: note.trim() || undefined,
       });
 
-      // Trigger conflict re-evaluation in background
+      // Tự động đánh giá lại xung đột ở nền
       try {
         await evaluateConflicts(roomId);
       } catch {
-        // Ignored if evaluation fails silently
+        // Bỏ qua nếu đánh giá nền gặp lỗi
       }
 
+      toast.success(t('schedule.addSuccess'));
       onSuccess?.();
       onClose();
     } catch (err: unknown) {
-      const msg =
-        (err as { message?: string })?.message ||
-        'Không thể thêm địa điểm vào lịch trình.';
+      const msg = describeApiError(err, t);
       setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const footerContent = (
+    <div className="flex items-center justify-end gap-3 w-full">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onClose}
+        disabled={isSubmitting}
+      >
+        {t('common.cancel')}
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        onClick={handleSubmit}
+        loading={isSubmitting}
+        disabled={places.length === 0 || startMinute >= endMinute}
+      >
+        {t('schedule.addItem')}
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal
+    <Sheet
       isOpen={isOpen}
       onClose={onClose}
-      title="Thêm địa điểm vào lịch trình"
+      title={t('schedule.addItemTitle')}
+      footer={footerContent}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {errorMessage && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
-            ⚠️ {errorMessage}
+          <div className="p-3 bg-danger-soft border border-danger/30 rounded-card text-caption text-danger font-medium flex items-center gap-2">
+            <WarningCircle size={16} weight="fill" className="shrink-0" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Place Selection */}
+        {/* Chọn quán */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Chọn địa điểm <span className="text-rose-500">*</span>
+          <label className="block text-caption font-semibold text-ink mb-1.5">
+            {t('schedule.selectPlace')} <span className="text-danger">*</span>
           </label>
           {places.length === 0 ? (
-            <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl border border-slate-200">
-              Chưa có địa điểm nào trong chuyến đi. Hãy đề xuất quán trước!
+            <p className="text-caption text-ink-3 italic p-3 bg-surface-2 rounded-card border border-line">
+              {t('schedule.noPlacesAvailable')}
             </p>
           ) : (
             <select
               value={selectedPlaceId}
               onChange={(e) => setSelectedPlaceId(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl shadow-xs focus:outline-hidden focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full px-3 py-2 text-body bg-surface border border-line rounded-input shadow-xs text-ink focus:outline-hidden focus:border-accent focus:ring-1 focus:ring-accent"
             >
-              {places.map((place) => (
-                <option key={place.id} value={place.id}>
-                  {place.name} ({place.category}) {place.status === 'ACCEPTED' ? '⭐ Đã chốt' : ''}
-                </option>
-              ))}
+              {places.map((place) => {
+                const statusTag =
+                  place.status === 'ACCEPTED'
+                    ? `[${t('schedule.acceptedBadge')}]`
+                    : `[${t('schedule.proposedBadge')}]`;
+                return (
+                  <option key={place.id} value={place.id}>
+                    {place.name} ({place.category}) {statusTag}
+                  </option>
+                );
+              })}
             </select>
           )}
 
-          {/* Place info preview */}
+          {/* Xem trước quán đã chọn */}
           {selectedPlace && (
-            <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
-              <div className="flex items-center gap-2">
+            <div className="mt-2.5 p-3 bg-surface-2 border border-line rounded-card flex items-center justify-between gap-2 text-caption text-ink-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <CategoryIcon category={selectedPlace.category} size="sm" />
-                <span className="font-semibold text-slate-800">
+                <span className="font-semibold text-ink truncate">
                   {selectedPlace.name}
                 </span>
               </div>
               {selectedPlace.open_minute !== undefined &&
-                selectedPlace.close_minute !== undefined && (
-                  <span className="text-[11px] text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
-                    🕒 Mở cửa: {minuteToTimeString(selectedPlace.open_minute)} -{' '}
-                    {minuteToTimeString(selectedPlace.close_minute)}
+                selectedPlace.open_minute !== null &&
+                selectedPlace.close_minute !== undefined &&
+                selectedPlace.close_minute !== null && (
+                  <span className="text-[11px] text-ink-3 bg-surface px-2 py-0.5 rounded-chip border border-line shrink-0 flex items-center gap-1">
+                    <Clock size={12} className="text-ink-3" />
+                    <span>
+                      {t('schedule.openingHoursBadge', {
+                        open: formatTime(selectedPlace.open_minute, language),
+                        close: formatTime(selectedPlace.close_minute, language),
+                      })}
+                    </span>
                   </span>
                 )}
             </div>
           )}
         </div>
 
-        {/* Day Offset Selector */}
+        {/* Cảnh báo ngay nếu ngoài giờ mở cửa */}
+        {isOutsideHours && selectedPlace && (
+          <div className="p-3 bg-warning-soft border border-warning/30 rounded-card text-caption text-warning flex items-start gap-2">
+            <WarningCircle size={16} weight="fill" className="shrink-0 mt-0.5" />
+            <span>
+              {t('schedule.outsideOpeningHours', {
+                open: formatTime(selectedPlace.open_minute, language),
+                close: formatTime(selectedPlace.close_minute, language),
+              })}
+            </span>
+          </div>
+        )}
+
+        {/* Chọn ngày trong chuyến đi */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Ngày trong chuyến đi
+          <label className="block text-caption font-semibold text-ink mb-1.5">
+            {t('schedule.dayLabel')}
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {[0, 1, 2, 3].map((day) => (
               <button
                 key={day}
                 type="button"
                 onClick={() => setDayOffset(day)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                className={`px-3 py-1.5 rounded-chip text-caption font-semibold border transition-all ${
                   dayOffset === day
-                    ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    ? 'bg-accent text-ink font-semibold border-accent shadow-xs'
+                    : 'bg-surface text-ink-2 border-line hover:bg-surface-2'
                 }`}
               >
-                Ngày {day + 1}
+                {t('schedule.dayBadge', { day: day + 1 })}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Time Slot Picker */}
+        {/* Bộ chọn khung giờ */}
         <TimeSlotPicker
           startMinute={startMinute}
           endMinute={endMinute}
@@ -184,36 +258,14 @@ export const AddScheduleItemModal: React.FC<AddScheduleItemModalProps> = ({
           }}
         />
 
-        {/* Note input */}
-        <Input
-          label="Ghi chú (tùy chọn)"
-          placeholder="Ví dụ: Ăn nhẹ trước khi vào xem phim..."
+        {/* Ghi chú */}
+        <TextField
+          label={t('schedule.noteLabel')}
+          placeholder={t('schedule.notePlaceholder')}
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-
-        {/* Modal actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Hủy
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            isLoading={isSubmitting}
-            disabled={places.length === 0 || startMinute >= endMinute}
-          >
-            Thêm vào lịch
-          </Button>
-        </div>
       </form>
-    </Modal>
+    </Sheet>
   );
 };

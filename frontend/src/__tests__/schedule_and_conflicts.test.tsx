@@ -129,7 +129,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('border-rose-300');
+      expect(html).toContain('border-danger');
       expect(html).toContain('Xung đột');
       expect(html).toContain('Trùng lặp thời gian với Cơm Tấm Ba Ghiền');
     });
@@ -163,8 +163,8 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('Chưa có lịch trình cho chuyến đi');
-      expect(html).toContain('Thêm địa điểm vào lịch');
+      expect(html).toContain('Chưa có lịch');
+      expect(html).toContain('Lên lịch giúp tôi');
     });
   });
 
@@ -209,11 +209,11 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       );
 
       expect(html).toContain('data-testid="conflict-alert-banner"');
-      expect(html).toContain('bg-rose-50');
-      expect(html).toContain('border-rose-300');
+      expect(html).toContain('bg-danger-soft');
+      expect(html).toContain('border-danger');
       expect(html).toContain('CRITICAL');
       expect(html).toContain('Xung đột nghiêm trọng cần xử lý ngay');
-      expect(html).toContain('Trùng lặp thời gian');
+      expect(html).toContain('bị trùng giờ với');
       expect(html).toContain('Chi tiết (1)');
       expect(html).toContain('Đánh giá lại');
     });
@@ -239,11 +239,11 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('bg-amber-50');
-      expect(html).toContain('border-amber-300');
+      expect(html).toContain('bg-warning-soft');
+      expect(html).toContain('border-warning');
       expect(html).toContain('WARNING (1)');
       expect(html).toContain('Cảnh báo xung đột lịch trình');
-      expect(html).toContain('Thời gian nghỉ giữa 2 địa điểm');
+      expect(html).toContain('Không đủ thời gian di chuyển');
     });
 
     it('render modal chi tiết danh sách xung đột với đầy đủ các rule code', () => {
@@ -262,6 +262,122 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       expect(html).toContain('Cơm Tấm Ba Ghiền');
       expect(html).toContain('Đánh giá lại');
       expect(html).toContain('Đóng');
+    });
+  });
+
+  describe('7. T-46: Dòng thời gian, a11y sắp xếp bàn phím, qua nửa đêm & song ngữ', () => {
+    it('hiển thị nhãn "(hôm sau)" khi mục lịch trình kết thúc qua nửa đêm', () => {
+      const midnightItem: ScheduleItem = {
+        ...mockScheduleItems[0],
+        id: 'midnight-item-1',
+        start_minute: 1380, // 23:00
+        end_minute: 1470, // 00:30 next day (or 30)
+      };
+
+      const html = renderToStaticMarkup(
+        <ScheduleItemCard
+          item={midnightItem}
+          index={0}
+          totalItems={1}
+          category="DRINK"
+        />,
+      );
+
+      expect(html).toContain('(hôm sau)');
+      expect(html).toContain('23:00 - 00:30');
+    });
+
+    it('nút di chuyển lên/xuống có aria-label và disabled đúng vị trí đầu/cuối danh sách', () => {
+      const item: ScheduleItem = mockScheduleItems[0];
+      const html = renderToStaticMarkup(
+        <ScheduleItemCard
+          item={item}
+          index={0}
+          totalItems={3}
+          onMoveUp={() => {}}
+          onMoveDown={() => {}}
+          onDelete={() => {}}
+        />,
+      );
+
+      expect(html).toContain('aria-label="Di chuyển lên"');
+      expect(html).toContain('aria-label="Di chuyển xuống"');
+      expect(html).toContain('aria-label="Xoá khỏi lịch"');
+      // Index 0 disabled Move Up
+      expect(html).toMatch(/disabled=""[^>]*aria-label="Di chuyển lên"/);
+    });
+
+    it('ScheduleTimeline hiển thị thời gian di chuyển và khoảng trống giữa 2 mục', () => {
+      const item1: ScheduleItem = {
+        ...mockScheduleItems[0],
+        id: 'item-1',
+        place_id: mockPlaces[0].id,
+        start_minute: 540, // 09:00
+        end_minute: 600, // 10:00
+        order_index: 0,
+        day_offset: 0,
+      };
+      const item2: ScheduleItem = {
+        ...mockScheduleItems[0],
+        id: 'item-2',
+        place_id: mockPlaces[1].id,
+        start_minute: 690, // 11:30 (trống 90m = 1h 30m)
+        end_minute: 750, // 12:30
+        order_index: 1,
+        day_offset: 0,
+      };
+
+      const html = renderToStaticMarkup(
+        <ScheduleTimeline
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          items={[item1, item2]}
+          places={mockPlaces}
+          isHost={true}
+        />,
+      );
+
+      // Khoảng trống lớn hiển thị "Trống 1 giờ 30 phút"
+      expect(html).toContain('Trống 1 giờ 30 phút');
+      // Di chuyển giữa 2 điểm có toạ độ
+      expect(html).toContain('phút di chuyển');
+    });
+
+    it('AddScheduleItemModal cảnh báo ngay nếu khung giờ chọn nằm ngoài giờ mở cửa', () => {
+      const placeWithHours = {
+        ...mockPlaces[0],
+        open_minute: 480, // 08:00
+        close_minute: 600, // 10:00
+      };
+
+      // Chọn 11:00 - 12:00 ngoài giờ mở cửa
+      const html = renderToStaticMarkup(
+        <AddScheduleItemModal
+          isOpen={true}
+          onClose={() => {}}
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          places={[placeWithHours]}
+          preselectedPlaceId={placeWithHours.id}
+        />,
+      );
+
+      expect(html).toContain('Quán mở cửa 08:00 – 10:00');
+      expect(html).toContain('nằm ngoài giờ mở cửa');
+    });
+
+    it('ScheduleTimeline hiển thị dải tóm tắt xung đột đầu tab khi có xung đột', () => {
+      const html = renderToStaticMarkup(
+        <ScheduleTimeline
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          items={mockScheduleItems}
+          places={mockPlaces}
+          conflicts={mockConflicts}
+        />,
+      );
+
+      // mockConflicts có 1 xung đột
+      expect(html).toContain('data-testid="schedule-conflicts-summary"');
+      expect(html).toContain('1 vấn đề trong lịch');
+      expect(html).toContain('Chi tiết (1)');
     });
   });
 });
