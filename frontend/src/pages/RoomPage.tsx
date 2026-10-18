@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoom } from '../hooks/useRoom';
+import { describeApiError, errorMessageKey } from '../i18n/serverText';
 import { usePlaceStore } from '../store/usePlaceStore';
 import { useRoomStore } from '../store/useRoomStore';
 import { useMapStore } from '../store/useMapStore';
@@ -84,9 +85,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
       await updateRoom(roomId, { origin_lat: lat, origin_lng: lng });
       toast.success(t('room.originChangeSuccess'));
     } catch (err: unknown) {
-      toast.error(
-        (err as { message?: string })?.message || t('room.originChangeError'),
-      );
+      const key = errorMessageKey(err);
+      toast.error(key === 'errors.generic.unknown' ? t('room.originChangeError') : t(key));
     }
   };
 
@@ -102,9 +102,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
       toast.success(t('room.deletePlaceSuccess'));
       setPlaceToDelete(null);
     } catch (err: unknown) {
-      toast.error(
-        (err as { message?: string })?.message || t('room.deletePlaceError'),
-      );
+      toast.error(describeApiError(err, t, 'DELETE_PLACE_FAILED'));
     } finally {
       setIsDeletingPlace(false);
     }
