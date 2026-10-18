@@ -9,7 +9,7 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | CR-06 (mã lý do/tham số từ backend) | ĐÃ DUYỆT (ACCEPTED) |
 | Duyệt trang mẫu T-38 | ĐÃ DUYỆT (đồng ý màu/font) |
 | Duyệt bản đứng yên sau T-51 | ĐÃ DUYỆT |
-| CR-07 (TRAVEL_TIME bỏ qua cặp chồng giờ, lỗi V2) | CHỜ DUYỆT (PROPOSED) |
+| CR-07 (TRAVEL_TIME bỏ qua cặp chồng giờ, lỗi V2) | ĐÃ DUYỆT, ĐÃ ÁP (2026-10-18) |
 
 ## Bảng task
 | Task | Trạng thái | Session | Review | Ghi chú |
@@ -50,8 +50,10 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 - Việc chụp bộ ảnh/GIF màn hình thực tế trên thiết bị di động thật (390px, touch swipe, Dark mode) sẽ do người dùng thực hiện khi có môi trường trình duyệt giao diện đồ họa.
 
 ## Việc mở sau T-56 (2026-10-18, session 30167b2e)
-- **CR-07** (PROPOSED): `TravelTimeConflictRule` bỏ qua cặp có `gap < 0` (lỗi V2). Duyệt xong mới sửa backend +
-  test unit + một dòng CONTRACTS §1.13 A; chạy `ruff` + `pytest` với Postgres.
+- **CR-07** (IMPLEMENTED 2026-10-18): `TravelTimeConflictRule.evaluate` bỏ qua cặp có `gap_minutes < 0` (sửa V2);
+  test `test_travel_time_overlapping_items_skipped`; CONTRACTS §1.13 A thêm 1 dòng. 520/520 test BE (Postgres thật),
+  ruff sạch; 273/273 test FE, lint, build xanh (FE không đổi). Xung đột cũ đã lưu trong DB (bảng `conflicts`) chỉ
+  hết khi lịch của phòng được đánh giá lại (thêm/sửa/xoá mục lịch hoặc gọi endpoint đánh giá xung đột); container `didau_backend` phải build lại mới có bản sửa.
 - **V6** (thẻ lịch lặp toàn bộ xung đột của cặp), **V8** (cảnh báo `[WebSocket] Connection error` trong console khi
   tải trang; chưa điều tra): chưa làm, chưa có task.
 - Môi trường: container `didau_frontend` build sẵn code, phải `docker compose up -d --build frontend` mới thấy

@@ -266,6 +266,21 @@ def test_travel_time_insufficient_gap_triggers_warning(base_context):
     assert "Thời gian di chuyển không đủ" in conflict.message
 
 
+def test_travel_time_overlapping_items_skipped(base_context):
+    # CR-07: 2 quán xa nhau nhưng chồng giờ 30 phút -> chỉ TIME_OVERLAP báo, TRAVEL_TIME bỏ qua
+    p1 = create_place(name="Nhà thờ Đức Bà", latitude=10.7797, longitude=106.6990)
+    p2 = create_place(name="Khu Công Nghệ Cao Q9", latitude=10.8550, longitude=106.7850)
+    base_context.places = [p1, p2]
+
+    item1 = create_schedule_item(place_id=p1.place_id, start_minute=1080, end_minute=1170)
+    item2 = create_schedule_item(place_id=p2.place_id, start_minute=1140, end_minute=1230)
+    base_context.schedule_items = [item1, item2]
+
+    assert TravelTimeConflictRule(average_speed_kmh=30.0).evaluate(base_context) == []
+    overlap = TimeOverlapConflictRule().evaluate(base_context)
+    assert [c.rule_code for c in overlap] == ["TIME_OVERLAP"]
+
+
 def test_travel_time_missing_coordinates_skipped(base_context):
     rule = TravelTimeConflictRule()
     p1 = create_place(name="Quán A", latitude=None, longitude=None)

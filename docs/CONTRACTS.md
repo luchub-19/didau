@@ -98,6 +98,8 @@ Các mã chuẩn hoá và tham số cấu trúc để frontend hiển thị song
 | `DUPLICATE_PLACE` | `place_ids: [str, str]`, `place_names: [str, str]`, `similarity: float`, `distance_m: float` |
 | `BUDGET_THRESHOLD` | `total_cost: int`, `budget_limit: int` |
 
+(CR-07) `TRAVEL_TIME` chỉ sinh khi `gap_min >= 0`; cặp mục lịch đã chồng giờ chỉ có `TIME_OVERLAP` báo.
+
 #### B. Mã lý do Chọn hộ thông minh (`reason_codes` trong `ScoredPick` / SMART `result_payload`)
 | `code` | Tham số `params` | Mô tả hiển thị |
 | :--- | :--- | :--- |

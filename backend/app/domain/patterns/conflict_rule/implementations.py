@@ -175,6 +175,10 @@ class TravelTimeConflictRule(IConflictRule):
                 start_next = int(item_next.get("start_minute", 0))
                 gap_minutes = start_next - end_curr
 
+                # CR-07: cặp đã chồng giờ để TIME_OVERLAP báo, không báo trùng TRAVEL_TIME
+                if gap_minutes < 0:
+                    continue
+
                 # Lấy tọa độ của 2 địa điểm
                 place_curr = find_place_by_id(item_curr.get("place_id"), context.places)
                 place_next = find_place_by_id(item_next.get("place_id"), context.places)

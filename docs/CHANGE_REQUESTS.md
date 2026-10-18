@@ -328,7 +328,7 @@ FE tự dựng câu xung đột từ `rule_code` + `entity_ids` + dữ liệu tr
 
 - **Người đề xuất**: Session kiểm tra trực quan (2026-10-18), lỗi V2 trong `docs/phase3/reviews/VISUAL-QA-2026-10-18.md`
 - **Ngày tạo**: 2026-10-18
-- **Trạng thái**: PROPOSED (CHỜ NGƯỜI DÙNG DUYỆT)
+- **Trạng thái**: IMPLEMENTED (người dùng duyệt 2026-10-18; đã sửa `TravelTimeConflictRule`, ghi CONTRACTS §1.13 A)
 - **Task đã DONE bị ảnh hưởng**: T-05/T-12 (`TravelTimeConflictRule` trong `conflict_rule/implementations.py`). Không đổi schema, API hay WS.
 
 ### 1. Vấn đề
