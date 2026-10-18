@@ -338,8 +338,8 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
 
       // Khoảng trống lớn hiển thị "Trống 1 giờ 30 phút"
       expect(html).toContain('Trống 1 giờ 30 phút');
-      // Di chuyển giữa 2 điểm có toạ độ
-      expect(html).toContain('phút di chuyển');
+      // Di chuyển giữa 2 điểm có toạ độ: ~3,9 km / 30 km/h = 8 phút, cùng công thức TravelTimeConflictRule
+      expect(html).toContain('8 phút di chuyển');
     });
 
     it('AddScheduleItemModal cảnh báo ngay nếu khung giờ chọn nằm ngoài giờ mở cửa', () => {

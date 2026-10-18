@@ -31,7 +31,10 @@ export interface ScheduleTimelineProps {
   conflicts?: ConflictAlert[];
 }
 
-/** Ước tính phút di chuyển theo công thức Haversine + hệ số đường vòng + gửi xe */
+/**
+ * Ước tính phút di chuyển = Haversine / 30 km/h, làm tròn lên: cùng công thức với `TravelTimeConflictRule`
+ * ở backend, để con số không nhảy khi xung đột TRAVEL_TIME (có `travel_min`) xuất hiện hoặc biến mất
+ */
 function estimateTravelMinutes(p1?: Place, p2?: Place): number | null {
   if (
     !p1?.latitude ||
@@ -51,7 +54,7 @@ function estimateTravelMinutes(p1?: Place, p2?: Place): number | null {
       Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const dist = R * c;
-  return Math.ceil((dist * 1.3 / 30) * 60) + 10;
+  return Math.ceil((dist / 30) * 60);
 }
 
 export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
