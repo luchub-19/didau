@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light;
+
   /* Màu nền & bề mặt (DESIGN.md §2) */
   --color-bg: 250 250 249;         /* #FAFAF9 */
   --color-surface: 255 255 255;    /* #FFFFFF */
@@ -81,4 +83,106 @@
   --t-ui: 220ms;
   --t-sheet: 320ms;
   --t-moment: 600ms;
+}
+
+/* Chế độ tối (DESIGN.md §2, T-54) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Màu nền & bề mặt (DESIGN.md §2, T-54: ấm áp, không đen tuyệt đối) */
+  --color-bg: 20 18 16;            /* #141210 */
+  --color-surface: 31 29 26;       /* #1F1D1A sáng hơn nền một nấc */
+  --color-surface-2: 41 37 34;     /* #292522 vùng phụ, input, chip chưa chọn */
+  --color-line: 56 51 46;          /* #38332E viền input, ngăn cách */
+
+  /* Màu chữ / mực (đạt AAA) */
+  --color-ink: 245 245 244;        /* #F5F5F4 (17.1:1 trên bg, 15.4:1 trên surface) */
+  --color-ink-2: 168 162 158;      /* #A8A29E (7.4:1 trên bg, 6.7:1 trên surface) */
+  --color-ink-3: 140 133 127;      /* #8C857F (5.2:1 trên bg, 4.7:1 trên surface) */
+
+  /* Màu nhấn - Coral (giữ nhận diện) */
+  --color-accent: 255 107 74;      /* #FF6B4A */
+  --color-accent-hover: 242 92 60; /* #F25C3C */
+  --color-accent-soft: 58 31 24;   /* #3A1F18 */
+  --color-accent-text: 255 133 102;/* #FF8566 (7.8:1 trên bg, 7.0:1 trên surface) */
+
+  /* Trạng thái (đạt ≥4.5:1 chữ / ≥3:1 icon) */
+  --color-success: 52 211 153;        /* #34D399 (9.7:1 trên bg, 8.7:1 trên surface) */
+  --color-success-soft: 13 51 40;     /* #0D3328 */
+  --color-warning: 251 191 36;        /* #FBBF24 (11.2:1 trên bg, 10.1:1 trên surface) */
+  --color-warning-soft: 56 38 12;     /* #38260C */
+  --color-danger: 248 113 113;        /* #F87171 (6.8:1 trên bg, 6.1:1 trên surface) */
+  --color-danger-soft: 59 20 20;      /* #3B1414 */
+  --color-info: 56 189 248;           /* #38BDF8 (8.7:1 trên bg, 7.8:1 trên surface) */
+  --color-info-soft: 12 45 66;        /* #0C2D42 */
+
+  /* 7 cặp màu danh mục (đạt ≥4.5:1 chữ, ≥3:1 icon) */
+  --color-cat-food: 251 146 60;                 /* #FB923C (8.3:1 trên bg, 7.1:1 soft) */
+  --color-cat-food-soft: 51 28 18;              /* #331C12 */
+  --color-cat-drink: 52 211 153;                /* #34D399 (9.7:1 trên bg, 7.6:1 soft) */
+  --color-cat-drink-soft: 13 46 35;             /* #0D2E23 */
+  --color-cat-entertainment: 192 132 252;       /* #C084FC (7.1:1 trên bg, 6.2:1 soft) */
+  --color-cat-entertainment-soft: 42 24 59;      /* #2A183B */
+  --color-cat-sightseeing: 96 165 250;          /* #60A5FA (7.4:1 trên bg, 6.1:1 soft) */
+  --color-cat-sightseeing-soft: 20 36 61;        /* #14243D */
+  --color-cat-accommodation: 251 113 133;       /* #FB7185 (6.9:1 trên bg, 6.1:1 soft) */
+  --color-cat-accommodation-soft: 54 21 30;      /* #36151E */
+  --color-cat-shopping: 45 212 191;             /* #2DD4BF (10.0:1 trên bg, 7.8:1 soft) */
+  --color-cat-shopping-soft: 15 46 44;          /* #0F2E2C */
+  --color-cat-other: 168 162 158;               /* #A8A29E (7.4:1 trên bg, 6.2:1 soft) */
+  --color-cat-other-soft: 38 35 32;             /* #262320 */
+
+  /* Bóng nổi chuyển sang bóng sâu kèm viền sáng mờ (DESIGN.md §4) */
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Màu nền & bề mặt */
+    --color-bg: 20 18 16;
+    --color-surface: 31 29 26;
+    --color-surface-2: 41 37 34;
+    --color-line: 56 51 46;
+
+    /* Màu chữ / mực */
+    --color-ink: 245 245 244;
+    --color-ink-2: 168 162 158;
+    --color-ink-3: 140 133 127;
+
+    /* Màu nhấn - Coral */
+    --color-accent: 255 107 74;
+    --color-accent-hover: 242 92 60;
+    --color-accent-soft: 58 31 24;
+    --color-accent-text: 255 133 102;
+
+    /* Trạng thái */
+    --color-success: 52 211 153;
+    --color-success-soft: 13 51 40;
+    --color-warning: 251 191 36;
+    --color-warning-soft: 56 38 12;
+    --color-danger: 248 113 113;
+    --color-danger-soft: 59 20 20;
+    --color-info: 56 189 248;
+    --color-info-soft: 12 45 66;
+
+    /* 7 cặp màu danh mục */
+    --color-cat-food: 251 146 60;
+    --color-cat-food-soft: 51 28 18;
+    --color-cat-drink: 52 211 153;
+    --color-cat-drink-soft: 13 46 35;
+    --color-cat-entertainment: 192 132 252;
+    --color-cat-entertainment-soft: 42 24 59;
+    --color-cat-sightseeing: 96 165 250;
+    --color-cat-sightseeing-soft: 20 36 61;
+    --color-cat-accommodation: 251 113 133;
+    --color-cat-accommodation-soft: 54 21 30;
+    --color-cat-shopping: 45 212 191;
+    --color-cat-shopping-soft: 15 46 44;
+    --color-cat-other: 168 162 158;
+    --color-cat-other-soft: 38 35 32;
+
+    --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.08);
+  }
 }

@@ -796,7 +796,13 @@ export const vi = {
     next: 'Sau',
     notifications: 'Thông báo',
   },
-} as const;
+  theme: {
+    system: 'Theo máy',
+    light: 'Sáng',
+    dark: 'Tối',
+    ariaLabel: 'Chọn chế độ giao diện',
+  },
+};
 
 export type DeepStringify<T> = {
   [K in keyof T]: T[K] extends string

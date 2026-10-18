@@ -8,9 +8,10 @@ import { useMapStore } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import type { Place, Poi, Room } from '../../types';
-import { highlightPoi, installPoiLayer, updatePoiSource } from './PoiLayer';
-import { installRoomPlacesLayer, updateRoomPlacesSource } from './RoomPlacesLayer';
-import { installRouteLayer, updateRouteSource } from './RouteLayer';
+import { highlightPoi, installPoiLayer, updatePoiLayerTheme, updatePoiSource } from './PoiLayer';
+import { installRoomPlacesLayer, updateRoomPlacesLayerTheme, updateRoomPlacesSource } from './RoomPlacesLayer';
+import { installRouteLayer, updateRouteLayerTheme, updateRouteSource } from './RouteLayer';
+import { useTheme } from '../../theme/useTheme';
 import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
 import { PlaceSheet } from './PlaceSheet';
@@ -47,6 +48,7 @@ export function MapView({
   onOriginChange,
 }: MapViewProps) {
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -158,6 +160,18 @@ export function MapView({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [map, mapReady]);
+
+  // Cap nhat mau layer pin/route tren ban do khi doi theme sang/toi
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    try {
+      updatePoiLayerTheme(map);
+      updateRoomPlacesLayerTheme(map);
+      updateRouteLayerTheme(map);
+    } catch (err) {
+      console.warn('[MapView] loi cap nhat mau theme cho lop', err);
+    }
+  }, [map, mapReady, resolvedTheme]);
 
   const scheduleItems = useScheduleStore((s) => s.items);
   const autoPlanPreview = useScheduleStore((s) => s.autoPlanPreview);

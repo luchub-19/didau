@@ -798,4 +798,10 @@ export const en: Messages = {
     next: 'Next',
     notifications: 'Notifications',
   },
+  theme: {
+    system: 'System',
+    light: 'Light',
+    dark: 'Dark',
+    ariaLabel: 'Select appearance theme',
+  },
 };

@@ -168,3 +168,30 @@ export function highlightPoi(map: MapLibreMap, externalId: string | null): void 
   if (!map.getLayer(POI_SELECTED_LAYER)) return;
   map.setFilter(POI_SELECTED_LAYER, ['==', ['get', 'id'], externalId ?? '']);
 }
+
+/**
+ * Cập nhật màu các layer POI theo CSS variables hiện tại khi đổi giao diện sáng/tối.
+ */
+export function updatePoiLayerTheme(map: MapLibreMap): void {
+  if (!map.isStyleLoaded()) return;
+  const colorExpression = buildColorExpression();
+  const infoColor = getCssColor('--color-info', '#0369A1');
+  const inkColor = getCssColor('--color-ink', '#1C1917');
+  const surfaceColor = getCssColor('--color-surface', '#FFFFFF');
+
+  if (map.getLayer(POI_CLUSTER_LAYER)) {
+    map.setPaintProperty(POI_CLUSTER_LAYER, 'circle-color', infoColor);
+    map.setPaintProperty(POI_CLUSTER_LAYER, 'circle-stroke-color', surfaceColor);
+  }
+  if (map.getLayer(POI_COUNT_LAYER)) {
+    map.setPaintProperty(POI_COUNT_LAYER, 'text-color', surfaceColor);
+  }
+  if (map.getLayer(POI_POINT_LAYER)) {
+    map.setPaintProperty(POI_POINT_LAYER, 'circle-color', colorExpression);
+    map.setPaintProperty(POI_POINT_LAYER, 'circle-stroke-color', surfaceColor);
+  }
+  if (map.getLayer(POI_SELECTED_LAYER)) {
+    map.setPaintProperty(POI_SELECTED_LAYER, 'circle-color', colorExpression);
+    map.setPaintProperty(POI_SELECTED_LAYER, 'circle-stroke-color', inkColor);
+  }
+}

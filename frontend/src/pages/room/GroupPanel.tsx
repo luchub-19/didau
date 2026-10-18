@@ -2,9 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Member, Room } from '../../types';
 import { InviteCard, MemberList } from '../../components/room';
-import { Button, Card, LanguageSwitcher } from '../../components/ui';
+import { Button, Card, LanguageSwitcher, Segmented } from '../../components/ui';
 import { formatMoney } from '../../i18n/format';
 import { useLanguage } from '../../i18n/useLanguage';
+import { useTheme, type Theme } from '../../theme/useTheme';
 
 export interface GroupPanelProps {
   room: Room;
@@ -29,6 +30,7 @@ export const GroupPanel: React.FC<GroupPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const { lang } = useLanguage();
+  const { theme, setTheme } = useTheme();
 
   const formattedDate = (() => {
     try {
@@ -112,7 +114,19 @@ export const GroupPanel: React.FC<GroupPanelProps> = ({
             <span className="text-body text-ink">{t('group.language')}</span>
             <LanguageSwitcher />
           </div>
-          {/* Chỗ trống cho "Giao diện sáng/tối" (T-54 điền vào đây) */}
+          <div className="pt-2 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-h-[44px]">
+            <span className="text-body text-ink">{t('group.theme')}</span>
+            <Segmented<Theme>
+              value={theme}
+              onChange={setTheme}
+              aria-label={t('theme.ariaLabel')}
+              options={[
+                { value: 'system', label: t('theme.system') },
+                { value: 'light', label: t('theme.light') },
+                { value: 'dark', label: t('theme.dark') },
+              ]}
+            />
+          </div>
         </Card>
       </div>
     </div>

@@ -81,3 +81,19 @@ export function updateRouteSource(
     source.setData(coordinatesToRouteGeoJSON(coordinates));
   }
 }
+
+/**
+ * Cập nhật màu đường kẻ lộ trình theo CSS variables khi đổi theme.
+ */
+export function updateRouteLayerTheme(map: MapLibreMap): void {
+  if (!map.isStyleLoaded()) return;
+  const casingColor = getCssColor('--color-ink', '#1C1917');
+  const accentColor = getCssColor('--color-accent', '#FF6B4A');
+
+  if (map.getLayer(ROUTE_CASING_LAYER)) {
+    map.setPaintProperty(ROUTE_CASING_LAYER, 'line-color', casingColor);
+  }
+  if (map.getLayer(ROUTE_LAYER)) {
+    map.setPaintProperty(ROUTE_LAYER, 'line-color', accentColor);
+  }
+}

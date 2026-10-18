@@ -18,6 +18,19 @@ body {
   outline-offset: 2px;
 }
 
+/* Trong dark mode, nút primary (bg-accent text-ink) đổi text sang màu rất tối để đạt độ tương phản 6.6:1 trên coral */
+:root[data-theme="dark"] .bg-accent,
+:root[data-theme="dark"] button.bg-accent {
+  color: rgb(20 18 16) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bg-accent,
+  :root:not([data-theme="light"]) button.bg-accent {
+    color: rgb(20 18 16) !important;
+  }
+}
+
 /* Scrollbar mảnh màu line */
 * {
   scrollbar-width: thin;

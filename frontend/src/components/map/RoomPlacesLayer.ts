@@ -90,3 +90,32 @@ export function updateRoomPlacesSource(map: MapLibreMap, places: Place[]): void 
     placesToGeoJSON(places),
   );
 }
+
+/**
+ * Cập nhật màu các layer quán trong phòng theo CSS variables khi đổi giao diện sáng/tối.
+ */
+export function updateRoomPlacesLayerTheme(map: MapLibreMap): void {
+  if (!map.isStyleLoaded()) return;
+  const accentColor = getCssColor('--color-accent', '#FF6B4A');
+  const successColor = getCssColor('--color-success', '#047857');
+  const inkColor = getCssColor('--color-ink', '#1C1917');
+  const surfaceColor = getCssColor('--color-surface', '#FFFFFF');
+
+  if (map.getLayer(ROOM_PLACES_LAYER)) {
+    map.setPaintProperty(ROOM_PLACES_LAYER, 'circle-color', [
+      'case',
+      ['==', ['get', 'is_accepted'], true],
+      successColor,
+      accentColor,
+    ]);
+    map.setPaintProperty(ROOM_PLACES_LAYER, 'circle-stroke-color', surfaceColor);
+  }
+  if (map.getLayer(ROOM_PLACES_SCORE_LAYER)) {
+    map.setPaintProperty(ROOM_PLACES_SCORE_LAYER, 'text-color', [
+      'case',
+      ['==', ['get', 'is_accepted'], true],
+      surfaceColor,
+      inkColor,
+    ]);
+  }
+}

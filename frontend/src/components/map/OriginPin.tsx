@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { getCssColor } from './PoiLayer';
+import { useTheme } from '../../theme/useTheme';
 
 export interface OriginPinProps {
   map: MapLibreMap | null;
@@ -24,6 +25,7 @@ export function OriginPin({
   onPermissionError,
 }: OriginPinProps) {
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -74,7 +76,7 @@ export function OriginPin({
       marker.remove();
       markerRef.current = null;
     };
-  }, [map, lat, lng, draggable, t]);
+  }, [map, lat, lng, draggable, t, resolvedTheme]);
 
   return null;
 }
