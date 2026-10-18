@@ -34,7 +34,6 @@ export const PENDING_FILES = new Set<string>([
   // T-41: Khung phòng + thanh tab dưới
   'components/common/Header.tsx',
   'components/room/RoomHeader.tsx',
-  'pages/RoomPage.tsx',
 
   // T-43: FE dịch chữ từ server (lỗi, thông báo, ws, store)
   'hooks/useRoom.ts',
