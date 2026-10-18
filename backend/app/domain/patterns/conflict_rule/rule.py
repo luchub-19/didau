@@ -9,13 +9,14 @@ from app.domain.patterns.tie_break.strategy import PlaceVoteSummary
 
 
 class ConflictResult(BaseModel):
-    """Kết quả cảnh báo xung đột sinh ra từ IConflictRule (theo CONTRACTS.md)."""
+    """Kết quả cảnh báo xung đột sinh ra từ IConflictRule (theo CONTRACTS.md, CR-06)."""
 
     rule_code: str
     level: ConflictLevel
     message: str
     entity_type: str
     entity_ids: list[UUID]
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class ConflictContext(BaseModel):

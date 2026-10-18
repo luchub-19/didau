@@ -1,5 +1,6 @@
 import itertools
 from datetime import date, timedelta
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -53,11 +54,14 @@ class PlannedSlot(BaseModel):
     end_minute: int
     travel_from_prev_min: int = 0
     reasons: list[str] = Field(default_factory=list)
+    reason_codes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class DroppedPlace(BaseModel):
     place_id: UUID
     reason: str
+    reason_code: str | None = None
+    reason_params: dict[str, Any] = Field(default_factory=dict)
 
 
 def _hhmm(minute: int) -> str:
@@ -263,6 +267,7 @@ class HeuristicItineraryPlanner(IRouteOptimizationService):
         prev_name: str | None = None
         for idx, start, end, travel in placed:
             place = places[idx]
+            reasons, reason_codes = self._reasons(state, idx, start, travel, prev_name)
             slots.append(
                 PlannedSlot(
                     place_id=place.place_id,
@@ -270,14 +275,22 @@ class HeuristicItineraryPlanner(IRouteOptimizationService):
                     start_minute=start,
                     end_minute=end,
                     travel_from_prev_min=travel,
-                    reasons=self._reasons(state, idx, start, travel, prev_name),
+                    reasons=reasons,
+                    reason_codes=reason_codes,
                 )
             )
             prev_name = place.name
-        dropped = [
-            DroppedPlace(place_id=places[i].place_id, reason=self._drop_reason(state, i))
-            for i in dropped_idx
-        ]
+        dropped = []
+        for i in dropped_idx:
+            drop_reason, drop_code, drop_params = self._drop_reason(state, i)
+            dropped.append(
+                DroppedPlace(
+                    place_id=places[i].place_id,
+                    reason=drop_reason,
+                    reason_code=drop_code,
+                    reason_params=drop_params,
+                )
+            )
         return slots, dropped
 
     @staticmethod
@@ -330,26 +343,59 @@ class HeuristicItineraryPlanner(IRouteOptimizationService):
         start: int,
         travel: int,
         prev_name: str | None,
-    ) -> list[str]:
+    ) -> tuple[list[str], list[dict[str, Any]]]:
         place = state.places[idx]
         reasons: list[str] = []
+        reason_codes: list[dict[str, Any]] = []
         if place.category == PlaceCategory.FOOD:
             for ws, we in state.meal_windows:
                 if ws <= start and start + state.duration[idx] <= we:
-                    label = "bữa tối" if (ws, we) == DINNER_WINDOW else "bữa trưa"
+                    is_dinner = (ws, we) == DINNER_WINDOW
+                    label = "bữa tối" if is_dinner else "bữa trưa"
+                    window_code = "dinner" if is_dinner else "lunch"
                     reasons.append(f"Rơi vào khung {label} {_hhmm(ws)}–{_hhmm(we)}")
+                    reason_codes.append({
+                        "code": "MEAL_WINDOW",
+                        "params": {
+                            "window": window_code,
+                            "start_minute": ws,
+                            "end_minute": we,
+                        },
+                    })
                     break
             else:
                 reasons.append("Lệch khung giờ bữa ăn thông thường")
+                reason_codes.append({"code": "OFF_MEAL_WINDOW", "params": {}})
         elif place.category == PlaceCategory.DRINK:
-            reasons.append("Xếp sau bữa ăn" if state.has_food else "Đồ uống")
+            if state.has_food:
+                reasons.append("Xếp sau bữa ăn")
+                reason_codes.append({"code": "AFTER_MEAL", "params": {}})
+            else:
+                reasons.append("Đồ uống")
+                reason_codes.append({"code": "DRINK", "params": {}})
         if travel > 0:
-            origin = f"'{prev_name}'" if prev_name else "điểm hẹn"
-            reasons.append(f"Di chuyển khoảng {travel} phút từ {origin}")
-        return reasons
+            if prev_name:
+                origin = f"'{prev_name}'"
+                reasons.append(f"Di chuyển khoảng {travel} phút từ {origin}")
+                reason_codes.append({
+                    "code": "TRAVEL_FROM",
+                    "params": {"travel_min": travel, "from_name": prev_name},
+                })
+            else:
+                origin = "điểm hẹn"
+                reasons.append(f"Di chuyển khoảng {travel} phút từ {origin}")
+                reason_codes.append({
+                    "code": "TRAVEL_FROM",
+                    "params": {"travel_min": travel, "from_origin": True},
+                })
+        return reasons, reason_codes
 
     @staticmethod
-    def _drop_reason(state: _DayState, idx: int) -> str:
+    def _drop_reason(state: _DayState, idx: int) -> tuple[str, str, dict[str, Any]]:
         if state.fit(idx, state.day_start, DAY_LAST_MINUTE) is None:
-            return "Quán không mở cửa hoặc không kịp giờ đóng cửa trong ngày này"
-        return "Hết giờ trong buổi"
+            return (
+                "Quán không mở cửa hoặc không kịp giờ đóng cửa trong ngày này",
+                "CLOSED_OR_NO_FIT",
+                {},
+            )
+        return ("Hết giờ trong buổi", "OUT_OF_TIME", {})

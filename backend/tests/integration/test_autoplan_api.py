@@ -602,3 +602,66 @@ async def test_autoplan_auth_and_cross_room_forbidden(client: AsyncClient) -> No
     )
     assert cross_res.status_code == 401
     assert cross_res.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_autoplan_preview_returns_reason_codes_cr06(client: AsyncClient) -> None:
+    """Kiểm tra API /schedule/auto-plan (preview) trả về reason_codes trong slots và reason_code trong dropped theo CR-06."""
+    room_data = await _create_room(client, "HostAutoCR06", "Phòng Auto CR06")
+    room_id = room_data["room"]["id"]
+    token = room_data["member_token"]
+
+    # 1. Tạo các quán (1 FOOD, 1 SHOPPING đóng cửa sớm để bị drop)
+    p_food = await _create_place(
+        client,
+        room_id,
+        token,
+        "Quán Ăn Tối",
+        category="FOOD",
+        open_minute=1020,
+        close_minute=1380,
+    )
+    p_drop = await _create_place(
+        client,
+        room_id,
+        token,
+        "Shop Đóng Cửa",
+        category="SHOPPING",
+        open_minute=480,
+        close_minute=600,
+    )
+
+    # Đổi status sang ACCEPTED
+    await client.patch(
+        f"/api/v1/rooms/{room_id}/places/{p_food['id']}",
+        headers={"X-Member-Token": token},
+        json={"status": "ACCEPTED"},
+    )
+    await client.patch(
+        f"/api/v1/rooms/{room_id}/places/{p_drop['id']}",
+        headers={"X-Member-Token": token},
+        json={"status": "ACCEPTED"},
+    )
+
+    # 2. Gọi auto-plan preview
+    res = await client.post(
+        f"/api/v1/rooms/{room_id}/schedule/auto-plan",
+        headers={"X-Member-Token": token},
+        json={"day_offset": 0},
+    )
+    assert res.status_code == 200
+    data = res.json()
+
+    # Slots phải có reason_codes
+    assert len(data["slots"]) >= 1
+    for s in data["slots"]:
+        assert "reason_codes" in s
+        assert len(s["reason_codes"]) == len(s["reasons"])
+    assert any(rc["code"] == "MEAL_WINDOW" for s in data["slots"] for rc in s["reason_codes"])
+
+    # Dropped phải có reason_code
+    assert len(data["dropped"]) >= 1
+    drop_item = next(d for d in data["dropped"] if d["place_id"] == p_drop["id"])
+    assert drop_item["reason_code"] == "CLOSED_OR_NO_FIT"
+    assert "reason_params" in drop_item
+

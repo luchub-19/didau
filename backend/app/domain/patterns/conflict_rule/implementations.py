@@ -101,6 +101,15 @@ class TimeOverlapConflictRule(IConflictRule):
                             f"vào ngày {day + 1}"
                         )
 
+                        params = {
+                            "item_ids": [str(item_a["id"]), str(item_b["id"])],
+                            "place_names": [name_a, name_b],
+                            "ranges": [
+                                {"start_minute": start_a, "end_minute": end_a, "day_offset": day},
+                                {"start_minute": start_b, "end_minute": end_b, "day_offset": day},
+                            ],
+                        }
+
                         results.append(
                             ConflictResult(
                                 rule_code=self.rule_code,
@@ -108,6 +117,7 @@ class TimeOverlapConflictRule(IConflictRule):
                                 message=msg,
                                 entity_type="SCHEDULE",
                                 entity_ids=[to_uuid(item_a["id"]), to_uuid(item_b["id"])],
+                                params=params,
                             )
                         )
 
@@ -226,6 +236,15 @@ class TravelTimeConflictRule(IConflictRule):
                         f"nhưng chỉ có {gap_minutes} phút nghỉ (ngày {day + 1})"
                     )
 
+                    params = {
+                        "from_item_id": str(item_curr["id"]),
+                        "to_item_id": str(item_next["id"]),
+                        "place_names": [name_curr, name_next],
+                        "gap_min": gap_minutes,
+                        "travel_min": estimated_travel_minutes,
+                        "distance_km": round(distance_km, 2),
+                    }
+
                     results.append(
                         ConflictResult(
                             rule_code=self.rule_code,
@@ -233,6 +252,7 @@ class TravelTimeConflictRule(IConflictRule):
                             message=msg,
                             entity_type="SCHEDULE",
                             entity_ids=[to_uuid(item_curr["id"]), to_uuid(item_next["id"])],
+                            params=params,
                         )
                     )
 
@@ -311,6 +331,15 @@ class OpeningHoursConflictRule(IConflictRule):
                     f"nhưng được xếp lịch lúc {time_sched_str} (ngày {day + 1})"
                 )
 
+                params = {
+                    "item_id": str(item["id"]),
+                    "place_name": place_name,
+                    "start_minute": start_min,
+                    "end_minute": end_min,
+                    "open_minute": open_min,
+                    "close_minute": close_min,
+                }
+
                 results.append(
                     ConflictResult(
                         rule_code=self.rule_code,
@@ -318,6 +347,7 @@ class OpeningHoursConflictRule(IConflictRule):
                         message=msg,
                         entity_type="SCHEDULE",
                         entity_ids=[to_uuid(item["id"])],
+                        params=params,
                     )
                 )
 
@@ -399,6 +429,13 @@ class DuplicatePlaceConflictRule(IConflictRule):
                             f"({dist_m:.1f}m < {self.distance_threshold_meters:.0f}m)"
                         )
 
+                    params = {
+                        "place_ids": [str(p1.place_id), str(p2.place_id)],
+                        "place_names": [p1.name, p2.name],
+                        "similarity": round(similarity, 3),
+                        "distance_m": round(dist_m, 1),
+                    }
+
                     results.append(
                         ConflictResult(
                             rule_code=self.rule_code,
@@ -406,6 +443,7 @@ class DuplicatePlaceConflictRule(IConflictRule):
                             message=msg,
                             entity_type="PLACE",
                             entity_ids=[p1.place_id, p2.place_id],
+                            params=params,
                         )
                     )
 
@@ -469,6 +507,10 @@ class BudgetThresholdConflictRule(IConflictRule):
                 f"Vượt ngân sách: Tổng chi phí ước tính ({total_cost:,.0f} VNĐ) "
                 f"vượt quá ngân sách phòng ({context.budget_limit:,.0f} VNĐ)"
             )
+            params = {
+                "total_cost": int(total_cost),
+                "budget_limit": int(context.budget_limit),
+            }
             return [
                 ConflictResult(
                     rule_code=self.rule_code,
@@ -476,6 +518,7 @@ class BudgetThresholdConflictRule(IConflictRule):
                     message=msg,
                     entity_type="ROOM",
                     entity_ids=[context.room_id],
+                    params=params,
                 )
             ]
 

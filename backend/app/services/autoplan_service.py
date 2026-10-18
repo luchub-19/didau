@@ -195,6 +195,7 @@ class AutoPlanService:
                 end_minute=s.end_minute,
                 travel_from_prev_min=s.travel_from_prev_min,
                 reasons=s.reasons,
+                reason_codes=s.reason_codes,
             )
             for s in planned_slots
         ]
@@ -202,6 +203,8 @@ class AutoPlanService:
             DroppedPlaceResponse(
                 place_id=d.place_id,
                 reason=d.reason,
+                reason_code=d.reason_code,
+                reason_params=d.reason_params,
             )
             for d in dropped_places
         ]

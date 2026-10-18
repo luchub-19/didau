@@ -502,6 +502,7 @@ class ScheduleService:
                     "message": c.message,
                     "entity_type": c.entity_type,
                     "entity_ids": c.entity_ids,
+                    "params": c.params or {},
                     "resolved": c.resolved,
                     "created_at": (
                         c.created_at.isoformat()
@@ -521,6 +522,7 @@ class ScheduleService:
                     "message": cr.message,
                     "entity_type": cr.entity_type,
                     "entity_ids": [str(eid) for eid in cr.entity_ids],
+                    "params": cr.params or {},
                 }
                 for cr in detected_conflicts
             ]

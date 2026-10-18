@@ -45,11 +45,12 @@ class SmartPickContext(BaseModel):
 
 
 class ScoredPick(BaseModel):
-    """Kết quả gợi ý địa điểm đã chấm điểm kèm lý do (Plan 4.3 và CR-02)."""
+    """Kết quả gợi ý địa điểm đã chấm điểm kèm lý do (Plan 4.3, CR-02, CR-06)."""
 
     place_id: UUID
     score: float
     reasons: list[str]
+    reason_codes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def _to_uuid(val: Any) -> UUID:
@@ -156,7 +157,7 @@ class SmartPickScorer:
         results: list[ScoredPick] = []
 
         for item in items:
-            reasons_scored: list[tuple[float, str]] = []
+            reasons_scored: list[tuple[float, str, dict[str, Any]]] = []
 
             # A. Vote score (0.35)
             if max_vote > min_vote:
@@ -169,11 +170,13 @@ class SmartPickScorer:
                     reasons_scored.append((
                         1.0,
                         f"Được bình chọn cao nhất (+{item['score']} điểm, {item['upvotes']} lượt thích)",
+                        {"code": "TOP_VOTED", "params": {"score": item["score"], "upvotes": item["upvotes"]}},
                     ))
                 else:
                     reasons_scored.append((
                         0.7,
                         f"Được ủng hộ (+{item['score']} điểm, {item['upvotes']} lượt thích)",
+                        {"code": "SUPPORTED", "params": {"score": item["score"], "upvotes": item["upvotes"]}},
                     ))
 
             # B. Distance score (0.25)
@@ -182,11 +185,23 @@ class SmartPickScorer:
                 d = distances[pid]
                 s_dist = max(0.0, 1.0 - d / max(0.1, ctx.max_distance_km))
                 if min_dist is not None and abs(d - min_dist) < 0.05:
-                    reasons_scored.append((0.95, f"Gần điểm hẹn nhất ({d:.1f} km)"))
+                    reasons_scored.append((
+                        0.95,
+                        f"Gần điểm hẹn nhất ({d:.1f} km)",
+                        {"code": "NEAREST", "params": {"distance_km": round(d, 1)}},
+                    ))
                 elif d <= 5.0:
-                    reasons_scored.append((0.8, f"Gần điểm hẹn ({d:.1f} km)"))
+                    reasons_scored.append((
+                        0.8,
+                        f"Gần điểm hẹn ({d:.1f} km)",
+                        {"code": "NEAR", "params": {"distance_km": round(d, 1)}},
+                    ))
                 else:
-                    reasons_scored.append((0.4, f"Khoảng cách {d:.1f} km từ điểm hẹn"))
+                    reasons_scored.append((
+                        0.4,
+                        f"Khoảng cách {d:.1f} km từ điểm hẹn",
+                        {"code": "DISTANCE", "params": {"distance_km": round(d, 1)}},
+                    ))
             else:
                 s_dist = 0.5
 
@@ -212,7 +227,11 @@ class SmartPickScorer:
 
             if is_open is True:
                 s_open = 1.0
-                reasons_scored.append((0.9, f"Đang mở cửa lúc {time_str}"))
+                reasons_scored.append((
+                    0.9,
+                    f"Đang mở cửa lúc {time_str}",
+                    {"code": "OPEN_AT", "params": {"minute": target_min}},
+                ))
             elif is_open is False:
                 s_open = 0.0
 
@@ -222,31 +241,59 @@ class SmartPickScorer:
                 if cost <= ctx.budget_limit:
                     s_bud = 1.0
                     if cost == 0:
-                        reasons_scored.append((0.9, "Miễn phí vé / chi phí 0đ"))
+                        reasons_scored.append((
+                            0.9,
+                            "Miễn phí vé / chi phí 0đ",
+                            {"code": "FREE", "params": {"cost": 0, "budget_limit": ctx.budget_limit}},
+                        ))
                     else:
-                        reasons_scored.append((0.85, f"Vừa ngân sách ({cost:,}đ / {ctx.budget_limit:,}đ)"))
+                        reasons_scored.append((
+                            0.85,
+                            f"Vừa ngân sách ({cost:,}đ / {ctx.budget_limit:,}đ)",
+                            {"code": "WITHIN_BUDGET", "params": {"cost": cost, "budget_limit": ctx.budget_limit}},
+                        ))
                 else:
                     s_bud = max(0.0, 1.0 - (cost - ctx.budget_limit) / ctx.budget_limit)
             else:
                 if cost == 0:
                     s_bud = 1.0
-                    reasons_scored.append((0.9, "Chi phí 0đ (miễn phí)"))
+                    reasons_scored.append((
+                        0.9,
+                        "Chi phí 0đ (miễn phí)",
+                        {"code": "FREE", "params": {"cost": 0}},
+                    ))
                 elif max_cost > min_cost:
                     s_bud = 1.0 - (cost - min_cost) / (max_cost - min_cost)
                     if cost <= min_cost:
-                        reasons_scored.append((0.8, f"Chi phí tiết kiệm nhất ({cost:,}đ)"))
+                        reasons_scored.append((
+                            0.8,
+                            f"Chi phí tiết kiệm nhất ({cost:,}đ)",
+                            {"code": "CHEAPEST", "params": {"cost": cost}},
+                        ))
                     else:
-                        reasons_scored.append((0.6, f"Chi phí ước tính {cost:,}đ"))
+                        reasons_scored.append((
+                            0.6,
+                            f"Chi phí ước tính {cost:,}đ",
+                            {"code": "COST_ESTIMATE", "params": {"cost": cost}},
+                        ))
                 else:
                     s_bud = 1.0
-                    reasons_scored.append((0.6, f"Chi phí ước tính {cost:,}đ"))
+                    reasons_scored.append((
+                        0.6,
+                        f"Chi phí ước tính {cost:,}đ",
+                        {"code": "COST_ESTIMATE", "params": {"cost": cost}},
+                    ))
 
             # E. Category diversity score (0.10)
             item_cat_str = item["category"].upper()
             if accepted_cats and item_cat_str not in accepted_cats:
                 s_cat = 1.0
                 cat_vn = _CATEGORY_VN.get(item_cat_str, "danh mục này")
-                reasons_scored.append((0.85, f"Đa dạng trải nghiệm (nhóm chưa có {cat_vn})"))
+                reasons_scored.append((
+                    0.85,
+                    f"Đa dạng trải nghiệm (nhóm chưa có {cat_vn})",
+                    {"code": "QUALITY_PICK", "params": {"category": item_cat_str, "total_score": round(1.0, 4)}},
+                ))
             elif not accepted_cats:
                 s_cat = 1.0
             else:
@@ -261,7 +308,11 @@ class SmartPickScorer:
                 rating_clamped = max(1.0, min(5.0, float(rating)))
                 s_rev = (rating_clamped - 1.0) / 4.0
                 if rating_clamped >= 3.5:
-                    reasons_scored.append((0.8, f"Đánh giá nội bộ tốt ({rating_clamped:.1f}⭐)"))
+                    reasons_scored.append((
+                        0.8,
+                        f"Đánh giá nội bộ tốt ({rating_clamped:.1f}⭐)",
+                        {"code": "QUALITY_PICK", "params": {"category": item_cat_str, "total_score": round(rating_clamped / 5.0, 4)}},
+                    ))
             else:
                 s_rev = 0.5
 
@@ -276,16 +327,23 @@ class SmartPickScorer:
 
             # Chọn tối đa 3 lý do điểm cao nhất
             reasons_scored.sort(key=lambda r: r[0], reverse=True)
-            top_reasons = [r[1] for r in reasons_scored[:3]]
+            top = reasons_scored[:3]
+            top_reasons = [r[1] for r in top]
+            top_reason_codes = [r[2] for r in top]
             if not top_reasons:
                 cat_vn = _CATEGORY_VN.get(item["category"].upper(), "địa điểm phù hợp")
                 top_reasons.append(f"Gợi ý {cat_vn} chất lượng cho nhóm (điểm tổng hợp: {total_score * 100:.1f}%)")
+                top_reason_codes.append({
+                    "code": "QUALITY_PICK",
+                    "params": {"category": item["category"].upper(), "total_score": round(total_score, 4)},
+                })
 
             results.append(
                 ScoredPick(
                     place_id=pid,
                     score=round(total_score, 4),
                     reasons=top_reasons,
+                    reason_codes=top_reason_codes,
                 )
             )
 

@@ -45,6 +45,7 @@ class ConflictRepository(BaseRepository, IConflictRepository):
                 message=cr.message,
                 entity_type=cr.entity_type,
                 entity_ids=entity_ids_json,
+                params=cr.params or {},
                 resolved=False,
             )
             self.session.add(conflict)

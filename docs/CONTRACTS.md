@@ -86,7 +86,50 @@ Gợi ý kích hoạt tính năng Chọn hộ:
 ### 1.12. `TieBreakStrategyName` bổ sung (CR-02)
 - `GROUP_DECISION`: Phân định theo kết quả phiên Chọn hộ nhóm (Vòng quay / Swipe / Thang / Gợi ý 1 chạm).
 
+### 1.13. Mã lý do và tham số phục vụ song ngữ (Reason Codes & Conflict Params) (CR-06)
+Các mã chuẩn hoá và tham số cấu trúc để frontend hiển thị song ngữ VI/EN mà không phụ thuộc vào chuỗi tự do do backend sinh ra.
+
+#### A. Tham số quy tắc xung đột (`params` trong `ConflictAlert` / `conflicts` table)
+| `rule_code` | Cấu trúc `params` |
+| :--- | :--- |
+| `TIME_OVERLAP` | `item_ids: [str, str]`, `place_names: [str, str]`, `ranges: [{start_minute, end_minute, day_offset}, {start_minute, end_minute, day_offset}]` |
+| `TRAVEL_TIME` | `from_item_id: str`, `to_item_id: str`, `place_names: [str, str]`, `gap_min: int`, `travel_min: int`, `distance_km: float` |
+| `OPENING_HOURS` | `item_id: str`, `place_name: str`, `start_minute: int`, `end_minute: int`, `open_minute: int`, `close_minute: int` |
+| `DUPLICATE_PLACE` | `place_ids: [str, str]`, `place_names: [str, str]`, `similarity: float`, `distance_m: float` |
+| `BUDGET_THRESHOLD` | `total_cost: int`, `budget_limit: int` |
+
+#### B. Mã lý do Chọn hộ thông minh (`reason_codes` trong `ScoredPick` / SMART `result_payload`)
+| `code` | Tham số `params` | Mô tả hiển thị |
+| :--- | :--- | :--- |
+| `TOP_VOTED` | `score: int`, `upvotes: int` | Được bình chọn cao nhất (+score điểm, upvotes lượt thích) |
+| `SUPPORTED` | `score: int`, `upvotes: int` | Được ủng hộ (+score điểm, upvotes lượt thích) |
+| `NEAREST` | `distance_km: float` | Gần điểm hẹn nhất |
+| `NEAR` | `distance_km: float` | Gần điểm hẹn |
+| `DISTANCE` | `distance_km: float` | Khoảng cách từ điểm hẹn |
+| `OPEN_AT` | `minute: int` | Đang mở cửa lúc HH:MM |
+| `FREE` | `cost: int (=0)`, `budget_limit: int?` | Miễn phí vé / chi phí 0đ |
+| `WITHIN_BUDGET` | `cost: int`, `budget_limit: int` | Vừa ngân sách (cost / limit) |
+| `CHEAPEST` | `cost: int` | Chi phí tiết kiệm nhất |
+| `COST_ESTIMATE` | `cost: int` | Chi phí ước tính |
+| `QUALITY_PICK` | `category: str`, `total_score: float` | Gợi ý địa điểm chất lượng cho nhóm |
+
+#### C. Mã lý do Lên lịch tự động (`reason_codes` trong `PlannedSlot`)
+| `code` | Tham số `params` | Mô tả hiển thị |
+| :--- | :--- | :--- |
+| `MEAL_WINDOW` | `window: "lunch" \| "dinner"`, `start_minute: int`, `end_minute: int` | Rơi vào khung bữa trưa/bữa tối HH:MM–HH:MM |
+| `OFF_MEAL_WINDOW` | `{}` | Lệch khung giờ bữa ăn thông thường |
+| `AFTER_MEAL` | `{}` | Xếp sau bữa ăn |
+| `DRINK` | `{}` | Đồ uống |
+| `TRAVEL_FROM` | `travel_min: int`, `from_name?: str`, `from_origin?: bool` | Di chuyển khoảng minutes phút từ điểm trước hoặc điểm hẹn |
+
+#### D. Mã lý do Quán bị loại (`reason_code` và `reason_params` trong `DroppedPlace`)
+| `reason_code` | Tham số `reason_params` | Mô tả hiển thị |
+| :--- | :--- | :--- |
+| `CLOSED_OR_NO_FIT` | `{}` | Quán không mở cửa hoặc không kịp giờ đóng cửa trong ngày này |
+| `OUT_OF_TIME` | `{}` | Hết giờ trong buổi |
+
 ---
+
 
 
 ## 2. SCHEMA CƠ SỞ DỮ LIỆU (DATABASE SCHEMA DDL)
@@ -201,7 +244,7 @@ CREATE INDEX idx_schedule_room_id ON schedule_items(room_id);
 CREATE INDEX idx_schedule_place_id ON schedule_items(place_id);
 CREATE INDEX idx_schedule_day_order ON schedule_items(room_id, day_offset, start_minute);
 
--- 6. BẢNG CONFLICTS (Nhật ký xung đột hệ thống ghi nhận)
+-- 6. BẢNG CONFLICTS (Nhật ký xung đột hệ thống ghi nhận, CR-06)
 CREATE TABLE conflicts (
     id UUID PRIMARY KEY,
     room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -210,6 +253,7 @@ CREATE TABLE conflicts (
     message TEXT NOT NULL,
     entity_type VARCHAR(50) NOT NULL,
     entity_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    params JSONB NOT NULL DEFAULT '{}'::jsonb,
     resolved BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -617,6 +661,14 @@ Khi có lỗi (status $\ge 400$):
       "4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d",
       "5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e"
     ],
+    "params": {
+      "item_ids": ["4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d", "5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e"],
+      "place_names": ["Cà Phê Trứng 3T", "Cơm Tấm Ba Ghiền"],
+      "ranges": [
+        {"start_minute": 540, "end_minute": 630, "day_offset": 0},
+        {"start_minute": 600, "end_minute": 690, "day_offset": 0}
+      ]
+    },
     "created_at": "2026-10-17T07:45:00Z"
   }
 ]
@@ -654,16 +706,16 @@ Khi có lỗi (status $\ge 400$):
 - **Auth**: Header `X-Member-Token: <token>`
 - **Payload**: `{ "external_key": "osm:node/123", "rating": 5, "comment": "Ngon tuyệt", "tags": ["ngon"] }`
 
-#### 20. Lấy gợi ý Chọn hộ (CR-02)
+#### 20. Lấy gợi ý Chọn hộ (CR-02, CR-06)
 - **Method & Path**: `GET /api/v1/rooms/{room_id}/decisions/hints`
 - **Auth**: Header `X-Member-Token: <token>`
-- **Response 200 OK**: `{ "hints": [...], "smart_picks": [...] }`
+- **Response 200 OK**: `{ "hints": [...], "smart_picks": [{ "place_id": "...", "score": 0.95, "reasons": ["..."], "reason_codes": [{ "code": "TOP_VOTED", "params": {"score": 10, "upvotes": 8} }] }] }`
 
-#### 21. Tạo phiên Chọn hộ (CR-02)
+#### 21. Tạo phiên Chọn hộ (CR-02, CR-06)
 - **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions`
 - **Auth**: Header `X-Member-Token: <token>` (Host only)
 - **Payload**: `{ "mode": "WHEEL", "category": "FOOD", "candidate_place_ids": ["..."], "weighted": false }`
-- **Response 201 Created**: `{ "session": {...}, "seed": 123456789, "result_place_id": "...", "result_payload": {...} }`
+- **Response 201 Created**: `{ "session": {...}, "seed": 123456789, "result_place_id": "...", "result_payload": {...} }` (ở chế độ SMART, `result_payload` gồm `score`, `reasons`, và `reason_codes`)
 
 #### 22. Quẹt thẻ bình chọn Swipe (CR-02)
 - **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions/{session_id}/swipes`
@@ -678,11 +730,38 @@ Khi có lỗi (status $\ge 400$):
 - **Method & Path**: `POST /api/v1/rooms/{room_id}/decisions/{session_id}/cancel`
 - **Auth**: Header `X-Member-Token: <token>` (Host only)
 
-#### 25. Xem trước lịch trình tự động (Auto-plan Preview) (CR-02)
+#### 25. Xem trước lịch trình tự động (Auto-plan Preview) (CR-02, CR-06)
 - **Method & Path**: `POST /api/v1/rooms/{room_id}/schedule/auto-plan`
 - **Auth**: Header `X-Member-Token: <token>`
 - **Payload**: `{ "day_offset": 0, "duration_overrides": {} }`
-- **Response 200 OK**: `{ "slots": [...], "dropped": [...], "total_travel_min": 25, "total_cost": 300000, "used_fallback": false, "plan_hash": "..." }`
+- **Response 200 OK**:
+```json
+{
+  "slots": [
+    {
+      "place_id": "...",
+      "day_offset": 0,
+      "start_minute": 1080,
+      "end_minute": 1155,
+      "travel_from_prev_min": 10,
+      "reasons": ["Rơi vào khung bữa tối 17:30–20:30"],
+      "reason_codes": [{"code": "MEAL_WINDOW", "params": {"window": "dinner", "start_minute": 1050, "end_minute": 1230}}]
+    }
+  ],
+  "dropped": [
+    {
+      "place_id": "...",
+      "reason": "Hết giờ trong buổi",
+      "reason_code": "OUT_OF_TIME",
+      "reason_params": {}
+    }
+  ],
+  "total_travel_min": 25,
+  "total_cost": 300000,
+  "used_fallback": false,
+  "plan_hash": "..."
+}
+```
 
 #### 26. Áp dụng lịch trình tự động (Auto-plan Apply) (CR-02)
 - **Method & Path**: `POST /api/v1/rooms/{room_id}/schedule/auto-plan/apply`
@@ -738,9 +817,9 @@ Khi có lỗi (status $\ge 400$):
 | `VOTE_UPDATED` | Kết quả vote của một địa điểm thay đổi | `{ "place_id": "...", "upvotes": 5, "downvotes": 1, "score": 4 }` |
 | `VOTING_RESOLVED` | Chủ phòng đã chốt kết quả vote | `{ "strategy": "MOST_UPVOTES", "accepted_place_ids": ["..."] }` |
 | `SCHEDULE_UPDATED` | Lịch trình thời gian thay đổi | `{ "items": [ {...}, {...} ] }` |
-| `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới | `{ "conflicts": [ {...} ] }` |
+| `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới (CR-06: mỗi conflict chứa `params`) | `{ "conflicts": [ { "id": "...", "rule_code": "TIME_OVERLAP", "params": { "place_names": [...], "ranges": [...] }, ... } ] }` |
 | `ROOM_UPDATED` | Cấu hình phòng thay đổi (CR-03) | `{ "room": {...} }` |
-| `DECISION_STARTED` | Phiên chọn hộ bắt đầu (CR-02) | `{ "session_id": "...", "mode": "WHEEL", "candidate_place_ids": [...], "seed": 812734, "result_place_id": "...", "result_payload": {"stop_angle_deg": 1532.5}, "closes_at": null }` |
+| `DECISION_STARTED` | Phiên chọn hộ bắt đầu (CR-02, CR-06) | `{ "session_id": "...", "mode": "WHEEL", "candidate_place_ids": [...], "seed": 812734, "result_place_id": "...", "result_payload": {"stop_angle_deg": 1532.5}, "closes_at": null }` (ở chế độ SMART, `result_payload` gồm `score`, `reasons`, và `reason_codes`) |
 | `DECISION_PROGRESS`| Cập nhật tiến độ người đã swipe (CR-02) | `{ "session_id": "...", "done_member_ids": ["..."], "total_members": 5 }` |
 | `DECISION_RESOLVED`| Phiên chọn hộ đã chốt (CR-02) | `{ "session_id": "...", "result_place_id": "...", "status": "RESOLVED" }` |
 

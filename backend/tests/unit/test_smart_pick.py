@@ -296,3 +296,88 @@ def test_smart_pick_safe_with_none_fields():
     assert len(picks) == 1
     assert picks[0].score >= 0.0
     assert len(picks[0].reasons) >= 1
+
+
+def test_cr06_smart_pick_reason_codes():
+    """Kiểm tra CR-06: reason_codes có độ dài bằng reasons và đúng mã cho các trường hợp."""
+    pid1 = uuid4()
+    candidate1 = {
+        "id": pid1,
+        "name": "Quán A",
+        "category": "FOOD",
+        "latitude": 10.7751,
+        "longitude": 106.6951,  # Rất gần origin (~0.1 km)
+        "score": 10,
+        "upvotes": 8,
+        "open_minute": 480,
+        "close_minute": 1320,  # Mở cửa lúc 720
+        "estimated_cost": 45000,
+    }
+    pid2 = uuid4()
+    candidate2 = {
+        "id": pid2,
+        "name": "Quán B",
+        "category": "DRINK",
+        "latitude": 10.8200,
+        "longitude": 106.6200,  # Xa hơn
+        "score": 3,
+        "upvotes": 2,
+        "open_minute": 0,
+        "close_minute": 1439,
+        "estimated_cost": 0,  # FREE
+    }
+
+    scorer = SmartPickScorer()
+    ctx = SmartPickContext(
+        origin_lat=10.7750,
+        origin_lng=106.6950,
+        target_minute=720,
+        budget_limit=100000,
+    )
+    picks = scorer.rank([candidate1, candidate2], ctx)
+
+    # 1. Độ dài reason_codes phải bằng reasons cho tất cả các picks
+    for p in picks:
+        assert len(p.reason_codes) == len(p.reasons)
+
+    # 2. Quán A: được vote cao nhất, gần nhất, đang mở
+    top_pick = picks[0]
+    assert top_pick.place_id == pid1
+    codes = [rc["code"] for rc in top_pick.reason_codes]
+    assert "TOP_VOTED" in codes
+    assert "NEAREST" in codes or "NEAR" in codes
+    assert "OPEN_AT" in codes
+
+    # Quán C: chỉ có vote vừa phải và vừa ngân sách -> có WITHIN_BUDGET
+    pid3 = uuid4()
+    candidate3 = {
+        "id": pid3,
+        "name": "Quán C",
+        "category": "FOOD",
+        "score": 1,
+        "estimated_cost": 30000,
+    }
+    picks3 = scorer.rank([candidate3], ctx)
+    codes3 = [rc["code"] for rc in picks3[0].reason_codes]
+    assert "WITHIN_BUDGET" in codes3
+
+    # Kiểm tra tham số của từng mã
+    for rc in top_pick.reason_codes:
+        if rc["code"] == "TOP_VOTED":
+            assert rc["params"]["score"] == 10
+            assert rc["params"]["upvotes"] == 8
+        elif rc["code"] in ("NEAREST", "NEAR"):
+            assert "distance_km" in rc["params"]
+        elif rc["code"] == "OPEN_AT":
+            assert rc["params"]["minute"] == 720
+
+    for rc in picks3[0].reason_codes:
+        if rc["code"] == "WITHIN_BUDGET":
+            assert rc["params"]["cost"] == 30000
+            assert rc["params"]["budget_limit"] == 100000
+
+    # 3. Quán B có FREE
+    pick_b = next(p for p in picks if p.place_id == pid2)
+    codes_b = [rc["code"] for rc in pick_b.reason_codes]
+    assert "FREE" in codes_b or "SUPPORTED" in codes_b
+

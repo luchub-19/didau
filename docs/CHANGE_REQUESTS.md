@@ -281,7 +281,9 @@ Thêm 5 route trên vào mục 3.3 theo hành vi hiện tại (PATCH/DELETE plac
 
 - **Người đề xuất**: Session lập kế hoạch giai đoạn 3 (2026-10-18)
 - **Ngày tạo**: 2026-10-18
-- **Trạng thái**: PROPOSED (CHỜ NGƯỜI DÙNG DUYỆT)
+- **Trạng thái**: IMPLEMENTED (T-42) (ĐÃ TRIỂN KHAI Ở T-42)
+- **Ngày duyệt**: 2026-10-18
+- **Quyết định**: CHẤP NHẬN. Đã cập nhật `CONTRACTS.md` (§1.13, §2, §3.3, §4.2) và triển khai đầy đủ trong T-42 (BE: conflict rules `params`, migration `003_reason_codes`, `ScoredPick.reason_codes`, `PlannedSlot.reason_codes`, `DroppedPlace.reason_code/params`, schemas, repo, service, event bus) kèm test.
 - **Kế hoạch liên quan**: `docs/phase3/PLAN.md` §6; triển khai ở T-42 (BE), dùng ở T-43, T-46, T-48 (FE)
 - **Task đã DONE bị ảnh hưởng**: T-05/T-12 (conflict rules, `ConflictService`), T-30 (`SmartPick`), T-34/T-35 (`HeuristicItineraryPlanner`, auto-plan), T-31 (`result_payload` của phiên SMART). Chỉ **thêm** trường, không đổi hay bỏ trường cũ.
 

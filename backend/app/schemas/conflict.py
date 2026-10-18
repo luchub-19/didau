@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -7,7 +8,7 @@ from app.domain.enums import ConflictLevel
 
 
 class ConflictResponse(BaseModel):
-    """Dữ liệu phản hồi chuẩn cho một cảnh báo xung đột theo CONTRACTS.md."""
+    """Dữ liệu phản hồi chuẩn cho một cảnh báo xung đột theo CONTRACTS.md, CR-06."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,6 +23,10 @@ class ConflictResponse(BaseModel):
     entity_ids: list[UUID] = Field(
         default_factory=list,
         description="Danh sách ID các thực thể liên quan đến xung đột",
+    )
+    params: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Tham số cấu trúc cho cảnh báo xung đột (CR-06)",
     )
     resolved: bool = Field(default=False, description="Trạng thái đã được giải quyết hay chưa")
     created_at: datetime = Field(..., description="Thời điểm hệ thống phát hiện xung đột")

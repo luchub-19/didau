@@ -66,6 +66,12 @@ class Conflict(Base):
         default=list,
         server_default=text("'[]'"),
     )
+    params: Mapped[dict[str, Any]] = mapped_column(
+        JSON().with_variant(postgresql.JSONB(astext_type=Text()), "postgresql"),
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'"),
+    )
     resolved: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

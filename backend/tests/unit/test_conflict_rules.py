@@ -601,3 +601,83 @@ def test_engine_custom_rule(base_context):
     assert len(results) == 1
     assert results[0].rule_code == "CUSTOM_TEST_RULE"
     assert results[0].level == ConflictLevel.INFO
+
+
+def test_cr06_all_rules_generate_valid_params(base_context):
+    """Kiểm tra mọi quy tắc xung đột sinh ra trường params đúng khoá theo CR-06."""
+    # 1. TIME_OVERLAP
+    p1 = create_place(name="Quán 1")
+    p2 = create_place(name="Quán 2")
+    base_context.places = [p1, p2]
+    item1 = create_schedule_item(place_id=p1.place_id, start_minute=540, end_minute=630, day_offset=0)
+    item2 = create_schedule_item(place_id=p2.place_id, start_minute=600, end_minute=690, day_offset=0)
+    base_context.schedule_items = [item1, item2]
+
+    overlap_results = TimeOverlapConflictRule().evaluate(base_context)
+    assert len(overlap_results) == 1
+    p_overlap = overlap_results[0].params
+    assert "item_ids" in p_overlap and len(p_overlap["item_ids"]) == 2
+    assert "place_names" in p_overlap and p_overlap["place_names"] == ["Quán 1", "Quán 2"]
+    assert "ranges" in p_overlap and len(p_overlap["ranges"]) == 2
+    assert p_overlap["ranges"][0] == {"start_minute": 540, "end_minute": 630, "day_offset": 0}
+    assert p_overlap["ranges"][1] == {"start_minute": 600, "end_minute": 690, "day_offset": 0}
+
+    # 2. TRAVEL_TIME
+    p_loc1 = create_place(name="Điểm A", latitude=10.7769, longitude=106.7009)
+    p_loc2 = create_place(name="Điểm B", latitude=10.8231, longitude=106.6297)  # ~9.5 km
+    base_context.places = [p_loc1, p_loc2]
+    sched1 = create_schedule_item(place_id=p_loc1.place_id, start_minute=500, end_minute=600, order_index=1)
+    sched2 = create_schedule_item(place_id=p_loc2.place_id, start_minute=605, end_minute=700, order_index=2)  # gap = 5 min
+    base_context.schedule_items = [sched1, sched2]
+
+    travel_results = TravelTimeConflictRule(average_speed_kmh=30.0).evaluate(base_context)
+    assert len(travel_results) == 1
+    p_travel = travel_results[0].params
+    assert p_travel["from_item_id"] == str(sched1["id"])
+    assert p_travel["to_item_id"] == str(sched2["id"])
+    assert p_travel["place_names"] == ["Điểm A", "Điểm B"]
+    assert p_travel["gap_min"] == 5
+    assert p_travel["travel_min"] > 5
+    assert p_travel["distance_km"] > 0
+
+    # 3. OPENING_HOURS
+    p_open = create_place(name="Cà Phê Sáng", open_minute=480, close_minute=720)  # 08:00 - 12:00
+    base_context.places = [p_open]
+    sched_late = create_schedule_item(place_id=p_open.place_id, start_minute=780, end_minute=840)  # 13:00 - 14:00
+    base_context.schedule_items = [sched_late]
+
+    hours_results = OpeningHoursConflictRule().evaluate(base_context)
+    assert len(hours_results) == 1
+    p_hours = hours_results[0].params
+    assert p_hours["item_id"] == str(sched_late["id"])
+    assert p_hours["place_name"] == "Cà Phê Sáng"
+    assert p_hours["start_minute"] == 780
+    assert p_hours["end_minute"] == 840
+    assert p_hours["open_minute"] == 480
+    assert p_hours["close_minute"] == 720
+
+    # 4. DUPLICATE_PLACE
+    p_dup1 = create_place(name="Trà Sữa Koi Thé", latitude=10.770, longitude=106.690)
+    p_dup2 = create_place(name="Trà Sữa Koi Thé.", latitude=10.771, longitude=106.691)
+    base_context.places = [p_dup1, p_dup2]
+    base_context.schedule_items = []
+
+    dup_results = DuplicatePlaceConflictRule(similarity_threshold=0.9).evaluate(base_context)
+    assert len(dup_results) == 1
+    p_dup = dup_results[0].params
+    assert p_dup["place_ids"] == [str(p_dup1.place_id), str(p_dup2.place_id)]
+    assert p_dup["place_names"] == ["Trà Sữa Koi Thé", "Trà Sữa Koi Thé."]
+    assert p_dup["similarity"] > 0.9
+    assert "distance_m" in p_dup
+
+    # 5. BUDGET_THRESHOLD
+    p_cost = create_place(name="Nhà hàng sang", estimated_cost=500_000)
+    base_context.places = [p_cost]
+    base_context.budget_limit = 200_000
+
+    budget_results = BudgetThresholdConflictRule().evaluate(base_context)
+    assert len(budget_results) == 1
+    p_budget = budget_results[0].params
+    assert p_budget["total_cost"] == 500_000
+    assert p_budget["budget_limit"] == 200_000
+

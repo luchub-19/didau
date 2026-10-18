@@ -158,6 +158,7 @@ class ConflictService:
                 "message": c.message,
                 "entity_type": c.entity_type,
                 "entity_ids": c.entity_ids,
+                "params": c.params or {},
                 "resolved": c.resolved,
                 "created_at": (
                     c.created_at.isoformat()

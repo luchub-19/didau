@@ -757,3 +757,37 @@ async def test_hints_endpoint(client, setup_test_room):
     assert "hints" in data
     assert "smart_picks" in data
     assert len(data["smart_picks"]) <= 3
+
+
+@pytest.mark.asyncio
+async def test_hints_endpoint_returns_reason_codes_cr06(client, setup_test_room):
+    """GET /rooms/{id}/decisions/hints trả về smart_picks có reason_codes và SMART session có reason_codes trong result_payload theo CR-06."""
+    room = setup_test_room["room"]
+    member = setup_test_room["member"]
+    host = setup_test_room["host"]
+
+    # 1. GET /hints
+    resp = await client.get(
+        f"/api/v1/rooms/{room.id}/decisions/hints",
+        headers={"X-Member-Token": member.token},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "smart_picks" in data
+    assert len(data["smart_picks"]) >= 1
+    for pick in data["smart_picks"]:
+        assert "reason_codes" in pick
+        assert len(pick["reason_codes"]) == len(pick["reasons"])
+
+    # 2. POST /decisions (mode: SMART)
+    smart_resp = await client.post(
+        f"/api/v1/rooms/{room.id}/decisions",
+        headers={"X-Member-Token": host.token},
+        json={"mode": "SMART"},
+    )
+    assert smart_resp.status_code == 201
+    smart_data = smart_resp.json()
+    assert smart_data["result_payload"] is not None
+    assert "reason_codes" in smart_data["result_payload"]
+    assert isinstance(smart_data["result_payload"]["reason_codes"], list)
+

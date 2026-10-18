@@ -380,3 +380,40 @@ async def test_conflicts_auth_unauthorized(client: AsyncClient) -> None:
     )
     assert res2.status_code == 401
     assert res2.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_conflicts_api_returns_params_cr06(client: AsyncClient) -> None:
+    """Kiểm tra API /conflicts và /conflicts/evaluate trả về trường params theo CR-06."""
+    room_data = await _create_room(client, "HostCR06")
+    room_id = room_data["room"]["id"]
+    token = room_data["member_token"]
+
+    p1 = await _create_place(client, room_id, token, "Quán 1")
+    p2 = await _create_place(client, room_id, token, "Quán 2")
+    await _add_schedule(client, room_id, token, p1["id"], 540, 630)
+    await _add_schedule(client, room_id, token, p2["id"], 600, 690)
+
+    # 1. POST /conflicts/evaluate
+    eval_res = await client.post(
+        f"/api/v1/rooms/{room_id}/conflicts/evaluate",
+        headers={"X-Member-Token": token},
+    )
+    assert eval_res.status_code == 200
+    eval_data = eval_res.json()
+    assert len(eval_data) >= 1
+    assert any("params" in c and "ranges" in c["params"] for c in eval_data)
+
+    # 2. GET /conflicts
+    get_res = await client.get(
+        f"/api/v1/rooms/{room_id}/conflicts",
+        headers={"X-Member-Token": token},
+    )
+    assert get_res.status_code == 200
+    saved_data = get_res.json()
+    assert len(saved_data) >= 1
+    overlap_item = next(c for c in saved_data if c["rule_code"] == "TIME_OVERLAP")
+    assert "params" in overlap_item
+    assert "ranges" in overlap_item["params"]
+    assert "place_names" in overlap_item["params"]
+

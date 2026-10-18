@@ -405,3 +405,32 @@ def test_contract_waiting_for_open():
 def test_planner_travel_not_below_rule_estimate():
     est = HaversineTravelEstimator()
     assert est.minutes((10.77, 106.69), (10.78, 106.70)) >= 1
+
+
+def test_cr06_planner_reason_codes_and_dropped():
+    """Kiểm tra CR-06: slots có reason_codes và dropped có reason_code."""
+    p_food = mk("Ăn tối", PlaceCategory.FOOD, open_minute=1000, close_minute=1300)
+    p_drink = mk("Trà chanh", PlaceCategory.DRINK, open_minute=1000, close_minute=1380)
+    p_closed = mk("Đóng cửa sớm", PlaceCategory.SHOPPING, open_minute=480, close_minute=600)  # Đóng cửa trước giờ bắt đầu (1020)
+
+    slots, dropped = plan([p_food, p_drink, p_closed], start_minute=1050, end_minute=1350)
+
+    # 1. Kiểm tra slot
+    assert len(slots) >= 1
+    for slot in slots:
+        assert isinstance(slot.reason_codes, list)
+        assert len(slot.reason_codes) == len(slot.reasons)
+
+    # Slot ăn tối phải có MEAL_WINDOW
+    food_slot = next(s for s in slots if s.place_id == p_food.place_id)
+    meal_rc = next(rc for rc in food_slot.reason_codes if rc["code"] == "MEAL_WINDOW")
+    assert meal_rc["params"]["window"] == "dinner"
+    assert "start_minute" in meal_rc["params"]
+    assert "end_minute" in meal_rc["params"]
+
+    # 2. Kiểm tra dropped place
+    assert len(dropped) >= 1
+    closed_drop = next(d for d in dropped if d.place_id == p_closed.place_id)
+    assert closed_drop.reason_code == "CLOSED_OR_NO_FIT"
+    assert isinstance(closed_drop.reason_params, dict)
+

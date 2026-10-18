@@ -80,13 +80,16 @@ class DecisionHintItem(BaseModel):
 
 
 class SmartPickItem(BaseModel):
-    """Gợi ý địa điểm thông minh 1 chạm kèm điểm số và lý do."""
+    """Gợi ý địa điểm thông minh 1 chạm kèm điểm số và lý do (CR-06)."""
 
     model_config = ConfigDict(from_attributes=True)
 
     place_id: UUID
     score: float
     reasons: list[str] = Field(default_factory=list)
+    reason_codes: list[dict[str, Any]] = Field(
+        default_factory=list, description="Mã và tham số cho lý do gợi ý (CR-06)"
+    )
 
 
 class DecisionHintsResponse(BaseModel):

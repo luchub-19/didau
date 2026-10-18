@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -119,6 +120,9 @@ class PlannedSlotResponse(BaseModel):
     reasons: list[str] = Field(
         default_factory=list, description="Danh sách lý do sắp xếp vị trí/thời gian"
     )
+    reason_codes: list[dict[str, Any]] = Field(
+        default_factory=list, description="Danh sách mã lý do sắp xếp vị trí/thời gian (CR-06)"
+    )
 
     @model_validator(mode="after")
     def validate_minutes(self) -> "PlannedSlotResponse":
@@ -134,10 +138,14 @@ class PlannedSlotResponse(BaseModel):
 
 
 class DroppedPlaceResponse(BaseModel):
-    """Địa điểm không thể xếp vào lịch trình cùng lý do."""
+    """Địa điểm không thể xếp vào lịch trình cùng lý do (CR-06)."""
 
     place_id: UUID = Field(..., description="ID địa điểm bị loại")
     reason: str = Field(..., description="Lý do không xếp được vào lịch")
+    reason_code: str | None = Field(default=None, description="Mã lý do không xếp được vào lịch (CR-06)")
+    reason_params: dict[str, Any] = Field(
+        default_factory=dict, description="Tham số lý do không xếp được vào lịch (CR-06)"
+    )
 
 
 class AutoPlanPreviewRequest(BaseModel):

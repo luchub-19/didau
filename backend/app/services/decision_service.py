@@ -267,7 +267,11 @@ class DecisionService:
             picks = SmartPickScorer().rank(scored_candidates, ctx)
             if picks:
                 result_place_id = picks[0].place_id
-                result_payload = {"score": picks[0].score, "reasons": picks[0].reasons}
+                result_payload = {
+                    "score": picks[0].score,
+                    "reasons": picks[0].reasons,
+                    "reason_codes": picks[0].reason_codes,
+                }
             else:
                 result_place_id = candidate_ids[0]
                 result_payload = {}
