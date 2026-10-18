@@ -43,6 +43,7 @@ export const en: Messages = {
     code: 'en',
     vi: 'Tiếng Việt',
     en: 'English',
+    label: 'Language',
     switchToVi: 'Switch to Vietnamese',
     switchToEn: 'Switch to English',
   },

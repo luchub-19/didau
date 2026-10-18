@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import './i18n';
+import { Coffee, WarningCircle } from './components/ui/Icon';
 import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
 import { coldStartManager, type ColdStartState } from './services/api/coldStart';
@@ -66,12 +67,12 @@ export default function App(): React.ReactElement {
   if (coldStart.status === 'error') {
     return (
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 mb-4 rounded-2xl bg-danger-soft flex items-center justify-center text-3xl">
-          ⚠️
+        <div className="w-16 h-16 mb-4 rounded-2xl bg-danger-soft flex items-center justify-center text-danger">
+          <WarningCircle size={32} aria-hidden="true" />
         </div>
         <h2 className="text-xl font-bold text-ink mb-2">{t('app.coldStart.errorTitle')}</h2>
         <p className="text-sm text-ink-2 max-w-sm mb-6">
-          {coldStart.message || t('app.coldStart.errorDesc')}
+          {t('app.coldStart.errorDesc')}
         </p>
         <Button onClick={() => window.location.reload()}>{t('common.retry')}</Button>
       </div>
@@ -81,8 +82,8 @@ export default function App(): React.ReactElement {
   if (coldStart.status === 'waking') {
     return (
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 mb-4 rounded-2xl bg-accent-soft flex items-center justify-center text-3xl animate-bounce">
-          ☕
+        <div className="w-16 h-16 mb-4 rounded-2xl bg-accent-soft flex items-center justify-center text-accent-text">
+          <Coffee size={32} aria-hidden="true" />
         </div>
         <h2 className="text-xl font-bold text-ink mb-2">
           {t('app.coldStart.wakingTitle')}

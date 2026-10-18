@@ -41,6 +41,7 @@ export const vi = {
     code: 'vi',
     vi: 'Tiếng Việt',
     en: 'English',
+    label: 'Ngôn ngữ',
     switchToVi: 'Chuyển sang Tiếng Việt',
     switchToEn: 'Chuyển sang Tiếng Anh',
   },
