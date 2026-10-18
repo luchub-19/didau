@@ -7,7 +7,7 @@ Cột Review do session reviewer điền (`docs/phase3/REVIEW.md`): `ĐẠT`, `�
 | Cổng | Trạng thái |
 | :--- | :--- |
 | CR-06 (mã lý do/tham số từ backend) | PROPOSED, chờ duyệt |
-| Duyệt trang mẫu T-38 | chờ người dùng xem ảnh |
+| Duyệt trang mẫu T-38 | ĐÃ DUYỆT (đồng ý màu/font) |
 | Duyệt bản đứng yên sau T-51 | chưa tới |
 
 ## Bảng task
