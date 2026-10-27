@@ -5,14 +5,14 @@ Mỗi ô ghi chú tối đa 6 gạch đầu dòng. Chi tiết dài ghi vào mụ
 ## Cổng chờ người dùng
 | Cổng | Sau task | Nội dung | Trạng thái |
 | :--- | :--- | :--- | :--- |
-| G1 | T-58 | Duyệt `docs/phase4/DESIGN.md`, moodboard, palette Sài Gòn nắng, font tiêu đề (khẩu hiệu đã chốt 2026-10-27, xem PLAN §6) | CHỜ |
+| G1 | T-58 | Duyệt `docs/phase4/DESIGN.md`, moodboard, palette Sài Gòn nắng, font tiêu đề (khẩu hiệu đã chốt 2026-10-27, xem PLAN §6) | **QUA** 2026-10-27: duyệt palette + DESIGN, font Bricolage Grotesque, fps đo ở T-59 |
 | G2 | trước T-63 | CR-08 (sự kiện WS hiện diện + id người bỏ phiếu) | CHƯA ĐỀ XUẤT |
 | G3 | T-64 | Duyệt bộ ảnh/GIF cuối và kịch bản demo | CHỜ |
 
 ## Bảng task
 | Task | Trạng thái | Session | Ghi chú |
 | :--- | :---: | :---: | :--- |
-| T-58 | TODO | | |
+| T-58 | DONE | bc0b4479 | • Làm: `docs/phase4/DESIGN.md`, skill `didau-stage`, moodboard 6 ảnh `refs/`, `motion/` (tokens, presets 6 tên, `useMotionTier` + `createFpsGuard`, `?motion=`), `sound/` (tick/chime/whoosh WebAudio, `didau.sound` mặc định tắt), token `--stage-*`, khoá `stage.*`/`sound.*`; 305 test (+24: `stage_motion`, `stage_sound`) · • Thử 3D: lớp `building-3d` (minzoom 14), Q1 đủ dày (71/65 khối ở Bến Thành/Nguyễn Huệ); ảnh `screens/T-58-map3d-*`. **FPS thật chưa đo** (Chrome extension không kết nối, headless không đại diện) · • G1 qua: font **Bricolage Grotesque** (T-59 thêm `@fontsource/bricolage-grotesque`); người dùng thấy map mượt nhưng tòa nhà 3D ít chi tiết → hướng xử lý ở DESIGN §6 · • Lệch: ảnh chụp bằng Chrome headless (390 thực tế 500px), thiếu ảnh Apple Maps; skill `frontend-design`/impeccable chưa cài (người dùng tự cài nếu muốn) · • Task sau: dùng `motionAttrs`/`resolvePreset`/`useMotionTier` từ `src/motion`, `playSound` từ `src/sound`; Liberty extrusion hơi trong suốt → đặt opacity ≈0.9 · • Chi tiết: Nhật ký `tasks/T-58.md` |
 | T-59 | TODO | | |
 | T-60 | TODO | | |
 | T-61 | TODO | | |

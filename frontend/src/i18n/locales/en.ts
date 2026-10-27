@@ -801,6 +801,32 @@ export const en: Messages = {
     next: 'Next',
     notifications: 'Notifications',
   },
+  stage: {
+    tagline: 'Where to? And where next?',
+    subline: 'Round up the crew. Plan the whole night.',
+    createRoom: 'Create a room',
+    joinRoom: 'Enter code',
+    shots: {
+      overview: 'Where to? And where next?',
+      market: 'Everyone has an idea…',
+      walkingStreet: '…the crew votes, live',
+      stops: 'Pick every stop',
+      night: 'The whole night, in order, no detours',
+    },
+    stops: {
+      eat: 'Eat',
+      coffee: 'Coffee',
+      after: 'Then',
+    },
+    mapLabel: '3D map of central Ho Chi Minh City',
+  },
+  sound: {
+    on: 'Sound: on',
+    off: 'Sound: off',
+    turnOn: 'Turn sound on',
+    turnOff: 'Turn sound off',
+    hint: 'Plays only when swiping cards and revealing the pick.',
+  },
   theme: {
     system: 'System',
     light: 'Light',

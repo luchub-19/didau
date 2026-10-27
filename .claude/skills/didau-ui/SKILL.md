@@ -8,6 +8,9 @@ description: Luật thiết kế và song ngữ VI/EN của app "Đi Đâu" (gia
 Nguồn sự thật là `docs/phase3/DESIGN.md`. Skill này chỉ nhắc những luật hay bị quên nhất và chỉ chỗ đọc. Khi file task
 `docs/phase3/tasks/T-xx.md` ghi đọc mục nào của DESIGN.md thì đọc đúng mục đó (Grep heading rồi Read với offset/limit).
 
+## Vùng Stage (giai đoạn 4)
+Trang chủ điện ảnh, quẹt thẻ, reveal, chuyển tab, `src/stage|motion|sound/*`: dùng skill `didau-stage` và `docs/phase4/DESIGN.md`.
+
 ## Trước khi viết một dòng UI
 1. Màn này thuộc chế độ nào? Trang chủ = Persuade nhẹ; mọi thứ trong phòng = **Operate**: quen thuộc, dễ quét,
    cá tính chỉ ở màu/chữ/một điểm nhấn (DESIGN §1).

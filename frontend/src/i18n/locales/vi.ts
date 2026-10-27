@@ -799,6 +799,32 @@ export const vi = {
     next: 'Sau',
     notifications: 'Thông báo',
   },
+  stage: {
+    tagline: 'Đi đâu? Rồi đi đâu nữa?',
+    subline: 'Rủ cả nhóm, xếp cả tối.',
+    createRoom: 'Tạo phòng',
+    joinRoom: 'Nhập mã',
+    shots: {
+      overview: 'Đi đâu? Rồi đi đâu nữa?',
+      market: 'Mỗi người một ý…',
+      walkingStreet: '…cả nhóm bỏ phiếu cùng lúc',
+      stops: 'Chốt từng chặng',
+      night: 'Cả tối xếp sẵn, khỏi vòng vèo',
+    },
+    stops: {
+      eat: 'Ăn',
+      coffee: 'Cà phê',
+      after: 'Đi tiếp',
+    },
+    mapLabel: 'Bản đồ 3D trung tâm TP.HCM',
+  },
+  sound: {
+    on: 'Âm thanh: bật',
+    off: 'Âm thanh: tắt',
+    turnOn: 'Bật âm thanh',
+    turnOff: 'Tắt âm thanh',
+    hint: 'Chỉ phát ở lúc quẹt thẻ và công bố quán.',
+  },
   theme: {
     system: 'Theo máy',
     light: 'Sáng',

@@ -86,6 +86,33 @@
   --t-ui: 220ms;
   --t-sheet: 320ms;
   --t-moment: 600ms;
+
+  /* ===== Vùng Stage (giai đoạn 4, docs/phase4/DESIGN.md §2, §4). Chỉ file Stage dùng. ===== */
+  /* Palette "Sài Gòn nắng"; tương phản đo trên --stage-paper */
+  --stage-paper: 251 243 228;      /* #FBF3E4 giấy nắng, nền Stage */
+  --stage-paper-2: 243 227 199;    /* #F3E3C7 khối phụ, dải chú thích */
+  --stage-ink: 43 27 18;           /* #2B1B12 (15.0:1) */
+  --stage-ink-2: 107 74 54;        /* #6B4A36 (7.2:1) */
+  --stage-accent-text: 184 58 34;  /* #B83A22 (5.2:1) chữ coral trên giấy */
+  --stage-on-accent: 43 27 18;     /* #2B1B12 chữ trên nút coral, cả sáng lẫn tối (5.9:1) */
+  --stage-sun: 233 164 0;          /* #E9A400 vàng hoa sứ: chỉ làm mảng/ánh sáng, không làm chữ (1.95:1) */
+  --stage-sky: 31 111 168;         /* #1F6FA8 xanh trời trưa (4.9:1) */
+  --stage-leaf: 59 122 58;         /* #3B7A3A xanh lá me (4.7:1) */
+  --stage-brick: 168 72 42;        /* #A8482A terracotta (5.3:1) */
+  /* Dải "nắng chiều": gradient chỉ được dùng trong Stage */
+  --stage-sunlight: linear-gradient(115deg, rgb(255 107 74 / 0.18) 0%, rgb(233 164 0 / 0.14) 45%, rgb(251 243 228 / 0) 75%);
+  /* Bóng dài một hướng cố định (nắng từ tây nam, đổ về đông bắc) */
+  --stage-shadow-long: 14px -10px 32px rgb(107 74 54 / 0.18);
+  --stage-font-display: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
+
+  /* Motion v2 (Stage) */
+  --ease-camera: cubic-bezier(0.65, 0, 0.35, 1);    /* camera bản đồ, chuyển cảnh lớn */
+  --ease-throw: cubic-bezier(0.32, 0.72, 0, 1);     /* thẻ bị quăng ra khỏi khung */
+  --t-swipe: 280ms;
+  --t-tab: 260ms;
+  --t-fly: 520ms;
+  --t-shot: 1400ms;
+  --t-reveal: 1800ms;
 }
 
 /* Chế độ tối (DESIGN.md §2, T-54) */
@@ -138,6 +165,19 @@
   /* Bóng nổi chuyển sang bóng sâu kèm viền sáng mờ (DESIGN.md §4) */
   --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.08);
   --scrim: rgb(0 0 0 / 0.6);
+
+  /* Stage "Sài Gòn chạng vạng" */
+  --stage-paper: 26 20 32;          /* #1A1420 chạng vạng */
+  --stage-paper-2: 39 29 44;        /* #271D2C */
+  --stage-ink: 251 239 224;         /* #FBEFE0 (15.9:1) */
+  --stage-ink-2: 205 182 164;       /* #CDB6A4 (9.3:1) */
+  --stage-accent-text: 255 143 112; /* #FF8F70 (8.1:1) */
+  --stage-sun: 255 201 77;          /* #FFC94D đèn đường (11.8:1) */
+  --stage-sky: 134 189 232;         /* #86BDE8 (9.0:1) */
+  --stage-leaf: 147 197 139;        /* #93C58B (9.1:1) */
+  --stage-brick: 232 145 107;       /* #E8916B (7.5:1) */
+  --stage-sunlight: linear-gradient(115deg, rgb(255 107 74 / 0.16) 0%, rgb(124 58 140 / 0.14) 50%, rgb(26 20 32 / 0) 80%);
+  --stage-shadow-long: 14px -10px 32px rgb(0 0 0 / 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -189,5 +229,18 @@
 
     --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.08);
     --scrim: rgb(0 0 0 / 0.6);
+
+    /* Stage "Sài Gòn chạng vạng" */
+    --stage-paper: 26 20 32;          /* #1A1420 chạng vạng */
+    --stage-paper-2: 39 29 44;        /* #271D2C */
+    --stage-ink: 251 239 224;         /* #FBEFE0 (15.9:1) */
+    --stage-ink-2: 205 182 164;       /* #CDB6A4 (9.3:1) */
+    --stage-accent-text: 255 143 112; /* #FF8F70 (8.1:1) */
+    --stage-sun: 255 201 77;          /* #FFC94D đèn đường (11.8:1) */
+    --stage-sky: 134 189 232;         /* #86BDE8 (9.0:1) */
+    --stage-leaf: 147 197 139;        /* #93C58B (9.1:1) */
+    --stage-brick: 232 145 107;       /* #E8916B (7.5:1) */
+    --stage-sunlight: linear-gradient(115deg, rgb(255 107 74 / 0.16) 0%, rgb(124 58 140 / 0.14) 50%, rgb(26 20 32 / 0) 80%);
+    --stage-shadow-long: 14px -10px 32px rgb(0 0 0 / 0.5);
   }
 }

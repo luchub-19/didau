@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -35,6 +35,17 @@ import {
 } from '../components/ui';
 import { useLanguage } from '../i18n/useLanguage';
 import { formatTime, formatDuration, formatMoney, formatDistance } from '../i18n/format';
+import { MAP_STYLE_URL } from '../config';
+import {
+  MOTION_PRESETS,
+  MOTION_PRESET_NAMES,
+  resolvePreset,
+  useMotionTier,
+  getMotionOverride,
+  createFpsGuard,
+  type MotionTier,
+} from '../motion';
+import { useSound, type SoundName } from '../sound';
 
 interface ColorSwatchProps {
   name: string;
@@ -75,6 +86,270 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
     </div>
   </div>
 );
+
+// ===== Vùng Stage (T-58): chỉ để thử, không vào app =====
+
+// Ứng viên font tiêu đề, đều có subset vietnamese trên Google Fonts. Chỉ nạp ở trang thử này.
+const STAGE_FONT_CANDIDATES = [
+  { family: 'Bricolage Grotesque', query: 'Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800' },
+  { family: 'Fraunces', query: 'Fraunces:opsz,wght@9..144,700' },
+  { family: 'Big Shoulders Display', query: 'Big+Shoulders+Display:wght@800' },
+];
+
+const STAGE_SWATCHES = [
+  { name: 'stage-paper', note: 'nền Stage' },
+  { name: 'stage-paper-2', note: 'khối phụ' },
+  { name: 'stage-ink', note: '15.0 / 15.9:1' },
+  { name: 'stage-ink-2', note: '7.2 / 9.3:1' },
+  { name: 'stage-accent-text', note: '5.2 / 8.1:1' },
+  { name: 'stage-sun', note: 'chỉ mảng (1.95:1)' },
+  { name: 'stage-sky', note: '4.9 / 9.0:1' },
+  { name: 'stage-leaf', note: '4.7 / 9.1:1' },
+  { name: 'stage-brick', note: '5.3 / 7.5:1' },
+];
+
+const LAB_SPOTS = {
+  benThanh: { label: 'Chợ Bến Thành', center: [106.698, 10.7725] as [number, number], zoom: 16, pitch: 60, bearing: -20 },
+  nguyenHue: { label: 'Phố đi bộ Nguyễn Huệ', center: [106.7035, 10.7745] as [number, number], zoom: 16.5, pitch: 60, bearing: 30 },
+  q1: { label: 'Toàn cảnh Q1', center: [106.7009, 10.7769] as [number, number], zoom: 14, pitch: 45, bearing: 0 },
+};
+type LabSpot = keyof typeof LAB_SPOTS;
+
+interface FpsResult {
+  avg: number;
+  p5: number;
+  frames: number;
+}
+
+const StageMapLab: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<import('maplibre-gl').Map | null>(null);
+  const [status, setStatus] = useState('chưa tải');
+  const [buildingLayers, setBuildingLayers] = useState<string[]>([]);
+  const [buildingCount, setBuildingCount] = useState<number | null>(null);
+  const [fps, setFps] = useState<FpsResult | null>(null);
+  const [warmLight, setWarmLight] = useState(true);
+  const [show3d, setShow3d] = useState(true);
+  const [spot, setSpot] = useState<LabSpot>('benThanh');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [{ default: maplibregl }] = await Promise.all([
+        import('maplibre-gl'),
+        import('maplibre-gl/dist/maplibre-gl.css'),
+      ]);
+      if (cancelled || !containerRef.current) return;
+      const s = LAB_SPOTS.benThanh;
+      const map = new maplibregl.Map({
+        container: containerRef.current,
+        style: MAP_STYLE_URL,
+        center: s.center,
+        zoom: s.zoom,
+        pitch: s.pitch,
+        bearing: s.bearing,
+        maxPitch: 70,
+        attributionControl: { compact: true },
+      });
+      mapRef.current = map;
+      (window as unknown as { __stageLab?: unknown }).__stageLab = { map };
+      map.on('load', () => {
+        const ids = (map.getStyle().layers ?? []).filter((l) => l.type === 'fill-extrusion').map((l) => l.id);
+        setBuildingLayers(ids);
+        setStatus('đã tải style');
+      });
+      map.on('idle', () => {
+        const ids = (map.getStyle().layers ?? []).filter((l) => l.type === 'fill-extrusion').map((l) => l.id);
+        if (ids.length) setBuildingCount(map.queryRenderedFeatures({ layers: ids }).length);
+      });
+      map.on('error', (e) => setStatus(`lỗi: ${e.error?.message ?? 'không rõ'}`));
+    })();
+    return () => {
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Ánh sáng ấm: nắng chiều từ hướng tây nam, nghiêng thấp để tường phía đông tối hơn
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    map.setLight(
+      warmLight
+        ? { anchor: 'map', position: [1.5, 250, 50], color: '#FFD3A1', intensity: 0.55 }
+        : { anchor: 'viewport', position: [1.15, 210, 30], color: '#ffffff', intensity: 0.5 },
+    );
+    for (const id of buildingLayers) {
+      map.setLayoutProperty(id, 'visibility', show3d ? 'visible' : 'none');
+    }
+  }, [warmLight, show3d, buildingLayers]);
+
+  const flyTo = (key: LabSpot) => {
+    setSpot(key);
+    const s = LAB_SPOTS[key];
+    mapRef.current?.flyTo({ center: s.center, zoom: s.zoom, pitch: s.pitch, bearing: s.bearing, duration: 1400 });
+  };
+
+  // Đo fps trong 6 giây khi camera xoay 90° (cảnh nặng nhất của hero)
+  const measure = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    setFps(null);
+    const deltas: number[] = [];
+    const guard = createFpsGuard();
+    let last = performance.now();
+    const start = last;
+    let raf = 0;
+    const loop = (now: number) => {
+      deltas.push(now - last);
+      guard.frame(now);
+      last = now;
+      if (now - start < 6000) {
+        raf = requestAnimationFrame(loop);
+      } else {
+        const sorted = deltas.slice(1).sort((a, b) => b - a);
+        const avg = 1000 / (sorted.reduce((a, b) => a + b, 0) / sorted.length);
+        const p5 = 1000 / sorted[Math.floor(sorted.length * 0.05)];
+        setFps({ avg: Math.round(avg), p5: Math.round(p5), frames: sorted.length });
+        (window as unknown as { __stageFps?: unknown }).__stageFps = { avg, p5, frames: sorted.length };
+      }
+    };
+    raf = requestAnimationFrame(loop);
+    map.easeTo({ bearing: map.getBearing() + 90, duration: 6000, easing: (t) => t });
+    return () => cancelAnimationFrame(raf);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {(Object.keys(LAB_SPOTS) as LabSpot[]).map((k) => (
+          <Button key={k} variant={spot === k ? 'primary' : 'secondary'} onClick={() => flyTo(k)}>
+            {LAB_SPOTS[k].label}
+          </Button>
+        ))}
+        <Button variant="secondary" onClick={() => setWarmLight((v) => !v)}>
+          Ánh sáng: {warmLight ? 'nắng chiều' : 'mặc định'}
+        </Button>
+        <Button variant="secondary" onClick={() => setShow3d((v) => !v)}>
+          Tòa nhà 3D: {show3d ? 'bật' : 'tắt (lite)'}
+        </Button>
+        <Button variant="secondary" onClick={measure}>
+          Đo fps 6 giây
+        </Button>
+      </div>
+      <div
+        ref={containerRef}
+        data-testid="stage-map-lab"
+        className="w-full rounded-card overflow-hidden border border-line"
+        style={{ height: 480 }}
+      />
+      <p className="text-caption text-ink-2 mt-2">
+        Trạng thái: {status} · lớp tòa nhà: {buildingLayers.join(', ') || '–'} · số khối đang vẽ:{' '}
+        {buildingCount ?? '–'} · fps: {fps ? `TB ${fps.avg}, 5% chậm nhất ${fps.p5} (${fps.frames} khung)` : '–'}
+      </p>
+    </div>
+  );
+};
+
+const StageSection: React.FC = () => {
+  const tier: MotionTier = useMotionTier();
+  const sound = useSound();
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    const id = 'stage-font-candidates';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?${STAGE_FONT_CANDIDATES.map((f) => `family=${f.query}`).join('&')}&display=swap`;
+    document.head.appendChild(link);
+  }, []);
+
+  const tVi = i18n.getFixedT('vi');
+  const tEn = i18n.getFixedT('en');
+
+  return (
+    <section id="stage" className="mb-10 p-5 rounded-field border border-line" style={{ background: 'rgb(var(--stage-paper))', color: 'rgb(var(--stage-ink))' }}>
+      <h2 className="text-title font-bold mb-1">Stage (giai đoạn 4, T-58)</h2>
+      <p className="text-caption mb-4" style={{ color: 'rgb(var(--stage-ink-2))' }}>
+        Chỉ dùng trong vùng Stage (docs/phase4/DESIGN.md). Mức chuyển động hiện tại: <b>{tier}</b> · ?motion=
+        {getMotionOverride() ?? '–'}
+      </p>
+
+      <h3 className="text-label font-semibold mb-2">Palette Sài Gòn nắng (đổi theme để xem chạng vạng)</h3>
+      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mb-6">
+        {STAGE_SWATCHES.map((sw) => (
+          <div key={sw.name} className="text-caption">
+            <div className="h-12 rounded-field border border-line" style={{ background: `rgb(var(--${sw.name}))` }} />
+            <p className="font-semibold mt-1">{sw.name}</p>
+            <p style={{ color: 'rgb(var(--stage-ink-2))' }}>{sw.note}</p>
+          </div>
+        ))}
+      </div>
+      <div className="h-24 rounded-card mb-6 flex items-end p-4" style={{ background: 'var(--stage-sunlight)', boxShadow: 'var(--stage-shadow-long)' }}>
+        <span className="text-label font-semibold">--stage-sunlight + --stage-shadow-long</span>
+      </div>
+
+      <h3 className="text-label font-semibold mb-2">Font tiêu đề: thử dấu chồng ở 96px + khẩu hiệu ở cỡ tiêu đề</h3>
+      <div className="flex flex-col gap-6 mb-6">
+        {STAGE_FONT_CANDIDATES.map((f) => (
+          <div key={f.family} data-font={f.family} className="border-t border-line pt-3">
+            <p className="text-caption mb-1" style={{ color: 'rgb(var(--stage-ink-2))' }}>{f.family}</p>
+            <p style={{ fontFamily: `"${f.family}"`, fontSize: 96, lineHeight: 1.25, fontWeight: 800 }}>Ở Ữ Ặ Đi Đâu</p>
+            <p style={{ fontFamily: `"${f.family}"`, fontSize: 64, lineHeight: 1.2, fontWeight: 700 }}>{tVi('stage.tagline')}</p>
+            <p style={{ fontFamily: `"${f.family}"`, fontSize: 64, lineHeight: 1.2, fontWeight: 700 }}>{tEn('stage.tagline')}</p>
+            <p className="text-body mt-1">{tVi('stage.subline')} · {tEn('stage.subline')}</p>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="text-label font-semibold mb-2">Preset chuyển động (mức {tier})</h3>
+      <table className="w-full text-caption mb-6">
+        <thead>
+          <tr className="text-left">
+            <th className="py-1">data-motion</th>
+            <th>token</th>
+            <th>ms thật</th>
+            <th>tối đa chuỗi</th>
+            <th>việc</th>
+          </tr>
+        </thead>
+        <tbody>
+          {MOTION_PRESET_NAMES.map((n) => {
+            const r = resolvePreset(n, tier);
+            return (
+              <tr key={n} className="border-t border-line">
+                <td className="py-1 font-semibold">{n}</td>
+                <td>--t-{MOTION_PRESETS[n].duration}</td>
+                <td>{r.durationMs}{r.move ? '' : ' (chỉ opacity)'}</td>
+                <td>{MOTION_PRESETS[n].maxSequenceMs}</td>
+                <td>{MOTION_PRESETS[n].purpose}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <h3 className="text-label font-semibold mb-2">Âm thanh (mặc định tắt)</h3>
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <Button variant={sound.on ? 'primary' : 'secondary'} onClick={sound.toggle} aria-pressed={sound.on}>
+          {sound.on ? t('sound.turnOff') : t('sound.turnOn')}
+        </Button>
+        {(['tick', 'chime', 'whoosh'] as SoundName[]).map((n) => (
+          <Button key={n} variant="secondary" disabled={!sound.on} onClick={() => sound.play(n)}>
+            {n}
+          </Button>
+        ))}
+        <span className="text-caption" style={{ color: 'rgb(var(--stage-ink-2))' }}>{t('sound.hint')}</span>
+      </div>
+
+      <h3 className="text-label font-semibold mb-2">Thử bản đồ 3D (OpenFreeMap Liberty)</h3>
+      <StageMapLab />
+    </section>
+  );
+};
 
 export const StyleGuide: React.FC = () => {
   const { t } = useTranslation();
@@ -178,6 +453,8 @@ export const StyleGuide: React.FC = () => {
           độ tương phản WCAG 2.2 AA, 7 icon danh mục Phosphor và song ngữ i18n.
         </p>
       </header>
+
+      <StageSection />
 
       {/* 0. SONG NGỮ (i18n & Intl) */}
       <section className="mb-10 p-5 rounded-field bg-surface border border-line">
