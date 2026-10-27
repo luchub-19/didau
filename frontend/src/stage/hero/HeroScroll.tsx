@@ -11,7 +11,7 @@ import { HeroActions, type HeroActionsProps } from './HeroActions';
 import { HeroCaption } from './HeroCaption';
 import { HeroPoster } from './HeroPoster';
 import type { HeroMapHandle } from './HeroMap';
-import { cameraAt, HERO_SHOTS, shotIndexAt, type HeroShot } from './shots';
+import { cameraAt, duskAt, HERO_SHOTS, reachedStops, routeProgressAt, shotIndexAt, type HeroShot } from './shots';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 if (typeof window !== 'undefined') ScrollTrigger.config({ ignoreMobileResize: true });
@@ -43,6 +43,11 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
   const [shotIndex, setShotIndex] = useState(0);
   const [mapState, setMapState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [panelHeight, setPanelHeight] = useState(0);
+  // Số chặng đường nối đã vẽ tới (đổi 3 lần trong cả phim, không render lại mỗi khung)
+  const [reached, setReached] = useState(0);
+  const sunlightRef = useRef<HTMLDivElement>(null);
+  // Mở màn xoay chỉ khi vào trang ở đầu phim (tải lại giữa chừng thì thôi)
+  const [playIntro] = useState(() => typeof window === 'undefined' || window.scrollY < 8);
   const shot = resolvePreset('hero.shot', tier);
 
   // Khung chữ che đáy sân khấu: báo chiều cao cho bản đồ đặt padding, tâm mỗi cảnh nằm giữa phần còn thấy
@@ -63,6 +68,13 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
         progressRef.current = p;
         setShotIndex(shotIndexAt(p));
         if (tier === 'full' && performance.now() >= skipUntilRef.current) mapRef.current?.setCamera(cameraAt(p));
+        // Buổi tối trôi theo tay cuộn: nắng chiều nhạt dần, bản đồ ngả chạng vạng, đường nối vẽ dần ở cảnh cuối
+        const dusk = duskAt(p);
+        if (sunlightRef.current) sunlightRef.current.style.opacity = String(1 - dusk);
+        mapRef.current?.setDusk(dusk);
+        const route = routeProgressAt(p);
+        mapRef.current?.setRoute(route);
+        setReached(reachedStops(route));
       };
       const scrollTrigger: ScrollTrigger.Vars = {
         trigger: section,
@@ -103,6 +115,8 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
       if (!handle) return;
       const p = progressRef.current;
       handle.setCamera(tier === 'full' ? cameraAt(p) : shotCamera(HERO_SHOTS[shotIndexAt(p)]));
+      handle.setDusk(duskAt(p));
+      handle.setRoute(routeProgressAt(p));
     },
     [tier],
   );
@@ -146,7 +160,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
                       transition: `opacity ${textMs}ms ${textEase}, transform ${textMs}ms ${textEase}`,
                     }}
                   >
-                    <HeroCaption shot={s} />
+                    <HeroCaption shot={s} reached={reached} />
                   </div>
                 );
               })}
@@ -185,6 +199,8 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
                 tier={tier}
                 shotIndex={shotIndex}
                 bottomInset={panelHeight}
+                reached={reached}
+                playIntro={playIntro}
                 onReady={() => setMapState('ready')}
                 onFail={() => setMapState('failed')}
               />
@@ -192,7 +208,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
           </div>
         )}
 
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'var(--stage-sunlight)' }} />
+        <div ref={sunlightRef} aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'var(--stage-sunlight)' }} />
       </div>
     </section>
   );

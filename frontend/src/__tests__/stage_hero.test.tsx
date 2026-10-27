@@ -14,6 +14,10 @@ import {
   shotStarts,
   stopsRoute,
   panProgress,
+  duskAt,
+  routeProgressAt,
+  reachedStops,
+  stopFractions,
   type HeroShot,
 } from '../stage/hero/shots';
 import { Hero } from '../stage/hero/Hero';
@@ -31,9 +35,10 @@ function expectCamera(actual: ReturnType<typeof cameraAt>, expected: ReturnType<
 }
 
 describe('T-59: kịch bản hero (shots.ts)', () => {
-  it('5 cảnh đúng thứ tự PLAN §6, cảnh 1 nhìn thẳng xuống, cảnh 2–4 nghiêng 3D', () => {
+  it('5 cảnh đúng thứ tự PLAN §6, cảnh 1 nghiêng quanh Bitexco, cảnh 1–4 thấy tòa nhà 3D', () => {
     expect(HERO_SHOTS.map((s) => s.id)).toEqual(['overview', 'market', 'walkingStreet', 'stops', 'night']);
-    expect(HERO_SHOTS[0]).toMatchObject({ zoom: 13, pitch: 0 });
+    expect(HERO_SHOTS[0].pitch).toBeGreaterThanOrEqual(45);
+    expect(HERO_SHOTS[0].zoom).toBeGreaterThanOrEqual(14);
     for (const s of HERO_SHOTS.slice(1, 4)) {
       expect(s.zoom).toBeGreaterThanOrEqual(14); // lớp building-3d có minzoom 14
       expect(s.pitch).toBeGreaterThanOrEqual(60);
@@ -108,6 +113,39 @@ describe('T-59: kịch bản hero (shots.ts)', () => {
     }
     const avg = (HERO_SHOTS[1].zoom - HERO_SHOTS[0].zoom) / steps;
     expect(Math.max(...dz)).toBeLessThan(avg * 2.2);
+  });
+
+  it('duskAt: nắng chiều ở cảnh 1–2, tối hẳn ở cảnh 5, tăng dần không lùi', () => {
+    const starts = shotStarts();
+    expect(duskAt(0)).toBe(0);
+    expect(duskAt(starts[2])).toBe(0);
+    expect(duskAt(starts[4])).toBe(1);
+    expect(duskAt(1)).toBe(1);
+    let prev = 0;
+    for (let k = 0; k <= 50; k++) {
+      const d = duskAt(k / 50);
+      expect(d).toBeGreaterThanOrEqual(prev);
+      prev = d;
+    }
+  });
+
+  it('đường nối vẽ dần trong cảnh cuối, tới từng chặng theo độ dài', () => {
+    const starts = shotStarts();
+    expect(routeProgressAt(starts[3])).toBe(0);
+    expect(routeProgressAt(starts[4])).toBe(0);
+    expect(routeProgressAt(1)).toBe(1);
+    const fr = stopFractions();
+    expect(fr[0]).toBe(0);
+    expect(fr[fr.length - 1]).toBe(1);
+    expect(reachedStops(0)).toBe(1);
+    expect(reachedStops((fr[1] + fr[2]) / 2)).toBe(2);
+    expect(reachedStops(1)).toBe(3);
+    // Cắt đường: chưa vẽ = đoạn rỗng tại chặng đầu; vẽ nửa đoạn 1 = 2 điểm; đủ = 3 chặng
+    expect(stopsRoute(0).geometry.coordinates).toHaveLength(2);
+    const half = stopsRoute(fr[1] / 2).geometry.coordinates;
+    expect(half).toHaveLength(2);
+    expect(half[1][0]).toBeCloseTo((HERO_STOPS[0].lng + HERO_STOPS[1].lng) / 2, 6);
+    expect(stopsRoute(1).geometry.coordinates).toEqual(HERO_STOPS.map((s) => [s.lng, s.lat]));
   });
 
   it('3 chặng là quán thật OSM, theo thứ tự giờ trong khung 17:00–23:00, gần nhau', () => {

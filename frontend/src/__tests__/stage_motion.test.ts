@@ -122,7 +122,7 @@ describe('T-58: motion/presets', () => {
 
   it('có đủ 6 preset đã đặt tên trong PLAN §4', () => {
     expect(MOTION_PRESET_NAMES.sort()).toEqual(
-      ['decide.reveal', 'hero.shot', 'presence.pulse', 'tab.switch', 'vote.flyIn', 'vote.swipe'].sort(),
+      ['decide.reveal', 'hero.intro', 'hero.shot', 'presence.pulse', 'tab.switch', 'vote.flyIn', 'vote.swipe'].sort(),
     );
   });
 

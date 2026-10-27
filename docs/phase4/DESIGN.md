@@ -101,6 +101,7 @@ Token cũ (`--t-press…--t-moment`, `--ease-out`, `--ease-in-out`) giữ nguyê
 | `data-motion` | Việc | Token | Chuỗi tối đa |
 | :--- | :--- | :--- | :--- |
 | `hero.shot` | giới thiệu | shot / camera | 1600ms mỗi lần chuyển cảnh (scrub theo cuộn thì theo tay người dùng) |
+| `hero.intro` | giới thiệu | reveal / out | 2000ms, camera xoay 24° **một lần** khi bản đồ hero vừa hiện; lite không xoay (T-59) |
 | `vote.swipe` | xác nhận | swipe / throw | 320ms |
 | `vote.flyIn` | giải thích | fly / out | 700ms |
 | `decide.reveal` | cao trào | reveal / out | 2400ms (cả chuỗi: tối → ghim rơi → tên quán → nút) |

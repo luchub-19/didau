@@ -23,6 +23,14 @@ export const MOTION_PRESETS = {
     liteScale: 0.86,
     maxSequenceMs: 1600,
   },
+  'hero.intro': {
+    purpose: 'intro: one slow orbit as the hero map appears (plays once, never loops)',
+    duration: 'reveal',
+    easing: 'out',
+    // lite: không xoay (bản đồ đứng yên ở cảnh 1)
+    liteScale: 0,
+    maxSequenceMs: 2000,
+  },
   'vote.swipe': {
     purpose: 'confirm: card follows the pointer, then leaves',
     duration: 'swipe',
