@@ -104,7 +104,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 
   return (
     <footer
-      className={`fixed bottom-0 left-0 right-0 z-tabbar bg-surface border-t border-line lg:hidden transition-transform duration-[var(--t-ui)] ${
+      className={`room-tabbar-vt fixed bottom-0 left-0 right-0 z-tabbar bg-surface border-t border-line lg:hidden transition-transform duration-[var(--t-ui)] ${
         isKeyboardOpen ? 'translate-y-full pointer-events-none' : 'translate-y-0'
       }`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
@@ -228,10 +228,18 @@ export const DesktopTabBar: React.FC<BottomTabBarProps> = ({
             onClick={() => onTabChange(tab.id)}
             className={`relative flex items-center gap-2 px-4 py-3 text-label font-medium pressable border-b-2 -mb-[1px] min-h-[44px] ${
               isSelected
-                ? 'border-accent text-ink font-semibold'
+                ? 'border-transparent text-ink font-semibold'
                 : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
             }`}
           >
+            {/* Vạch chọn là phần tử riêng để View Transition cho nó bay sang tab mới (T-62) */}
+            {isSelected && (
+              <span
+                data-tab-indicator
+                className="absolute inset-x-0 -bottom-0.5 h-0.5 bg-accent pointer-events-none"
+                aria-hidden="true"
+              />
+            )}
             <IconComponent
               size={20}
               weight={isSelected ? 'fill' : 'regular'}

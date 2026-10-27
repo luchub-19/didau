@@ -4,6 +4,7 @@ import { RoomTopBar } from './RoomTopBar';
 import { BottomTabBar, DesktopTabBar } from './BottomTabBar';
 import { ConnectionBanner } from './ConnectionBanner';
 import type { RoomTab } from './useRoomTab';
+import { motionAttrs } from '../../motion/presets';
 
 export interface RoomShellProps {
   room: Room;
@@ -31,7 +32,7 @@ export const RoomShell: React.FC<RoomShellProps> = ({
   children,
 }) => {
   return (
-    <div className="min-h-dvh bg-bg flex flex-col">
+    <div className="room-shell-vt min-h-dvh bg-bg flex flex-col">
       {/* Thanh đỉnh cố định (TopBar + Desktop TabBar) */}
       <RoomTopBar
         title={room.title}
@@ -55,8 +56,11 @@ export const RoomShell: React.FC<RoomShellProps> = ({
       {/* Banner cảnh báo ghim (ví dụ xung đột lịch) */}
       {topBanner}
 
-      {/* Khu vực nội dung chính */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-20 lg:pb-8">
+      {/* Khu vực nội dung chính; `room-panel-vt` là nhóm trượt khi đổi tab (T-62, motion.css) */}
+      <main
+        {...motionAttrs('tab.switch')}
+        className="room-panel-vt flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-20 lg:pb-8"
+      >
         {children}
       </main>
 

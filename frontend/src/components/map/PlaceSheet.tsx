@@ -14,6 +14,7 @@ import { formatDistance, formatTimeRange } from '../../i18n/format';
 import { cuisineLabel } from '../../i18n/osm';
 import { describeApiError } from '../../i18n/serverText';
 import type { Language } from '../../i18n/useLanguage';
+import { useSharedTransitionName } from '../../motion/viewTransition';
 
 export interface PlaceSheetProps {
   room: Room;
@@ -40,6 +41,8 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
   const [addError, setAddError] = useState<string | null>(null);
 
   const places = usePlaceStore((s) => s.places);
+  // Đích của thẻ quán bay sang khi bấm "Xem trên bản đồ" (T-62); ngoài lúc chuyển tab là undefined
+  const viewTransitionName = useSharedTransitionName();
   const addPlaceFromPoi = usePlaceStore((s) => s.addPlaceFromPoi);
 
   // Kiem tra xem quan da co trong phong chua
@@ -107,7 +110,7 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
       className={containerClasses}
       data-testid="place-sheet"
       onTouchStart={(e) => e.stopPropagation()}
-      style={{ touchAction: 'pan-y' }}
+      style={{ touchAction: 'pan-y', viewTransitionName }}
     >
       {/* Keo nac tren dien thoai (chi hien khi khong phai cot desktop) */}
       {!isDesktopColumn && (

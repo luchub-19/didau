@@ -19,6 +19,7 @@ import {
 import { CategoryIcon } from '../common/CategoryIcon';
 import { VoteButtons } from '../voting/VoteButtons';
 import { toast } from '../ui/toastStore';
+import { markSharedOrigin } from '../../motion/viewTransition';
 import type { Place } from '../../types';
 
 export interface PlaceCardProps {
@@ -76,7 +77,9 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   const hasCoordinates =
     (place.latitude != null && place.longitude != null) || Boolean(place.external_id);
 
-  const handleViewOnMap = () => {
+  const handleViewOnMap = (e: React.MouseEvent<HTMLElement>) => {
+    // Thẻ này bay sang sheet quán ở lần chuyển tab ngay sau (T-62, view-transition-name động)
+    markSharedOrigin(e.currentTarget.closest('article'));
     if (onViewOnMap) {
       onViewOnMap(place);
     } else {

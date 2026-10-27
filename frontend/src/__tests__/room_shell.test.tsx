@@ -65,7 +65,7 @@ describe('T-41: RoomShell, RoomTopBar, BottomTabBar Suite', () => {
       expect(html).toContain('Lịch');
       expect(html).toContain('3');
       expect(html).toContain('animate-pulse'); // Chấm đỏ cảnh báo xung đột
-      expect(html).toContain('border-accent');
+      expect(html).toContain('data-tab-indicator'); // Vạch chọn tách riêng cho View Transition (T-62)
     });
 
     it('BottomTabBar đổi trạng thái aria-selected khi tab active thay đổi', () => {

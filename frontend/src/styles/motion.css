@@ -263,6 +263,127 @@
   animation: slot-stagger-in var(--t-ui) var(--ease-out) both;
 }
 
+/* Chuyển tab bằng View Transitions (T-62, preset 'tab.switch', motion/viewTransition.ts).
+   Tên chỉ gán khi :root mang data-vt-dir (trong lúc chuyển), nên không bao giờ trùng tên ngoài lúc đó.
+   --vt-tab-ms do JS đặt theo mức + ?motion=slow; thoát nhanh hơn vào (0.6×). */
+:root[data-vt-dir] .room-panel-vt {
+  view-transition-name: room-panel;
+}
+
+:root[data-vt-dir] [data-tab-indicator] {
+  view-transition-name: tab-indicator;
+}
+
+/* Thanh đỉnh (sticky) và thanh tab đáy (fixed) phải là nhóm riêng: nếu không, ảnh của <main> (cao hơn màn hình)
+   vẽ đè lên chúng và thanh tab biến mất trong lúc chuyển. Hai nhóm này đổi tức thì. */
+:root[data-vt-dir] .room-shell-vt > header {
+  view-transition-name: room-topbar;
+}
+
+:root[data-vt-dir] .room-tabbar-vt {
+  view-transition-name: room-tabbar;
+}
+
+/* Khung còn lại (root, thanh đỉnh, thanh tab) đổi tức thì; vạch tab mobile tự trượt bằng transition CSS */
+:root[data-vt-dir]::view-transition-old(root),
+:root[data-vt-dir]::view-transition-new(root),
+:root[data-vt-dir]::view-transition-group(room-topbar),
+:root[data-vt-dir]::view-transition-old(room-topbar),
+:root[data-vt-dir]::view-transition-new(room-topbar),
+:root[data-vt-dir]::view-transition-group(room-tabbar),
+:root[data-vt-dir]::view-transition-old(room-tabbar),
+:root[data-vt-dir]::view-transition-new(room-tabbar) {
+  animation: none;
+}
+
+/* Ảnh cũ của thanh không có animation sẽ nằm mãi dưới ảnh mới: ẩn đi để chỉ còn ảnh mới (sống) */
+:root[data-vt-dir]::view-transition-old(room-topbar),
+:root[data-vt-dir]::view-transition-old(room-tabbar) {
+  display: none;
+}
+
+:root[data-vt-dir]::view-transition-group(room-panel),
+:root[data-vt-dir]::view-transition-group(tab-indicator),
+:root[data-vt-dir]::view-transition-group(place-focus) {
+  animation-duration: var(--vt-tab-ms, var(--t-tab));
+  animation-timing-function: var(--ease-out);
+}
+
+:root[data-vt-dir]::view-transition-old(room-panel) {
+  animation: vt-panel-out calc(var(--vt-tab-ms, var(--t-tab)) * 0.6) var(--ease-out) both;
+}
+
+:root[data-vt-dir]::view-transition-new(room-panel) {
+  animation: vt-panel-in var(--vt-tab-ms, var(--t-tab)) var(--ease-out) both;
+}
+
+/* Thẻ quán → sheet quán: tỉ lệ rất khác (thẻ ngang thấp, cột sheet cao) nên không co giãn ảnh (chữ sẽ phình);
+   khung bay + đổi cỡ theo group, nội dung giữ cỡ thật và bị cắt theo khung, cross-fade nhanh */
+:root[data-vt-dir]::view-transition-group(place-focus) {
+  overflow: clip;
+  border-radius: var(--radius-card, 16px);
+  /* Sheet ở cột desktop không có nền riêng: khung bay mang nền để chữ không trôi trên bản đồ */
+  background-color: rgb(var(--color-surface));
+}
+
+:root[data-vt-dir]::view-transition-old(place-focus),
+:root[data-vt-dir]::view-transition-new(place-focus) {
+  width: auto;
+  height: auto;
+  object-fit: none;
+}
+
+:root[data-vt-dir]::view-transition-old(place-focus) {
+  animation: vt-fade-out calc(var(--vt-tab-ms, var(--t-tab)) * 0.35) var(--ease-out) both;
+}
+
+:root[data-vt-dir]::view-transition-new(place-focus) {
+  animation: vt-fade-in-late var(--vt-tab-ms, var(--t-tab)) var(--ease-out) both;
+}
+
+:root {
+  --vt-shift: 24px;
+}
+
+:root[data-vt-dir='back'] {
+  --vt-shift: -24px;
+}
+
+:root[data-vt-dir='none'] {
+  --vt-shift: 0px;
+}
+
+@keyframes vt-panel-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--vt-shift) * -1));
+  }
+}
+
+@keyframes vt-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--vt-shift));
+  }
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Chờ ảnh cũ tắt (≈ 1/3 đầu) rồi mới hiện, để hai lớp chữ không chồng lên nhau trong khung bay */
+@keyframes vt-fade-in-late {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 /* A11y: prefers-reduced-motion overrides */
 @media (prefers-reduced-motion: reduce) {
   .pressable:active:not(:disabled) {
@@ -297,6 +418,12 @@
 
   .tab-indicator {
     transition: none !important;
+  }
+
+  :root[data-vt-dir]::view-transition-group(*),
+  :root[data-vt-dir]::view-transition-old(*),
+  :root[data-vt-dir]::view-transition-new(*) {
+    animation: none !important;
   }
 
   .vote-pop,
