@@ -46,8 +46,15 @@ const ROUTE_SOURCE = 'hero-route';
 const STYLE_TIMEOUT_MS = 8000;
 /** Phần đỉnh bị thanh header che (px). */
 const TOP_INSET = 72;
+/** Tải trước tile của các cảnh sau trước khi hiện bản đồ (hết khựng giữa phim); quá hạn thì hiện luôn. */
+const PREWARM_SHOT_MS = 2500;
+const PREWARM_TOTAL_MS = 7000;
+/** Lớp chữ/icon bỏ khỏi hero: icon POI, sân bay, biển số đường, mũi tên một chiều (đỡ rối và đỡ tính va chạm chữ mỗi khung). */
+const DECLUTTER_SOURCE_LAYERS = new Set(['poi', 'aerodrome_label']);
+const DECLUTTER_ID = /shield|one_way/;
 const PINS_FROM_SHOT = HERO_SHOTS.findIndex((s) => s.id === 'stops');
 const LAST_SHOT = HERO_SHOTS.length - 1;
+const FPS_WINDOW = 600;
 const cameraEase = easingFn('camera');
 
 /** Đọc token màu Stage ('31 111 168') thành chuỗi màu MapLibre hiểu. */
@@ -76,6 +83,36 @@ function styleBuildings(map: MapLibreMap, show: boolean): void {
   map.setLight({ anchor: 'map', position: [1.5, 250, 50], color: '#FFD3A1', intensity: 0.55 });
 }
 
+/** Bỏ bớt lớp chữ/icon của style Liberty: hero kể chuyện bằng ghim + chú thích, không cần icon từng cửa hàng. */
+function declutter(map: MapLibreMap): void {
+  for (const layer of map.getStyle().layers ?? []) {
+    if (layer.type !== 'symbol') continue;
+    const sourceLayer = 'source-layer' in layer ? layer['source-layer'] : undefined;
+    if ((sourceLayer && DECLUTTER_SOURCE_LAYERS.has(sourceLayer)) || DECLUTTER_ID.test(layer.id)) {
+      map.setLayoutProperty(layer.id, 'visibility', 'none');
+    }
+  }
+}
+
+/** Trời nắng chiều + sương giấy kem ở chân trời: khi nghiêng 60°, mép xa tan vào nền thay vì cắt cứng. */
+function setGoldenSky(map: MapLibreMap): void {
+  map.setSky({
+    'sky-color': '#F2B98A',
+    'horizon-color': '#FBE3C4',
+    'fog-color': stageColor('--stage-paper', '#FBF3E4'),
+    'sky-horizon-blend': 0.7,
+    'horizon-fog-blend': 0.6,
+    'fog-ground-blend': 0.75,
+    'atmosphere-blend': 0,
+  });
+}
+
+/** Mật độ điểm ảnh khi vẽ bản đồ: màn HiDPI vẽ 2× = gấp 4 lần pixel, nên giới hạn để giữ khung hình. */
+function heroPixelRatio(tier: HeroMapProps['tier']): number {
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  return Math.min(dpr, tier === 'full' ? 1.5 : 1);
+}
+
 function setInteractive(map: MapLibreMap, on: boolean): void {
   const handlers = [map.dragPan, map.dragRotate, map.touchZoomRotate, map.touchPitch, map.keyboard, map.doubleClickZoom];
   for (const h of handlers) {
@@ -97,6 +134,9 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
   const activeRef = useRef(true);
   const pendingRef = useRef<Camera | null>(null);
   const movedAtRef = useRef(0);
+  const prewarmingRef = useRef(true);
+  // Mức lúc khởi tạo (đổi mức sau đó do effect riêng xử lý, không dựng lại bản đồ)
+  const initialTierRef = useRef(tier);
   const callbacks = useRef({ onReady, onFail });
   callbacks.current = { onReady, onFail };
   const [loaded, setLoaded] = useState(false);
@@ -105,7 +145,7 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
   useImperativeHandle(ref, () => ({
     setCamera(cam) {
       const map = mapRef.current;
-      if (!map || !activeRef.current) {
+      if (!map || !activeRef.current || prewarmingRef.current) {
         pendingRef.current = cam;
         return;
       }
@@ -114,7 +154,7 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
     },
     flyTo(cam, ms) {
       const map = mapRef.current;
-      if (!map || !activeRef.current) {
+      if (!map || !activeRef.current || prewarmingRef.current) {
         pendingRef.current = cam;
         return;
       }
@@ -146,6 +186,8 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
         pitch: first.pitch,
         bearing: first.bearing,
         maxPitch: 70,
+        pixelRatio: heroPixelRatio(initialTierRef.current),
+        maxTileCacheSize: 400,
         attributionControl: { compact: true },
       });
     } catch (err) {
@@ -166,6 +208,8 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
     });
     map.on('load', () => {
       clearTimeout(timeout);
+      declutter(map);
+      setGoldenSky(map);
       map.addSource(ROUTE_SOURCE, { type: 'geojson', data: stopsRoute() });
       map.addLayer({
         id: ROUTE_SOURCE,
@@ -187,8 +231,36 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
         }),
       );
       setLoaded(true);
-      map.once('idle', () => callbacks.current.onReady());
+      void prewarm().then(() => {
+        if (disposed) return;
+        prewarmingRef.current = false;
+        map.jumpTo(pendingRef.current ?? first);
+        pendingRef.current = null;
+        map.once('idle', () => callbacks.current.onReady());
+      });
     });
+
+    // Lướt qua từng cảnh khi bản đồ còn ẩn dưới poster để tile nằm sẵn trong cache
+    let disposed = false;
+    const waitIdle = (ms: number) =>
+      new Promise<void>((resolve) => {
+        const done = () => {
+          clearTimeout(timer);
+          map.off('idle', done);
+          resolve();
+        };
+        const timer = setTimeout(done, ms);
+        map.on('idle', done);
+      });
+    const prewarm = async () => {
+      const started = performance.now();
+      for (const shot of HERO_SHOTS.slice(1)) {
+        if (disposed || performance.now() - started > PREWARM_TOTAL_MS) break;
+        map.jumpTo({ center: shot.center, zoom: shot.zoom, pitch: shot.pitch, bearing: shot.bearing });
+        await waitIdle(PREWARM_SHOT_MS);
+      }
+      stageLog('hero prewarm', Math.round(performance.now() - started), 'ms');
+    };
 
     // Ngừng cập nhật camera (→ MapLibre không vẽ lại) khi bản đồ ra khỏi khung nhìn hoặc tab ẩn
     const setActive = (on: boolean) => {
@@ -211,6 +283,7 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      disposed = true;
       clearTimeout(timeout);
       io.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
@@ -229,7 +302,9 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
   // Mức: 'full' có tòa nhà 3D + ánh sáng, 'lite' bỏ (hạ mức giữa chừng thì tắt ngay)
   useEffect(() => {
     const map = mapRef.current;
-    if (map && loaded) styleBuildings(map, tier === 'full');
+    if (!map || !loaded) return;
+    styleBuildings(map, tier === 'full');
+    map.setPixelRatio(heroPixelRatio(tier));
   }, [tier, loaded]);
 
   // Cảnh cuối: hiện đường nối 3 chặng, cho kéo/nghiêng bản đồ
@@ -250,6 +325,7 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
     if (tier !== 'full' || !loaded) return;
     const guard = createFpsGuard();
     const deltas: number[] = [];
+    let frames = 0;
     let last = 0;
     let raf = 0;
     const loop = (now: number) => {
@@ -260,14 +336,19 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
         last = 0;
         return;
       }
-      if (last) deltas.push(now - last);
+      if (last) {
+        deltas.push(now - last);
+        frames++;
+        if (deltas.length > FPS_WINDOW) deltas.shift();
+      }
       last = now;
       if (guard.frame(now)) downgradeMotionTier('lite', 'hero fps < 40 for 2s');
-      if (import.meta.env.DEV && deltas.length % 60 === 0 && deltas.length) {
+      // Số đo cho dev: trung bình + p5 trên 600 khung gần nhất (đọc `window.__heroFps`)
+      if (import.meta.env.DEV && frames % 120 === 0 && deltas.length) {
         const sorted = [...deltas].sort((a, b) => b - a);
         const avg = 1000 / (deltas.reduce((a, b) => a + b, 0) / deltas.length);
         const p5 = 1000 / sorted[Math.floor(sorted.length * 0.05)];
-        (window as unknown as { __heroFps?: unknown }).__heroFps = { avg, p5, frames: deltas.length };
+        (window as unknown as { __heroFps?: unknown }).__heroFps = { avg, p5, frames };
       }
     };
     raf = requestAnimationFrame(loop);

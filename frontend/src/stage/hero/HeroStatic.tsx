@@ -28,7 +28,7 @@ export const HeroStatic: React.FC<HeroStaticProps> = ({ header, introOnly = fals
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'var(--stage-sunlight)' }} />
         <div className="absolute inset-x-0 top-0 z-10">{header}</div>
         <div className="absolute inset-x-0 bottom-0 z-10 p-3 md:p-6">
-          <div className="mx-auto max-w-7xl rounded-card border border-[rgb(var(--stage-ink)/0.12)] bg-[rgb(var(--stage-paper)/0.9)] backdrop-blur-md shadow-[var(--stage-shadow-long)] p-4 md:p-7">
+          <div className="mx-auto max-w-7xl rounded-card border border-[rgb(var(--stage-ink)/0.12)] bg-[rgb(var(--stage-paper)/0.94)] shadow-[var(--stage-shadow-long)] p-4 md:p-7">
             <HeroCaption shot={first} />
             <div className="mt-4 md:mt-6 md:w-[26rem]">
               <HeroActions {...actions} />

@@ -13,6 +13,7 @@ import {
   shotIndexAt,
   shotStarts,
   stopsRoute,
+  panProgress,
   type HeroShot,
 } from '../stage/hero/shots';
 import { Hero } from '../stage/hero/Hero';
@@ -83,6 +84,30 @@ describe('T-59: kịch bản hero (shots.ts)', () => {
     ];
     const mid = 0.5 * (SHOT_HOLD + (1 - SHOT_HOLD) / 2);
     expect(Math.abs(cameraAt(mid, shots).bearing)).toBeCloseTo(180, 3);
+  });
+
+  it('panProgress: tâm trôi đều trên màn hình khi zoom đổi (tốc độ pixel ∝ 2^zoom)', () => {
+    expect(panProgress(0, 3)).toBe(0);
+    expect(panProgress(1, 3)).toBeCloseTo(1, 9);
+    expect(panProgress(0.4, 0)).toBe(0.4);
+    // u'(t) · 2^(dz·t) phải không đổi theo t
+    const dz = 3;
+    const speed = (t: number) => ((panProgress(t + 1e-4, dz) - panProgress(t, dz)) / 1e-4) * Math.pow(2, dz * t);
+    expect(speed(0.1)).toBeCloseTo(speed(0.9), 2);
+  });
+
+  it('cameraAt: cuộn đều tay — tốc độ đổi zoom đỉnh không quá 2,2× trung bình của đoạn', () => {
+    const starts = shotStarts();
+    const steps = 400;
+    const span = starts[1] - starts[0];
+    const dz: number[] = [];
+    for (let k = 0; k < steps; k++) {
+      const a = cameraAt(starts[0] + (span * k) / steps).zoom;
+      const b = cameraAt(starts[0] + (span * (k + 1)) / steps).zoom;
+      dz.push(b - a);
+    }
+    const avg = (HERO_SHOTS[1].zoom - HERO_SHOTS[0].zoom) / steps;
+    expect(Math.max(...dz)).toBeLessThan(avg * 2.2);
   });
 
   it('3 chặng là quán thật OSM, theo thứ tự giờ trong khung 17:00–23:00, gần nhau', () => {

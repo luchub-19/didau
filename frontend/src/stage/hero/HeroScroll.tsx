@@ -20,8 +20,8 @@ const HeroMap = lazy(() => import('./HeroMap').then((m) => ({ default: m.HeroMap
 
 /** Quãng cuộn của cả phim, tính bằng số màn hình. */
 const SCROLL_SCREENS = 4;
-/** Độ trễ bám cuộn của camera (giây), nhân `?motion=slow`. */
-const SCRUB_SECONDS = 0.6;
+/** Độ trễ bám cuộn của camera (giây), nhân `?motion=slow`: cao hơn thì từng nấc lăn chuột được làm mịn. */
+const SCRUB_SECONDS = 1;
 const LAST_SHOT = HERO_SHOTS.length - 1;
 
 const shotCamera = (s: HeroShot) => ({ center: s.center, zoom: s.zoom, pitch: s.pitch, bearing: s.bearing });
@@ -69,6 +69,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
         start: 'top top',
         end: () => `+=${window.innerHeight * SCROLL_SCREENS}`,
         pin: stage,
+        anticipatePin: 1,
         invalidateOnRefresh: true,
       };
       if (tier === 'full') {
@@ -128,7 +129,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
         <div className="absolute inset-x-0 bottom-0 z-10 p-3 md:p-6 pointer-events-none">
           <div
             ref={panelRef}
-            className="mx-auto max-w-7xl pointer-events-auto rounded-card border border-[rgb(var(--stage-ink)/0.12)] bg-[rgb(var(--stage-paper)/0.9)] backdrop-blur-md shadow-[var(--stage-shadow-long)] p-4 md:p-7"
+            className="mx-auto max-w-7xl pointer-events-auto rounded-card border border-[rgb(var(--stage-ink)/0.12)] bg-[rgb(var(--stage-paper)/0.94)] shadow-[var(--stage-shadow-long)] p-4 md:p-7"
           >
             <div className="grid">
               {HERO_SHOTS.map((s, i) => {

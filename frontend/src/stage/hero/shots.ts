@@ -1,6 +1,6 @@
 // Kịch bản camera của hero trang chủ là DỮ LIỆU (PLAN §6, DESIGN §6). Không đụng WebGL:
 // `cameraAt(progress)` là hàm thuần, test được bằng unit test.
-import { easingFn } from '../../motion/bezier';
+import { cubicBezier } from '../../motion/bezier';
 import stopsData from './stops.json';
 
 export type LngLat = [number, number];
@@ -66,10 +66,13 @@ export const HERO_SHOTS: readonly HeroShot[] = [
   { id: 'night', center: stopsCenter, zoom: 15.6, pitch: 45, bearing: -65, captionKey: 'stage.shots.night', durationWeight: 0.8 },
 ];
 
-/** Phần đầu mỗi đoạn cảnh mà camera đứng yên ở cảnh đó (để kịp đọc chữ) trước khi bay sang cảnh sau. */
-export const SHOT_HOLD = 0.35;
+/** Phần đầu mỗi đoạn cảnh mà camera đứng yên ở cảnh đó (để kịp đọc chữ) trước khi bay sang cảnh sau.
+ *  Giữ ngắn: đứng lâu thì phần bay bị dồn lại, cuộn thấy "đứng – lao – đứng". */
+export const SHOT_HOLD = 0.15;
 
-const ease = easingFn('camera');
+// Đường cong cho camera bám cuộn: mềm hơn --ease-camera (tốc độ đỉnh ~1,6× trung bình thay vì ~2,9×),
+// vì tay người cuộn đã là "easing"; --ease-camera vẫn dùng cho flyTo ở mức 'lite'.
+const ease = cubicBezier(0.45, 0, 0.55, 1);
 
 /** Mốc bắt đầu (0..1) của từng cảnh trên trục tiến độ cuộn, theo `durationWeight`. */
 export function shotStarts(shots: readonly HeroShot[] = HERO_SHOTS): number[] {
@@ -97,6 +100,15 @@ export function shotIndexAt(progress: number, shots: readonly HeroShot[] = HERO_
   return idx;
 }
 
+/**
+ * Tiến độ dịch tâm khi zoom đổi từ z0 sang z0+dz theo t tuyến tính: chọn sao cho tâm trôi trên màn hình
+ * với tốc độ đều (tốc độ pixel ∝ 2^zoom nên tâm phải đi nhanh lúc zoom thấp, chậm lúc zoom cao).
+ */
+export function panProgress(t: number, dz: number): number {
+  if (Math.abs(dz) < 1e-6) return t;
+  return (1 - Math.pow(2, -dz * t)) / (1 - Math.pow(2, -dz));
+}
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -119,8 +131,9 @@ export function cameraAt(progress: number, shots: readonly HeroShot[] = HERO_SHO
   const span = starts[i + 1] - starts[i];
   const local = (p - starts[i]) / span;
   const t = ease(Math.max(0, (local - SHOT_HOLD) / (1 - SHOT_HOLD)));
+  const u = panProgress(t, to.zoom - from.zoom);
   return {
-    center: [lerp(from.center[0], to.center[0], t), lerp(from.center[1], to.center[1], t)],
+    center: [lerp(from.center[0], to.center[0], u), lerp(from.center[1], to.center[1], u)],
     zoom: lerp(from.zoom, to.zoom, t),
     pitch: lerp(from.pitch, to.pitch, t),
     bearing: lerpAngle(from.bearing, to.bearing, t),

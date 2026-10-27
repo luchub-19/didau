@@ -15,7 +15,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({ variant = 'default' }) =
   if (variant === 'stage') {
     return (
       <header className="w-full max-w-7xl mx-auto px-3 md:px-6 pt-3 md:pt-5 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-field bg-[rgb(var(--stage-paper)/0.9)] backdrop-blur-md text-heading font-bold text-[rgb(var(--stage-ink))] font-[family-name:var(--stage-font-display)]">
+        <span className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-field bg-[rgb(var(--stage-paper)/0.94)] text-heading font-bold text-[rgb(var(--stage-ink))] font-[family-name:var(--stage-font-display)]">
           <MapPin size={22} weight="fill" className="text-accent" aria-hidden="true" />
           {t('app.name')}
         </span>
