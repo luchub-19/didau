@@ -637,6 +637,7 @@ export const en: Messages = {
     settings: 'Settings',
     language: 'Language',
     theme: 'Appearance',
+    sound: 'Sound',
     status: {
       PLANNING: 'Planning',
       VOTING: 'Voting',
@@ -833,6 +834,20 @@ export const en: Messages = {
       walkingStreet: 'Swipe, vote live, and see which place is leading.',
       stops: 'Dinner, coffee, then the next stop: each one decided once.',
     },
+  },
+  reveal: {
+    badge: 'It’s decided!',
+    announce: 'The group picked {{name}}',
+    skip: 'Skip',
+    done: 'Let’s go',
+    directions: 'Directions',
+    share: 'Share',
+    calendar: 'Add to calendar',
+    when: '{{date}} · {{time}}',
+    shareText: '{{title}} is set: we’re going to {{name}}!',
+    copied: 'Invite message and room link copied',
+    calendarDone: 'Calendar file (.ics) downloaded, open it to add the event',
+    calendarFailed: 'Couldn’t create the calendar file',
   },
   sound: {
     on: 'Sound: on',

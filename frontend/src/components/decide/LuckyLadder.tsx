@@ -405,7 +405,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
         <div
           data-testid="ladder-winner-banner"
           aria-live="polite"
-          className="bg-accent-soft/40 border border-accent/40 rounded-card p-4 text-center space-y-2 winner-reveal-card"
+          className="bg-accent-soft/40 border border-accent/40 rounded-card p-4 text-center space-y-2"
         >
           <div className="flex justify-center text-accent-text">
             <Sparkle size={32} weight="fill" />
@@ -422,7 +422,7 @@ export const LuckyLadder: React.FC<LuckyLadderProps> = ({
           </p>
 
           {isHost && variant === 'PLACE' && (
-            <div className="flex items-center justify-center gap-3 pt-2 winner-actions-in">
+            <div className="flex items-center justify-center gap-3 pt-2">
               <Button
                 data-testid="ladder-accept-btn"
                 variant="primary"

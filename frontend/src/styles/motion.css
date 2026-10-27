@@ -247,39 +247,6 @@
   animation: checkmark-draw var(--t-moment) var(--ease-out) forwards;
 }
 
-/* Quán thắng lộ diện (T-53) */
-@keyframes winner-reveal {
-  0% {
-    opacity: 0;
-    clip-path: inset(0 0 100% 0 round var(--radius-card));
-    transform: translateY(12px) scale(0.97);
-  }
-  100% {
-    opacity: 1;
-    clip-path: inset(0 0 0 0 round var(--radius-card));
-    transform: translateY(0) scale(1);
-  }
-}
-
-.winner-reveal-card {
-  animation: winner-reveal 400ms var(--ease-out) both;
-}
-
-@keyframes winner-actions-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.winner-actions-in {
-  animation: winner-actions-in 220ms var(--ease-out) 260ms both;
-}
-
 /* Slot lịch trình tự động (T-53) */
 @keyframes slot-stagger-in {
   from {
@@ -338,8 +305,6 @@
   .place-card-stagger,
   .place-card-lock-in,
   .checkmark-draw,
-  .winner-reveal-card,
-  .winner-actions-in,
   .slot-stagger {
     animation: none !important;
     clip-path: none !important;

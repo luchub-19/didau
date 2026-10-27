@@ -321,7 +321,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
         <div
           data-testid="swipe-resolved-winner"
           aria-live="polite"
-          className="bg-accent-soft/40 border border-accent/40 rounded-card p-6 text-center space-y-4 winner-reveal-card"
+          className="bg-accent-soft/40 border border-accent/40 rounded-card p-6 text-center space-y-4"
         >
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent-soft text-accent-text text-3xl shadow-xs">
             <Sparkle size={32} weight="fill" />
@@ -370,7 +370,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
 
           {/* Host Controls */}
           {isHost ? (
-            <div className="flex items-center justify-center gap-3 pt-2 winner-actions-in">
+            <div className="flex items-center justify-center gap-3 pt-2">
               <Button
                 data-testid="swipe-accept-btn"
                 variant="primary"

@@ -635,6 +635,7 @@ export const vi = {
     settings: 'Cài đặt',
     language: 'Ngôn ngữ',
     theme: 'Giao diện',
+    sound: 'Âm thanh',
     status: {
       PLANNING: 'Đang lên kế hoạch',
       VOTING: 'Đang bình chọn',
@@ -831,6 +832,20 @@ export const vi = {
       walkingStreet: 'Quẹt thẻ, bỏ phiếu trực tiếp, thấy ngay quán nào đang dẫn.',
       stops: 'Ăn, cà phê, rồi đi đâu tiếp: mỗi chặng chốt một lần.',
     },
+  },
+  reveal: {
+    badge: 'Chốt rồi!',
+    announce: 'Cả nhóm đã chốt: {{name}}',
+    skip: 'Bỏ qua',
+    done: 'Đi thôi',
+    directions: 'Đường đi',
+    share: 'Chia sẻ',
+    calendar: 'Thêm vào lịch',
+    when: '{{date}} · {{time}}',
+    shareText: 'Chốt kèo {{title}}: đi {{name}} nhé!',
+    copied: 'Đã sao chép lời rủ và link phòng',
+    calendarDone: 'Đã tải tệp lịch (.ics), mở để thêm vào lịch',
+    calendarFailed: 'Không tạo được tệp lịch',
   },
   sound: {
     on: 'Âm thanh: bật',

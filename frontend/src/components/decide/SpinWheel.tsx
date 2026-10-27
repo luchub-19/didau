@@ -322,7 +322,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
         <div
           data-testid="winner-announcement"
           aria-live="polite"
-          className="w-full p-4 rounded-card bg-accent-soft/40 border border-accent/40 text-center space-y-2 winner-reveal-card"
+          className="w-full p-4 rounded-card bg-accent-soft/40 border border-accent/40 text-center space-y-2"
         >
           <div className="flex justify-center text-accent-text">
             <Sparkle size={28} weight="fill" />
@@ -338,7 +338,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
           </p>
 
           {isHost ? (
-            <div className="pt-2 flex items-center justify-center gap-2 winner-actions-in">
+            <div className="pt-2 flex items-center justify-center gap-2">
               <Button
                 variant="primary"
                 size="md"
@@ -359,7 +359,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
               </Button>
             </div>
           ) : (
-            <p className="text-caption text-ink-3 italic pt-1 winner-actions-in">
+            <p className="text-caption text-ink-3 italic pt-1">
               {t('decide.wheel.waitingHostToAccept')}
             </p>
           )}

@@ -51,6 +51,10 @@ export {
   HandSwipeLeft,
   SlidersHorizontal,
   Shuffle,
+
+  // Âm thanh khoảnh khắc (T-61)
+  SpeakerHigh,
+  SpeakerSlash,
 } from '@phosphor-icons/react';
 
 export type { IconProps } from '@phosphor-icons/react';

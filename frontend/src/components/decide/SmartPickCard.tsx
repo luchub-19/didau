@@ -98,7 +98,7 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
   return (
     <div
       data-testid="smart-pick-card"
-      className="space-y-4 bg-surface rounded-card border border-line p-5 shadow-sm winner-reveal-card"
+      className="space-y-4 bg-surface rounded-card border border-line p-5 shadow-sm"
     >
       {/* Thanh tiêu đề thẻ */}
       <div className="flex items-center justify-between border-b border-line pb-3">
@@ -204,7 +204,7 @@ export const SmartPickCard: React.FC<SmartPickCardProps> = ({
       </div>
 
       {/* Nút hành động */}
-      <div className="pt-3 border-t border-line flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 winner-actions-in">
+      <div className="pt-3 border-t border-line flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {isHost ? (
           <Button
             variant="primary"

@@ -12,6 +12,7 @@ import { highlightPoi, installPoiLayer, updatePoiLayerTheme, updatePoiSource } f
 import { installRoomPlacesLayer, updateRoomPlacesLayerTheme, updateRoomPlacesSource } from './RoomPlacesLayer';
 import { installRouteLayer, updateRouteLayerTheme, updateRouteSource } from './RouteLayer';
 import { useTheme } from '../../theme/useTheme';
+import { registerMapFlyer } from './flyToPlace';
 import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
 import { PlaceSheet } from './PlaceSheet';
@@ -159,6 +160,28 @@ export function MapView({
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [map, mapReady]);
+
+  // Cho man cong bo quan thang (T-61) bay toi quan: chi khi tab Ban do dang hien
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    return registerMapFlyer({
+      isVisible: () => {
+        const el = map.getContainer();
+        return el.offsetParent !== null && el.clientWidth > 0 && el.clientHeight > 0;
+      },
+      fly: ({ lng, lat, zoom, pitch, bearingDelta, durationMs, offsetY }) => {
+        map.flyTo({
+          center: [lng, lat],
+          zoom,
+          pitch,
+          bearing: map.getBearing() + bearingDelta,
+          offset: [0, offsetY],
+          duration: durationMs,
+          essential: true,
+        });
+      },
+    });
   }, [map, mapReady]);
 
   // Cap nhat mau layer pin/route tren ban do khi doi theme sang/toi

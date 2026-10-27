@@ -6,6 +6,7 @@ import { Button, Card, LanguageSwitcher, Segmented } from '../../components/ui';
 import { formatMoney } from '../../i18n/format';
 import { useLanguage } from '../../i18n/useLanguage';
 import { useTheme, type Theme } from '../../theme/useTheme';
+import { SoundToggle } from '../../sound';
 
 export interface GroupPanelProps {
   room: Room;
@@ -126,6 +127,13 @@ export const GroupPanel: React.FC<GroupPanelProps> = ({
                 { value: 'dark', label: t('theme.dark') },
               ]}
             />
+          </div>
+          <div className="pt-2 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-h-[44px]">
+            <div className="min-w-0">
+              <span className="text-body text-ink">{t('group.sound')}</span>
+              <p className="text-caption text-ink-2">{t('sound.hint')}</p>
+            </div>
+            <SoundToggle variant="label" className="self-start sm:self-auto flex-shrink-0" />
           </div>
         </Card>
       </div>
