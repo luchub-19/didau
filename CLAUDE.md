@@ -3,7 +3,12 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn: Giai đoạn 3 (T-38 → T-55) — ĐÃ HOÀN THÀNH (DONE)
+## Giai đoạn hiện tại: Giai đoạn 4 "Sân khấu" (T-58 → T-64)
+Trang chủ điện ảnh (bản đồ 3D TP.HCM) + khoảnh khắc trong phòng (quẹt thẻ, reveal chốt quán, chuyển tab, hiện diện).
+Bắt đầu mọi session bằng `docs/phase4/README.md` → `docs/phase4/PROGRESS.md` → file task `docs/phase4/tasks/T-xx.md`.
+Kế hoạch và quyết định đã chốt: `docs/phase4/PLAN.md`. Làm trên nhánh `stage/redesign`.
+
+## Giai đoạn 3 (T-38 → T-55) — ĐÃ HOÀN THÀNH (DONE)
 Toàn bộ các task từ T-01 đến T-55 (Giai đoạn 1, 2 và 3) đã hoàn thành, kiểm thử tự động xanh 100%.
 - Lịch sử tiến độ & review Giai đoạn 3: xem `docs/phase3/PROGRESS.md` và `docs/phase3/AUDIT.md`.
 - Lịch sử Giai đoạn 1–2: xem `docs/PROGRESS.md` và `docs/TASKS.md`.
