@@ -507,6 +507,8 @@ export const vi = {
       keyboardShortcut: 'Phím tắt: Bấm ← Thôi, → Thích',
       progressText: '<strong>{{done}}</strong>/{{total}} người đã xong',
       cardCounter: '{{current}} / {{total}} quán',
+      plusDone_one: '+{{count}} người xong',
+      plusDone_other: '+{{count}} người xong',
       likesCount_one: '{{count}} lượt thích',
       likesCount_other: '{{count}} lượt thích',
       allDoneTitle: 'Bạn đã quẹt xong toàn bộ địa điểm!',

@@ -509,6 +509,8 @@ export const en: Messages = {
       keyboardShortcut: 'Shortcuts: Press ← Pass, → Like',
       progressText: '<strong>{{done}}</strong>/{{total}} people done',
       cardCounter: '{{current}} / {{total}} places',
+      plusDone_one: '+{{count}} done',
+      plusDone_other: '+{{count}} done',
       likesCount_one: '{{count}} like',
       likesCount_other: '{{count}} likes',
       allDoneTitle: 'You have swiped all places!',

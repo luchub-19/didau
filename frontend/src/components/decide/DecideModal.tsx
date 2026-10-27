@@ -130,7 +130,10 @@ export const DecideModal: React.FC<DecideModalProps> = ({
       title={t('decide.modal.title')}
       description={t('decide.modal.description')}
       closeLabel={t('decide.modal.close')}
-      className="md:max-w-xl"
+      // Quẹt thẻ trên màn lớn: sân khấu rộng, không nhét trong Sheet hẹp (T-60)
+      className={
+        activeMode === 'SWIPE' && !isChoosingMode ? 'md:max-w-xl lg:max-w-4xl lg:max-h-[92vh]' : 'md:max-w-xl'
+      }
     >
       <div className="space-y-4">
         {/* Thanh chuyển chế độ nhanh Segmented */}

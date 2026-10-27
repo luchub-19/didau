@@ -1,24 +1,26 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLanguage } from '../../i18n/useLanguage';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { formatMoney } from '../../i18n/format';
-import { cuisineLabel } from '../../i18n/osm';
+import { motionAttrs, useMotionTier } from '../../motion';
+import { playSound } from '../../sound';
+import {
+  StageDeck,
+  DeckCardFace,
+  DeckProgress,
+  keyToVote,
+  prefetchStageDeck,
+} from '../../stage/deck';
 import {
   Button,
-  Chip,
   Card,
   HandSwipeLeft,
   Clock,
   Sparkle,
   ThumbsUp,
   X,
-  MapPin,
-  CurrencyCircleDollar,
-  ForkKnife,
   Check,
-  Users,
 } from '../ui';
 import type { DecisionSession, Place } from '../../types';
 
@@ -50,7 +52,6 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   onCancelSession,
 }) => {
   const { t } = useTranslation();
-  const { lang } = useLanguage();
 
   // Store subscriptions
   const storeSession = useDecisionStore((s) => s.currentSession);
@@ -97,23 +98,10 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     return Math.min(internalCardIndex, candidates.length);
   }, [candidates, localSwipes, internalCardIndex]);
 
-  // Pointer drag state & active pointer ID (impeccable harden.md: multi-touch prevention)
-  const activePointerIdRef = useRef<number | null>(null);
-  const [dragState, setDragState] = useState({
-    isDragging: false,
-    startX: 0,
-    startY: 0,
-    offsetX: 0,
-    offsetY: 0,
-  });
-
-  // Reduced motion preference
-  const prefersReducedMotion = useMemo(() => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    }
-    return false;
-  }, []);
+  // Lớp trình diễn (sân khấu quẹt, T-60): mức chuyển động + hướng phiếu vừa bỏ để thẻ bay đúng chiều.
+  // Chống kẹt kéo (T-49: ngón thứ 2, pointercancel, blur) nằm trong stage/deck (createPointerGuard).
+  const tier = useMotionTier();
+  const [lastVote, setLastVote] = useState<boolean | null>(null);
 
   // Countdown timer state
   const calculateRemainingSeconds = useCallback(() => {
@@ -153,7 +141,10 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
       const currentPlace = candidates[currentCardIndex];
       if (!currentPlace) return;
 
+      // Hướng phiếu cập nhật cùng lần render với chỉ số thẻ: thẻ cũ bay đúng chiều (bàn phím, nút, kéo)
+      setLastVote(liked);
       setInternalCardIndex((prev) => prev + 1);
+      playSound('tick');
 
       if (onSubmitSwipe) {
         await onSubmitSwipe(currentPlace.id, liked);
@@ -174,106 +165,21 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Đang gõ chữ hoặc chọn trong ô nhập: mũi tên là để di chuyển con trỏ, không phải vuốt thẻ
-      const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handleSwipe(false);
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleSwipe(true);
-      }
+      const vote = keyToVote(e.key, e.target);
+      if (vote === null) return;
+      e.preventDefault();
+      handleSwipe(vote);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSessionOpen, handleSwipe]);
 
-  // Window blur: reset dragging state to prevent stuck gestures (harden.md)
+  // Phiên quẹt mở: tải trước chunk sân khấu (thư viện motion) để thẻ đầu kéo được ngay
   useEffect(() => {
-    const handleBlur = () => {
-      activePointerIdRef.current = null;
-      setDragState({
-        isDragging: false,
-        startX: 0,
-        startY: 0,
-        offsetX: 0,
-        offsetY: 0,
-      });
-    };
-    window.addEventListener('blur', handleBlur);
-    return () => window.removeEventListener('blur', handleBlur);
-  }, []);
+    if (isSessionOpen) prefetchStageDeck();
+  }, [isSessionOpen]);
 
-  // Pointer event handlers with multi-touch & interruption hardening
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isSessionOpen || currentCardIndex >= candidates.length) return;
-    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
-      // Bỏ qua ngón tay thứ 2 (interrupted gesture)
-      return;
-    }
-    activePointerIdRef.current = e.pointerId;
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
-    setDragState({
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      offsetX: 0,
-      offsetY: 0,
-    });
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState.isDragging || e.pointerId !== activePointerIdRef.current) return;
-    const offsetX = e.clientX - dragState.startX;
-    const offsetY = e.clientY - dragState.startY;
-    setDragState((prev) => ({
-      ...prev,
-      offsetX,
-      offsetY,
-    }));
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerId !== activePointerIdRef.current) return;
-    activePointerIdRef.current = null;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
-    const currentOffset = dragState.offsetX;
-    setDragState({
-      isDragging: false,
-      startX: 0,
-      startY: 0,
-      offsetX: 0,
-      offsetY: 0,
-    });
-
-    if (currentOffset > 75) {
-      handleSwipe(true);
-    } else if (currentOffset < -75) {
-      handleSwipe(false);
-    }
-  };
-
-  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerId === activePointerIdRef.current) {
-      activePointerIdRef.current = null;
-      setDragState({
-        isDragging: false,
-        startX: 0,
-        startY: 0,
-        offsetX: 0,
-        offsetY: 0,
-      });
-    }
-  };
 
   // Host Start Session
   const handleStartSession = async () => {
@@ -322,7 +228,6 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
 
   const currentPlace = candidates[currentCardIndex];
   const allCardsSwiped = isSessionOpen && currentCardIndex >= candidates.length;
-  const progressRatio = totalMembers > 0 ? doneMemberIds.length / totalMembers : 0;
 
   // Tally breakdown parsed into structured places
   const tallyEntries = useMemo(() => {
@@ -370,41 +275,14 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
         )}
       </div>
 
-      {/* Progress Bar (x/y người xong) */}
+      {/* Progress Bar (x/y người xong) + "+1" bay vào khi có thêm người xong */}
       {session?.status === 'OPEN' && session.mode === 'SWIPE' && (
-        <div className="space-y-1.5 bg-surface-2 p-3 rounded-card border border-line">
-          <div className="flex items-center justify-between text-caption font-medium text-ink-2">
-            <span
-              data-testid="swipe-progress-text"
-              className="inline-flex items-center gap-1.5"
-            >
-              <Users size={14} className="text-ink-3 shrink-0" aria-hidden="true" />
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: t('decide.swipe.progressText', {
-                    done: doneMemberIds.length,
-                    total: totalMembers || 1,
-                  }),
-                }}
-              />
-            </span>
-            <span data-testid="swipe-card-counter" className="font-semibold text-ink">
-              {t('decide.swipe.cardCounter', {
-                current: Math.min(currentCardIndex + 1, candidates.length),
-                total: candidates.length,
-              })}
-            </span>
-          </div>
-          <div
-            data-testid="swipe-progress-bar"
-            className="w-full h-2 bg-line rounded-full overflow-hidden"
-          >
-            <div
-              className="h-full bg-accent transition-[width] duration-300 rounded-full"
-              style={{ width: `${Math.min(100, Math.round(progressRatio * 100))}%` }}
-            />
-          </div>
-        </div>
+        <DeckProgress
+          done={doneMemberIds.length}
+          total={totalMembers}
+          currentCard={Math.min(currentCardIndex + 1, candidates.length)}
+          totalCards={candidates.length}
+        />
       )}
 
       {/* 1. STATE: Expired Banner */}
@@ -521,95 +399,30 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
         </div>
       )}
 
-      {/* 3. STATE: Active Swiping Deck */}
+      {/* 3. STATE: Active Swiping Deck — sân khấu rộng trên ≥1024px (nền Stage, 2 thẻ sau lộ mép) */}
       {isSessionOpen && !allCardsSwiped && currentPlace && (
-        <div className="flex flex-col items-center select-none py-2">
-          {/* Card container */}
-          <div
-            data-testid="swipe-card-current"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
-            onLostPointerCapture={handlePointerCancel}
-            style={{
-              transform: dragState.isDragging
-                ? `translate3d(${dragState.offsetX}px, ${dragState.offsetY * 0.2}px, 0) rotate(${
-                    dragState.offsetX * 0.07
-                  }deg)`
-                : 'translate3d(0, 0, 0) rotate(0deg)',
-              transition:
-                dragState.isDragging || prefersReducedMotion
-                  ? 'none'
-                  : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
-              touchAction: 'none',
-              cursor: dragState.isDragging ? 'grabbing' : 'grab',
-            }}
-            className="relative w-full max-w-sm bg-surface rounded-card border border-line shadow-float p-6 overflow-hidden select-none"
+        <div
+          data-testid="swipe-stage"
+          className="flex flex-col items-center select-none py-2 overflow-x-clip lg:rounded-card lg:px-10 lg:pt-10 lg:pb-6 lg:bg-[rgb(var(--stage-paper))] lg:[background-image:var(--stage-sunlight)]"
+        >
+          <Suspense
+            fallback={
+              <div
+                data-testid="swipe-card-current"
+                {...motionAttrs('vote.swipe')}
+                className="relative w-full max-w-sm lg:max-w-md bg-surface rounded-card border border-line shadow-float p-6 overflow-hidden select-none"
+              >
+                <DeckCardFace place={currentPlace} />
+              </div>
+            }
           >
-            {/* Visual drag stamp badges */}
-            {dragState.offsetX > 25 && (
-              <div
-                data-testid="swipe-stamp-like"
-                className="absolute top-4 left-4 z-20 border-2 border-success text-success bg-success-soft/90 font-bold text-label px-3 py-1 rounded-card uppercase tracking-wider rotate-[-12deg] shadow-xs"
-              >
-                {t('decide.swipe.stampLike')}
-              </div>
-            )}
-            {dragState.offsetX < -25 && (
-              <div
-                data-testid="swipe-stamp-dislike"
-                className="absolute top-4 right-4 z-20 border-2 border-danger text-danger bg-danger-soft/90 font-bold text-label px-3 py-1 rounded-card uppercase tracking-wider rotate-[12deg] shadow-xs"
-              >
-                {t('decide.swipe.stampDislike')}
-              </div>
-            )}
-
-            {/* Card Content */}
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <Chip category={currentPlace.category}>
-                    {currentPlace.category}
-                  </Chip>
-                  <h4 className="text-title font-bold text-ink mt-2 leading-snug">
-                    {currentPlace.name}
-                  </h4>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-surface-2 text-ink-2 flex items-center justify-center text-lg font-bold">
-                  <ForkKnife size={20} />
-                </div>
-              </div>
-
-              <div className="text-caption text-ink-2 space-y-2 bg-surface-2 p-3.5 rounded-field border border-line">
-                <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-ink-3 flex-shrink-0" />
-                  <span className="line-clamp-1">{currentPlace.address || t('decide.swipe.centerArea')}</span>
-                </div>
-                {currentPlace.estimated_cost && (
-                  <div className="flex items-center gap-2">
-                    <CurrencyCircleDollar size={16} className="text-ink-3 flex-shrink-0" />
-                    <span>{formatMoney(currentPlace.estimated_cost)}</span>
-                  </div>
-                )}
-                {currentPlace.cuisine && (
-                  <div className="flex items-center gap-2">
-                    <ForkKnife size={16} className="text-ink-3 flex-shrink-0" />
-                    <span>
-                      {t('decide.swipe.cuisineLabel', {
-                        cuisine: cuisineLabel(currentPlace.cuisine, lang) || currentPlace.cuisine,
-                      })}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Drag instruction helper */}
-              <div className="text-[11px] text-center text-ink-3 italic pt-1">
-                {t('decide.swipe.dragHelper')}
-              </div>
-            </div>
-          </div>
+            <StageDeck
+              cards={candidates.slice(currentCardIndex, currentCardIndex + 3)}
+              lastVote={lastVote}
+              tier={tier}
+              onVote={handleSwipe}
+            />
+          </Suspense>
 
           {/* Action buttons (Luôn có nút Thôi / Thích >= 44px) */}
           <div className="flex items-center gap-6 mt-5">
