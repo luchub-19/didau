@@ -19,7 +19,8 @@ export const MOTION_PRESETS = {
     purpose: 'intro: camera moves between hero shots',
     duration: 'shot',
     easing: 'camera',
-    liteScale: 0.6,
+    // lite: mỗi cảnh một flyTo ≈1,2 s (T-59), không scrub theo cuộn
+    liteScale: 0.86,
     maxSequenceMs: 1600,
   },
   'vote.swipe': {

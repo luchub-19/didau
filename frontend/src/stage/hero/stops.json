@@ -1,0 +1,38 @@
+{
+  "source": "backend/app/data/pois_hcm.json.gz (© OpenStreetMap contributors, ODbL)",
+  "stops": [
+    {
+      "id": "eat",
+      "externalId": "osm:node/1985346231",
+      "name": "Nhà Hàng Ngon",
+      "address": "160 Pasteur",
+      "lat": 10.777346,
+      "lng": 106.699633,
+      "startMinute": 1020,
+      "endMinute": 1110,
+      "labelSide": "top"
+    },
+    {
+      "id": "coffee",
+      "externalId": "osm:node/1770305118",
+      "name": "Cà Phê Ciao",
+      "address": "74-76 Nguyễn Huệ",
+      "lat": 10.7751,
+      "lng": 106.702969,
+      "startMinute": 1140,
+      "endMinute": 1230,
+      "labelSide": "left"
+    },
+    {
+      "id": "after",
+      "externalId": "osm:node/1771654763",
+      "name": "Quán Bar Saigon Saigon",
+      "address": "19-23 Công Trường Lam Sơn",
+      "lat": 10.776083,
+      "lng": 106.703429,
+      "startMinute": 1260,
+      "endMinute": 1380,
+      "labelSide": "right"
+    }
+  ]
+}

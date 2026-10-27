@@ -818,6 +818,18 @@ export const vi = {
     },
     mapLabel: 'Bản đồ 3D trung tâm TP.HCM',
   },
+  hero: {
+    sectionLabel: 'Giới thiệu: một buổi tối ở trung tâm TP.HCM',
+    posterAlt: 'Bản đồ trung tâm TP.HCM nhìn từ trên cao, nắng chiều',
+    skip: 'Bỏ qua',
+    planLabel: 'Lịch mẫu cho một buổi tối',
+    pinLabel: '{{stop}}: {{name}}, xem giờ và địa chỉ',
+    detail: {
+      market: 'Ai cũng thả vài quán mình thích vào chung một phòng.',
+      walkingStreet: 'Quẹt thẻ, bỏ phiếu trực tiếp, thấy ngay quán nào đang dẫn.',
+      stops: 'Ăn, cà phê, rồi đi đâu tiếp: mỗi chặng chốt một lần.',
+    },
+  },
   sound: {
     on: 'Âm thanh: bật',
     off: 'Âm thanh: tắt',

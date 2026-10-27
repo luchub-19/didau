@@ -820,6 +820,18 @@ export const en: Messages = {
     },
     mapLabel: '3D map of central Ho Chi Minh City',
   },
+  hero: {
+    sectionLabel: 'Intro: one evening in central Ho Chi Minh City',
+    posterAlt: 'Aerial map of central Ho Chi Minh City in the late afternoon sun',
+    skip: 'Skip intro',
+    planLabel: 'Sample plan for one evening',
+    pinLabel: '{{stop}}: {{name}}, show time and address',
+    detail: {
+      market: 'Everyone drops a few favorite spots into one shared room.',
+      walkingStreet: 'Swipe, vote live, and see which place is leading.',
+      stops: 'Dinner, coffee, then the next stop: each one decided once.',
+    },
+  },
   sound: {
     on: 'Sound: on',
     off: 'Sound: off',

@@ -380,13 +380,11 @@ describe('T-20: Frontend UI - Realtime Voting & Host TieBreak Modal', () => {
 });
 
 describe('Page Integration & App Routing', () => {
-  it('HomePage render tiêu đề, hai nút chính và 3 bước cách chơi', () => {
+  it('HomePage render khẩu hiệu hero và hai nút chính (T-59 thay trang chủ cũ)', () => {
     const html = renderToStaticMarkup(<HomePage onNavigateToRoom={() => {}} />);
-    expect(html).toContain('Tối nay nhóm mình đi đâu?');
+    expect(html).toContain('Đi đâu? Rồi đi đâu nữa?');
     expect(html).toContain('Tạo phòng');
-    expect(html).toContain('Nhập mã phòng');
-    expect(html).toContain('Cách chơi');
-    expect(html.match(/<li/g)?.length).toBe(3);
+    expect(html).toContain('Nhập mã');
   });
 
   it('RoomPage render trạng thái loading ban đầu khi chưa mount', () => {
@@ -399,7 +397,7 @@ describe('Page Integration & App Routing', () => {
 
   it('App render mặc định vào HomePage', () => {
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Tối nay nhóm mình đi đâu?');
+    expect(html).toContain('Đi đâu? Rồi đi đâu nữa?');
   });
 });
 

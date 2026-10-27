@@ -3,3 +3,4 @@ export * from './debug';
 export * from './tokens';
 export * from './presets';
 export * from './useMotionTier';
+export * from './bezier';
