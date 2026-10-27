@@ -787,7 +787,8 @@ export const handlers = [
         ? body.candidate_place_ids
         : placesList.filter((p) => p.room_id === roomId).map((p) => p.id);
 
-    const resultPlaceId = candidates[0] ?? null;
+    // SWIPE chưa có quán thắng lúc tạo (giống backend): kết quả chỉ có khi chốt từ các lượt quẹt
+    const resultPlaceId = body.mode === 'SWIPE' ? null : (candidates[0] ?? null);
     let resultPayload: Record<string, unknown> | null = null;
     if (body.mode === 'WHEEL') {
       resultPayload = { stop_angle_deg: 1532.5 };
@@ -879,6 +880,18 @@ export const handlers = [
     }
 
     session.status = 'RESOLVED';
+    if (!session.result_place_id) {
+      // SWIPE chốt sớm: quán nhiều lượt Thích nhất (hoà thì lấy quán đứng trước), chưa ai quẹt thì quán đầu
+      const likes = new Map<string, number>(session.candidate_place_ids.map((id) => [id, 0]));
+      for (const s of decisionSwipes.get(sessionId as string) || []) {
+        if (s.liked && likes.has(s.place_id)) likes.set(s.place_id, (likes.get(s.place_id) ?? 0) + 1);
+      }
+      let winner: string | null = session.candidate_place_ids[0] ?? null;
+      for (const [id, count] of likes) {
+        if (winner === null || count > (likes.get(winner) ?? 0)) winner = id;
+      }
+      session.result_place_id = winner;
+    }
     let resolvedPlace: Place | undefined;
     if (session.result_place_id) {
       const pIdx = placesList.findIndex((p) => p.id === session.result_place_id);
