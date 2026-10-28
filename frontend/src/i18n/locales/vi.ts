@@ -847,6 +847,12 @@ export const vi = {
     calendarDone: 'Đã tải tệp lịch (.ics), mở để thêm vào lịch',
     calendarFailed: 'Không tạo được tệp lịch',
   },
+  presence: {
+    viewing_one: '{{names}} đang xem quán này',
+    viewing_other: '{{names}} đang xem quán này',
+    more: '+{{count}}',
+    cursor: 'Con trỏ của {{name}}',
+  },
   sound: {
     on: 'Âm thanh: bật',
     off: 'Âm thanh: tắt',

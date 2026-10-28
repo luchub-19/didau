@@ -344,3 +344,31 @@ Ghi một dòng vào CONTRACTS §1.13 A (`TRAVEL_TIME` chỉ sinh khi `gap_min >
 ### 3. Phương án nếu không duyệt
 Frontend tự ẩn xung đột `TRAVEL_TIME` có `params.gap_min < 0` khi đã có `TIME_OVERLAP` cho cùng cặp; số đếm trên
 banner vẫn lệch với server.
+
+
+---
+
+## CR-08: Hiện diện realtime (`PRESENCE_UPDATE`) và id người bỏ phiếu trong `VOTE_UPDATED`
+
+- **Người đề xuất**: Session T-63 giai đoạn 4 (2026-10-28)
+- **Ngày tạo**: 2026-10-28
+- **Trạng thái**: ACCEPTED (người dùng duyệt 2026-10-28, cổng G2; áp vào CONTRACTS §4.1/§4.2 ở T-63)
+- **Task đã DONE bị ảnh hưởng**: T-13 (`api/v1/websocket.py`), T-07 (`VoteCastEvent`); T-17 (FE `useWebSocket`). Chỉ **thêm** sự kiện/trường, không đổi hay bỏ cái cũ.
+
+### 1. Vấn đề
+`VOTE_UPDATED` không có id người bỏ phiếu, và WebSocket chỉ có `MEMBER_JOINED`/`MEMBER_LEFT` cho hiện diện.
+Giao diện Stage (PLAN §3) cần biết "ai đang xem quán nào" và "ai vừa bỏ phiếu".
+
+### 2. Đề xuất (tương thích ngược)
+- Client → Server `PRESENCE_UPDATE { focus }`, `focus` là một trong:
+  `{ "kind": "place", "place_id": "<uuid>" }`, `{ "kind": "map", "lng": <float>, "lat": <float> }`, hoặc `null` (bỏ tiêu điểm).
+  Client giới hạn ≤ 5 lần/giây; server cũng giới hạn 5 lần/giây/member, vượt thì **bỏ im lặng** (không gửi ERROR).
+  `focus` sai dạng cũng bỏ im lặng. Không ghi DB, server không giữ trạng thái hiện diện.
+- Server → Client `PRESENCE_UPDATED { member_id, focus }` phát cho cả phòng **trừ người gửi**. Khi kết nối cuối
+  của một member đóng, server phát `PRESENCE_UPDATED { member_id, focus: null }`.
+- Hết hạn 15 s: client xoá tiêu điểm của người khác nếu 15 s không nhận cập nhật; client đang giữ tiêu điểm
+  (không null) gửi lại mỗi 10 s khi tab hiện. Tab ẩn → gửi `null` một lần rồi ngừng gửi.
+- `VOTE_UPDATED` thêm trường tuỳ chọn `voter_id` (id member vừa bỏ/đổi/huỷ phiếu). Client cũ bỏ qua được.
+
+### 3. Phương án nếu không duyệt
+Chỉ chấm nhịp từ `MEMBER_JOINED` và "+1" ẩn danh đã có ở T-60; không có avatar trên quán.

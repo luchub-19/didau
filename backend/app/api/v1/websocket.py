@@ -5,11 +5,12 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
+from pydantic import ValidationError
 
 from app.api.deps import get_event_bus
 from app.config import get_settings
 from app.core.database import AsyncSessionLocal
-from app.core.rate_limiter import chat_message_limiter
+from app.core.rate_limiter import chat_message_limiter, presence_update_limiter
 from app.core.time_utils import now_utc
 from app.domain.patterns.event_bus.handlers import register_websocket_broadcast_handlers
 from app.repositories import (
@@ -25,6 +26,7 @@ from app.schemas.member import MemberResponse
 from app.schemas.place import PlaceResponse
 from app.schemas.room import RoomResponse
 from app.schemas.schedule import ScheduleItemResponse
+from app.schemas.websocket import PresenceUpdatePayload
 from app.services.conflict_service import ConflictService
 from app.services.member_service import MemberService
 from app.services.place_service import PlaceService
@@ -151,6 +153,15 @@ async def _gather_room_state_sync(room_id: UUID, current_member_id: UUID) -> dic
                 for c in conflicts
             ],
         }
+
+
+def _presence_envelope(member_id: UUID, focus: dict[str, Any] | None) -> dict[str, Any]:
+    """Envelope PRESENCE_UPDATED (CR-08)."""
+    return {
+        "type": "PRESENCE_UPDATED",
+        "payload": {"member_id": str(member_id), "focus": focus},
+        "ts": int(now_utc().timestamp() * 1000),
+    }
 
 
 async def _handle_websocket_room(
@@ -318,6 +329,23 @@ async def _handle_websocket_room(
                     },
                 )
 
+            # Hiện diện (CR-08): không ghi DB, vượt giới hạn hoặc sai dạng thì bỏ im lặng
+            elif msg_type == "PRESENCE_UPDATE":
+                if not presence_update_limiter.is_allowed(str(member.id)):
+                    continue
+                try:
+                    presence = PresenceUpdatePayload.model_validate(payload or {})
+                except ValidationError:
+                    continue
+                await ws_manager.broadcast_to_room(
+                    room_id,
+                    _presence_envelope(
+                        member.id,
+                        presence.focus.model_dump(mode="json") if presence.focus else None,
+                    ),
+                    exclude_member_id=member.id,
+                )
+
             else:
                 logger.debug(
                     "Nhận thông điệp WebSocket không xác định: %s từ member %s",
@@ -337,6 +365,9 @@ async def _handle_websocket_room(
     finally:
         ping_task.cancel()
         await ws_manager.disconnect(room_id, member.id, websocket)
+        # Kết nối cuối của member đóng → báo cả phòng bỏ tiêu điểm của họ (CR-08)
+        if not ws_manager.is_member_connected(room_id, member.id):
+            await ws_manager.broadcast_to_room(room_id, _presence_envelope(member.id, None))
 
 
 @router.websocket("/ws/rooms/{room_id}")

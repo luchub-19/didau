@@ -849,6 +849,12 @@ export const en: Messages = {
     calendarDone: 'Calendar file (.ics) downloaded, open it to add the event',
     calendarFailed: 'Couldn’t create the calendar file',
   },
+  presence: {
+    viewing_one: '{{names}} is looking at this place',
+    viewing_other: '{{names}} are looking at this place',
+    more: '+{{count}}',
+    cursor: "{{name}}'s cursor",
+  },
   sound: {
     on: 'Sound: on',
     off: 'Sound: off',

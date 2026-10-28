@@ -218,6 +218,8 @@ class VoteCastEvent(DomainEvent):
             "upvotes": self.upvotes,
             "downvotes": self.downvotes,
             "score": self.score,
+            # CR-08: id người vừa bỏ/đổi/huỷ phiếu (client cũ bỏ qua được)
+            "voter_id": str(self.member_id),
         }
 
 

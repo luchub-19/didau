@@ -558,3 +558,123 @@ async def test_websocket_chat_message_and_limits(db_session: AsyncSession) -> No
 
 
 
+
+
+# ==========================================
+# CR-08: hiện diện realtime + voter_id
+# ==========================================
+
+
+def _room_with_two_members(client: TestClient) -> tuple[str, str, str, str, str]:
+    """Tạo phòng qua REST, thêm khách bằng mã phòng. Trả (room_id, host_id, host_token, guest_id, guest_token)."""
+    res = client.post(
+        "/api/v1/rooms",
+        json={"title": "Phòng hiện diện", "event_date": "2026-10-28", "creator_nickname": "HostPresence"},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    join = client.post(
+        "/api/v1/rooms/join",
+        json={"room_code": data["room"]["code"], "nickname": "GuestPresence"},
+    )
+    assert join.status_code == 200
+    joined = join.json()
+    return (
+        data["room"]["id"],
+        data["creator_member"]["id"],
+        data["member_token"],
+        joined["member"]["id"],
+        joined["member_token"],
+    )
+
+
+def _next_of_type(ws: Any, msg_type: str, limit: int = 10) -> dict[str, Any]:
+    """Đọc tới khi gặp thông điệp đúng loại (bỏ qua MEMBER_JOINED... phát kèm)."""
+    for _ in range(limit):
+        msg = ws.receive_json()
+        if msg["type"] == msg_type:
+            return msg
+    raise AssertionError(f"Không nhận được {msg_type}")
+
+
+def test_presence_update_broadcast_to_others_not_sender() -> None:
+    """PRESENCE_UPDATE của khách tới chủ phòng kèm member_id; người gửi không nhận lại."""
+    from app.core.rate_limiter import presence_update_limiter
+
+    presence_update_limiter.reset()
+    with TestClient(app) as client:
+        room_id, _, host_token, guest_id, guest_token = _room_with_two_members(client)
+        place_id = str(uuid4())
+        with client.websocket_connect(f"/ws/rooms/{room_id}?token={host_token}") as host_ws, \
+                client.websocket_connect(f"/ws/rooms/{room_id}?token={guest_token}") as guest_ws:
+            guest_ws.send_json({"type": "PRESENCE_UPDATE", "payload": {"focus": {"kind": "place", "place_id": place_id}}})
+            msg = _next_of_type(host_ws, "PRESENCE_UPDATED")
+            assert msg["payload"] == {"member_id": guest_id, "focus": {"kind": "place", "place_id": place_id}}
+
+            guest_ws.send_json({"type": "PRESENCE_UPDATE", "payload": {"focus": {"kind": "map", "lng": 106.7, "lat": 10.77}}})
+            msg = _next_of_type(host_ws, "PRESENCE_UPDATED")
+            assert msg["payload"]["focus"] == {"kind": "map", "lng": 106.7, "lat": 10.77}
+
+            # Sai dạng → bỏ im lặng; null → bỏ tiêu điểm
+            guest_ws.send_json({"type": "PRESENCE_UPDATE", "payload": {"focus": {"kind": "map", "lng": 500, "lat": 0}}})
+            guest_ws.send_json({"type": "PRESENCE_UPDATE", "payload": {"focus": None}})
+            msg = _next_of_type(host_ws, "PRESENCE_UPDATED")
+            assert msg["payload"] == {"member_id": guest_id, "focus": None}
+
+            # Người gửi không nhận lại sự kiện của chính mình: PING kế tiếp trả PONG ngay
+            guest_ws.send_json({"type": "PING", "payload": {}})
+            assert _next_of_type(guest_ws, "PONG")["type"] == "PONG"
+
+
+def test_presence_rate_limited_and_cleared_on_disconnect() -> None:
+    """Quá 5 lần/giây bị bỏ im lặng; khách ngắt kết nối → chủ phòng nhận focus null."""
+    from app.core.rate_limiter import presence_update_limiter
+
+    presence_update_limiter.reset()
+    with TestClient(app) as client:
+        room_id, _, host_token, guest_id, guest_token = _room_with_two_members(client)
+        with client.websocket_connect(f"/ws/rooms/{room_id}?token={host_token}") as host_ws:
+            with client.websocket_connect(f"/ws/rooms/{room_id}?token={guest_token}") as guest_ws:
+                for i in range(8):
+                    guest_ws.send_json({
+                        "type": "PRESENCE_UPDATE",
+                        "payload": {"focus": {"kind": "map", "lng": 106.0 + i / 100, "lat": 10.7}},
+                    })
+                # PING sau loạt cập nhật: mọi PRESENCE_UPDATE đã được xử lý trước PONG
+                guest_ws.send_json({"type": "PING", "payload": {}})
+                _next_of_type(guest_ws, "PONG")
+                guest_ws.send_json({"type": "CHAT_MESSAGE", "payload": {"message": "mốc"}})
+                received = 0
+                while True:
+                    msg = host_ws.receive_json()
+                    if msg["type"] == "CHAT_MESSAGE":
+                        break
+                    if msg["type"] == "PRESENCE_UPDATED":
+                        received += 1
+                assert received == 5
+
+            msg = _next_of_type(host_ws, "PRESENCE_UPDATED")
+            assert msg["payload"] == {"member_id": guest_id, "focus": None}
+
+
+def test_vote_updated_carries_voter_id() -> None:
+    """VOTE_UPDATED có voter_id của người bỏ phiếu (CR-08)."""
+    with TestClient(app) as client:
+        room_id, host_id, host_token, _, _ = _room_with_two_members(client)
+        place = client.post(
+            f"/api/v1/rooms/{room_id}/places",
+            headers={"X-Member-Token": host_token},
+            json={"name": "Bún bò Hiện Diện", "category": "FOOD"},
+        )
+        assert place.status_code == 201
+        place_id = place.json()["id"]
+        with client.websocket_connect(f"/ws/rooms/{room_id}?token={host_token}") as ws:
+            vote = client.post(
+                f"/api/v1/rooms/{room_id}/places/{place_id}/votes",
+                headers={"X-Member-Token": host_token},
+                json={"vote_value": 1},
+            )
+            assert vote.status_code == 200
+            msg = _next_of_type(ws, "VOTE_UPDATED")
+            assert msg["payload"]["place_id"] == place_id
+            assert msg["payload"]["voter_id"] == host_id

@@ -833,6 +833,7 @@ Khi có lỗi (status $\ge 400$):
 | `SUBSCRIBE_ROOM` | Yêu cầu nhận đồng bộ toàn diện | `{ "room_id": "c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21" }` |
 | `TYPING_PLACE` | Báo hiệu thành viên đang nhập địa điểm | `{ "is_typing": true, "nickname": "ThuTrang" }` |
 | `CHAT_MESSAGE` | Gửi tin chat tới cả phòng (CR-04; tối đa 500 ký tự, 20 tin/10 s/member) | `{ "message": "Tối nay đi đâu?" }` |
+| `PRESENCE_UPDATE` | Tiêu điểm hiện tại của người gửi (CR-08): quán đang xem, con trỏ trên bản đồ, hoặc `null`. ≤ 5 lần/giây/member, vượt hoặc sai dạng thì server bỏ im lặng; không ghi DB. Đang giữ tiêu điểm thì gửi lại mỗi 10 s | `{ "focus": { "kind": "place", "place_id": "..." } }` · `{ "focus": { "kind": "map", "lng": 106.70, "lat": 10.77 } }` · `{ "focus": null }` |
 
 ### 4.2. Chiều Server $\rightarrow$ Client
 | Type | Ý nghĩa | Payload mẫu |
@@ -847,7 +848,8 @@ Khi có lỗi (status $\ge 400$):
 | `PLACE_ADDED` | Có địa điểm mới được thêm | `{ "place": { "id": "...", "name": "Cà phê 3T", "category": "DRINK", ... } }` |
 | `PLACE_UPDATED` | Thông tin địa điểm cập nhật | `{ "place": { "id": "...", "status": "ACCEPTED", ... } }` |
 | `PLACE_DELETED` | Địa điểm bị xóa | `{ "place_id": "8f3e2b1a-9c4d-4e5f-8a1b-7c6d5e4f3a2b" }` |
-| `VOTE_UPDATED` | Kết quả vote của một địa điểm thay đổi | `{ "place_id": "...", "upvotes": 5, "downvotes": 1, "score": 4 }` |
+| `VOTE_UPDATED` | Kết quả vote của một địa điểm thay đổi (CR-08: thêm `voter_id` tuỳ chọn) | `{ "place_id": "...", "upvotes": 5, "downvotes": 1, "score": 4, "voter_id": "..." }` |
+| `PRESENCE_UPDATED` | Tiêu điểm của một member (CR-08); phát cho cả phòng trừ người gửi; kết nối cuối của member đóng → `focus: null`. Client xoá tiêu điểm sau 15 s không cập nhật | `{ "member_id": "...", "focus": { "kind": "place", "place_id": "..." } }` |
 | `VOTING_RESOLVED` | Chủ phòng đã chốt kết quả vote | `{ "strategy": "MOST_UPVOTES", "accepted_place_ids": ["..."] }` |
 | `SCHEDULE_UPDATED` | Lịch trình thời gian thay đổi | `{ "items": [ {...}, {...} ] }` |
 | `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới (CR-06: mỗi conflict chứa `params`) | `{ "conflicts": [ { "id": "...", "rule_code": "TIME_OVERLAP", "params": { "place_names": [...], "ranges": [...] }, ... } ] }` |

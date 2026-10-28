@@ -197,6 +197,7 @@ def test_vote_cast_event(room_id: UUID) -> None:
         "upvotes": 4,
         "downvotes": 1,
         "score": 3,
+        "voter_id": str(member_id),
     }
 
 

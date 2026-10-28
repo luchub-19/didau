@@ -1,6 +1,7 @@
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import type { Place } from '../../types';
 import { getCssColor } from './PoiLayer';
+import { installPresenceLayer } from './RoomPlacesLayerPresence';
 
 export const ROOM_PLACES_SOURCE = 'room-places';
 export const ROOM_PLACES_LAYER = 'room-places-circles';
@@ -83,6 +84,9 @@ export function installRoomPlacesLayer(
   });
   map.on('mouseenter', ROOM_PLACES_LAYER, () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', ROOM_PLACES_LAYER, () => (map.getCanvas().style.cursor = ''));
+
+  // Hiện diện bạn bè (CR-08): avatar trên ghim + con trỏ
+  installPresenceLayer(map, ROOM_PLACES_LAYER);
 }
 
 export function updateRoomPlacesSource(map: MapLibreMap, places: Place[]): void {

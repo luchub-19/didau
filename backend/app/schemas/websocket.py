@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -51,3 +51,31 @@ class RoomStateSyncPayload(BaseModel):
     places: list[dict[str, Any]]
     schedule: list[dict[str, Any]]
     conflicts: list[dict[str, Any]]
+
+
+class PlacePresenceFocus(BaseModel):
+    """Tiêu điểm hiện diện: thành viên đang xem một quán (CR-08)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    kind: Literal["place"]
+    place_id: UUID
+
+
+class MapPresenceFocus(BaseModel):
+    """Tiêu điểm hiện diện: con trỏ của thành viên trên bản đồ (CR-08)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    kind: Literal["map"]
+    lng: float = Field(ge=-180, le=180)
+    lat: float = Field(ge=-90, le=90)
+
+
+PresenceFocus = Annotated[PlacePresenceFocus | MapPresenceFocus, Field(discriminator="kind")]
+
+
+class PresenceUpdatePayload(BaseModel):
+    """Payload PRESENCE_UPDATE (Client -> Server); `focus=None` là bỏ tiêu điểm (CR-08)."""
+
+    focus: PresenceFocus | None = None

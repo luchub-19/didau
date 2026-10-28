@@ -66,6 +66,17 @@ export interface VoteUpdatedPayload {
   downvotes: number;
   score: number;
   current_user_vote?: VoteValue;
+  /** CR-08: id người vừa bỏ phiếu (server cũ không gửi). */
+  voter_id?: string;
+}
+
+/** CR-08: tiêu điểm của một member; `focus: null` = bỏ tiêu điểm. */
+export interface PresenceUpdatedPayload {
+  member_id: string;
+  focus:
+    | { kind: 'place'; place_id: string }
+    | { kind: 'map'; lng: number; lat: number }
+    | null;
 }
 
 export interface VotingResolvedPayload {

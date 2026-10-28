@@ -32,3 +32,6 @@ room_creation_limiter = InMemoryRateLimiter(max_requests=5, window_seconds=60.0)
 
 # Giới hạn gửi chat: 20 tin/10 giây/member
 chat_message_limiter = InMemoryRateLimiter(max_requests=20, window_seconds=10.0)
+
+# Giới hạn hiện diện (CR-08): 5 lần/giây/member, vượt thì bỏ im lặng
+presence_update_limiter = InMemoryRateLimiter(max_requests=5, window_seconds=1.0)

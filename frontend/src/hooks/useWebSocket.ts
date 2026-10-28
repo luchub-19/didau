@@ -7,6 +7,8 @@ import { usePlaceStore } from '../store/usePlaceStore';
 import { useRoomStore } from '../store/useRoomStore';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useDecisionStore } from '../store/useDecisionStore';
+import { usePresenceStore } from '../store/usePresenceStore';
+import { attachPresenceTransport, receivePresence, receiveVote, startPresence } from '../stage/presence/channel';
 import type {
   ConflictsUpdatedPayload,
   DecisionProgressPayload,
@@ -15,6 +17,7 @@ import type {
   MemberJoinedPayload,
   MemberLeftPayload,
   PlaceAddedPayload,
+  PresenceUpdatedPayload,
   PlaceDeletedPayload,
   PlaceUpdatedPayload,
   RoomStateSyncPayload,
@@ -57,12 +60,22 @@ export function useWebSocket(roomId?: string) {
     const wsUrl = getWsUrl(roomId, token);
     const client = new WebSocketClient(wsUrl);
     clientRef.current = client;
+    const stopPresence = startPresence();
+    let detachPresence: (() => void) | null = null;
 
     // Listen to status changes
     const unsubStatus = client.onStatusChange((status) => {
       setConnectionStatus(status);
       // Server chỉ gửi ROOM_STATE_SYNC khi nhận SUBSCRIBE_ROOM: xin đồng bộ mỗi lần (re)connect
-      if (status === 'OPEN') client.send('SUBSCRIBE_ROOM', { room_id: roomId });
+      if (status === 'OPEN') {
+        client.send('SUBSCRIBE_ROOM', { room_id: roomId });
+        // Hiện diện (CR-08): gắn bộ gửi theo từng lần mở socket, gửi lại tiêu điểm sau khi kết nối lại
+        detachPresence?.();
+        detachPresence = attachPresenceTransport((focus) => client.send('PRESENCE_UPDATE', { focus }));
+      } else if (status === 'CLOSED') {
+        detachPresence?.();
+        detachPresence = null;
+      }
     });
 
     // Subscriptions to domain events
@@ -83,7 +96,14 @@ export function useWebSocket(roomId?: string) {
     });
 
     const unsubMemberLeft = client.on<MemberLeftPayload>('MEMBER_LEFT', (payload) => {
-      if (payload.member_id) removeMember(payload.member_id);
+      if (payload.member_id) {
+        removeMember(payload.member_id);
+        usePresenceStore.getState().remove(payload.member_id);
+      }
+    });
+
+    const unsubPresence = client.on<PresenceUpdatedPayload>('PRESENCE_UPDATED', (payload) => {
+      receivePresence(payload);
     });
 
     const unsubPlaceAdded = client.on<PlaceAddedPayload>('PLACE_ADDED', (payload) => {
@@ -116,6 +136,7 @@ export function useWebSocket(roomId?: string) {
           payload.score,
           payload.current_user_vote,
         );
+        receiveVote(payload.place_id, payload.voter_id);
         useDecisionStore.getState().fetchHints(roomId);
       }
     });
@@ -182,6 +203,7 @@ export function useWebSocket(roomId?: string) {
       unsubRoomUpdated();
       unsubMemberJoined();
       unsubMemberLeft();
+      unsubPresence();
       unsubPlaceAdded();
       unsubPlaceUpdated();
       unsubPlaceDeleted();
@@ -193,6 +215,8 @@ export function useWebSocket(roomId?: string) {
       unsubDecisionStarted();
       unsubDecisionProgress();
       unsubDecisionResolved();
+      detachPresence?.();
+      stopPresence();
       client.disconnect();
       clientRef.current = null;
     };

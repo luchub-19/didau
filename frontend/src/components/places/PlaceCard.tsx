@@ -20,6 +20,8 @@ import { CategoryIcon } from '../common/CategoryIcon';
 import { VoteButtons } from '../voting/VoteButtons';
 import { toast } from '../ui/toastStore';
 import { markSharedOrigin } from '../../motion/viewTransition';
+import { PresenceAvatars } from '../../stage/presence/PresenceAvatars';
+import { clearHoverPlace, setHoverPlace } from '../../stage/presence/channel';
 import type { Place } from '../../types';
 
 export interface PlaceCardProps {
@@ -121,11 +123,24 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
 
   const proposerName = place.submitted_by_nickname || t('place.defaultMember');
 
+  // Thẻ biến mất khi chuột còn trên nó thì không để lại tiêu điểm treo
+  useEffect(() => () => clearHoverPlace(place.id), [place.id]);
+
+  // Hiện diện (CR-08): rê chuột vào thẻ = đang xem quán này (chạm trên điện thoại không tính)
+  const handlePointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setHoverPlace(place.id);
+  };
+  const handlePointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setHoverPlace(null);
+  };
+
   return (
     <>
       <Card
         as="article"
         className={`flex flex-col justify-between overflow-hidden p-4 sm:p-5 transition-colors ${borderAndBg} ${className}`}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
       >
         <div className="space-y-3">
           {/* Hàng trên: Danh mục + Trạng thái + Nguồn + Menu thao tác */}
@@ -168,14 +183,17 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
               )}
             </div>
 
-            {canDelete && onDeletePlace && (
-              <IconButton
-                icon={<DotsThree size={20} weight="bold" />}
-                aria-label={t('place.deletePlace')}
-                onClick={() => setIsConfirmDeleteOpen(true)}
-                variant="ghost"
-              />
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              <PresenceAvatars placeId={place.id} />
+              {canDelete && onDeletePlace && (
+                <IconButton
+                  icon={<DotsThree size={20} weight="bold" />}
+                  aria-label={t('place.deletePlace')}
+                  onClick={() => setIsConfirmDeleteOpen(true)}
+                  variant="ghost"
+                />
+              )}
+            </div>
           </div>
 
           {/* Tên quán và địa chỉ */}
