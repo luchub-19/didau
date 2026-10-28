@@ -7,7 +7,8 @@ ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không 
 Trang chủ điện ảnh (bản đồ 3D TP.HCM) + khoảnh khắc trong phòng (quẹt thẻ, reveal chốt quán, chuyển tab, hiện diện).
 Tiến độ + việc còn mở: `docs/phase4/PROGRESS.md`; luật Stage: `docs/phase4/DESIGN.md` (số đo cuối ở §6);
 kịch bản demo: `docs/phase4/DEMO.md`. Code nằm trên nhánh `stage/redesign` (chưa gộp `main`).
-Giai đoạn tiếp theo: chưa có kế hoạch — chờ người dùng.
+Giai đoạn tiếp theo: chưa có kế hoạch — chờ người dùng. Việc nâng cấp để sau: mục "Nâng cấp để sau" cuối
+`docs/phase4/PROGRESS.md` (avatar người quẹt trong phiên SWIPE, cần CR-09).
 
 ## Giai đoạn 3 (T-38 → T-55) — ĐÃ HOÀN THÀNH (DONE)
 Toàn bộ các task từ T-01 đến T-55 (Giai đoạn 1, 2 và 3) đã hoàn thành, kiểm thử tự động xanh 100%.
