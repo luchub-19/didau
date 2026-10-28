@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type { Place, Poi, Room } from '../../types';
 import { distanceKm } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
-import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { CategoryIcon } from '../common';
 import { Button, Check, IconButton } from '../ui';
 import { CaretDown, CaretUp, Clock, MapPin, X } from '../ui/Icon';
@@ -130,10 +129,8 @@ export const PlaceSheet: React.FC<PlaceSheetProps> = ({
       <div className="flex items-start justify-between gap-3 pb-3 border-b border-line">
         <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Chip danh mục đã có nhãn đã dịch: không lặp lại tên danh mục bên cạnh */}
             <CategoryIcon category={category} size="sm" />
-            <span className="text-label font-semibold text-ink-2">
-              {CATEGORY_METADATA[category]?.label || category}
-            </span>
             {cuisine && (
               <span className="text-label text-ink-3">· {cuisine}</span>
             )}

@@ -166,22 +166,22 @@ PLACES_PROVIDER=google GOOGLE_MAPS_SERVER_KEY=... VITE_GOOGLE_MAPS_BROWSER_KEY=.
 Một khoảnh khắc mỗi màn, phần còn lại nhanh và yên. Luật thiết kế: `docs/phase4/DESIGN.md`; kịch bản demo 2 phút:
 `docs/phase4/DEMO.md`.
 
-| | 1440px | 500px (điện thoại) |
-| :--- | :--- | :--- |
-| Trang chủ: phim 5 cảnh trên bản đồ 3D TP.HCM | ![hero VI](docs/phase4/screens/final/hero-1440-vi.jpg) | ![hero EN](docs/phase4/screens/final/hero-500-en.jpg) |
-| Quẹt thẻ bỏ phiếu | ![swipe EN](docs/phase4/screens/final/swipe-1440-en.jpg) | ![swipe VI](docs/phase4/screens/final/swipe-500-vi.jpg) |
-| Reveal chốt quán (mọi máy cùng lúc) | ![reveal EN](docs/phase4/screens/final/reveal-1440-en.jpg) | ![reveal VI](docs/phase4/screens/final/reveal-500-vi.jpg) |
-| Chuyển tab (thẻ quán bay sang bản đồ) | ![tab VI](docs/phase4/screens/final/tab-1440-vi.jpg) | ![tab EN](docs/phase4/screens/final/tab-500-en.jpg) |
+| | 1440px VI | 1440px EN | 500px VI | 500px EN |
+| :--- | :--- | :--- | :--- | :--- |
+| Trang chủ: phim 5 cảnh trên bản đồ 3D TP.HCM | ![](docs/phase4/screens/final/hero-1440-vi.jpg) | ![](docs/phase4/screens/final/hero-1440-en.jpg) | ![](docs/phase4/screens/final/hero-500-vi.jpg) | ![](docs/phase4/screens/final/hero-500-en.jpg) |
+| Quẹt thẻ bỏ phiếu | ![](docs/phase4/screens/final/swipe-1440-vi.jpg) | ![](docs/phase4/screens/final/swipe-1440-en.jpg) | ![](docs/phase4/screens/final/swipe-500-vi.jpg) | ![](docs/phase4/screens/final/swipe-500-en.jpg) |
+| Reveal chốt quán (mọi máy cùng lúc) | ![](docs/phase4/screens/final/reveal-1440-vi.jpg) | ![](docs/phase4/screens/final/reveal-1440-en.jpg) | ![](docs/phase4/screens/final/reveal-500-vi.jpg) | ![](docs/phase4/screens/final/reveal-500-en.jpg) |
+| Chuyển tab (thẻ quán bay sang bản đồ) | ![](docs/phase4/screens/final/tab-1440-vi.jpg) | ![](docs/phase4/screens/final/tab-1440-en.jpg) | ![](docs/phase4/screens/final/tab-500-vi.jpg) | ![](docs/phase4/screens/final/tab-500-en.jpg) |
 
-Chuyển động: [phim hero](docs/phase4/screens/T-59-hero-full-1440.gif) ·
-[quẹt thẻ](docs/phase4/screens/T-60-deck-1440-full.gif) · [reveal](docs/phase4/screens/T-61-reveal-map-en-anim.gif) ·
-[chuyển tab](docs/phase4/screens/T-62-tabs-1440-dark.gif) · [hiện diện](docs/phase4/screens/T-63-presence-1440-dark.gif).
+Chuyển động: [phim hero](docs/phase4/screens/final/hero-1440.gif) ·
+[quẹt thẻ](docs/phase4/screens/final/swipe-1440.gif) · [reveal](docs/phase4/screens/final/reveal-1440-en.gif) ·
+[chuyển tab](docs/phase4/screens/final/tab-1440-dark.gif) · [hiện diện](docs/phase4/screens/T-63-presence-1440-dark.gif).
 
 - **Ba mức chuyển động** tự chọn theo máy: `full` (tòa nhà 3D, camera theo cuộn), `lite` (máy yếu hoặc < 40 fps 2 s),
   `static` (`prefers-reduced-motion`, không WebGL): poster + chữ. Thử bằng `?motion=off|lite|slow`.
 - **Âm thanh** tổng hợp WebAudio (không file), tắt mặc định, nút loa ở header trang chủ và tab Nhóm.
 - **Hiện diện realtime** (CR-08): avatar người đang xem trên thẻ/ghim, con trỏ bạn bè trên bản đồ (≥1024px).
-- Hiệu năng (T-64): JS vào 185,6 kB gzip, hero ~90 fps ở 1440px, CLS 0 — bảng đủ ở `docs/phase4/DESIGN.md` §6.
+- Hiệu năng (T-64): JS vào 185,8 kB gzip, hero ~90 fps ở 1440px, LCP ≈ 0,33 s (cache lạnh), CLS ≈ 0 — bảng đủ ở `docs/phase4/DESIGN.md` §6.
 
 ---
 
@@ -199,7 +199,7 @@ cd backend
 poetry run pytest -v
 ```
 
-### 2. Frontend Tests (397 Tests Pass across 27 suites)
+### 2. Frontend Tests (398 Tests Pass across 27 suites)
 ```bash
 cd frontend
 npm test

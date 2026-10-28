@@ -132,6 +132,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
 
   const isExpired = remainingSeconds <= 0 && session?.status === 'OPEN';
   const isSessionOpen = session?.status === 'OPEN' && session.mode === 'SWIPE' && !isExpired;
+  const everyoneDone = doneMemberIds.length >= (totalMembers || 1);
   const isSessionResolved = session?.status === 'RESOLVED' || (session?.mode === 'SWIPE' && !!session?.result_place_id);
 
   // Swipe Action
@@ -475,13 +476,15 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             {t('decide.swipe.allDoneTitle')}
           </h4>
           <p className="text-caption text-ink-2 max-w-sm mx-auto">
-            {t('decide.swipe.allDoneDesc', {
-              done: doneMemberIds.length,
-              total: totalMembers || 1,
-            })}
+            {everyoneDone
+              ? t(isHost ? 'decide.swipe.everyoneDoneHost' : 'decide.swipe.everyoneDoneMember')
+              : t('decide.swipe.allDoneDesc', {
+                  done: doneMemberIds.length,
+                  total: totalMembers || 1,
+                })}
           </p>
           <div className="flex justify-center pt-2">
-            {isHost && doneMemberIds.length >= (totalMembers || 1) ? (
+            {isHost && everyoneDone ? (
               // Cả nhóm đã quẹt xong: host chốt ngay, không phải chờ hết 90 s
               <Button
                 data-testid="swipe-accept-top-btn"

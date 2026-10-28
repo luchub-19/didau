@@ -192,6 +192,8 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
       );
       expect(html).toContain('swipe-accept-top-btn');
       expect(html).toContain('Chốt quán được thích nhất');
+      expect(html).toContain('Cả nhóm đã quẹt xong');
+      expect(html).not.toContain('Đang chờ mọi người quẹt xong');
     });
 
     it('hiển thị banner hết giờ và khóa thao tác khi hết thời gian 90s', () => {

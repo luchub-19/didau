@@ -13,6 +13,7 @@ import {
   mapCursors,
   nextExpiryIn,
   parseFocus,
+  pinChipOffset,
   pruneExpired,
   sameFocus,
   viewersByPlace,
@@ -113,6 +114,15 @@ describe('presence rules', () => {
     expect(half).toBeGreaterThan(0);
     expect(half).toBeLessThan(10);
     expect(approach(0, 10, PRESENCE_MIN_INTERVAL_MS)).toBeGreaterThan(9.4);
+  });
+});
+
+describe('pinChipOffset', () => {
+  it('chip ở trên ghim, lật xuống dưới khi ghim nằm dưới ô tìm kiếm', () => {
+    expect(pinChipOffset(400)[1]).toBeLessThan(0);
+    expect(pinChipOffset(60)[1]).toBeGreaterThan(0);
+    expect(pinChipOffset(119)[1]).toBeGreaterThan(0);
+    expect(pinChipOffset(120)[1]).toBeLessThan(0);
   });
 });
 

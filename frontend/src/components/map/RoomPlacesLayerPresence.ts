@@ -14,6 +14,7 @@ import {
   approach,
   avatarStack,
   mapCursors,
+  pinChipOffset,
   viewersByPlace,
 } from '../../stage/presence/rules';
 
@@ -125,8 +126,9 @@ export function installPresenceLayer(map: MapLibreMap, placesLayerId: string): v
       existing?.marker.remove();
       const element = avatarStackElement(ids);
       const label = element.getAttribute('aria-label') ?? '';
-      const marker = new maplibregl.Marker({ element, anchor: 'bottom', offset: [0, -18] })
-        .setLngLat([place.longitude, place.latitude])
+      const lngLat: [number, number] = [place.longitude, place.latitude];
+      const marker = new maplibregl.Marker({ element, anchor: 'bottom', offset: pinChipOffset(map.project(lngLat).y) })
+        .setLngLat(lngLat)
         .addTo(map);
       // Marker ghi đè aria-label thành "Map marker": đặt lại nhãn đọc tên người xem
       element.setAttribute('aria-label', label);
@@ -139,6 +141,15 @@ export function installPresenceLayer(map: MapLibreMap, placesLayerId: string): v
       }
     }
   };
+
+  // Ghim trôi lên sát mép trên (dưới ô tìm kiếm) khi kéo bản đồ: lật chip xuống dưới ghim
+  map.on('move', () => {
+    for (const { marker } of pinMarkers.values()) {
+      const next = pinChipOffset(map.project(marker.getLngLat()).y);
+      const cur = marker.getOffset();
+      if (cur.y !== next[1]) marker.setOffset(next);
+    }
+  });
 
   // --- Nhận: con trỏ ---
   const step = (now: number) => {

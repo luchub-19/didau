@@ -91,6 +91,16 @@ export function mapCursors(peers: PeerMap, excludeId?: string | null): Record<st
 }
 
 /** Tối đa 3 avatar + "+N". */
+/** Dải trên cùng của bản đồ bị ô tìm kiếm che (px, tính từ mép trên khung bản đồ). */
+export const PIN_CHIP_SAFE_TOP = 120;
+const PIN_CHIP_ABOVE: [number, number] = [0, -18];
+const PIN_CHIP_BELOW: [number, number] = [0, 34];
+
+/** Offset (Marker anchor 'bottom') của chip avatar trên ghim: ghim nằm sát mép trên thì lật chip xuống dưới ghim. */
+export function pinChipOffset(pinY: number, safeTop = PIN_CHIP_SAFE_TOP): [number, number] {
+  return pinY < safeTop ? PIN_CHIP_BELOW : PIN_CHIP_ABOVE;
+}
+
 export function avatarStack<T>(ids: T[], max = PRESENCE_MAX_AVATARS): { shown: T[]; extra: number } {
   if (ids.length <= max) return { shown: ids, extra: 0 };
   return { shown: ids.slice(0, max), extra: ids.length - max };

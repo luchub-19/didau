@@ -504,6 +504,8 @@ export const vi = {
       likesCount_other: '{{count}} lượt thích',
       allDoneTitle: 'Bạn đã quẹt xong toàn bộ địa điểm!',
       allDoneDesc: 'Đang chờ mọi người quẹt xong ({{done}}/{{total}} người). Host chốt quán được thích nhất khi đủ người hoặc hết 90s.',
+      everyoneDoneHost: 'Cả nhóm đã quẹt xong. Chốt quán được thích nhất nhé!',
+      everyoneDoneMember: 'Cả nhóm đã quẹt xong. Chờ Host chốt quán…',
       syncing: 'Đang đồng bộ realtime...',
       expiredTitle: 'Hết giờ quẹt thẻ! Phiên đã đóng (90s)',
       expiredDesc: 'Thời gian bình chọn bằng swipe đã kết thúc. Vui lòng chờ Host tổng kết hoặc tạo phiên mới.',

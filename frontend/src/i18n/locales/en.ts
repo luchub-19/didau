@@ -506,6 +506,8 @@ export const en: Messages = {
       likesCount_other: '{{count}} likes',
       allDoneTitle: 'You have swiped all places!',
       allDoneDesc: 'Waiting for others to finish ({{done}}/{{total}} done). The host locks in the most-liked place once everyone is done or after 90s.',
+      everyoneDoneHost: 'Everyone has swiped. Lock in the most-liked place!',
+      everyoneDoneMember: 'Everyone has swiped. Waiting for the host to lock it in…',
       syncing: 'Syncing realtime...',
       expiredTitle: 'Time is up! Session closed (90s)',
       expiredDesc: 'Voting time has ended. Please wait for the Host to finalize or create a new session.',
