@@ -22,7 +22,10 @@ import { toast } from '../ui/toastStore';
 import { markSharedOrigin } from '../../motion/viewTransition';
 import { PresenceAvatars } from '../../stage/presence/PresenceAvatars';
 import { clearHoverPlace, setHoverPlace } from '../../stage/presence/channel';
+import { revealMemory } from '../../stage/reveal/triggers';
 import type { Place } from '../../types';
+
+const ACCEPTED_TOAST_DELAY_MS = 800;
 
 export interface PlaceCardProps {
   place: Place;
@@ -59,14 +62,21 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   useEffect(() => {
     if (prevStatusRef.current !== 'ACCEPTED' && place.status === 'ACCEPTED') {
       setIsJustAccepted(true);
-      toast.success(t('place.acceptedToast', { name: place.name }));
+      // Màn công bố (T-61) đã đọc tên quán: không chồng thêm toast lên lớp reveal. Chờ một nhịp vì WS báo quán
+      // ACCEPTED có thể tới trước phiên RESOLVED (lúc đó reveal chưa bắt đầu)
+      const toastTimer = setTimeout(() => {
+        if (!revealMemory.recentlyRevealed(place.id)) toast.success(t('place.acceptedToast', { name: place.name }));
+      }, ACCEPTED_TOAST_DELAY_MS);
       const timer = setTimeout(() => {
         setIsJustAccepted(false);
       }, 600);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(toastTimer);
+      };
     }
     prevStatusRef.current = place.status;
-  }, [place.status, place.name, t]);
+  }, [place.status, place.id, place.name, t]);
 
   const isOwner = Boolean(currentMemberId && place.submitted_by_id === currentMemberId);
   const canDelete = isHost || isOwner;

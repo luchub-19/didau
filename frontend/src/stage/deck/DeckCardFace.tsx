@@ -50,7 +50,7 @@ export const DeckCardFace: React.FC<DeckCardFaceProps> = ({ place, behind = fals
           <MapPin size={16} className="text-ink-3 flex-shrink-0" />
           <span className="line-clamp-1">{place.address || t('decide.swipe.centerArea')}</span>
         </div>
-        {place.estimated_cost && (
+        {place.estimated_cost != null && place.estimated_cost > 0 && (
           <div className="flex items-center gap-2">
             <CurrencyCircleDollar size={16} className="text-ink-3 flex-shrink-0" />
             <span>{formatMoney(place.estimated_cost)}</span>

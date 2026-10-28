@@ -55,7 +55,7 @@ export const MOTION_PRESETS = {
   'tab.switch': {
     purpose: 'continuity: room tab changes',
     duration: 'tab',
-    easing: 'inOut',
+    easing: 'out',
     liteScale: 1,
     maxSequenceMs: 300,
   },

@@ -105,7 +105,7 @@ Token cũ (`--t-press…--t-moment`, `--ease-out`, `--ease-in-out`) giữ nguyê
 | `vote.swipe` | xác nhận | swipe / throw | 320ms |
 | `vote.flyIn` | giải thích | fly / out | 700ms |
 | `decide.reveal` | cao trào | reveal / out | 2400ms (cả chuỗi: tối → ghim rơi → tên quán → nút) |
-| `tab.switch` | liền mạch | tab / inOut | 300ms |
+| `tab.switch` | liền mạch | tab / out (vào 260 ms, thoát 0,6×; T-62) | 300ms |
 | `presence.pulse` | giải thích | moment / out | 600ms, **phát một lần**, không lặp |
 
 Quy ước bắt buộc:
@@ -150,6 +150,19 @@ Quy ước bắt buộc:
 | CLS | ≤ 0,05 |
 | Bản đồ hero | ngừng render khi ra khỏi khung nhìn / tab ẩn |
 | Âm thanh | không giữ AudioContext khi tắt; chỉ tạo sau thao tác người dùng |
+
+### Số đo cuối (T-64, 2026-10-28, `vite build` + Chrome thật GPU, màn 90 Hz)
+| Hạng mục | Trước (T-55) | Sau (T-64) | Kết luận |
+| :--- | :--- | :--- | :--- |
+| Chunk vào `index.js` (trang chủ + phòng dùng chung) | 171 kB | **185,6 kB** gzip | đạt (≤ 216) |
+| Trang chủ: chunk hero tải lười ngay sau lần vẽ đầu (`HeroScroll` 20,2 + gsap 28,2 + `HeroMap` 4,4) | – | +52,8 kB | ngoài đường găng LCP; mức `static` không tải; cộng cả vào thì 238 kB > 216 → chấp nhận, ghi nhận |
+| Phòng: entry | 171 kB | 185,6 kB (+14,6) | đạt (≤ +25) |
+| Phòng: bản đồ (`MapView` + `maplibre-gl`) | 228 kB | 229,7 kB | không đổi đáng kể |
+| Phòng: lười theo khoảnh khắc | – | `StageDeck` 46,6 (mở phiên quẹt), `RevealStage` 4,0 + gsap 28,2 (mở sheet chọn hộ) | người dùng chọn giữ `motion` (2026-10-28) |
+| LCP trang chủ desktop 1436px | – | 176 ms (cache ấm) · 2,22 s (lần đầu, ngay sau đổi cỡ cửa sổ); phần tử LCP = H1 | đạt; đo bằng PerformanceObserver, **không phải Lighthouse** (không cài) |
+| CLS | – | 0,0000 | đạt |
+| FPS hero 1436px, cuộn đều cả phim 12 s | – | TB 89,9 · p5 89,3 · khung chậm nhất 22 ms, 0 khung > 25 ms | đạt (≥ 50) |
+| Operate không kéo `gsap`/`motion` | – | gsap chỉ ở chunk `index-*` phụ (dùng chung HeroScroll/RevealStage), `motion` chỉ ở `StageDeck`; entry không chứa | đạt |
 
 Kết quả thử 3D ở T-58 (OpenFreeMap Liberty, pitch 60): lớp tòa nhà tên **`building-3d`** (`fill-extrusion`,
 minzoom 14, source `openmaptiles`). Q1 đủ dày: 71 khối trong khung ở Bến Thành, 65 ở Nguyễn Huệ (khung 918×480).

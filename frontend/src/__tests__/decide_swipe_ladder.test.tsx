@@ -170,7 +170,28 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
 
       expect(html).toContain('swipe-all-done');
       expect(html).toContain('Bạn đã quẹt xong toàn bộ địa điểm');
-      expect(html).toContain('Đang chờ các thành viên khác');
+      expect(html).toContain('Đang chờ mọi người quẹt xong');
+      // Khách không có nút chốt
+      expect(html).not.toContain('swipe-accept-top-btn');
+    });
+
+    it('host thấy nút chốt quán được thích nhất khi cả nhóm đã quẹt xong (backend không tự chốt SWIPE)', () => {
+      const html = renderToStaticMarkup(
+        <SwipeDeck
+          roomId={mockRoom.id}
+          isHost={true}
+          places={mockPlaces}
+          session={openSwipeSession}
+          doneMemberIds={[mockHostMember.id, mockGuestMember.id]}
+          totalMembers={2}
+          localSwipes={{
+            [mockPlaces[0].id]: true,
+            [mockPlaces[1].id]: false,
+          }}
+        />,
+      );
+      expect(html).toContain('swipe-accept-top-btn');
+      expect(html).toContain('Chốt quán được thích nhất');
     });
 
     it('hiển thị banner hết giờ và khóa thao tác khi hết thời gian 90s', () => {
@@ -190,6 +211,7 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
 
       expect(html).toContain('swipe-expired-alert');
       expect(html).toContain('Hết giờ quẹt thẻ! Phiên đã đóng (90s)');
+      expect(html).toContain('swipe-accept-top-btn');
     });
 
     it('hiển thị kết quả quán chiến thắng kèm nút Chốt của Host khi phiên RESOLVED', () => {

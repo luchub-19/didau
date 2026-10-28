@@ -84,8 +84,9 @@ function sessionKeyOr(obs: RevealObservation, roomId: string, placeId: string): 
 }
 
 /** Bộ nhớ "đã phát" trong RAM (không localStorage): tải lại trang = vào muộn = không phát lại. */
-export function createRevealMemory() {
+export function createRevealMemory(now: () => number = Date.now) {
   const seen = new Set<string>();
+  const shownAt = new Map<string, number>();
   return {
     has(t: RevealTrigger): boolean {
       return seen.has(t.key) || seen.has(t.placeKey);
@@ -93,9 +94,16 @@ export function createRevealMemory() {
     remember(t: RevealTrigger): void {
       seen.add(t.key);
       seen.add(t.placeKey);
+      shownAt.set(t.placeId, now());
+    },
+    /** Quán này vừa được công bố (trong `withinMs`): Operate bỏ toast "Đã chốt …" để không đè lớp reveal. */
+    recentlyRevealed(placeId: string, withinMs = 3000): boolean {
+      const at = shownAt.get(placeId);
+      return at !== undefined && now() - at <= withinMs;
     },
     clear(): void {
       seen.clear();
+      shownAt.clear();
     },
   };
 }

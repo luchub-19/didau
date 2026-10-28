@@ -173,6 +173,17 @@ describe('T-61: phát hiện "vừa chốt" (detectReveal)', () => {
     }
     expect(fired).toBe(1);
   });
+
+  it('recentlyRevealed chỉ đúng trong vài giây sau khi công bố quán đó (bỏ toast trùng)', () => {
+    let clock = 1000;
+    const memory = createRevealMemory(() => clock);
+    expect(memory.recentlyRevealed(P1)).toBe(false);
+    memory.remember({ key: 's1', placeId: P1, placeKey: `place:r:${P1}` });
+    expect(memory.recentlyRevealed(P1)).toBe(true);
+    expect(memory.recentlyRevealed(P2)).toBe(false);
+    clock += 3001;
+    expect(memory.recentlyRevealed(P1)).toBe(false);
+  });
 });
 
 describe('T-61: kích hoạt từ store thật (watchReveals) — một lần mỗi phiên', () => {

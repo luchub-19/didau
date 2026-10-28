@@ -252,7 +252,6 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
           <h3 className="text-body font-bold text-ink flex items-center gap-2">
             <HandSwipeLeft size={18} className="text-accent-text" />
             <span>{t('decide.swipe.title')}</span>
-            <span className="text-[10px] text-ink-3 font-semibold">({t('decide.swipe.tag')})</span>
           </h3>
           <p className="text-caption text-ink-2">
             {t('decide.swipe.subtitle')}
@@ -302,7 +301,18 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             {t('decide.swipe.expiredDesc')}
           </p>
           {isHost && (
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              {/* Backend không tự chốt SWIPE (result_place_id null tới khi host accept): host chốt từ lượt Thích */}
+              <Button
+                data-testid="swipe-accept-top-btn"
+                variant="primary"
+                size="md"
+                onClick={handleAccept}
+                loading={isSubmitting}
+                leftIcon={<Check size={18} />}
+              >
+                {t('decide.swipe.acceptTop')}
+              </Button>
               <Button
                 variant="secondary"
                 size="md"
@@ -471,10 +481,24 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             })}
           </p>
           <div className="flex justify-center pt-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-2 text-ink-2 text-caption font-semibold">
-              <span className="w-2 h-2 rounded-full bg-accent animate-ping" />
-              <span>{t('decide.swipe.syncing')}</span>
-            </div>
+            {isHost && doneMemberIds.length >= (totalMembers || 1) ? (
+              // Cả nhóm đã quẹt xong: host chốt ngay, không phải chờ hết 90 s
+              <Button
+                data-testid="swipe-accept-top-btn"
+                variant="primary"
+                size="md"
+                onClick={handleAccept}
+                loading={isSubmitting}
+                leftIcon={<Check size={18} />}
+              >
+                {t('decide.swipe.acceptTop')}
+              </Button>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-2 text-ink-2 text-caption font-semibold">
+                <span className="w-2 h-2 rounded-full bg-accent" />
+                <span>{t('decide.swipe.syncing')}</span>
+              </div>
+            )}
           </div>
         </Card>
       )}
