@@ -263,6 +263,49 @@
   animation: slot-stagger-in var(--t-ui) var(--ease-out) both;
 }
 
+/* Không gian phòng (T-67, DESIGN gđ5 §2): đổi rộng cột bằng một lần chuyển `width`; bản đồ tự resize qua
+   ResizeObserver. Ngăn kéo Kế hoạch (1024–1279) dùng transform/opacity. Sheet danh sách mobile tạm chuyển bằng `top`
+   (transform sẽ biến sheet thành khối chứa của nút nổi `fixed` Thêm quán) — T-69 đưa nút vào sheet thì đổi lại. */
+.ws-col {
+  transition-property: width;
+  transition-duration: var(--t-ui);
+  transition-timing-function: var(--ease-out);
+}
+
+.ws-sheet {
+  transition-property: top;
+  transition-duration: var(--t-sheet);
+  transition-timing-function: var(--ease-out);
+}
+
+/* Đang kéo: sheet bám ngón tay, không trễ */
+.ws-sheet.is-dragging {
+  transition: none;
+}
+
+@keyframes ws-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.ws-drawer {
+  animation: ws-drawer-in var(--t-ui) var(--ease-out) both;
+}
+
+/* ?motion=off hoặc reduced-motion (mức static): đổi bố cục tức thì */
+[data-motion-tier="static"] .ws-col,
+[data-motion-tier="static"] .ws-sheet,
+[data-motion-tier="static"] .ws-drawer {
+  transition: none;
+  animation: none;
+}
+
 /* Chuyển tab bằng View Transitions (T-62, preset 'tab.switch', motion/viewTransition.ts).
    Tên chỉ gán khi :root mang data-vt-dir (trong lúc chuyển), nên không bao giờ trùng tên ngoài lúc đó.
    --vt-tab-ms do JS đặt theo mức + ?motion=slow; thoát nhanh hơn vào (0.6×). */
@@ -414,6 +457,13 @@
   .skeleton-pulse {
     animation: none !important;
     opacity: 0.8 !important;
+  }
+
+  .ws-col,
+  .ws-sheet,
+  .ws-drawer {
+    transition: none !important;
+    animation: none !important;
   }
 
   .tab-indicator {

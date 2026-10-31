@@ -50,10 +50,20 @@ export const vi = {
   room: {
     tab: {
       ariaLabel: 'Điều hướng các mục trong phòng',
-      places: 'Quán',
-      map: 'Bản đồ',
-      schedule: 'Lịch',
+      explore: 'Khám phá',
+      plan: 'Kế hoạch',
       group: 'Nhóm',
+    },
+    workspace: {
+      listRegion: 'Danh sách quán',
+      mapRegion: 'Bản đồ',
+      planOpen: 'Mở kế hoạch',
+      planCollapse: 'Thu gọn kế hoạch',
+      budget: 'Ngân sách',
+      hasConflicts: 'Lịch có giờ bị trùng',
+      sheetTitle: 'Danh sách quán · {{count}}',
+      sheetHandle: 'Thu gọn hoặc mở rộng danh sách quán',
+      groupOpen: 'Thông tin nhóm',
     },
     loading: 'Đang tải dữ liệu chuyến đi...',
     codeCopied: 'Đã sao chép mã phòng',

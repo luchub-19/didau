@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy } from 'react';
 import type { Place, Room } from '../../types';
 import { Skeleton } from '../../components/ui';
 
@@ -10,43 +10,25 @@ export interface MapPanelProps {
   isHost: boolean;
   isVotingDisabled?: boolean;
   onOriginChange: (lat: number, lng: number) => void;
-  isActive: boolean;
 }
 
+/** Cột giữa của không gian phòng: bản đồ luôn mounted, tràn khung (T-67). MapView tự `resize()` qua ResizeObserver. */
 export const MapPanel: React.FC<MapPanelProps> = ({
   room,
   places,
   isHost,
   isVotingDisabled = false,
   onOriginChange,
-  isActive,
 }) => {
-  useEffect(() => {
-    if (isActive && typeof window !== 'undefined') {
-      const timer = setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isActive]);
-
   return (
-    <div className={isActive ? 'block' : 'hidden'}>
-      <Suspense
-        fallback={
-          <div className="h-[70vh] min-h-[420px] w-full rounded-card overflow-hidden">
-            <Skeleton.Block className="h-full w-full" />
-          </div>
-        }
-      >
-        <MapView
-          room={room}
-          places={places}
-          isHost={isHost}
-          isVotingDisabled={isVotingDisabled}
-          onOriginChange={onOriginChange}
-        />
-      </Suspense>
-    </div>
+    <Suspense fallback={<Skeleton.Block className="h-full w-full" />}>
+      <MapView
+        room={room}
+        places={places}
+        isHost={isHost}
+        isVotingDisabled={isVotingDisabled}
+        onOriginChange={onOriginChange}
+      />
+    </Suspense>
   );
 };

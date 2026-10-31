@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Copy, ShareNetwork, IconButton } from '../ui';
 import { copyText, shareRoom } from '../room/shareRoom';
-import { useRoomPhase } from '../../room/useRoomPhase';
+import { useRoomPhase, type UseRoomPhaseResult } from '../../room/useRoomPhase';
 import { PhaseStepper } from './PhaseStepper';
 
 export interface RoomTopBarProps {
@@ -11,7 +11,10 @@ export interface RoomTopBarProps {
   roomId: string;
   isConnected: boolean;
   onGoHome: () => void;
-  children?: React.ReactNode;
+  /** Giai đoạn do RoomPage tính một lần, dùng chung với RoomWorkspace; thiếu thì tự tính (test, nơi gọi khác). */
+  phase?: UseRoomPhaseResult;
+  /** Nút phụ cạnh nút chia sẻ. */
+  actions?: React.ReactNode;
 }
 
 export const RoomTopBar: React.FC<RoomTopBarProps> = ({
@@ -20,10 +23,12 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
   roomId,
   isConnected,
   onGoHome,
-  children,
+  phase,
+  actions,
 }) => {
   const { t } = useTranslation();
-  const { step, viewStep, setViewStep } = useRoomPhase();
+  const ownPhase = useRoomPhase();
+  const { step, viewStep, setViewStep } = phase ?? ownPhase;
 
   const handleCopyCode = () =>
     copyText(code, t('room.codeCopied'), t('invite.copyFailed'));
@@ -31,8 +36,8 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
   const handleShare = () => shareRoom({ roomId, code, title, t });
 
   return (
-    <header className="bg-surface border-b border-line sticky top-0 z-tabbar">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-3">
+    <header className="bg-surface border-b border-line shrink-0 relative z-tabbar">
+      <div className="px-3 sm:px-4 h-14 flex items-center justify-between gap-3">
         {/* Bên trái: Nút về trang chủ + Tên phòng + Mã phòng */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <IconButton
@@ -77,6 +82,8 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
             </span>
           )}
 
+          {actions}
+
           <IconButton
             icon={<ShareNetwork size={20} />}
             aria-label={t('room.share')}
@@ -86,11 +93,9 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
       </div>
 
       {/* Mobile: "Bước x/4 · tên" dưới tên phòng */}
-      <div className="md:hidden px-3 sm:px-6 pb-2 -mt-1">
+      <div className="md:hidden px-3 sm:px-4 pb-2 -mt-1">
         <PhaseStepper variant="compact" step={step} viewStep={viewStep} onViewStep={setViewStep} />
       </div>
-
-      {children}
     </header>
   );
 };

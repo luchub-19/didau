@@ -1,20 +1,57 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { withViewTransition, type TransitionDirection } from '../../motion/viewTransition';
 
-export type RoomTab = 'places' | 'map' | 'schedule' | 'group';
+/** Tab của phòng trên mobile (<1024px, DESIGN gđ5 §2). Desktop không có tab: 3 cột cùng hiện. */
+export type RoomTab = 'explore' | 'plan';
+
+/** Giá trị `?tab=` của giai đoạn 3–4; vẫn nhận để link cũ không gãy. */
+export type LegacyRoomTab = 'places' | 'map' | 'schedule' | 'group';
 
 // Thứ tự tab cũng là thứ tự trượt: sang tab bên phải thì nội dung trượt từ phải vào (T-62)
-export const ROOM_TABS: readonly RoomTab[] = ['places', 'map', 'schedule', 'group'];
+export const ROOM_TABS: readonly RoomTab[] = ['explore', 'plan'];
 
-function isValidTab(val: string | null): val is RoomTab {
-  return val !== null && (ROOM_TABS as readonly string[]).includes(val);
+const LEGACY_TAB_MAP: Record<LegacyRoomTab, RoomTab> = {
+  places: 'explore',
+  map: 'explore',
+  schedule: 'plan',
+  group: 'explore',
+};
+
+/** Chuẩn hoá một giá trị tab (mới hoặc cũ); lạ/thiếu thì về 'explore'. */
+export function normalizeTab(raw: string | null | undefined): RoomTab {
+  if (raw === 'explore' || raw === 'plan') return raw;
+  if (raw && Object.prototype.hasOwnProperty.call(LEGACY_TAB_MAP, raw)) {
+    return LEGACY_TAB_MAP[raw as LegacyRoomTab];
+  }
+  return 'explore';
 }
 
-/** Đọc tab từ chuỗi query (`?tab=map`); thiếu hoặc lạ thì về 'places'. */
+function readTabParam(search: string | null | undefined): string | null {
+  if (!search) return null;
+  try {
+    return new URLSearchParams(search).get('tab');
+  } catch {
+    return null;
+  }
+}
+
+/** Đọc tab từ chuỗi query (`?tab=plan`), có ánh xạ link cũ (`schedule` → `plan`, `map` → `explore`…). */
 export function tabFromSearch(search: string | null | undefined): RoomTab {
-  if (!search) return 'places';
-  const tabParam = new URLSearchParams(search).get('tab');
-  return isValidTab(tabParam) ? tabParam : 'places';
+  return normalizeTab(readTabParam(search));
+}
+
+/** Link cũ `?tab=group`: vào Khám phá và mở thông tin nhóm (T-68 đổi thành menu avatar). */
+export function isLegacyGroupLink(search: string | null | undefined): boolean {
+  return readTabParam(search) === 'group';
+}
+
+/** Query có `?tab=` cũ cần thay bằng giá trị mới (replaceState, không thêm mục lịch sử). */
+export function canonicalTabSearch(search: string | null | undefined): string | null {
+  const raw = readTabParam(search);
+  if (raw === null || raw === 'explore' || raw === 'plan') return null;
+  const params = new URLSearchParams(search ?? '');
+  params.set('tab', normalizeTab(raw));
+  return `?${params.toString()}`;
 }
 
 /** Hướng trượt khi đi từ tab `from` sang `to` theo thứ tự trên thanh tab. */
@@ -35,21 +72,36 @@ export function resolvePopTab(
   return { tab, direction: tabDirection(current, tab) };
 }
 
-function getTabFromUrl(): RoomTab {
-  if (typeof window === 'undefined') return 'places';
+function currentSearch(): string {
+  if (typeof window === 'undefined') return '';
   try {
-    return tabFromSearch(window.location.search);
+    return window.location.search;
   } catch {
     // Fallback nếu window.location không khả dụng
-    return 'places';
+    return '';
   }
 }
 
 export function useRoomTab() {
-  const [activeTab, setActiveTabState] = useState<RoomTab>(() => getTabFromUrl());
+  const [activeTab, setActiveTabState] = useState<RoomTab>(() => tabFromSearch(currentSearch()));
+  // Link cũ ?tab=group: đọc một lần lúc vào phòng
+  const [openedFromGroupLink] = useState<boolean>(() => isLegacyGroupLink(currentSearch()));
   // Tab đang hiện, đọc được trong handler popstate mà không gắn lại listener
   const activeRef = useRef(activeTab);
   activeRef.current = activeTab;
+
+  // Thay ?tab= cũ bằng giá trị mới để chia sẻ link về sau đúng chuẩn
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const next = canonicalTabSearch(window.location.search);
+      if (next !== null) {
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}${next}${window.location.hash}`);
+      }
+    } catch {
+      // Môi trường test không có history
+    }
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -65,12 +117,14 @@ export function useRoomTab() {
     };
   }, []);
 
-  const setTab = useCallback((newTab: RoomTab) => {
+  /** Nhận cả giá trị cũ (`'map'`, `'schedule'`…) để chỗ gọi cũ (PlaceForm) không gãy. */
+  const setTab = useCallback((requested: RoomTab | LegacyRoomTab) => {
+    const newTab = normalizeTab(requested);
     // So với URL chứ không với state: PlaceForm có instance hook riêng, state của nó có thể cũ
-    const from = typeof window !== 'undefined' ? getTabFromUrl() : activeRef.current;
-    if (newTab === from) return;
+    const from = typeof window !== 'undefined' ? tabFromSearch(currentSearch()) : activeRef.current;
+    if (newTab === from && newTab === activeRef.current) return;
     activeRef.current = newTab;
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && newTab !== from) {
       try {
         // pushState để nút Back của trình duyệt lùi về tab trước (popstate ở trên)
         const url = new URL(window.location.href);
@@ -83,5 +137,5 @@ export function useRoomTab() {
     withViewTransition(() => setActiveTabState(newTab), { direction: tabDirection(from, newTab) });
   }, []);
 
-  return { activeTab, setTab };
+  return { activeTab, setTab, openedFromGroupLink };
 }

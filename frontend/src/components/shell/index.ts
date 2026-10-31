@@ -1,5 +1,7 @@
 export * from './RoomShell';
 export * from './RoomTopBar';
+export * from './RoomWorkspace';
+export * from './workspace';
 export * from './BottomTabBar';
 export * from './ConnectionBanner';
 export * from './HomeHeader';

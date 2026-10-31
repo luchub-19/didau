@@ -52,10 +52,20 @@ export const en: Messages = {
   room: {
     tab: {
       ariaLabel: 'Room navigation',
-      places: 'Places',
-      map: 'Map',
-      schedule: 'Schedule',
+      explore: 'Explore',
+      plan: 'Plan',
       group: 'Group',
+    },
+    workspace: {
+      listRegion: 'Place list',
+      mapRegion: 'Map',
+      planOpen: 'Open plan',
+      planCollapse: 'Collapse plan',
+      budget: 'Budget',
+      hasConflicts: 'Schedule has overlapping times',
+      sheetTitle: 'Places · {{count}}',
+      sheetHandle: 'Collapse or expand the place list',
+      groupOpen: 'Group info',
     },
     loading: 'Loading trip data...',
     codeCopied: 'Room code copied',

@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ForkKnife, MapTrifold, CalendarBlank, Users } from '../ui';
+import { MapTrifold, CalendarBlank } from '../ui';
 import type { RoomTab } from './useRoomTab';
 
 export interface BottomTabBarProps {
   activeTab: RoomTab;
   onTabChange: (tab: RoomTab) => void;
-  placesCount?: number;
-  scheduleCount?: number;
+  /** Lịch có xung đột → chấm đỏ trên tab Kế hoạch (T-73 đưa cảnh báo vào mục lịch). */
   hasConflicts?: boolean;
 }
 
 interface TabDef {
   id: RoomTab;
-  icon: typeof ForkKnife;
-  labelKey: 'room.tab.places' | 'room.tab.map' | 'room.tab.schedule' | 'room.tab.group';
-  count?: number;
+  icon: typeof MapTrifold;
+  labelKey: 'room.tab.explore' | 'room.tab.plan';
   hasAlert?: boolean;
 }
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   onTabChange,
-  placesCount,
-  scheduleCount,
   hasConflicts,
 }) => {
   const { t } = useTranslation();
@@ -74,30 +70,10 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
     };
   }, []);
 
+  // Mobile 2 tab có nhãn (DESIGN gđ5 §2); desktop không có tab
   const tabs: TabDef[] = [
-    {
-      id: 'places',
-      icon: ForkKnife,
-      labelKey: 'room.tab.places',
-      count: placesCount,
-    },
-    {
-      id: 'map',
-      icon: MapTrifold,
-      labelKey: 'room.tab.map',
-    },
-    {
-      id: 'schedule',
-      icon: CalendarBlank,
-      labelKey: 'room.tab.schedule',
-      count: scheduleCount,
-      hasAlert: hasConflicts,
-    },
-    {
-      id: 'group',
-      icon: Users,
-      labelKey: 'room.tab.group',
-    },
+    { id: 'explore', icon: MapTrifold, labelKey: 'room.tab.explore' },
+    { id: 'plan', icon: CalendarBlank, labelKey: 'room.tab.plan', hasAlert: hasConflicts },
   ];
 
   const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
@@ -156,118 +132,18 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
                 />
                 {tab.hasAlert && (
                   <span
-                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-danger animate-pulse"
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-danger"
                     aria-hidden="true"
                   />
                 )}
               </div>
 
-              <span className="truncate max-w-[72px] leading-tight">{label}</span>
+              <span className="truncate max-w-[96px] leading-tight">{label}</span>
+              {tab.hasAlert && <span className="sr-only">{t('room.workspace.hasConflicts')}</span>}
             </button>
           );
         })}
       </nav>
     </footer>
-  );
-};
-
-export const DesktopTabBar: React.FC<BottomTabBarProps> = ({
-  activeTab,
-  onTabChange,
-  placesCount,
-  scheduleCount,
-  hasConflicts,
-}) => {
-  const { t } = useTranslation();
-
-  const tabs: TabDef[] = [
-    {
-      id: 'places',
-      icon: ForkKnife,
-      labelKey: 'room.tab.places',
-      count: placesCount,
-    },
-    {
-      id: 'map',
-      icon: MapTrifold,
-      labelKey: 'room.tab.map',
-    },
-    {
-      id: 'schedule',
-      icon: CalendarBlank,
-      labelKey: 'room.tab.schedule',
-      count: scheduleCount,
-      hasAlert: hasConflicts,
-    },
-    {
-      id: 'group',
-      icon: Users,
-      labelKey: 'room.tab.group',
-    },
-  ];
-
-  return (
-    <nav
-      role="tablist"
-      aria-label={t('room.tab.ariaLabel')}
-      className="hidden lg:flex items-center gap-2 border-t border-line bg-surface max-w-7xl mx-auto px-6"
-    >
-      {tabs.map((tab) => {
-        const isSelected = activeTab === tab.id;
-        const IconComponent = tab.icon;
-        const label = t(tab.labelKey);
-
-        return (
-          <button
-            key={tab.id}
-            role="tab"
-            type="button"
-            id={`desktop-tab-${tab.id}`}
-            aria-selected={isSelected}
-            aria-controls={`panel-${tab.id}`}
-            onClick={() => onTabChange(tab.id)}
-            className={`relative flex items-center gap-2 px-4 py-3 text-label font-medium pressable border-b-2 -mb-[1px] min-h-[44px] ${
-              isSelected
-                ? 'border-transparent text-ink font-semibold'
-                : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
-            }`}
-          >
-            {/* Vạch chọn là phần tử riêng để View Transition cho nó bay sang tab mới (T-62) */}
-            {isSelected && (
-              <span
-                data-tab-indicator
-                className="absolute inset-x-0 -bottom-0.5 h-0.5 bg-accent pointer-events-none"
-                aria-hidden="true"
-              />
-            )}
-            <IconComponent
-              size={20}
-              weight={isSelected ? 'fill' : 'regular'}
-              className={isSelected ? 'text-accent-text' : 'text-ink-2'}
-            />
-            <span>{label}</span>
-
-            {typeof tab.count === 'number' && (
-              <span
-                className={`text-caption px-2 py-0.5 rounded-full ${
-                  isSelected
-                    ? 'bg-accent-soft text-accent-text font-semibold'
-                    : 'bg-surface-2 text-ink-2'
-                }`}
-              >
-                {tab.count}
-              </span>
-            )}
-
-            {tab.hasAlert && (
-              <span
-                className="w-2 h-2 rounded-full bg-danger animate-pulse"
-                aria-hidden="true"
-              />
-            )}
-          </button>
-        );
-      })}
-    </nav>
   );
 };

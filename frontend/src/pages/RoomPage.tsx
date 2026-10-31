@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoom } from '../hooks/useRoom';
 import { describeApiError, errorMessageKey } from '../i18n/serverText';
@@ -14,20 +14,25 @@ import {
   EmptyState,
   Skeleton,
   ConfirmSheet,
+  Sheet,
   ArrowLeft,
   Info,
+  Users,
   WarningCircle,
   toast,
 } from '../components/ui';
 
-import { RoomShell, useRoomTab } from '../components/shell';
+import { RoomShell, RoomWorkspace, useRoomTab, useWorkspaceLayout } from '../components/shell';
 import { PlacesPanel, MapPanel, SchedulePanel, GroupPanel } from './room';
 import { PlaceForm } from '../components/places';
 import { TieBreakSelectorModal } from '../components/voting';
 import { AddScheduleItemModal } from '../components/schedule';
-import { ConflictAlertBanner } from '../components/conflicts';
 import { DecideModal } from '../components/decide';
 import { JoinRoomModal } from '../components/room';
+import { flyToPlace } from '../components/map/flyToPlace';
+import { useRoomPhase } from '../room/useRoomPhase';
+import { getMotionTier } from '../motion/useMotionTier';
+import { duration } from '../motion/tokens';
 
 export interface RoomPageProps {
   roomId: string;
@@ -36,7 +41,10 @@ export interface RoomPageProps {
 
 export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   const { t } = useTranslation();
-  const { activeTab, setTab } = useRoomTab();
+  const { activeTab, setTab, openedFromGroupLink } = useRoomTab();
+  // Một nguồn giai đoạn cho cả thanh đỉnh và bố cục (viewStep "xem lại" dùng chung)
+  const phaseState = useRoomPhase();
+  const layout = useWorkspaceLayout();
 
   const {
     room,
@@ -64,21 +72,35 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [isTieBreakOpen, setIsTieBreakOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(true);
+  // Tạm: thông tin nhóm mở bằng nút trên thanh đỉnh; link cũ ?tab=group mở sẵn (T-68 thay bằng menu avatar)
+  const [isGroupOpen, setIsGroupOpen] = useState(openedFromGroupLink);
+  // Tăng mỗi lần cần nhường chỗ cho bản đồ: sheet danh sách mobile thu về nấc thấp
+  const [mapFocusKey, setMapFocusKey] = useState(0);
 
   // Quản lý xác nhận xoá quán qua ConfirmSheet (DESIGN §5)
   const [placeToDelete, setPlaceToDelete] = useState<string | null>(null);
   const [isDeletingPlace, setIsDeletingPlace] = useState(false);
 
-  // Tab bản đồ giữ mounted sau lần mở đầu tiên (PLAN §7)
-  const [hasMountedMap, setHasMountedMap] = useState<boolean>(
-    () => activeTab === 'map',
-  );
+  // Chọn quán từ danh sách: không đổi tab nữa — chọn trên bản đồ (đang hiện cạnh danh sách) và bay tới (T-67)
+  const handleViewOnMap = (p: Place) => {
+    useMapStore.getState().selectPlace(p.id);
+    setMapFocusKey((k) => k + 1);
+    const tier = getMotionTier();
+    flyToPlace(p, {
+      zoom: 16,
+      pitch: 0,
+      bearingDelta: 0,
+      durationMs: tier === 'static' ? 0 : duration('fly'),
+      // Mobile: sheet chi tiết quán che nửa dưới, đẩy quán lên trên
+      offsetY: layout === 'mobile' ? -120 : 0,
+    });
+  };
 
-  useEffect(() => {
-    if (activeTab === 'map' && !hasMountedMap) {
-      setHasMountedMap(true);
-    }
-  }, [activeTab, hasMountedMap]);
+  // "Chọn trên bản đồ" từ form thêm quán: về tab Khám phá, nhường chỗ cho bản đồ
+  const handleSwitchToMap = () => {
+    setTab('explore');
+    setMapFocusKey((k) => k + 1);
+  };
 
   const handleOriginChange = async (lat: number, lng: number) => {
     try {
@@ -126,7 +148,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         </header>
 
         {/* Nội dung skeleton */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+        <main className="flex-1 w-full px-4 py-6 space-y-4">
           <div className="h-10 w-full max-w-md bg-surface-2 animate-pulse rounded-card" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
             <Skeleton.PlaceCard />
@@ -230,69 +252,68 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
       activeTab={activeTab}
       onTabChange={setTab}
       onGoHome={onGoHome}
-      placesCount={places.length}
-      scheduleCount={schedule.length}
+      phase={phaseState}
       hasConflicts={conflicts.length > 0}
-      topBanner={
-        // Tab Lịch đã có dải tóm tắt xung đột riêng, không báo hai lần (T-56)
-        activeTab !== 'schedule' ? (
-          <ConflictAlertBanner
-            roomId={roomId}
-            conflicts={conflicts}
-            onSwitchToSchedule={() => setTab('schedule')}
-          />
-        ) : null
+      topBarActions={
+        <IconButton
+          icon={<Users size={20} />}
+          aria-label={t('room.workspace.groupOpen')}
+          title={t('room.workspace.groupOpen')}
+          aria-haspopup="dialog"
+          onClick={() => setIsGroupOpen(true)}
+        />
       }
     >
-      {/* Panel 1: Quán & Bỏ phiếu */}
-      {activeTab === 'places' && (
-        <PlacesPanel
-          roomId={roomId}
-          places={places}
-          selectedCategory={selectedCategory}
-          onSelectCategory={(cat: PlaceCategory | 'ALL') =>
-            setSelectedCategory(cat)
-          }
-          currentMemberId={currentMember?.id}
-          isHost={isHost}
-          isVotingDisabled={isVotingDisabled}
-          onOpenAddModal={() => setIsAddPlaceOpen(true)}
-          onDeletePlace={handleRequestDeletePlace}
-          onViewOnMap={(p: Place) => {
-            setTab('map');
-            useMapStore.getState().selectPlace(p.id);
-          }}
-          onOpenDecide={() => setDecideModalOpen(true)}
-        />
-      )}
+      {/* Desktop 3 cột / mobile 2 tab; nội dung cột là panel cũ (T-69/72/73 thiết kế lại bên trong) */}
+      <RoomWorkspace
+        activeTab={activeTab}
+        phase={phaseState.phase}
+        viewStep={phaseState.viewStep}
+        placesCount={places.length}
+        scheduleCount={schedule.length}
+        hasConflicts={conflicts.length > 0}
+        mapFocusKey={mapFocusKey}
+        list={
+          <PlacesPanel
+            roomId={roomId}
+            places={places}
+            selectedCategory={selectedCategory}
+            onSelectCategory={(cat: PlaceCategory | 'ALL') =>
+              setSelectedCategory(cat)
+            }
+            currentMemberId={currentMember?.id}
+            isHost={isHost}
+            isVotingDisabled={isVotingDisabled}
+            onOpenAddModal={() => setIsAddPlaceOpen(true)}
+            onDeletePlace={handleRequestDeletePlace}
+            onViewOnMap={handleViewOnMap}
+            onOpenDecide={() => setDecideModalOpen(true)}
+          />
+        }
+        map={
+          <MapPanel
+            room={room}
+            places={places}
+            isHost={isHost}
+            isVotingDisabled={isVotingDisabled}
+            onOriginChange={handleOriginChange}
+          />
+        }
+        plan={
+          <SchedulePanel
+            roomId={roomId}
+            items={schedule}
+            places={places}
+            members={members}
+            isHost={isHost}
+            onOpenAddModal={() => setIsAddScheduleOpen(true)}
+            onOpenDecideModal={() => setIsTieBreakOpen(true)}
+          />
+        }
+      />
 
-      {/* Panel 2: Bản đồ (giữ mounted sau lần mở đầu) */}
-      {hasMountedMap && (
-        <MapPanel
-          room={room}
-          places={places}
-          isHost={isHost}
-          isVotingDisabled={isVotingDisabled}
-          onOriginChange={handleOriginChange}
-          isActive={activeTab === 'map'}
-        />
-      )}
-
-      {/* Panel 3: Lịch trình */}
-      {activeTab === 'schedule' && (
-        <SchedulePanel
-          roomId={roomId}
-          items={schedule}
-          places={places}
-          members={members}
-          isHost={isHost}
-          onOpenAddModal={() => setIsAddScheduleOpen(true)}
-          onOpenDecideModal={() => setIsTieBreakOpen(true)}
-        />
-      )}
-
-      {/* Panel 4: Nhóm & Thành viên */}
-      {activeTab === 'group' && (
+      {/* Tạm: thông tin nhóm trong sheet (T-68 chuyển sang menu avatar rồi mới xoá GroupPanel) */}
+      <Sheet isOpen={isGroupOpen} onClose={() => setIsGroupOpen(false)} title={t('room.tab.group')}>
         <GroupPanel
           room={room}
           members={members}
@@ -303,13 +324,14 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
           scheduleCount={schedule.length}
           onOpenTieBreakModal={() => setIsTieBreakOpen(true)}
         />
-      )}
+      </Sheet>
 
       {/* Modals & Sheets tương tác */}
       <PlaceForm
         isOpen={isAddPlaceOpen}
         onClose={() => setIsAddPlaceOpen(false)}
         roomId={roomId}
+        onSwitchToMap={handleSwitchToMap}
       />
 
       <TieBreakSelectorModal

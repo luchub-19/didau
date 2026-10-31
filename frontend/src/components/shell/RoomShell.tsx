@@ -1,77 +1,66 @@
 import React from 'react';
 import type { Room } from '../../types';
 import { RoomTopBar } from './RoomTopBar';
-import { BottomTabBar, DesktopTabBar } from './BottomTabBar';
+import { BottomTabBar } from './BottomTabBar';
 import { ConnectionBanner } from './ConnectionBanner';
 import type { RoomTab } from './useRoomTab';
+import type { UseRoomPhaseResult } from '../../room/useRoomPhase';
 import { motionAttrs } from '../../motion/presets';
 
 export interface RoomShellProps {
   room: Room;
   isConnected: boolean;
+  /** Tab mobile (<1024px); desktop không có tab. */
   activeTab: RoomTab;
   onTabChange: (tab: RoomTab) => void;
   onGoHome: () => void;
-  placesCount?: number;
-  scheduleCount?: number;
+  /** Giai đoạn dùng chung với RoomWorkspace (một nguồn `viewStep`); thiếu thì thanh đỉnh tự tính. */
+  phase?: UseRoomPhaseResult;
+  /** Lịch có xung đột → chấm đỏ trên tab Kế hoạch. */
   hasConflicts?: boolean;
-  topBanner?: React.ReactNode;
+  /** Nút phụ trên thanh đỉnh, cạnh nút chia sẻ (tạm: nút Nhóm, T-68 thay bằng menu avatar). */
+  topBarActions?: React.ReactNode;
   children: React.ReactNode;
 }
 
+/** Khung trang phòng: cao đúng một màn (`100dvh`), trang không cuộn — từng cột/tab tự cuộn (DESIGN gđ5 §2). */
 export const RoomShell: React.FC<RoomShellProps> = ({
   room,
   isConnected,
   activeTab,
   onTabChange,
   onGoHome,
-  placesCount,
-  scheduleCount,
+  phase,
   hasConflicts,
-  topBanner,
+  topBarActions,
   children,
 }) => {
   return (
-    <div className="room-shell-vt min-h-dvh bg-bg flex flex-col">
-      {/* Thanh đỉnh cố định (TopBar + Desktop TabBar) */}
+    <div className="room-shell-vt h-dvh bg-bg flex flex-col overflow-hidden">
       <RoomTopBar
         title={room.title}
         code={room.code}
         roomId={room.id}
         isConnected={isConnected}
         onGoHome={onGoHome}
-      >
-        <DesktopTabBar
-          activeTab={activeTab}
-          onTabChange={onTabChange}
-          placesCount={placesCount}
-          scheduleCount={scheduleCount}
-          hasConflicts={hasConflicts}
-        />
-      </RoomTopBar>
+        phase={phase}
+        actions={topBarActions}
+      />
 
-      {/* Dải thông báo trạng thái kết nối */}
+      {/* Dải thông báo mất kết nối lâu */}
       <ConnectionBanner isConnected={isConnected} />
 
-      {/* Banner cảnh báo ghim (ví dụ xung đột lịch) */}
-      {topBanner}
-
-      {/* Khu vực nội dung chính; `room-panel-vt` là nhóm trượt khi đổi tab (T-62, motion.css) */}
+      {/* Không gian làm việc; `room-panel-vt` là nhóm trượt khi đổi tab mobile (T-62, motion.css).
+          Mobile chừa đáy cho thanh tab cố định. */}
       <main
         {...motionAttrs('tab.switch')}
-        className="room-panel-vt flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-20 lg:pb-8"
+        className="room-panel-vt relative flex-1 min-h-0 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
       >
         {children}
       </main>
 
-      {/* Thanh tab đáy cố định cho mobile */}
-      <BottomTabBar
-        activeTab={activeTab}
-        onTabChange={onTabChange}
-        placesCount={placesCount}
-        scheduleCount={scheduleCount}
-        hasConflicts={hasConflicts}
-      />
+      {/* Thanh tab đáy 2 mục cho mobile */}
+      <BottomTabBar activeTab={activeTab} onTabChange={onTabChange} hasConflicts={hasConflicts} />
     </div>
   );
 };

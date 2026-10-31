@@ -43,37 +43,40 @@ afterEach(() => {
   setMotionOverride(null);
 });
 
-describe('T-62: thứ tự và hướng tab', () => {
-  it('thứ tự tab khớp thanh tab: Quán → Bản đồ → Lịch → Nhóm', () => {
-    expect(ROOM_TABS).toEqual(['places', 'map', 'schedule', 'group']);
+describe('T-62/T-67: thứ tự và hướng tab (mobile 2 tab)', () => {
+  it('thứ tự tab khớp thanh tab: Khám phá → Kế hoạch', () => {
+    expect(ROOM_TABS).toEqual(['explore', 'plan']);
   });
 
   it('sang phải là forward, sang trái là back, cùng tab là none', () => {
-    expect(tabDirection('places', 'map')).toBe('forward');
-    expect(tabDirection('places', 'group')).toBe('forward');
-    expect(tabDirection('schedule', 'map')).toBe('back');
-    expect(tabDirection('group', 'places')).toBe('back');
-    expect(tabDirection('map', 'map')).toBe('none');
+    expect(tabDirection('explore', 'plan')).toBe('forward');
+    expect(tabDirection('plan', 'explore')).toBe('back');
+    expect(tabDirection('plan', 'plan')).toBe('none');
   });
 
-  it('đọc tab từ query, giá trị lạ về places', () => {
-    expect(tabFromSearch('?tab=schedule')).toBe('schedule');
-    expect(tabFromSearch('?foo=1&tab=group')).toBe('group');
-    expect(tabFromSearch('?tab=hack')).toBe('places');
-    expect(tabFromSearch('')).toBe('places');
-    expect(tabFromSearch(undefined)).toBe('places');
+  it('đọc tab từ query, giá trị lạ về explore', () => {
+    expect(tabFromSearch('?tab=plan')).toBe('plan');
+    expect(tabFromSearch('?foo=1&tab=explore')).toBe('explore');
+    expect(tabFromSearch('?tab=hack')).toBe('explore');
+    expect(tabFromSearch('')).toBe('explore');
+    expect(tabFromSearch(undefined)).toBe('explore');
   });
 
   it('popstate (Back) về đúng tab trong URL với hướng ngược lại lượt đi', () => {
-    // Đi places → schedule (forward), Back về URL ?tab=places
-    expect(tabDirection('places', 'schedule')).toBe('forward');
-    expect(resolvePopTab('schedule', '?tab=places')).toEqual({ tab: 'places', direction: 'back' });
+    // Đi explore → plan (forward), Back về URL ?tab=explore
+    expect(resolvePopTab('plan', '?tab=explore')).toEqual({ tab: 'explore', direction: 'back' });
     // Forward lại
-    expect(resolvePopTab('places', '?tab=schedule')).toEqual({ tab: 'schedule', direction: 'forward' });
-    // Back về URL không có tab (vào phòng lần đầu) = places
-    expect(resolvePopTab('map', '')).toEqual({ tab: 'places', direction: 'back' });
+    expect(resolvePopTab('explore', '?tab=plan')).toEqual({ tab: 'plan', direction: 'forward' });
+    // Back về URL không có tab (vào phòng lần đầu) = explore
+    expect(resolvePopTab('plan', '')).toEqual({ tab: 'explore', direction: 'back' });
     // Tab không đổi (vd. popstate rời phòng) → không chuyển
-    expect(resolvePopTab('places', '?tab=places')).toBeNull();
+    expect(resolvePopTab('explore', '?tab=explore')).toBeNull();
+  });
+
+  it('popstate về mục lịch sử cũ mang ?tab= của gđ3–4 vẫn ra tab mới', () => {
+    expect(resolvePopTab('explore', '?tab=schedule')).toEqual({ tab: 'plan', direction: 'forward' });
+    expect(resolvePopTab('plan', '?tab=map')).toEqual({ tab: 'explore', direction: 'back' });
+    expect(resolvePopTab('explore', '?tab=places')).toBeNull();
   });
 });
 

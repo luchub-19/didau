@@ -152,14 +152,22 @@ export function MapView({
     };
   }, [t]);
 
-  // Lang nghe resize window hoac doi tab de map khong bi mat kich thuoc
+  // Khung ban do doi kich thuoc (cot Ke hoach mo/thu, doi giai doan, xoay man hinh, tab mobile hien lai)
+  // -> map.resize(). Thay meo dispatchEvent('resize') cu (T-67).
+  // ResizeObserver chay sau layout, truoc khi ve: resize() xoa canvas, nen phai redraw() dong bo ngay tai day;
+  // de MapLibre tu ve o khung hinh sau thi trong luc cot doi rong ban do nhap nhay trang.
   useEffect(() => {
     if (!map || !mapReady) return;
-    const handleResize = () => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      // Khung bi an (display:none) co kich thuoc 0: doi lan hien lai
+      if (el.clientWidth === 0 || el.clientHeight === 0) return;
       map.resize();
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+      map.redraw();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [map, mapReady]);
 
   // Cho man cong bo quan thang (T-61) bay toi quan: chi khi tab Ban do dang hien
@@ -274,10 +282,96 @@ export function MapView({
     selection?.kind === 'place' ? places.find((p) => p.id === selection.id) : undefined;
 
   return (
-    <div className="flex flex-col lg:flex-row h-[75vh] min-h-[480px] w-full gap-4">
-      {/* Cot trai desktop (360px): danh sach goi y gan day hoac chi tiet quan */}
-      <div className="hidden lg:flex flex-col w-[360px] shrink-0 h-full rounded-card border border-line bg-surface p-4 shadow-sm overflow-hidden">
-        {selectedPoi || selectedPlace ? (
+    // Ban do tran khung cot giua (T-67); khung cha quyet dinh kich thuoc
+    <div className="relative h-full w-full overflow-hidden bg-surface-2">
+      {/* MapLibre container */}
+      <div className="absolute inset-0">
+        <div ref={containerRef} className="h-full w-full" data-testid="map-container" />
+      </div>
+
+      {/* Trang thai dang tai ban do */}
+      {!mapReady && !mapError && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/50 pointer-events-none">
+          <Skeleton.Block className="w-full h-full opacity-40" />
+          <span className="absolute text-caption font-medium text-ink-3 bg-surface/90 px-3 py-1.5 rounded-full shadow-sm">
+            {t('map.loadingPlaces')}
+          </span>
+        </div>
+      )}
+
+      {/* Trang thai loi tai ban do */}
+      {mapError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface p-6">
+          <EmptyState
+            icon={<WarningCircle size={32} className="text-danger" />}
+            title={t('map.error.title')}
+            description={mapError}
+            action={
+              <Button variant="secondary" onClick={() => window.location.reload()}>
+                {t('common.retry')}
+              </Button>
+            }
+          />
+        </div>
+      )}
+
+      {/* O tim kiem noi phia tren */}
+      <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
+        <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
+      </div>
+
+      {/* Ghim diem tap trung */}
+      <OriginPin
+        map={map}
+        lat={room.origin_lat}
+        lng={room.origin_lng}
+        draggable={isHost}
+        onChange={onOriginChange}
+        onPermissionError={() => toast.error(t('map.onlyHostCanChangeOrigin'))}
+      />
+
+      {/* Nut dat diem hen tai giua ban do */}
+      {isHost && (
+        <div className="absolute bottom-3 left-3 z-10">
+          <IconButton
+            icon={<MapPin size={20} weight="fill" />}
+            aria-label={t('map.setOriginAtCenter')}
+            title={t('map.setOriginAtCenter')}
+            variant="secondary"
+            className="shadow-float bg-surface border border-line text-accent"
+            onClick={setPinAtCenter}
+          />
+        </div>
+      )}
+
+      {isLoading && (
+        <span className="absolute right-3 top-16 z-10 rounded-full bg-surface/90 border border-line px-2.5 py-1 text-caption text-ink-3 shadow-float">
+          {t('map.loadingPlaces')}
+        </span>
+      )}
+
+      {/* Goi y gan day khi phong chua co quan (moi co man hinh). Mobile chua 96px day cho nac thu cua
+          sheet danh sach; T-72 dua goi y vao cot trai / dau sheet. */}
+      {places.length === 0 && !selection && (
+        <div className="absolute inset-x-0 top-0 bottom-24 lg:bottom-0 pointer-events-none [&>*]:pointer-events-auto">
+          <NearbySuggestions
+            room={room}
+            places={places}
+            pois={Object.values(poisById)}
+            onSelectPoi={flyToPoi}
+            onAddPoi={(poi) => {
+              void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Desktop: chi tiet quan/POI la panel noi ben phai ban do (T-71 thay bang PlaceDetail 500/440px) */}
+      {(selectedPoi || selectedPlace) && (
+        <div
+          className="hidden lg:flex flex-col absolute top-3 right-3 bottom-3 z-10 rounded-card border border-line bg-surface p-4 shadow-float overflow-hidden"
+          style={{ width: 'min(var(--ws-detail), calc(100% - 24px))' }}
+        >
           <PlaceSheet
             room={room}
             poi={selectedPoi}
@@ -289,123 +383,28 @@ export function MapView({
             isVotingDisabled={isVotingDisabled}
             isDesktopColumn
           />
-        ) : (
-          <NearbySuggestions
+        </div>
+      )}
+
+      {/* Tren mobile: PlaceSheet bottom sheet khong chan */}
+      <div className="lg:hidden">
+        {(selectedPoi || selectedPlace) && (
+          <PlaceSheet
             room={room}
-            places={places}
-            pois={Object.values(poisById)}
-            onSelectPoi={flyToPoi}
-            onAddPoi={(poi) => {
-              void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
+            poi={selectedPoi}
+            place={selectedPlace}
+            onClose={() => {
+              selectPoi(null);
+              selectPlace(null);
             }}
-            isDesktopColumn
+            isVotingDisabled={isVotingDisabled}
           />
         )}
       </div>
 
-      {/* Khung ban do: full panel tren mobile, cot phai tren desktop */}
-      <div className="relative flex-1 h-full min-h-[420px] overflow-hidden rounded-card border border-line bg-surface-2 shadow-sm">
-        {/* MapLibre container */}
-        <div className="absolute inset-0">
-          <div ref={containerRef} className="h-full w-full" data-testid="map-container" />
-        </div>
-
-        {/* Trang thai dang tai ban do */}
-        {!mapReady && !mapError && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/50 pointer-events-none">
-            <Skeleton.Block className="w-full h-full opacity-40" />
-            <span className="absolute text-caption font-medium text-ink-3 bg-surface/90 px-3 py-1.5 rounded-full shadow-sm">
-              {t('map.loadingPlaces')}
-            </span>
-          </div>
-        )}
-
-        {/* Trang thai loi tai ban do */}
-        {mapError && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface p-6">
-            <EmptyState
-              icon={<WarningCircle size={32} className="text-danger" />}
-              title={t('map.error.title')}
-              description={mapError}
-              action={
-                <Button variant="secondary" onClick={() => window.location.reload()}>
-                  {t('common.retry')}
-                </Button>
-              }
-            />
-          </div>
-        )}
-
-        {/* O tim kiem noi phia tren */}
-        <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
-          <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
-        </div>
-
-        {/* Ghim diem tap trung */}
-        <OriginPin
-          map={map}
-          lat={room.origin_lat}
-          lng={room.origin_lng}
-          draggable={isHost}
-          onChange={onOriginChange}
-          onPermissionError={() => toast.error(t('map.onlyHostCanChangeOrigin'))}
-        />
-
-        {/* Nut dat diem hen tai giua ban do */}
-        {isHost && (
-          <div className="absolute bottom-3 left-3 z-10">
-            <IconButton
-              icon={<MapPin size={20} weight="fill" />}
-              aria-label={t('map.setOriginAtCenter')}
-              title={t('map.setOriginAtCenter')}
-              variant="secondary"
-              className="shadow-float bg-surface border border-line text-accent"
-              onClick={setPinAtCenter}
-            />
-          </div>
-        )}
-
-        {isLoading && (
-          <span className="absolute right-3 top-16 z-10 rounded-full bg-surface/90 border border-line px-2.5 py-1 text-caption text-ink-3 shadow-float">
-            {t('map.loadingPlaces')}
-          </span>
-        )}
-
-        {/* Tren mobile: NearbySuggestions khi chua chon quan nao */}
-        <div className="lg:hidden">
-          {places.length === 0 && !selection && (
-            <NearbySuggestions
-              room={room}
-              places={places}
-              pois={Object.values(poisById)}
-              onSelectPoi={flyToPoi}
-              onAddPoi={(poi) => {
-                void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
-              }}
-            />
-          )}
-        </div>
-
-        {/* Tren mobile: PlaceSheet bottom sheet khong chan */}
-        <div className="lg:hidden">
-          {(selectedPoi || selectedPlace) && (
-            <PlaceSheet
-              room={room}
-              poi={selectedPoi}
-              place={selectedPlace}
-              onClose={() => {
-                selectPoi(null);
-                selectPlace(null);
-              }}
-              isVotingDisabled={isVotingDisabled}
-            />
-          )}
-        </div>
-
-        <span className="sr-only">
-          {t('map.attribution')}
-        </span>
-      </div>
+      <span className="sr-only">
+        {t('map.attribution')}
+      </span>
     </div>
   );
 }
