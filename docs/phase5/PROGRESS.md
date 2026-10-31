@@ -13,7 +13,7 @@ Thứ tự làm, phụ thuộc và ước lượng token: `PLAN.md` §6. Luật 
 ## Việc của người (session không tự làm được)
 | Việc | Cần trước | Ghi chú |
 | :--- | :--- | :--- |
-| Ảnh cho ~40 quán tuyển chọn, đặt ở `frontend/public/curated/` theo tên file T-70 sinh sẵn | T-71, T-72 (thiếu ảnh vẫn chạy, hiện ảnh minh hoạ danh mục) | Đồ án nội bộ, không thương mại: lấy ảnh tự do được, nhưng **tải về repo**, không hotlink; ghi nguồn vào trường `photos[].source` |
+| Ảnh quán tuyển chọn, **đợt 1 (10–15 quán) trước**, 2–3 ảnh/quán | Đợt 1 trước T-75 (chụp ảnh demo); T-71/T-72 chạy được khi chưa có (hiện minh hoạ danh mục) | Sau T-70: mở `docs/phase5/curated-checklist.html` → bấm link Google Maps/Foody của từng quán → lưu ảnh vào `curated-inbox/` theo tên trang ghi (đuôi gì cũng được) → chạy `python3 scripts/curated_images.py` (tự thu nhỏ, đổi WebP, cập nhật checklist). Đợt 2 bổ sung dần, không chặn task nào |
 | (Tuỳ chọn) bật Google: key + billing như mục "Việc của người" trong `CLAUDE.md` | T-71 nếu muốn thử UI Kit thật | Không bật thì panel chi tiết dùng dữ liệu tuyển chọn + OSM, vẫn đủ đẹp để demo |
 
 ## Bảng task

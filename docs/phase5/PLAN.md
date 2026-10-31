@@ -90,7 +90,7 @@ Nhắm ≤150k, tuyệt đối ≤250k. Gần 180k mà chưa xong: dừng ở tr
 | 3 | T-67 | Khung không gian: 3 cột / 2 tab, bỏ tab Nhóm | T-66 | | ~135k (45/35/25) | **Opus 5.5 · high** |
 | 4 | T-68 | Danh tính: avatar hoạt hình, "N đang xem", menu avatar | T-67 | | ~110k (35/30/20) | Sonnet 5.5 · high |
 | 5 | T-69 | Thẻ quán ngang, vote "Muốn đi", khối trọng tài | T-67 | | ~125k (40/35/25) | Sonnet 5.5 · high |
-| 6 | T-70 | Bộ dữ liệu tuyển chọn + hàm tra | G1 | | ~100k (20/45/10) | Sonnet 5.5 · medium |
+| 6 | T-70 | Bộ dữ liệu tuyển chọn + hàm tra + checklist ảnh + script xử lý ảnh | G1 | | ~115k (20/55/15) | Sonnet 5.5 · medium |
 | 7 | T-71 | Trang chi tiết quán | T-69, T-70 | | ~140k (45/40/25) | **Opus 5.5 · high** |
 | 8 | T-72 | Giai đoạn ①: tìm kiếm lớn + 4 dải gợi ý | T-67, T-70 | | ~120k (35/35/25) | Sonnet 5.5 · high |
 | 9 | T-73 | Cột Kế hoạch + thanh ngân sách cả buổi + gửi lịch | T-67 | | ~130k (45/35/25) | Sonnet 5.5 · high |
