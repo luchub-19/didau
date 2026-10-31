@@ -4,3 +4,4 @@ export * from './BottomTabBar';
 export * from './ConnectionBanner';
 export * from './HomeHeader';
 export * from './useRoomTab';
+export * from './PhaseStepper';

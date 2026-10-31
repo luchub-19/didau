@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Copy, ShareNetwork, IconButton } from '../ui';
 import { copyText, shareRoom } from '../room/shareRoom';
+import { useRoomPhase } from '../../room/useRoomPhase';
+import { PhaseStepper } from './PhaseStepper';
 
 export interface RoomTopBarProps {
   title: string;
@@ -21,6 +23,7 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
   children,
 }) => {
   const { t } = useTranslation();
+  const { step, viewStep, setViewStep } = useRoomPhase();
 
   const handleCopyCode = () =>
     copyText(code, t('room.codeCopied'), t('invite.copyFailed'));
@@ -57,6 +60,9 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
           </div>
         </div>
 
+        {/* Giữa: thanh 4 bước (desktop) */}
+        <PhaseStepper step={step} viewStep={viewStep} onViewStep={setViewStep} className="hidden md:block flex-shrink-0" />
+
         {/* Bên phải: Trạng thái kết nối + Nút chia sẻ */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {isConnected ? (
@@ -77,6 +83,11 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
             onClick={handleShare}
           />
         </div>
+      </div>
+
+      {/* Mobile: "Bước x/4 · tên" dưới tên phòng */}
+      <div className="md:hidden px-3 sm:px-6 pb-2 -mt-1">
+        <PhaseStepper variant="compact" step={step} viewStep={viewStep} onViewStep={setViewStep} />
       </div>
 
       {children}

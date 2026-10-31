@@ -854,6 +854,12 @@ export const vi = {
     turnOff: 'Tắt âm thanh',
     hint: 'Chỉ phát ở lúc quẹt thẻ và công bố quán.',
   },
+  phase: {
+    ariaLabel: 'Các bước của buổi đi chơi',
+    step: { gather: 'Tìm quán', vote: 'Bình chọn', lock: 'Chốt kèo', send: 'Gửi lịch' },
+    needs: 'Cần xong bước "{{step}}" trước',
+    mobile: 'Bước {{n}}/4 · {{name}}',
+  },
   theme: {
     system: 'Theo máy',
     light: 'Sáng',

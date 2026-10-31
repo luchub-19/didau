@@ -856,6 +856,12 @@ export const en: Messages = {
     turnOff: 'Turn sound off',
     hint: 'Plays only when swiping cards and revealing the pick.',
   },
+  phase: {
+    ariaLabel: 'Steps of the outing',
+    step: { gather: 'Find places', vote: 'Vote', lock: 'Lock in', send: 'Send plan' },
+    needs: 'Finish "{{step}}" first',
+    mobile: 'Step {{n}}/4 · {{name}}',
+  },
   theme: {
     system: 'System',
     light: 'Light',
