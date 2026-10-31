@@ -3,12 +3,19 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
+## Giai đoạn 5 "Không gian phòng" (T-65 → T-75) — ĐANG LÀM
+Thiết kế lại trang phòng: desktop 3 cột (danh sách | bản đồ | kế hoạch), mobile 2 tab, bố cục đổi theo giai đoạn
+(tìm quán → bình chọn → chốt → gửi lịch), trang chi tiết quán có ảnh/giới thiệu, ngân sách cả buổi, avatar hoạt hình.
+**Chỉ frontend**; việc backend ghi ở `docs/phase5/BACKEND-NOTES.md`, không tự làm.
+- Tiến độ, cổng G1–G3, việc của người: `docs/phase5/PROGRESS.md`. Lộ trình + model/effort + ước lượng token: `docs/phase5/PLAN.md` §6.
+- Luật giao diện gđ5 (ghi đè bố cục của gđ3): `docs/phase5/DESIGN.md`. Mock: `docs/phase5/mock/*.dc.html` (chỉ bố cục).
+- File task: `docs/phase5/tasks/T-xx.md`. Bàn giao vào `docs/phase5/PROGRESS.md` (tối đa 6 gạch đầu dòng).
+
 ## Giai đoạn 4 "Sân khấu" (T-58 → T-64) — ĐÃ HOÀN THÀNH (DONE, cổng G3 qua 2026-10-28)
 Trang chủ điện ảnh (bản đồ 3D TP.HCM) + khoảnh khắc trong phòng (quẹt thẻ, reveal chốt quán, chuyển tab, hiện diện).
-Tiến độ + việc còn mở: `docs/phase4/PROGRESS.md`; luật Stage: `docs/phase4/DESIGN.md` (số đo cuối ở §6);
-kịch bản demo: `docs/phase4/DEMO.md`. Code nằm trên nhánh `stage/redesign` (chưa gộp `main`).
-Giai đoạn tiếp theo: chưa có kế hoạch — chờ người dùng. Việc nâng cấp để sau: mục "Nâng cấp để sau" cuối
-`docs/phase4/PROGRESS.md` (avatar người quẹt trong phiên SWIPE, cần CR-09).
+Tiến độ: `docs/phase4/PROGRESS.md`; luật Stage: `docs/phase4/DESIGN.md` (số đo cuối ở §6);
+kịch bản demo: `docs/phase4/DEMO.md`. Nhánh `stage/redesign` đã gộp vào `main` (cùng commit 8653477, 2026-11-01).
+Việc nâng cấp để sau: mục "Nâng cấp để sau" cuối `docs/phase4/PROGRESS.md` (avatar người quẹt SWIPE, cần CR-09).
 
 ## Giai đoạn 3 (T-38 → T-55) — ĐÃ HOÀN THÀNH (DONE)
 Toàn bộ các task từ T-01 đến T-55 (Giai đoạn 1, 2 và 3) đã hoàn thành, kiểm thử tự động xanh 100%.
@@ -52,7 +59,7 @@ không được báo là pass.
 
 ## Kết thúc session (bàn giao)
 1. Mọi tiêu chí trong mục "Tiêu chí hoàn thành" của task đều pass. Nếu còn thiếu, giữ `DOING` và ghi rõ còn gì.
-2. Cập nhật dòng của task trong file tiến độ của giai đoạn (giai đoạn 3: `docs/phase3/PROGRESS.md`, tối đa
+2. Cập nhật dòng của task trong file tiến độ của giai đoạn (giai đoạn 5: `docs/phase5/PROGRESS.md`, tối đa
    6 gạch đầu dòng), chuyển sang `DONE`. Cột ghi chú phải có:
    - đã làm gì, số test;
    - **quyết định hoặc lệch khỏi plan** (kèm lý do);

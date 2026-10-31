@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Mobile — Kế hoạch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Be Vietnam Pro',system-ui,sans-serif;color:#1C1917;background:#FAFAF9}
+a{color:#C73E26}a:hover{color:#9F2F1C}
+.av{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1C1917;flex-shrink:0;box-sizing:border-box}
+.av.sm{width:20px;height:20px;font-size:9px}
+.stack{display:flex}
+.stack .av{margin-left:-7px;border:2px solid #fff}
+.stack .av:first-child{margin-left:0}
+.ph{background-color:#E7E5E4;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.35) 0 10px,transparent 10px 20px)}
+.small{font-size:13px;color:#78716C}
+.item{display:flex;gap:12px}
+.time{width:46px;flex-shrink:0;text-align:right;font-size:15px;font-weight:700;padding-top:10px}
+.time span{display:block;font-size:12px;font-weight:500;color:#78716C}
+.track{display:flex;flex-direction:column;align-items:center;width:14px;flex-shrink:0}
+.track i{width:12px;height:12px;border-radius:50%;background:#FF6B4A;margin-top:14px;border:3px solid #FFF1EC;box-sizing:content-box}
+.track b{flex:1;width:2px;background:#E7E5E4}
+.stop{flex:1;border:1px solid #E7E5E4;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px;background:#fff;min-width:0}
+.travel{font-size:13px;color:#78716C;padding:4px 0 4px 72px}
+.btn{height:52px;border-radius:14px;border:0;font:inherit;font-size:16px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:transparent;font:inherit;font-size:12px;font-weight:600;color:#78716C}
+.tab.on{color:#C73E26}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #FAFAF9; display: flex; flex-direction: column">
+  <header style="height: 60px; background: #fff; border-bottom: 1px solid #E7E5E4; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 4px; flex-shrink: 0">
+    <button aria-label="Về trang chủ" style="width: 44px; height: 44px; border: 0; background: transparent; display: inline-flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <div style="flex: 1; min-width: 0">
+      <div style="font-size: 16px; font-weight: 700">Tối thứ Sáu Q1</div>
+      <div style="font-size: 12px; color: #C73E26; font-weight: 600">Bước 4/4 · Gửi lịch</div>
+    </div>
+    <button aria-label="4 người đang xem" style="display: flex; align-items: center; gap: 4px; border: 0; background: #F5F5F4; border-radius: 999px; padding: 4px 10px 4px 4px; font: inherit; font-size: 13px; font-weight: 700"><span class="stack"><span class="av sm" style="background: #FDE68A">M</span><span class="av sm" style="background: #BAE6FD">A</span></span>4</button>
+    <button aria-label="Khánh, chủ phòng" style="border: 0; background: transparent; padding: 0"><span class="av" style="width: 36px; height: 36px; background: #FECACA; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #047857">K</span></button>
+  </header>
+
+  <div style="background: #fff; padding: 14px 16px; border-bottom: 1px solid #E7E5E4; display: flex; flex-direction: column; gap: 6px">
+    <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: #57534E">Ngân sách mỗi người · cả buổi</span><span><b style="font-size: 16px">295k</b> <span style="color: #57534E">/ 400k</span></span></div>
+    <div style="height: 10px; border-radius: 5px; background: #F5F5F4; overflow: hidden; display: flex"><div style="width: 11%; background: #FF6B4A"></div><div style="width: 62%; background: #FF8E73"></div></div>
+    <span class="small">Còn dư 105k · 1 điểm chưa rõ giá</span>
+  </div>
+
+  <div style="flex: 1; overflow: hidden; padding: 12px 16px; display: flex; flex-direction: column">
+    <div class="item">
+      <div class="time">17:30<span>18:30</span></div>
+      <div class="track"><i></i><b></b></div>
+      <div class="stop"><div style="display: flex; gap: 10px; align-items: center"><div class="ph" style="width: 44px; height: 44px; border-radius: 10px; background-color: #F0E1C4"></div><div><div style="font-size: 15px; font-weight: 700">Cà Phê Bệt Nhà Thờ</div><div class="small">~45k</div></div></div></div>
+    </div>
+    <div class="travel">8 phút đi bộ</div>
+    <div class="item">
+      <div class="time">19:00<span>20:30</span></div>
+      <div class="track"><i style="background: #047857; border-color: #ECFDF5"></i><b></b></div>
+      <div class="stop" style="border-color: #047857"><div style="display: flex; gap: 10px; align-items: center"><div class="ph" style="width: 44px; height: 44px; border-radius: 10px; background-color: #F3D9C9"></div><div><div style="font-size: 15px; font-weight: 700">Pizza 4P's Lê Thánh Tôn</div><div class="small">~250k · quán chính</div></div></div></div>
+    </div>
+    <div class="travel">12 phút đi bộ</div>
+    <div class="item">
+      <div class="time">21:00<span>22:30</span></div>
+      <div class="track"><i></i><b style="background: transparent"></b></div>
+      <div class="stop">
+        <div style="display: flex; gap: 10px; align-items: center"><div class="ph" style="width: 44px; height: 44px; border-radius: 10px; background-color: #CFE3EE"></div><div><div style="font-size: 15px; font-weight: 700">Phố đi bộ Nguyễn Huệ</div><div class="small">Chưa rõ giá</div></div></div>
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #B45309; background: #FFFBEB; border-radius: 8px; padding: 4px 8px; align-self: flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg>Trùng giờ · <a href="#">Sửa</a></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; background: #fff; border-top: 1px solid #E7E5E4">
+    <button class="btn" style="background: #FF6B4A; color: #2B1B12">Gửi kế hoạch cho nhóm</button>
+    <div style="display: flex; gap: 8px">
+      <button class="btn" style="flex: 1; height: 44px; font-size: 14px; background: #F5F5F4; color: #1C1917">Thêm vào lịch</button>
+      <button class="btn" style="flex: 1; height: 44px; font-size: 14px; background: #F5F5F4; color: #1C1917">Xếp lại tự động</button>
+    </div>
+  </div>
+
+  <nav aria-label="Điều hướng" style="height: 64px; background: #fff; border-top: 1px solid #E7E5E4; display: flex; flex-shrink: 0">
+    <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"></path><path d="M9 4v14M15 6v14"></path></svg>Khám phá</button>
+    <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg>Kế hoạch</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
