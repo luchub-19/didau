@@ -9,22 +9,23 @@ export interface RoomTopBarProps {
   title: string;
   code: string;
   roomId: string;
-  isConnected: boolean;
   onGoHome: () => void;
   /** Giai đoạn do RoomPage tính một lần, dùng chung với RoomWorkspace; thiếu thì tự tính (test, nơi gọi khác). */
   phase?: UseRoomPhaseResult;
-  /** Nút phụ cạnh nút chia sẻ. */
-  actions?: React.ReactNode;
+  /** "N đang xem" — đứng trước nút mời. */
+  viewers?: React.ReactNode;
+  /** Avatar + tên + vai trò (IdentityMenu) — cuối thanh. */
+  identity?: React.ReactNode;
 }
 
 export const RoomTopBar: React.FC<RoomTopBarProps> = ({
   title,
   code,
   roomId,
-  isConnected,
   onGoHome,
   phase,
-  actions,
+  viewers,
+  identity,
 }) => {
   const { t } = useTranslation();
   const ownPhase = useRoomPhase();
@@ -68,27 +69,17 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
         {/* Giữa: thanh 4 bước (desktop) */}
         <PhaseStepper step={step} viewStep={viewStep} onViewStep={setViewStep} className="hidden md:block flex-shrink-0" />
 
-        {/* Bên phải: Trạng thái kết nối + Nút chia sẻ */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isConnected ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-semibold bg-success-soft text-success border border-success/20">
-              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="hidden sm:inline">{t('connection.live')}</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-caption font-semibold bg-warning-soft text-warning border border-warning/20">
-              <span className="w-2 h-2 rounded-full bg-warning" />
-              <span className="hidden sm:inline">{t('connection.offline')}</span>
-            </span>
-          )}
-
-          {actions}
+        {/* Bên phải: N đang xem · mời · avatar (viền avatar = trạng thái kết nối, DESIGN gđ5 §4) */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {viewers}
 
           <IconButton
             icon={<ShareNetwork size={20} />}
             aria-label={t('room.share')}
             onClick={handleShare}
           />
+
+          {identity}
         </div>
       </div>
 

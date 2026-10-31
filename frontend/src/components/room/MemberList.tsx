@@ -52,7 +52,7 @@ export const MemberList: React.FC<MemberListProps> = ({
 
           return (
             <li key={member.id} className="flex items-center gap-3 py-3 min-h-[56px]">
-              <Avatar name={member.nickname} showTitle={false} />
+              <Avatar name={member.nickname} avatarUrl={member.avatar_url} seed={member.id} showTitle={false} />
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 min-w-0">

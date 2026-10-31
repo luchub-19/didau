@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Sheet, TextField } from '../ui';
+import { Button, CharacterAvatar, Sheet, Shuffle, TextField, avatarUrlFor, randomSeed } from '../ui';
 import { useRoomStore } from '../../store/useRoomStore';
 import { describeRoomError, normalizeRoomCode } from './roomErrors';
 
@@ -25,6 +25,8 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
 
   const [roomCode, setRoomCode] = useState(normalizeRoomCode(initialCode));
   const [nickname, setNickname] = useState('');
+  // Nhân vật chọn trước khi vào phòng; vào rồi chưa đổi được (BACKEND-NOTES #3)
+  const [seed, setSeed] = useState(randomSeed);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
 
@@ -53,9 +55,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       const res = await joinRoom({
         room_code: cleanCode,
         nickname: nickname.trim(),
-        avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
-          nickname.trim(),
-        )}`,
+        avatar_url: avatarUrlFor(seed),
       });
       onClose();
       onSuccess(res.room.id);
@@ -98,6 +98,18 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           inputMode="text"
           required
         />
+        <div className="flex items-center gap-3">
+          <CharacterAvatar fallbackSeed={seed} name={t('avatar.preview')} size={56} />
+          <Button
+            variant="secondary"
+            type="button"
+            leftIcon={<Shuffle size={18} aria-hidden="true" />}
+            onClick={() => setSeed(randomSeed())}
+            disabled={isLoading}
+          >
+            {t('avatar.reroll')}
+          </Button>
+        </div>
         <TextField
           label={t('room.join.nicknameLabel')}
           placeholder={t('room.join.nicknamePlaceholder')}

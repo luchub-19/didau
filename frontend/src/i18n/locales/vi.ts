@@ -52,7 +52,6 @@ export const vi = {
       ariaLabel: 'Điều hướng các mục trong phòng',
       explore: 'Khám phá',
       plan: 'Kế hoạch',
-      group: 'Nhóm',
     },
     workspace: {
       listRegion: 'Danh sách quán',
@@ -63,7 +62,6 @@ export const vi = {
       hasConflicts: 'Lịch có giờ bị trùng',
       sheetTitle: 'Danh sách quán · {{count}}',
       sheetHandle: 'Thu gọn hoặc mở rộng danh sách quán',
-      groupOpen: 'Thông tin nhóm',
     },
     loading: 'Đang tải dữ liệu chuyến đi...',
     codeCopied: 'Đã sao chép mã phòng',
@@ -136,6 +134,7 @@ export const vi = {
     summary: {
       title: 'Thông tin chuyến đi',
       status: 'Trạng thái',
+      timeWindow: 'Khung giờ',
       eventDate: 'Ngày hẹn',
       totalPlaces: 'Tổng địa điểm',
       totalSchedule: 'Mục lịch trình',
@@ -665,9 +664,23 @@ export const vi = {
     aloneHint: 'Chưa có ai khác trong phòng. Gửi link này để cả nhóm cùng chọn quán.',
     message: 'Vào phòng "{{title}}" trên {{app}} để cùng chọn quán nhé!',
   },
+  identity: {
+    menuTitle: 'Tài khoản và phòng',
+    menuLabel: '{{name}}, {{role}}, {{status}}. Mở menu',
+    viewersTitle: 'Ai đang xem',
+    viewingCount_one: '{{count}} người đang xem',
+    viewingCount_other: '{{count}} người đang xem',
+    viewing: 'Đang xem · {{count}}',
+    away: 'Vắng · {{count}}',
+  },
+  avatar: {
+    reroll: 'Đổi nhân vật',
+    preview: 'Nhân vật của bạn',
+  },
   member: {
     title: 'Thành viên',
     you: 'Bạn',
+    guest: 'Thành viên',
     host: 'Chủ phòng',
     presence: {
       online: 'Đang online',

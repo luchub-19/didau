@@ -74,20 +74,18 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     expect(sheetHtml).toContain('Nội dung bên trong');
   });
 
-  it('RoomTopBar hiển thị tiêu đề, mã phòng và vai trò/trực tiếp', () => {
+  it('RoomTopBar hiển thị tiêu đề và mã phòng', () => {
     const html = renderToStaticMarkup(
       <RoomTopBar
         roomId={mockRoom.id}
         title={mockRoom.title}
         code={mockRoom.code}
-        isConnected={true}
         onGoHome={() => {}}
       />,
     );
 
     expect(html).toContain(mockRoom.title);
     expect(html).toContain(mockRoom.code);
-    expect(html).toContain('Trực tiếp');
   });
 
 

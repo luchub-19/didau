@@ -13,3 +13,5 @@ export * from './Avatar';
 export * from './Segmented';
 export * from './Icon';
 export * from './LanguageSwitcher';
+export * from './CharacterAvatar';
+export * from './characterAvatar';

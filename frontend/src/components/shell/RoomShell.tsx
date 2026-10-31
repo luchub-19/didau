@@ -18,8 +18,10 @@ export interface RoomShellProps {
   phase?: UseRoomPhaseResult;
   /** Lịch có xung đột → chấm đỏ trên tab Kế hoạch. */
   hasConflicts?: boolean;
-  /** Nút phụ trên thanh đỉnh, cạnh nút chia sẻ (tạm: nút Nhóm, T-68 thay bằng menu avatar). */
-  topBarActions?: React.ReactNode;
+  /** "N đang xem" trên thanh đỉnh (ViewersButton). */
+  topBarViewers?: React.ReactNode;
+  /** Menu avatar trên thanh đỉnh (IdentityMenu). */
+  topBarIdentity?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -32,7 +34,8 @@ export const RoomShell: React.FC<RoomShellProps> = ({
   onGoHome,
   phase,
   hasConflicts,
-  topBarActions,
+  topBarViewers,
+  topBarIdentity,
   children,
 }) => {
   return (
@@ -41,10 +44,10 @@ export const RoomShell: React.FC<RoomShellProps> = ({
         title={room.title}
         code={room.code}
         roomId={room.id}
-        isConnected={isConnected}
         onGoHome={onGoHome}
         phase={phase}
-        actions={topBarActions}
+        viewers={topBarViewers}
+        identity={topBarIdentity}
       />
 
       {/* Dải thông báo mất kết nối lâu */}

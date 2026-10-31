@@ -8,7 +8,7 @@ import {
   applyTheme,
   THEME_STORAGE_KEY,
 } from '../theme/useTheme';
-import { GroupPanel } from '../pages/room/GroupPanel';
+import { IdentityMenu } from '../components/shell/IdentityMenu';
 import { mockRoom, mockHostMember, mockGuestMember } from '../mocks/mockData';
 import '../i18n';
 
@@ -165,10 +165,12 @@ describe('T-54: Dark mode and Theme Management', () => {
     });
   });
 
-  describe('GroupPanel tích hợp điều khiển Giao diện', () => {
+  describe('IdentityMenu tích hợp điều khiển Giao diện', () => {
     it('render hàng Giao diện với Segmented 3 lựa chọn (Theo máy / Sáng / Tối)', () => {
       const html = renderToStaticMarkup(
-        <GroupPanel
+        <IdentityMenu
+          defaultOpen
+          isConnected
           room={mockRoom}
           members={[mockHostMember, mockGuestMember]}
           currentMember={mockHostMember}

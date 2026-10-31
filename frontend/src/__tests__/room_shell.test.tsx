@@ -96,24 +96,15 @@ describe('T-41/T-67: RoomShell, RoomTopBar, BottomTabBar', () => {
   describe('RoomTopBar', () => {
     it('hiển thị tên phòng, mã phòng dạng copy và nút về trang chủ', () => {
       const html = renderToStaticMarkup(
-        <RoomTopBar title="Chuyến đi Đà Lạt" code="DALAT1" roomId="room-123" isConnected={true} onGoHome={() => {}} />,
+        <RoomTopBar title="Chuyến đi Đà Lạt" code="DALAT1" roomId="room-123" onGoHome={() => {}} />,
       );
 
       expect(html).toContain('Chuyến đi Đà Lạt');
       expect(html).toContain('DALAT1');
-      expect(html).toContain('Trực tiếp');
+      expect(html).not.toContain('Trực tiếp'); // pill cũ đã bỏ, trạng thái nằm ở viền avatar
       expect(html).toContain('aria-label="Quay lại"');
       expect(html).toContain('aria-label="Chia sẻ phòng"');
       expect(html).not.toContain('max-w-7xl');
-    });
-
-    it('hiển thị trạng thái mất kết nối khi isConnected = false', () => {
-      const html = renderToStaticMarkup(
-        <RoomTopBar title="Chuyến đi Đà Lạt" code="DALAT1" roomId="room-123" isConnected={false} onGoHome={() => {}} />,
-      );
-
-      expect(html).toContain('Mất kết nối');
-      expect(html).toContain('bg-warning-soft');
     });
 
     it('nhận phase từ ngoài (một nguồn viewStep) và slot nút phụ', () => {
@@ -122,13 +113,14 @@ describe('T-41/T-67: RoomShell, RoomTopBar, BottomTabBar', () => {
           title="Phòng"
           code="ABC123"
           roomId="r"
-          isConnected
           onGoHome={() => {}}
           phase={{ phase: 'lock', step: 3, viewStep: 2, setViewStep: () => {} }}
-          actions={<button type="button">nut-nhom</button>}
+          viewers={<button type="button">nut-xem</button>}
+          identity={<button type="button">nut-avatar</button>}
         />,
       );
-      expect(html).toContain('nut-nhom');
+      expect(html).toContain('nut-xem');
+      expect(html).toContain('nut-avatar');
       expect(html).toContain('Bước 2/4'); // dòng compact đọc viewStep từ prop
     });
   });

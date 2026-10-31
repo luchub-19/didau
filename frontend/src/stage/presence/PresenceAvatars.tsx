@@ -47,7 +47,7 @@ const PulseRing: React.FC<{ seq: number | undefined; at: number | undefined }> =
 export interface PresenceAvatarStackProps {
   placeId: string;
   /** Người đang xem quán, theo thứ tự đến (không gồm chính mình). */
-  viewers: { id: string; name: string }[];
+  viewers: { id: string; name: string; avatarUrl?: string | null }[];
   pulses: Record<string, VotePulse>;
   className?: string;
 }
@@ -68,11 +68,11 @@ export const PresenceAvatarStack: React.FC<PresenceAvatarStackProps> = ({ placeI
       data-testid="presence-avatars"
       className={`flex items-center -space-x-2 ${className}`}
     >
-      {shown.map(({ id, name }) => {
+      {shown.map(({ id, name, avatarUrl }) => {
         const p = pulses[id];
         return (
           <span key={id} className="relative inline-flex rounded-field ring-2 ring-surface">
-            <Avatar name={name} size="sm" showTitle={false} />
+            <Avatar name={name} avatarUrl={avatarUrl} seed={id} size="sm" showTitle={false} />
             <PulseRing seq={p?.placeId === placeId ? p.seq : undefined} at={p?.at} />
           </span>
         );
@@ -101,10 +101,10 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ placeId, class
 
   const viewers = useMemo(
     () =>
-      (viewersByPlace(peers, meId)[placeId] ?? []).map((id) => ({
-        id,
-        name: members.find((m) => m.id === id)?.nickname ?? t('place.defaultMember'),
-      })),
+      (viewersByPlace(peers, meId)[placeId] ?? []).map((id) => {
+        const m = members.find((x) => x.id === id);
+        return { id, name: m?.nickname ?? t('place.defaultMember'), avatarUrl: m?.avatar_url };
+      }),
     [peers, meId, placeId, members, t],
   );
 

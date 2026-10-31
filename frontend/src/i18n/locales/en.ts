@@ -54,7 +54,6 @@ export const en: Messages = {
       ariaLabel: 'Room navigation',
       explore: 'Explore',
       plan: 'Plan',
-      group: 'Group',
     },
     workspace: {
       listRegion: 'Place list',
@@ -65,7 +64,6 @@ export const en: Messages = {
       hasConflicts: 'Schedule has overlapping times',
       sheetTitle: 'Places · {{count}}',
       sheetHandle: 'Collapse or expand the place list',
-      groupOpen: 'Group info',
     },
     loading: 'Loading trip data...',
     codeCopied: 'Room code copied',
@@ -138,6 +136,7 @@ export const en: Messages = {
     summary: {
       title: 'Trip information',
       status: 'Status',
+      timeWindow: 'Time window',
       eventDate: 'Event date',
       totalPlaces: 'Total places',
       totalSchedule: 'Schedule items',
@@ -667,9 +666,23 @@ export const en: Messages = {
     aloneHint: "No one else is here yet. Send this link so the whole group can pick places together.",
     message: 'Join "{{title}}" on {{app}} and help pick where to go!',
   },
+  identity: {
+    menuTitle: 'Account and room',
+    menuLabel: '{{name}}, {{role}}, {{status}}. Open menu',
+    viewersTitle: 'Who is viewing',
+    viewingCount_one: '{{count}} viewing',
+    viewingCount_other: '{{count}} viewing',
+    viewing: 'Viewing · {{count}}',
+    away: 'Away · {{count}}',
+  },
+  avatar: {
+    reroll: 'Change character',
+    preview: 'Your character',
+  },
   member: {
     title: 'Members',
     you: 'You',
+    guest: 'Member',
     host: 'Host',
     presence: {
       online: 'Online',

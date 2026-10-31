@@ -221,3 +221,9 @@ poetry run python ../scripts/smoke_test.py http://localhost:8000 http://localhos
 
 Dự án phát triển mã nguồn mở theo chuẩn kiến trúc Clean / Onion Architecture.
 Toàn bộ đặc tả API, Schema và sự kiện WebSocket tuân thủ chặt chẽ tài liệu [docs/CONTRACTS.md](docs/CONTRACTS.md).
+
+### Ghi công (credits)
+- **Avatar nhân vật**: bộ ["Thumbs"](https://www.dicebear.com/styles/thumbs/) của DiceBear (Florian Körner), tác phẩm
+  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (phạm vi công cộng, không bắt buộc ghi công; vẫn ghi ở đây).
+  Mã `@dicebear/core` và `@dicebear/thumbs` theo giấy phép MIT. Hình được sinh ngay trên máy từ seed lưu trong `avatar_url`;
+  ứng dụng **không** gọi `api.dicebear.com`.

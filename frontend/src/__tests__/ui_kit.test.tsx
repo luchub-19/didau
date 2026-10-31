@@ -316,14 +316,15 @@ describe('UI Kit Component Suite (T-40)', () => {
   });
 
   describe('Avatar', () => {
-    it('render chữ cái đầu in hoa, bo 12px (rounded-field), màu theo hash', () => {
+    it('render nhân vật hoạt hình (img data URI), bo 12px (rounded-field), kích thước theo size', () => {
       const htmlLan = renderToStaticMarkup(<Avatar name="Lan" size="md" />);
-      expect(htmlLan).toContain('L');
+      expect(htmlLan).toContain('<img');
+      expect(htmlLan).toContain('src="data:image/svg+xml');
+      expect(htmlLan).toContain('alt="Lan"');
       expect(htmlLan).toContain('rounded-field');
       expect(htmlLan).toContain('title="Lan"');
 
       const htmlBinh = renderToStaticMarkup(<Avatar name="Bình" size="lg" />);
-      expect(htmlBinh).toContain('B');
       expect(htmlBinh).toContain('w-12 h-12');
     });
   });

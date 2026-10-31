@@ -14,16 +14,21 @@ import {
   EmptyState,
   Skeleton,
   ConfirmSheet,
-  Sheet,
   ArrowLeft,
   Info,
-  Users,
   WarningCircle,
   toast,
 } from '../components/ui';
 
-import { RoomShell, RoomWorkspace, useRoomTab, useWorkspaceLayout } from '../components/shell';
-import { PlacesPanel, MapPanel, SchedulePanel, GroupPanel } from './room';
+import {
+  IdentityMenu,
+  RoomShell,
+  RoomWorkspace,
+  ViewersButton,
+  useRoomTab,
+  useWorkspaceLayout,
+} from '../components/shell';
+import { PlacesPanel, MapPanel, SchedulePanel } from './room';
 import { PlaceForm } from '../components/places';
 import { TieBreakSelectorModal } from '../components/voting';
 import { AddScheduleItemModal } from '../components/schedule';
@@ -72,8 +77,6 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [isTieBreakOpen, setIsTieBreakOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(true);
-  // Tạm: thông tin nhóm mở bằng nút trên thanh đỉnh; link cũ ?tab=group mở sẵn (T-68 thay bằng menu avatar)
-  const [isGroupOpen, setIsGroupOpen] = useState(openedFromGroupLink);
   // Tăng mỗi lần cần nhường chỗ cho bản đồ: sheet danh sách mobile thu về nấc thấp
   const [mapFocusKey, setMapFocusKey] = useState(0);
 
@@ -254,13 +257,20 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
       onGoHome={onGoHome}
       phase={phaseState}
       hasConflicts={conflicts.length > 0}
-      topBarActions={
-        <IconButton
-          icon={<Users size={20} />}
-          aria-label={t('room.workspace.groupOpen')}
-          title={t('room.workspace.groupOpen')}
-          aria-haspopup="dialog"
-          onClick={() => setIsGroupOpen(true)}
+      topBarViewers={
+        <ViewersButton members={members} currentMember={currentMember} isConnected={ws.isConnected} />
+      }
+      topBarIdentity={
+        <IdentityMenu
+          room={room}
+          members={members}
+          currentMember={currentMember}
+          isHost={isHost}
+          isConnected={ws.isConnected}
+          placesCount={places.length}
+          scheduleCount={schedule.length}
+          onOpenTieBreakModal={() => setIsTieBreakOpen(true)}
+          defaultOpen={openedFromGroupLink}
         />
       }
     >
@@ -311,20 +321,6 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
           />
         }
       />
-
-      {/* Tạm: thông tin nhóm trong sheet (T-68 chuyển sang menu avatar rồi mới xoá GroupPanel) */}
-      <Sheet isOpen={isGroupOpen} onClose={() => setIsGroupOpen(false)} title={t('room.tab.group')}>
-        <GroupPanel
-          room={room}
-          members={members}
-          currentMember={currentMember}
-          isHost={isHost}
-          isConnected={ws.isConnected}
-          placesCount={places.length}
-          scheduleCount={schedule.length}
-          onOpenTieBreakModal={() => setIsTieBreakOpen(true)}
-        />
-      </Sheet>
 
       {/* Modals & Sheets tương tác */}
       <PlaceForm

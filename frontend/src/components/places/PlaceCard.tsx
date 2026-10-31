@@ -5,6 +5,7 @@ import { formatMoney, formatTimeRange } from '../../i18n/format';
 import { useMapStore } from '../../store/useMapStore';
 import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
+import { useRoomStore } from '../../store/useRoomStore';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
 import { IconButton } from '../ui/IconButton';
 import {
@@ -131,7 +132,8 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
     borderAndBg = 'border-line opacity-60 bg-surface-2';
   }
 
-  const proposerName = place.submitted_by_nickname || t('place.defaultMember');
+  const proposer = useRoomStore((s) => s.members.find((m) => m.id === place.submitted_by_id));
+  const proposerName = place.submitted_by_nickname || proposer?.nickname || t('place.defaultMember');
 
   // Thẻ biến mất khi chuột còn trên nó thì không để lại tiêu điểm treo
   useEffect(() => () => clearHoverPlace(place.id), [place.id]);
@@ -273,7 +275,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
         {/* Chân thẻ: Người đề xuất + Khối vote */}
         <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <Avatar name={proposerName} size="sm" />
+            <Avatar name={proposerName} avatarUrl={proposer?.avatar_url} seed={place.submitted_by_id} size="sm" />
             <span className="text-caption text-ink-2 truncate">
               {t('place.suggestedBy', { name: proposerName })}
             </span>

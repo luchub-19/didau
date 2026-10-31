@@ -259,7 +259,7 @@ describe('presence channel + store', () => {
     void i18n.changeLanguage('en');
     html = renderToStaticMarkup(<PresenceAvatarStack placeId="p1" viewers={viewers.slice(0, 1)} pulses={{}} />);
     expect(html).toContain(`${guest.nickname} is looking at this place`);
-    expect(html).not.toContain('+');
+    expect(html).not.toMatch(/>\+\d/); // không có chip "+N" (data URI ảnh có 'svg+xml' nên không so chuỗi '+' trần)
     expect(renderToStaticMarkup(<PresenceAvatarStack placeId="p1" viewers={[]} pulses={{}} />)).toBe('');
   });
 });
