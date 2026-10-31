@@ -13,7 +13,7 @@ import {
 } from '../mocks/mockData';
 import { useDecisionStore } from '../store/useDecisionStore';
 import { usePlaceStore } from '../store/usePlaceStore';
-import { DeciderBanner } from '../components/decide/DeciderBanner';
+import { TieBlock } from '../components/decide/TieBlock';
 import { SmartPickCard } from '../components/decide/SmartPickCard';
 import { SpinWheel } from '../components/decide/SpinWheel';
 import { DecideModal } from '../components/decide/DecideModal';
@@ -67,58 +67,55 @@ const sampleSmartPicks: ScoredPick[] = [
 ];
 
 describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng quay)', () => {
-  describe('1. DeciderBanner', () => {
-    it('ẩn (trả về null) khi không có hints', () => {
-      useDecisionStore.setState({ hints: [] });
+  describe('1. TieBlock (khối hoà phiếu)', () => {
+    const tiedPlaces = [
+      { ...mockPlaces[0], upvotes: 4, score: 4 },
+      { ...mockPlaces[1], upvotes: 4, score: 4 },
+    ];
+
+    it('chỉ vẽ ở giai đoạn tie: giai đoạn khác trả về rỗng', () => {
+      for (const phase of ['gather', 'vote', 'lock', 'send'] as const) {
+        const html = renderToStaticMarkup(
+          <TieBlock phase={phase} hints={sampleHints} places={tiedPlaces} onDecide={() => {}} />,
+        );
+        expect(html).toBe('');
+      }
+    });
+
+    it('giai đoạn tie: "Hoà rồi: N quán cùng K phiếu", tên quán, nút Để trọng tài chọn và liên kết Đổi cách chọn', () => {
       const html = renderToStaticMarkup(
-        <DeciderBanner roomId={mockRoom.id} hints={[]} onOpenDecide={() => {}} />,
+        <TieBlock phase="tie" hints={sampleHints} places={tiedPlaces} onDecide={() => {}} />,
+      );
+      expect(html).toContain('Hoà rồi: 2 quán cùng 4 phiếu');
+      expect(html).toContain(mockPlaces[0].name);
+      expect(html).toContain(mockPlaces[1].name);
+      expect(html).toContain('Để trọng tài chọn');
+      expect(html).toContain('Đổi cách chọn');
+      expect(html).not.toContain('TIE_AT_TOP');
+    });
+
+    it('không có candidate_place_ids thì lấy các quán chung điểm cao nhất', () => {
+      const html = renderToStaticMarkup(
+        <TieBlock
+          phase="tie"
+          hints={[{ type: 'NEAR_TIE', category: null, candidate_place_ids: [] }]}
+          places={tiedPlaces}
+          onDecide={() => {}}
+        />,
+      );
+      expect(html).toContain('Hoà rồi: 2 quán cùng 4 phiếu');
+    });
+
+    it('hint không nêu ứng viên và không có 2 quán chung điểm cao nhất thì không vẽ', () => {
+      const html = renderToStaticMarkup(
+        <TieBlock
+          phase="tie"
+          hints={[{ type: 'NEAR_TIE', category: null, candidate_place_ids: [] }]}
+          places={[{ ...mockPlaces[0], score: 5 }, { ...mockPlaces[1], score: 1 }]}
+          onDecide={() => {}}
+        />,
       );
       expect(html).toBe('');
-    });
-
-    it('hiển thị thông báo hoà điểm khi hint là TIE_AT_TOP', () => {
-      useDecisionStore.setState({ hints: sampleHints });
-      const html = renderToStaticMarkup(
-        <DeciderBanner roomId={mockRoom.id} hints={sampleHints} onOpenDecide={() => {}} />,
-      );
-      expect(html).toContain('Hoà điểm cao nhất');
-      expect(html).toContain('2 quán đang hoà điểm, để app chọn hộ nhé?');
-      expect(html).toContain('Chọn hộ nhóm');
-      expect(html).not.toContain('TIE_AT_TOP');
-      expect(html).not.toContain('🎲');
-    });
-
-    it('hiển thị đúng thông báo cho các loại hint khác (NEAR_TIE, TOO_MANY, STALLED, EMPTY)', () => {
-      const otherHints: DeciderHint[] = [
-        { type: 'NEAR_TIE', category: 'FOOD', candidate_place_ids: [mockPlaces[0].id] },
-      ];
-      useDecisionStore.setState({ hints: otherHints });
-      let html = renderToStaticMarkup(
-        <DeciderBanner roomId={mockRoom.id} hints={otherHints} onOpenDecide={() => {}} />,
-      );
-      expect(html).toContain('Điểm số suýt soát');
-      expect(html).not.toContain('NEAR_TIE');
-
-      const tooManyHints: DeciderHint[] = [{ type: 'TOO_MANY', category: 'FOOD', candidate_place_ids: [] }];
-      useDecisionStore.setState({ hints: tooManyHints });
-      html = renderToStaticMarkup(
-        <DeciderBanner roomId={mockRoom.id} hints={tooManyHints} onOpenDecide={() => {}} />,
-      );
-      expect(html).toContain('Nhiều lựa chọn');
-
-      const stalledHints: DeciderHint[] = [{ type: 'STALLED', category: null, candidate_place_ids: [] }];
-      useDecisionStore.setState({ hints: stalledHints });
-      html = renderToStaticMarkup(
-        <DeciderBanner roomId={mockRoom.id} hints={stalledHints} onOpenDecide={() => {}} />,
-      );
-      expect(html).toContain('Bình chọn chững lại');
-
-      const emptyHints: DeciderHint[] = [{ type: 'EMPTY', category: 'ENTERTAINMENT', candidate_place_ids: [] }];
-      useDecisionStore.setState({ hints: emptyHints });
-      html = renderToStaticMarkup(
-        <DeciderBanner roomId={mockRoom.id} hints={emptyHints} onOpenDecide={() => {}} />,
-      );
-      expect(html).toContain('Chưa có địa điểm');
     });
   });
 

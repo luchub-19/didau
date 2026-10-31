@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoom } from '../hooks/useRoom';
 import { describeApiError, errorMessageKey } from '../i18n/serverText';
@@ -32,7 +32,7 @@ import { PlacesPanel, MapPanel, SchedulePanel } from './room';
 import { PlaceForm } from '../components/places';
 import { TieBreakSelectorModal } from '../components/voting';
 import { AddScheduleItemModal } from '../components/schedule';
-import { DecideModal } from '../components/decide';
+import { DecideModal, type DecideIntent } from '../components/decide';
 import { JoinRoomModal } from '../components/room';
 import { flyToPlace } from '../components/map/flyToPlace';
 import { useRoomPhase } from '../room/useRoomPhase';
@@ -72,6 +72,12 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
 
   const isDecideModalOpen = useDecisionStore((s) => s.isDecideModalOpen);
   const setDecideModalOpen = useDecisionStore((s) => s.setDecideModalOpen);
+  // Ý định của lần mở bảng chọn hộ gần nhất (TieBlock); mở từ nơi khác (WS, nút khác) thì không có
+  const [decideIntent, setDecideIntent] = useState<DecideIntent | null>(null);
+  // Bảng đóng bằng đường nào cũng xoá ý định (reveal/WS đóng bảng không qua onClose), tránh ép kiểu cho lần mở sau
+  useEffect(() => {
+    if (!isDecideModalOpen) setDecideIntent(null);
+  }, [isDecideModalOpen]);
 
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
@@ -286,6 +292,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         list={
           <PlacesPanel
             roomId={roomId}
+            room={room}
+            phase={phaseState.phase}
             places={places}
             selectedCategory={selectedCategory}
             onSelectCategory={(cat: PlaceCategory | 'ALL') =>
@@ -297,7 +305,10 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
             onOpenAddModal={() => setIsAddPlaceOpen(true)}
             onDeletePlace={handleRequestDeletePlace}
             onViewOnMap={handleViewOnMap}
-            onOpenDecide={() => setDecideModalOpen(true)}
+            onOpenDecide={(intent) => {
+              setDecideIntent(intent ?? null);
+              setDecideModalOpen(true);
+            }}
           />
         }
         map={
@@ -346,9 +357,14 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
 
       <DecideModal
         isOpen={isDecideModalOpen}
-        onClose={() => setDecideModalOpen(false)}
+        onClose={() => {
+          setDecideModalOpen(false);
+          setDecideIntent(null);
+        }}
         roomId={roomId}
         isHost={isHost}
+        initialMode={decideIntent?.mode}
+        startChoosing={decideIntent?.chooseMode}
       />
 
       <ConfirmSheet

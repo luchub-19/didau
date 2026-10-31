@@ -199,6 +199,23 @@ export const en: Messages = {
     emptyFilterTitle: 'No {{category}} places found',
     emptyFilterDesc: 'Try a different search term or view all categories.',
     viewAll: 'View all',
+    list: {
+      progress: '{{done}}/{{total}} have picked',
+      progressLabel: '{{done}} of {{total}} members have picked places',
+      tools: 'Filter, sort, search',
+      filterInList: 'Filter this list',
+      sortTitle: 'Sort',
+      categoryTitle: 'Category',
+    },
+    row: {
+      leading: 'Leading',
+      overBudget: 'Over budget',
+      menu: 'Options for {{name}}',
+      priceUnknown: 'price unknown',
+      wantCount_one: '{{count}} person wants to go',
+      wantCount_other: '{{count}} people want to go',
+      open: 'Show {{name}} on the map',
+    },
     form: {
       title: 'Suggest a new place',
       desc: 'Paste a link or enter a name for the group to vote.',
@@ -228,10 +245,10 @@ export const en: Messages = {
     },
   },
   vote: {
-    agree: 'Upvote (+1)',
-    cancelAgree: 'Cancel upvote',
-    disagree: 'Downvote (-1)',
-    cancelDisagree: 'Cancel downvote',
+    agree: 'Want to go',
+    cancelAgree: 'Remove “Want to go”',
+    disagree: 'Not this one',
+    cancelDisagree: 'Remove “Not this one”',
     scoreTitle: 'Score: {{score}} (+{{upvotes}} / -{{downvotes}})',
     error: 'Could not submit vote. Check your connection and try again.',
     votingDisabled: 'Voting is closed',
@@ -395,6 +412,12 @@ export const en: Messages = {
     },
   },
   decide: {
+    tie: {
+      title: 'It’s a tie: {{count}} places with {{votes}} votes each',
+      more: '+{{count}} more',
+      cta: 'Let the referee pick',
+      change: 'Pick another way',
+    },
     banner: {
       title: {
         TIE_AT_TOP: 'Top places tied',

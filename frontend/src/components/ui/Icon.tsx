@@ -36,6 +36,7 @@ export {
   Users,
   ThumbsUp,
   ThumbsDown,
+  Heart,
   Clock,
   CurrencyCircleDollar,
 

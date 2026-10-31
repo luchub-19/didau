@@ -1,10 +1,15 @@
 import React from 'react';
-import type { Place, PlaceCategory } from '../../types';
-import { CategoryFilter, PlaceList } from '../../components/places';
-import { DeciderBanner } from '../../components/decide';
+import type { Place, PlaceCategory, Room } from '../../types';
+import { PlaceList } from '../../components/places';
+import { TieBlock, type DecideIntent } from '../../components/decide';
+import type { RoomPhase } from '../../room/phase';
 
 export interface PlacesPanelProps {
   roomId: string;
+  /** Điểm hẹn + ngân sách phòng (khoảng cách, nhãn "Vượt ngân sách"). */
+  room?: Pick<Room, 'origin_lat' | 'origin_lng' | 'budget_limit'> | null;
+  /** Giai đoạn phòng: `tie` hiện khối hoà phiếu; `vote`/`tie` hiện "x/y đã chọn". */
+  phase: RoomPhase;
   places: Place[];
   selectedCategory: PlaceCategory | 'ALL';
   onSelectCategory: (cat: PlaceCategory | 'ALL') => void;
@@ -14,12 +19,14 @@ export interface PlacesPanelProps {
   onOpenAddModal: () => void;
   onDeletePlace: (placeId: string) => void;
   onViewOnMap: (place: Place) => void;
-  onOpenDecide: () => void;
+  onOpenDecide: (intent?: DecideIntent) => void;
   onSwitchToMap?: () => void;
 }
 
 export const PlacesPanel: React.FC<PlacesPanelProps> = ({
   roomId,
+  room,
+  phase,
   places,
   selectedCategory,
   onSelectCategory,
@@ -33,23 +40,17 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
   onSwitchToMap,
 }) => {
   return (
-    <div className="space-y-4">
-      {/* Banner chọn hộ (T-48 giữ nguyên vị trí) */}
-      <DeciderBanner roomId={roomId} onOpenDecide={onOpenDecide} />
+    <div className="flex min-h-full flex-col gap-4">
+      {/* Khối hoà phiếu: chỉ ở giai đoạn `tie`, một nút ra kết quả ngay */}
+      <TieBlock phase={phase} places={places} onDecide={onOpenDecide} />
 
-      {/* Dải cuộn chip lọc danh mục */}
-      <div className="bg-surface p-2.5 sm:p-3 rounded-card border border-line">
-        <CategoryFilter
-          places={places}
-          selectedCategory={selectedCategory}
-          onSelectCategory={onSelectCategory}
-        />
-      </div>
-
-      {/* Danh sách thẻ quán + sắp xếp + tìm kiếm + nút thêm */}
+      {/* Thẻ quán ngang + "x/y đã chọn" + nút ⋯ (lọc, sắp xếp, tìm khi >8 quán) + nút thêm quán */}
       <PlaceList
         places={places}
         roomId={roomId}
+        room={room}
+        phase={phase}
+        className="flex-1"
         selectedCategory={selectedCategory}
         currentMemberId={currentMemberId}
         isHost={isHost}
@@ -59,6 +60,7 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
         onViewOnMap={onViewOnMap}
         onSwitchToMap={onSwitchToMap}
         onResetCategory={() => onSelectCategory('ALL')}
+        onSelectCategory={onSelectCategory}
       />
     </div>
   );

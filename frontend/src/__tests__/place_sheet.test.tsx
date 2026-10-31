@@ -9,7 +9,7 @@ import { useMapStore } from '../store/useMapStore';
 import { PlaceSheet } from '../components/map/PlaceSheet';
 import { GooglePlaceCard } from '../components/map/GooglePlaceCard';
 import { NearbySuggestions } from '../components/map/NearbySuggestions';
-import { PlaceCard } from '../components/places/PlaceCard';
+import { PlaceRow } from '../components/places/PlaceRow';
 import { loadPlacesUiKit, resetPlacesUiKitLoader } from '../services/google/loadPlacesUiKit';
 import type { Place, Poi, Room } from '../types';
 
@@ -255,98 +255,48 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
     });
   });
 
-  describe('5. PlaceCard badges & "Xem trên bản đồ"', () => {
-    it('hiển thị badge nguồn OSM và nút "Xem trên bản đồ" khi có toạ độ', () => {
-      const osmPlace: Place = {
-        id: 'p-osm',
-        room_id: sampleRoom.id,
-        submitted_by_id: 'host-1',
-        name: 'Quán Cơm Tấm OSM',
-        category: 'FOOD',
-        status: 'PROPOSED',
-        source: 'OSM',
-        external_id: 'osm:node/12345',
-        latitude: 10.77,
-        longitude: 106.70,
-        estimated_cost: 45000,
-        upvotes: 2,
-        downvotes: 0,
-        score: 2,
-        current_user_vote: 0,
-        created_at: new Date().toISOString(),
-      };
+  describe('5. PlaceRow: bỏ badge nguồn và nút "Xem trên bản đồ" (DESIGN gđ5 §5)', () => {
+    const base: Place = {
+      id: 'p-row',
+      room_id: sampleRoom.id,
+      submitted_by_id: 'host-1',
+      name: 'Quán Cơm Tấm OSM',
+      category: 'FOOD',
+      status: 'PROPOSED',
+      source: 'OSM',
+      external_id: 'osm:node/12345',
+      latitude: 10.77,
+      longitude: 106.7,
+      estimated_cost: 45000,
+      upvotes: 2,
+      downvotes: 0,
+      score: 2,
+      current_user_vote: 0,
+      created_at: new Date().toISOString(),
+    };
 
-      const html = renderToStaticMarkup(
-        <PlaceCard
-          place={osmPlace}
-          roomId={sampleRoom.id}
-        />,
-      );
-
-      expect(html).toContain('OSM');
-      expect(html).toContain('Xem trên bản đồ');
-      expect(html).toContain('data-testid="badge-source-osm"');
-      expect(html).toContain('data-testid="btn-view-on-map"');
+    it('quán OSM/Google không còn badge nguồn lẫn nút "Xem trên bản đồ"; thẻ mở quán là một nút có nhãn', () => {
+      for (const place of [base, { ...base, source: 'GOOGLE' as const, google_place_id: 'ChIJ' }]) {
+        const html = renderToStaticMarkup(<PlaceRow place={place} roomId={sampleRoom.id} />);
+        expect(html).not.toContain('badge-source');
+        expect(html).not.toContain('btn-view-on-map');
+        expect(html).not.toContain('Mới đề xuất');
+        expect(html).toContain('data-testid="place-row-open"');
+        expect(html).toContain('Xem Quán Cơm Tấm OSM trên bản đồ');
+      }
     });
 
-    it('hiển thị badge nguồn Google khi có google_place_id hoặc source GOOGLE', () => {
-      const googlePlace: Place = {
-        id: 'p-google',
-        room_id: sampleRoom.id,
-        submitted_by_id: 'host-1',
-        name: 'Cafe Google Place',
-        category: 'DRINK',
-        status: 'ACCEPTED',
-        source: 'GOOGLE',
-        google_place_id: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
-        latitude: 10.78,
-        longitude: 106.71,
-        estimated_cost: 65000,
-        upvotes: 4,
-        downvotes: 0,
-        score: 4,
-        current_user_vote: 1,
-        created_at: new Date().toISOString(),
-      };
-
+    it('quán không toạ độ, không giá vẫn có thẻ đủ: tên + "chưa rõ giá", không khoảng cách', () => {
       const html = renderToStaticMarkup(
-        <PlaceCard
-          place={googlePlace}
+        <PlaceRow
+          place={{ ...base, latitude: null, longitude: null, external_id: null, estimated_cost: 0 }}
           roomId={sampleRoom.id}
+          room={{ origin_lat: 10.78, origin_lng: 106.7, budget_limit: null }}
         />,
       );
-
-      expect(html).toContain('Google');
-      expect(html).toContain('data-testid="badge-source-google"');
-      expect(html).toContain('Xem trên bản đồ');
-    });
-
-    it('không hiển thị nút "Xem trên bản đồ" khi địa điểm không có toạ độ hay external_id', () => {
-      const manualPlace: Place = {
-        id: 'p-manual',
-        room_id: sampleRoom.id,
-        submitted_by_id: 'host-1',
-        name: 'Quán nhập tay không có map',
-        category: 'FOOD',
-        status: 'PROPOSED',
-        estimated_cost: 50000,
-        upvotes: 0,
-        downvotes: 0,
-        score: 0,
-        current_user_vote: 0,
-        created_at: new Date().toISOString(),
-      };
-
-      const html = renderToStaticMarkup(
-        <PlaceCard
-          place={manualPlace}
-          roomId={sampleRoom.id}
-        />,
-      );
-
-      expect(html).not.toContain('badge-source-osm');
-      expect(html).not.toContain('badge-source-google');
-      expect(html).not.toContain('btn-view-on-map');
+      expect(html).toContain('Quán Cơm Tấm OSM');
+      expect(html).toContain('chưa rõ giá');
+      expect(html).not.toContain(' km');
     });
   });
 });

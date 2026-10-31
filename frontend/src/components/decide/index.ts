@@ -1,4 +1,4 @@
-export * from './DeciderBanner';
+export * from './TieBlock';
 export * from './SmartPickCard';
 export * from './SpinWheel';
 export * from './SwipeDeck';

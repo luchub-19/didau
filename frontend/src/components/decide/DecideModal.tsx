@@ -18,6 +18,12 @@ import { LuckyLadder } from './LuckyLadder';
 import { RevealHost, prefetchRevealStage } from '../../stage/reveal';
 import type { DecisionMode, Member, Place, ScoredPick } from '../../types';
 
+/** Ý định mở bảng chọn hộ: `mode` = vào thẳng kiểu đó (chạy ngay); `chooseMode` = mở ở bước chọn kiểu. */
+export interface DecideIntent {
+  mode?: DecisionMode;
+  chooseMode?: boolean;
+}
+
 export interface DecideModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,6 +33,10 @@ export interface DecideModalProps {
   smartPicks?: ScoredPick[];
   places?: Place[];
   members?: Member[];
+  /** Kiểu vào thẳng khi mở (TieBlock: kiểu trọng tài mặc định). Thiếu thì giữ kiểu đang chọn. */
+  initialMode?: DecisionMode;
+  /** Mở ở bước chọn kiểu ("Đổi cách chọn") thay vì màn chơi. */
+  startChoosing?: boolean;
 }
 
 export const DecideModal: React.FC<DecideModalProps> = ({
@@ -38,6 +48,8 @@ export const DecideModal: React.FC<DecideModalProps> = ({
   smartPicks,
   places: propPlaces,
   members,
+  initialMode,
+  startChoosing = false,
 }) => {
   const { t } = useTranslation();
   const storeSelectedMode = useDecisionStore((s) => s.selectedMode);
@@ -52,9 +64,14 @@ export const DecideModal: React.FC<DecideModalProps> = ({
 
   // Mở lại sheet luôn bắt đầu ở màn chơi, không kẹt ở danh sách chế độ; mở sheet thì tải trước màn công bố
   useEffect(() => {
-    if (!isOpen) setIsChoosingMode(false);
-    else prefetchRevealStage();
-  }, [isOpen]);
+    if (!isOpen) {
+      setIsChoosingMode(false);
+      return;
+    }
+    prefetchRevealStage();
+    if (initialMode) setSelectedMode(initialMode);
+    setIsChoosingMode(startChoosing);
+  }, [isOpen, initialMode, startChoosing, setSelectedMode]);
 
   // Màn công bố quán thắng (T-61) luôn mount kể cả khi sheet đóng: host chốt xong sheet đóng ngay,
   // máy khác có thể đang ở tab bất kỳ. Cùng vị trí trong Fragment ở cả hai nhánh để không bị remount.

@@ -17,7 +17,7 @@ import { HomeHeader as Header, RoomTopBar } from '../components/shell';
 import { CreateRoomModal, JoinRoomModal, MemberList, InviteCard } from '../components/room';
 
 // Places components
-import { CategoryFilter, PlaceCard, PlaceForm, PlaceList } from '../components/places';
+import { CategoryFilter, PlaceRow, PlaceForm, PlaceList } from '../components/places';
 
 // Voting components
 import { VoteButtons, VoteScoreBadge, TieBreakSelectorModal } from '../components/voting';
@@ -203,10 +203,10 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
     expect(html).toContain('Cà phê');
   });
 
-  it('PlaceCard hiển thị tên quán, giá, giờ mở cửa, badge danh mục và người gửi', () => {
+  it('PlaceRow hiển thị tên quán, danh mục, giá ngắn và nút ♥ Muốn đi với số người', () => {
     const place = mockPlaces[0];
     const html = renderToStaticMarkup(
-      <PlaceCard
+      <PlaceRow
         place={place}
         roomId={mockRoom.id}
         currentMemberId={mockHostMember.id}
@@ -216,10 +216,11 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
     );
 
     expect(html).toContain(place.name);
-    expect(html).toContain('55.000');
-    expect(html).toContain('07:00 - 23:00');
-    expect(html).toContain('HoangNam');
-    expect(html).toContain('Đang bình chọn');
+    expect(html).toContain('Cà phê');
+    expect(html).toContain('~55k');
+    expect(html).toContain('data-testid="vote-heart"');
+    expect(html).toContain('Muốn đi');
+    expect(html).toContain('data-testid="row-menu-trigger"');
   });
 
   it('PlaceForm hiển thị đầy đủ trường nhập và thêm quán thành công qua MSW', async () => {
@@ -241,7 +242,7 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
     expect(formHtml).toContain('Tên quán hoặc link');
   });
 
-  it('PlaceList hiển thị danh sách các quán và thanh sắp xếp', () => {
+  it('PlaceList hiển thị danh sách các quán, không thanh sắp xếp khi ≤8 quán', () => {
     const html = renderToStaticMarkup(
       <PlaceList
         places={mockPlaces}
@@ -254,14 +255,16 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
       />,
     );
 
-    expect(html).toContain('Điểm cao nhất');
+    // Từ T-69: ≤8 quán không có thanh sắp xếp/lọc (chúng thu vào nút ⋯ khi >8 quán)
+    expect(html).not.toContain('Điểm cao nhất');
+    expect(html).not.toContain('data-testid="list-tools-trigger"');
     expect(html).toContain('Thêm quán');
     mockPlaces.forEach((p) => {
       expect(html).toContain(p.name);
     });
   });
 
-  it('PlaceList hiển thị ô tìm kiếm khi danh sách có hơn 8 quán', () => {
+  it('PlaceList có nút ⋯ lọc/sắp xếp/tìm khi danh sách có hơn 8 quán', () => {
     const manyPlaces = Array.from({ length: 9 }, (_, i) => ({
       ...mockPlaces[0],
       id: `p-${i}`,
@@ -276,7 +279,8 @@ describe('T-19: Frontend UI - Place Suggestion, Auto-category Badge & Place Card
         onDeletePlace={() => {}}
       />,
     );
-    expect(html).toContain('Tìm theo tên quán, địa chỉ…');
+    expect(html).toContain('data-testid="list-tools-trigger"');
+    expect(html).toContain('aria-expanded="false"');
   });
 });
 
@@ -406,7 +410,7 @@ describe('T-45: Tab Quán (danh sách, lọc, vote, thêm quán)', () => {
       name: 'Quán ăn ngon ơi là ngon có một không hai tại số 123 đường Nguyễn Huệ quận nhất Sài Gòn',
     };
     const html = renderToStaticMarkup(
-      <PlaceCard place={longNamePlace} roomId={mockRoom.id} onDeletePlace={() => {}} />,
+      <PlaceRow place={longNamePlace} roomId={mockRoom.id} onDeletePlace={() => {}} />,
     );
     expect(html).toContain('line-clamp-2');
     expect(html).toContain(longNamePlace.name);
@@ -451,7 +455,7 @@ describe('T-45: Tab Quán (danh sách, lọc, vote, thêm quán)', () => {
   it('quán ACCEPTED hiển thị nhãn Đã chốt màu success', () => {
     const acceptedPlace = { ...mockPlaces[0], status: 'ACCEPTED' as const };
     const html = renderToStaticMarkup(
-      <PlaceCard place={acceptedPlace} roomId={mockRoom.id} />,
+      <PlaceRow place={acceptedPlace} roomId={mockRoom.id} />,
     );
     expect(html).toContain('Đã chốt');
     expect(html).toContain('bg-success-soft');
@@ -499,10 +503,10 @@ describe('T-45: Tab Quán (danh sách, lọc, vote, thêm quán)', () => {
       expect(html).toContain('(+8/-1)');
     });
 
-    it('PlaceCard ACCEPTED có icon Check vẽ ra qua checkmark-draw', () => {
+    it('PlaceRow ACCEPTED có icon Check vẽ ra qua checkmark-draw', () => {
       const acceptedPlace = { ...mockPlaces[0], status: 'ACCEPTED' as const };
       const html = renderToStaticMarkup(
-        <PlaceCard place={acceptedPlace} roomId={mockRoom.id} />,
+        <PlaceRow place={acceptedPlace} roomId={mockRoom.id} />,
       );
       expect(html).toContain('Đã chốt');
       expect(html).toContain('bg-success-soft');

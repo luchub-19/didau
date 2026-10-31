@@ -1,4 +1,4 @@
 export * from './CategoryFilter';
-export * from './PlaceCard';
+export * from './PlaceRow';
 export * from './PlaceForm';
 export * from './PlaceList';

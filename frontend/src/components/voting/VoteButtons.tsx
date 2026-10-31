@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { toast } from '../ui/toastStore';
-import { ThumbsUp, ThumbsDown } from '../ui/Icon';
+import { ThumbsUp, ThumbsDown, Heart } from '../ui/Icon';
 import type { VoteValue } from '../../types';
 
 export interface VoteButtonsProps {
@@ -13,6 +13,11 @@ export interface VoteButtonsProps {
   score: number;
   currentUserVote: VoteValue;
   disabled?: boolean;
+  /**
+   * `full`: nhóm Muốn đi / điểm / Không (trang chi tiết quán, sheet bản đồ).
+   * `heart`: chỉ ♥ + số người muốn đi (thẻ quán ngang, DESIGN gđ5 §5) — "Không" nằm trong menu ⋯ của thẻ.
+   */
+  variant?: 'full' | 'heart';
 }
 
 export const VoteButtons: React.FC<VoteButtonsProps> = ({
@@ -23,6 +28,7 @@ export const VoteButtons: React.FC<VoteButtonsProps> = ({
   score = 0,
   currentUserVote = 0,
   disabled = false,
+  variant = 'full',
 }) => {
   const { t } = useTranslation();
   const castVote = usePlaceStore((s) => s.castVote);
@@ -126,6 +132,36 @@ export const VoteButtons: React.FC<VoteButtonsProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  if (variant === 'heart') {
+    return (
+      <button
+        type="button"
+        onClick={handleUpvote}
+        disabled={disabled || isSubmitting}
+        aria-pressed={isUpvoted}
+        aria-label={isUpvoted ? t('vote.cancelAgree') : t('vote.agree')}
+        title={isUpvoted ? t('vote.cancelAgree') : t('vote.agree')}
+        data-testid="vote-heart"
+        className={`min-h-[44px] min-w-[44px] px-2 rounded-field inline-flex flex-col items-center justify-center gap-0.5 select-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text disabled:opacity-50 disabled:cursor-not-allowed ${
+          popButton === 'up' ? 'vote-pop' : ''
+        } ${
+          isUpvoted
+            ? 'text-accent-text'
+            : 'text-ink-2 [@media(hover:hover)]:hover:bg-surface-2 [@media(hover:hover)]:hover:text-ink'
+        }`}
+      >
+        <Heart size={22} weight={isUpvoted ? 'fill' : 'regular'} className="shrink-0 transition-transform active:scale-125" />
+        <span
+          className={`text-caption font-semibold tabular-nums leading-none inline-block ${
+            upvotesAnim === 'up' ? 'num-slide-up' : upvotesAnim === 'down' ? 'num-slide-down' : ''
+          }`}
+        >
+          {upvotes}
+        </span>
+      </button>
+    );
+  }
 
   const scoreColor =
     score > 0

@@ -197,6 +197,23 @@ export const vi = {
     emptyFilterTitle: 'Không có quán {{category}} nào',
     emptyFilterDesc: 'Thử tìm từ khoá khác hoặc xem tất cả danh mục.',
     viewAll: 'Xem tất cả',
+    list: {
+      progress: '{{done}}/{{total}} đã chọn',
+      progressLabel: '{{done}} trên {{total}} thành viên đã chọn quán',
+      tools: 'Lọc, sắp xếp, tìm quán',
+      filterInList: 'Lọc trong danh sách',
+      sortTitle: 'Sắp xếp',
+      categoryTitle: 'Danh mục',
+    },
+    row: {
+      leading: 'Đang dẫn',
+      overBudget: 'Vượt ngân sách',
+      menu: 'Tuỳ chọn cho {{name}}',
+      priceUnknown: 'chưa rõ giá',
+      wantCount_one: '{{count}} người muốn đi',
+      wantCount_other: '{{count}} người muốn đi',
+      open: 'Xem {{name}} trên bản đồ',
+    },
     form: {
       title: 'Đề xuất quán mới',
       desc: 'Dán link hoặc nhập tên để cả nhóm cùng bình chọn.',
@@ -226,10 +243,10 @@ export const vi = {
     },
   },
   vote: {
-    agree: 'Đồng ý (+1)',
-    cancelAgree: 'Huỷ đồng ý',
-    disagree: 'Không thích (-1)',
-    cancelDisagree: 'Huỷ phản đối',
+    agree: 'Muốn đi',
+    cancelAgree: 'Bỏ “Muốn đi”',
+    disagree: 'Không',
+    cancelDisagree: 'Bỏ “Không”',
     scoreTitle: 'Điểm: {{score}} (+{{upvotes}} / -{{downvotes}})',
     error: 'Chưa lưu được phiếu bầu. Kiểm tra mạng rồi thử lại.',
     votingDisabled: 'Bình chọn đã khoá',
@@ -393,6 +410,12 @@ export const vi = {
     },
   },
   decide: {
+    tie: {
+      title: 'Hoà rồi: {{count}} quán cùng {{votes}} phiếu',
+      more: '+{{count}} quán nữa',
+      cta: 'Để trọng tài chọn',
+      change: 'Đổi cách chọn',
+    },
     banner: {
       title: {
         TIE_AT_TOP: 'Hoà điểm cao nhất',

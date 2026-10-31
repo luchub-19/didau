@@ -129,12 +129,6 @@
   }
 }
 
-/* Tạm (T-67): lưới thẻ quán 2 cột theo bề rộng màn quá chật trong cột danh sách 360–560px → 1 cột.
-   T-69 thay thẻ bằng hàng ngang (PlaceRow) thì xoá khối này. */
-.ws-list .md\:grid-cols-2 {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 /* Tạm (T-67): panel Kế hoạch desktop chỉ rộng 440px nhưng thanh công cụ của ScheduleTimeline xếp theo breakpoint
    màn hình (sm:) → nút bị bóp thành hình tròn chữ dọc. Trong panel giữ bố cục mobile. T-73 làm lại thì xoá khối này. */
 .ws-plan .sm\:flex-row {
