@@ -1,7 +1,7 @@
 """Xử lý ảnh thô quán tuyển chọn: curated-inbox/ -> frontend/public/curated/*.webp + manifest.
 
 Chạy tay:  python3 scripts/curated_images.py [--dry-run] [--force]
-Cần Pillow:  pip install Pillow   (HEIC cần thêm: pip install pillow-heif)
+Cần Pillow (Arch: sudo pacman -S python-pillow; HEIC thêm python-pillow-heif)
 """
 
 import argparse
@@ -13,7 +13,7 @@ from pathlib import Path
 try:
     from PIL import Image, ImageOps
 except ImportError:  # pragma: no cover
-    print("Thiếu Pillow. Cài bằng:  pip install Pillow", file=sys.stderr)
+    print("Thiếu Pillow. Cài bằng:  sudo pacman -S python-pillow  (hoặc dùng venv rồi pip install Pillow)", file=sys.stderr)
     sys.exit(1)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))

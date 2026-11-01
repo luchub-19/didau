@@ -18,7 +18,7 @@ Không có rating/số đánh giá. Giới thiệu tự viết, không chép Foo
 ```bash
 python3 scripts/curated_checklist.py          # sinh docs/phase5/curated-checklist.html (mở bằng trình duyệt)
 # Bấm link Google Maps/Foody → lưu ảnh vào curated-inbox/ đặt tên <id>-<n>.jpg (đuôi gì cũng được)
-pip install Pillow                            # lần đầu (HEIC: thêm pillow-heif)
+# Cần Pillow (Arch: sudo pacman -S python-pillow; không dùng pip install vì PEP 668). HEIC: python-pillow-heif
 python3 scripts/curated_images.py --dry-run   # xem sẽ làm gì
 python3 scripts/curated_images.py             # xử lý; --force để ghi đè ảnh đã có
 ```
