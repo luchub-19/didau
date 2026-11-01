@@ -54,12 +54,12 @@ export function railOrigin(room: Pick<Room, 'origin_lat' | 'origin_lng' | 'city'
 }
 
 /**
- * Ngân sách còn lại cho một quán mới (VND/người, cả buổi). Ở giai đoạn ① chưa có quán nào trong lịch nên bằng
- * `budget_limit`; null = không giới hạn. T-73 thay bằng ngân sách thực (trừ phần đã xếp).
+ * Ngân sách còn lại cho một quán mới (VND/người, cả buổi) = `budget_limit − spent` (spent = tổng giá quán đã
+ * trong lịch, `planBudget`; mặc định 0 vì ở giai đoạn ① chưa có lịch). null = không giới hạn; không âm.
  */
-export function remainingBudget(room: Pick<Room, 'budget_limit'>): number | null {
+export function remainingBudget(room: Pick<Room, 'budget_limit'>, spent = 0): number | null {
   const b = room.budget_limit;
-  return b != null && b > 0 ? b : null;
+  return b != null && b > 0 ? Math.max(0, b - spent) : null;
 }
 
 /** Quán đã trong danh sách phòng? Khớp `external_id`, không có thì tên chuẩn hoá + toạ độ ≤ 50 m. */
@@ -203,8 +203,9 @@ export function fitsRoomAndBudget(
   items: readonly DiscoveryItem[],
   room: Pick<Room, 'start_minute' | 'end_minute' | 'budget_limit'>,
   limit = RAIL_LIMIT,
+  spent = 0,
 ): DiscoveryItem[] {
-  const budget = remainingBudget(room);
+  const budget = remainingBudget(room, spent);
   return items
     .filter((it) => {
       const fit = hoursFit(

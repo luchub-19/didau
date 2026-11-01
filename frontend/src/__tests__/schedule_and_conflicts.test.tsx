@@ -11,10 +11,9 @@ import { TimeSlotPicker } from '../components/schedule/TimeSlotPicker';
 import { ScheduleItemCard } from '../components/schedule/ScheduleItemCard';
 import { ScheduleTimeline } from '../components/schedule/ScheduleTimeline';
 import { AddScheduleItemModal } from '../components/schedule/AddScheduleItemModal';
-import { ConflictAlertBanner } from '../components/conflicts/ConflictAlertBanner';
 import { ConflictListModal } from '../components/conflicts/ConflictListModal';
 import { mockScheduleItems, mockPlaces, mockConflicts } from '../mocks/mockData';
-import type { ConflictAlert, ScheduleItem } from '../types';
+import type { ScheduleItem } from '../types';
 
 describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Banner', () => {
   describe('1. useMinuteFormat Hook & Utilities', () => {
@@ -109,7 +108,9 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       );
 
       expect(html).toContain('Cà Phê Trứng 3T');
-      expect(html).toContain('09:00 - 10:30');
+      // Giờ bắt đầu ở cột trái, giờ kết thúc ngay dưới (DESIGN gđ5 §8)
+      expect(html).toContain('>09:00<');
+      expect(html).toContain('>10:30<');
       expect(html).toContain('1h 30m');
       expect(html).toContain('1A Tôn Đức Thắng, Q1');
       expect(html).toContain('Uống cà phê sáng và ngắm tàu thuyền');
@@ -130,8 +131,25 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       );
 
       expect(html).toContain('border-danger');
+      // Chip xung đột nằm ngay dưới mục, có câu mô tả; không có onFixConflict thì chưa có nút "Sửa"
+      expect(html).toContain('data-testid="item-conflict"');
       expect(html).toContain('Xung đột');
       expect(html).toContain('Trùng lặp thời gian với Cơm Tấm Ba Ghiền');
+      expect(html).not.toContain('data-testid="conflict-fix"');
+    });
+
+    it('chip xung đột có nút "Sửa" khi truyền onFixConflict', () => {
+      const html = renderToStaticMarkup(
+        <ScheduleItemCard
+          item={item}
+          index={0}
+          totalItems={1}
+          isConflict={true}
+          conflictMessages={['Trùng giờ']}
+          onFixConflict={() => {}}
+        />,
+      );
+      expect(html).toMatch(/data-testid="conflict-fix"[^>]*>(?:(?!<\/button>).)*Sửa/);
     });
   });
 
@@ -147,10 +165,25 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('Tất cả (1)');
+      expect(html).toContain('data-testid="schedule-list"');
       expect(html).toContain('Xếp lịch mới');
       expect(html).toContain('Cà Phê Trứng 3T');
-      expect(html).toContain('09:00 - 10:30');
+      expect(html).toContain('>09:00<');
+      // Một ngày thì không cần thanh lọc ngày
+      expect(html).not.toContain('Tất cả (1)');
+    });
+
+    it('lịch nhiều ngày có thanh lọc ngày', () => {
+      const day2: ScheduleItem = { ...mockScheduleItems[0], id: 'day2-item', day_offset: 1 };
+      const html = renderToStaticMarkup(
+        <ScheduleTimeline
+          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
+          items={[mockScheduleItems[0], day2]}
+          places={mockPlaces}
+        />,
+      );
+      expect(html).toContain('Tất cả (2)');
+      expect(html).toContain('Ngày 2 (1)');
     });
 
     it('render giao diện trống khi chưa có mục nào trong lịch trình', () => {
@@ -189,63 +222,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
     });
   });
 
-  describe('6. ConflictAlertBanner & ConflictListModal Components', () => {
-    it('không render banner khi danh sách xung đột rỗng', () => {
-      const html = renderToStaticMarkup(
-        <ConflictAlertBanner
-          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
-          conflicts={[]}
-        />,
-      );
-      expect(html).toBe('');
-    });
-
-    it('render banner màu đỏ (CRITICAL) khi có xung đột trùng giờ nghiêm trọng', () => {
-      const html = renderToStaticMarkup(
-        <ConflictAlertBanner
-          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
-          conflicts={mockConflicts}
-        />,
-      );
-
-      expect(html).toContain('data-testid="conflict-alert-banner"');
-      expect(html).toContain('bg-danger-soft');
-      expect(html).toContain('border-danger');
-      expect(html).toContain('Nghiêm trọng');
-      expect(html).toContain('Xung đột nghiêm trọng cần xử lý ngay');
-      expect(html).toContain('bị trùng giờ với');
-      expect(html).toContain('Chi tiết (1)');
-      expect(html).toContain('Đánh giá lại');
-    });
-
-    it('render banner màu vàng (WARNING) khi chỉ có cảnh báo thời gian di chuyển hoặc ngân sách', () => {
-      const warningConflicts: ConflictAlert[] = [
-        {
-          id: 'warn-1',
-          rule_code: 'TRAVEL_TIME',
-          level: 'WARNING',
-          message: 'Thời gian nghỉ giữa 2 địa điểm ngắn hơn dự kiến di chuyển (15 phút)',
-          entity_type: 'SCHEDULE',
-          entity_ids: ['item-1'],
-          resolved: false,
-          created_at: '2026-10-17T08:00:00Z',
-        },
-      ];
-
-      const html = renderToStaticMarkup(
-        <ConflictAlertBanner
-          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
-          conflicts={warningConflicts}
-        />,
-      );
-
-      expect(html).toContain('bg-warning-soft');
-      expect(html).toContain('border-warning');
-      expect(html).toContain('Cảnh báo (1)');
-      expect(html).toContain('Cảnh báo xung đột lịch trình');
-      expect(html).toContain('Không đủ thời gian di chuyển');
-    });
-
+  describe('6. ConflictListModal Component', () => {
     it('render modal chi tiết danh sách xung đột với đầy đủ các rule code', () => {
       const html = renderToStaticMarkup(
         <ConflictListModal
@@ -283,8 +260,8 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('(hôm sau)');
-      expect(html).toContain('23:00 - 00:30');
+      expect(html).toContain('>23:00<');
+      expect(html).toContain('>00:30 (hôm sau)<');
     });
 
     it('nút di chuyển lên/xuống có aria-label và disabled đúng vị trí đầu/cuối danh sách', () => {
@@ -364,7 +341,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       expect(html).toContain('nằm ngoài giờ mở cửa');
     });
 
-    it('ScheduleTimeline hiển thị dải tóm tắt xung đột đầu tab khi có xung đột', () => {
+    it('xung đột hiện ngay dưới mục bị trùng, không còn dải tóm tắt chung', () => {
       const html = renderToStaticMarkup(
         <ScheduleTimeline
           roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
@@ -374,10 +351,10 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      // mockConflicts có 1 xung đột
-      expect(html).toContain('data-testid="schedule-conflicts-summary"');
-      expect(html).toContain('1 vấn đề trong lịch');
-      expect(html).toContain('Chi tiết (1)');
+      expect(html).not.toContain('data-testid="schedule-conflicts-summary"');
+      expect(html).not.toContain('1 vấn đề trong lịch');
+      expect(html).toContain('data-testid="item-conflict"');
+      expect(html).toContain('data-testid="conflict-fix"');
     });
 
     it('V6: xung đột của một cặp chỉ hiện câu mô tả ở thẻ sau, cả 2 thẻ đều có huy hiệu', () => {
@@ -399,13 +376,13 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      // Huy hiệu "Xung đột" trên cả 2 thẻ, nhưng chỉ 1 hộp mô tả xung đột
-      expect(html.match(/>Xung đột</g)?.length).toBe(2);
-      expect(html.match(/mt-2\.5 p-2\.5 rounded-card/g)?.length).toBe(1);
-      // Hộp mô tả nằm sau tên quán thứ hai (thẻ sau)
+      // Chip "Xung đột" dưới cả 2 thẻ, nhưng chỉ chip của thẻ sau có câu mô tả
+      expect(html.match(/data-testid="item-conflict"/g)?.length).toBe(2);
+      expect(html.match(/leading-snug">[^<]+<\/p>/g)?.length).toBe(1);
+      // Câu mô tả nằm sau tên quán thứ hai (thẻ sau)
       const secondName = html.indexOf('Cơm Tấm Ba Ghiền</h4>');
       expect(secondName).toBeGreaterThan(-1);
-      expect(html.indexOf('mt-2.5 p-2.5 rounded-card')).toBeGreaterThan(secondName);
+      expect(html.indexOf('leading-snug">')).toBeGreaterThan(secondName);
     });
 
     it('T-56: thanh công cụ không chen câu giải thích khi chưa đủ điều kiện lên lịch tự động', () => {
@@ -427,19 +404,6 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
 
       expect(html).not.toContain('data-testid="auto-plan-button"');
       expect(html).not.toContain('Cần ít nhất 1 quán đã chốt');
-    });
-
-    it('T-56: banner xung đột ở mobile chỉ giữ nút Chi tiết (Đánh giá lại, Xem lịch trình ẩn dưới sm)', () => {
-      const html = renderToStaticMarkup(
-        <ConflictAlertBanner
-          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
-          conflicts={mockConflicts}
-          onSwitchToSchedule={() => {}}
-        />,
-      );
-
-      expect(html).toMatch(/class="[^"]*hidden sm:inline-flex[^"]*"[^>]*>(?:(?!<\/button>).)*Đánh giá lại/);
-      expect(html).toMatch(/class="hidden sm:inline [^"]*"[^>]*>Xem lịch trình/);
     });
   });
 });

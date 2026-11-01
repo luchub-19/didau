@@ -4,6 +4,8 @@ import { usePlaceStore } from '../../store/usePlaceStore';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/TextField';
+import { Chip } from '../ui/Chip';
+import { PRICE_TIERS, type PriceTier } from '../../room/budget';
 import { MapTrifold, CaretDown, CaretUp } from '../ui/Icon';
 import { toast } from '../ui/toastStore';
 import { CATEGORY_METADATA } from '../common/categoryMetadata';
@@ -54,6 +56,8 @@ export const PlaceForm: React.FC<PlaceFormProps> = ({
   const [address, setAddress] = useState('');
   const [url, setUrl] = useState('');
   const [estimatedCost, setEstimatedCost] = useState('');
+  // Mức giá chọn nhanh (lưu giá giữa khoảng); 'custom' = tự nhập số
+  const [costTier, setCostTier] = useState<PriceTier['id'] | 'custom' | null>(null);
   const [openTime, setOpenTime] = useState('');
   const [closeTime, setCloseTime] = useState('');
   const [notes, setNotes] = useState('');
@@ -66,6 +70,7 @@ export const PlaceForm: React.FC<PlaceFormProps> = ({
     setAddress('');
     setUrl('');
     setEstimatedCost('');
+    setCostTier(null);
     setOpenTime('');
     setCloseTime('');
     setNotes('');
@@ -218,15 +223,47 @@ export const PlaceForm: React.FC<PlaceFormProps> = ({
               onChange={(e) => setAddress(e.target.value)}
             />
 
-            <TextField
-              label={t('place.form.costLabel')}
-              type="number"
-              min="0"
-              step="5000"
-              placeholder={t('place.form.costPlaceholder')}
-              value={estimatedCost}
-              onChange={(e) => setEstimatedCost(e.target.value)}
-            />
+            <div role="group" aria-labelledby="place-form-cost-label" className="space-y-2">
+              <p id="place-form-cost-label" className="text-label font-medium text-ink">
+                {t('place.form.costLabel')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {PRICE_TIERS.map((tier) => (
+                  <Chip
+                    key={tier.id}
+                    selected={costTier === tier.id}
+                    onClick={() => {
+                      // Bấm lại mức đang chọn = bỏ chọn (giá chưa rõ)
+                      const next = costTier === tier.id ? null : tier.id;
+                      setCostTier(next);
+                      setEstimatedCost(next ? String(tier.value) : '');
+                    }}
+                  >
+                    {t(`place.form.tier.${tier.id}`)}
+                  </Chip>
+                ))}
+                <Chip
+                  selected={costTier === 'custom'}
+                  onClick={() => {
+                    setCostTier(costTier === 'custom' ? null : 'custom');
+                    if (costTier !== 'custom') setEstimatedCost('');
+                  }}
+                >
+                  {t('place.form.tier.custom')}
+                </Chip>
+              </div>
+              {costTier === 'custom' && (
+                <TextField
+                  label={t('place.form.costCustomLabel')}
+                  type="number"
+                  min="0"
+                  step="5000"
+                  placeholder={t('place.form.costPlaceholder')}
+                  value={estimatedCost}
+                  onChange={(e) => setEstimatedCost(e.target.value)}
+                />
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <TextField

@@ -387,7 +387,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       }));
     });
 
-    it('ScheduleTimeline hiển thị nút "⚡ Sắp lại tối ưu" khi danh sách lịch không rỗng', () => {
+    it('ScheduleTimeline hiển thị nút "Xếp lại tự động" khi danh sách lịch không rỗng', () => {
       const sampleItem: ScheduleItem = {
         id: 'item-1',
         room_id: mockRoom.id,
@@ -412,7 +412,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       );
 
       expect(html).toContain('data-testid="reoptimize-schedule-btn"');
-      expect(html).toContain('Sắp lại tối ưu');
+      expect(html).toContain('Xếp lại tự động');
     });
   });
 });

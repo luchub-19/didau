@@ -1,5 +1,5 @@
 // Nút thật sau màn công bố: đường đi, chia sẻ, thêm vào lịch. Hàm dựng URL/tệp là thuần để test được.
-import type { Place, Room } from '../../types';
+import type { Place, Room, ScheduleItem } from '../../types';
 
 const DEFAULT_START_MINUTE = 1020; // 17:00
 const DEFAULT_END_MINUTE = 1380; // 23:00
@@ -68,6 +68,79 @@ export function buildIcs({ room, place, url, now = new Date() }: IcsInput): stri
     'END:VCALENDAR',
     '',
   ].join('\r\n');
+}
+
+export interface ScheduleIcsInput {
+  room: Pick<Room, 'id' | 'title' | 'event_date'>;
+  items: readonly Pick<
+    ScheduleItem,
+    'id' | 'place_id' | 'place_name' | 'place_address' | 'day_offset' | 'start_minute' | 'end_minute' | 'order_index' | 'note'
+  >[];
+  /** Địa chỉ/toạ độ dự phòng khi mục lịch thiếu địa chỉ. */
+  places?: readonly Pick<Place, 'id' | 'address'>[];
+  url: string;
+  now?: Date;
+}
+
+/** RFC 5545 §3.1: dòng dài hơn 75 octet được gập, dòng tiếp bắt đầu bằng một dấu cách (không cắt giữa ký tự). */
+export function foldIcsLine(line: string): string {
+  const encoder = new TextEncoder();
+  const parts: string[] = [];
+  let current = '';
+  let bytes = 0;
+  for (const ch of line) {
+    const size = encoder.encode(ch).length;
+    const limit = parts.length === 0 ? 75 : 74; // dòng tiếp đã mất 1 octet cho dấu cách đầu
+    if (bytes + size > limit) {
+      parts.push(current);
+      current = '';
+      bytes = 0;
+    }
+    current += ch;
+    bytes += size;
+  }
+  parts.push(current);
+  return parts.join('\r\n ');
+}
+
+/**
+ * Cả lịch là một tệp nhiều VEVENT: mỗi mục một sự kiện, ngày = ngày phòng + `day_offset`, giờ địa phương "trôi"
+ * (không múi giờ). Mục kết thúc <= bắt đầu coi là qua nửa đêm. Thứ tự theo (ngày, order_index).
+ */
+export function buildScheduleIcs({ room, items, places = [], url, now = new Date() }: ScheduleIcsInput): string {
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const addressOf = new Map(places.map((p) => [p.id, p.address]));
+  const ordered = [...items].sort((a, b) => a.day_offset - b.day_offset || a.order_index - b.order_index);
+  const events = ordered.flatMap((item) => {
+    const base = item.day_offset * 1440;
+    const start = base + item.start_minute;
+    let end = base + item.end_minute;
+    if (end <= start) end += 1440;
+    const address = item.place_address || addressOf.get(item.place_id) || '';
+    return [
+      'BEGIN:VEVENT',
+      `UID:${room.id}-${item.id}@didau`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${icsLocalTime(room.event_date, start)}`,
+      `DTEND:${icsLocalTime(room.event_date, end)}`,
+      `SUMMARY:${icsText(`${item.place_name} · ${room.title}`)}`,
+      ...(address ? [`LOCATION:${icsText(address)}`] : []),
+      ...(item.note ? [`DESCRIPTION:${icsText(item.note)}`] : []),
+      `URL:${url}`,
+      'END:VEVENT',
+    ];
+  });
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Di Dau//Plan//EN',
+    'CALSCALE:GREGORIAN',
+    ...events,
+    'END:VCALENDAR',
+    '',
+  ]
+    .map(foldIcsLine)
+    .join('\r\n');
 }
 
 /** Tên tệp an toàn: bỏ dấu, chỉ giữ chữ-số-gạch. */

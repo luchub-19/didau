@@ -4,6 +4,8 @@ import { useLanguage } from '../../i18n/useLanguage';
 import { useMapStore } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useRoomStore } from '../../store/useRoomStore';
+import { useScheduleStore } from '../../store/useScheduleStore';
+import { otherScheduleSpent } from '../../room/budget';
 import { usePresenceStore } from '../../store/usePresenceStore';
 import { CharacterAvatar } from '../ui/CharacterAvatar';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
@@ -224,7 +226,14 @@ export const PlaceRow: React.FC<PlaceRowProps> = ({
   const isRejected = place.status === 'REJECTED';
   const locked = isVotingDisabled || isRejected;
 
-  const badge = badgeFor(place, leading ?? new Set(), room?.budget_limit);
+  const scheduleItems = useScheduleStore((st) => st.items);
+  const roomPlaces = usePlaceStore((st) => st.places);
+  const badge = badgeFor(
+    place,
+    leading ?? new Set(),
+    room?.budget_limit,
+    otherScheduleSpent(place.id, scheduleItems, roomPlaces),
+  );
   const badgeText =
     badge === 'accepted' ? t('place.accepted') : badge === 'leading' ? t('place.row.leading') : badge === 'overBudget' ? t('place.row.overBudget') : null;
 

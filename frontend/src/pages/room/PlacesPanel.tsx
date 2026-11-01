@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Member, Place, PlaceCategory, Room } from '../../types';
 import { GatherPanel, PlaceList } from '../../components/places';
+import { LockedPlaces } from '../../components/schedule';
+import type { ScheduleItem } from '../../types';
 import { TieBlock, type DecideIntent } from '../../components/decide';
 import { Button, Sheet } from '../../components/ui';
 import { Plus } from '../../components/ui/Icon';
@@ -29,6 +31,10 @@ export interface PlacesPanelProps {
   onViewOnMap: (place: Place) => void;
   onOpenDecide: (intent?: DecideIntent) => void;
   onSwitchToMap?: () => void;
+  /** Lịch hiện tại — cột trái ③④ liệt kê quán đi kèm theo lịch. */
+  schedule?: ScheduleItem[];
+  /** "Xem lại quán dự bị": quay về bước ② ở chế độ xem lại. */
+  onReviewVote?: () => void;
 }
 
 export const PlacesPanel: React.FC<PlacesPanelProps> = ({
@@ -49,6 +55,8 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
   onViewOnMap,
   onOpenDecide,
   onSwitchToMap,
+  schedule = [],
+  onReviewVote,
 }) => {
   const { t } = useTranslation();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -90,6 +98,19 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
   // Giai đoạn ①: ô tìm kiếm lớn + 4 dải + khay danh sách của nhóm (T-72)
   if (gatherProps && (phase === 'gather' || viewStep === 1)) {
     return <GatherPanel {...gatherProps} variant="column" tray={places.length > 0 ? renderList(true) : undefined} />;
+  }
+
+  // Giai đoạn ③④ (không ở chế độ xem lại bước cũ): quán đã chốt + đi kèm + liên kết quán dự bị
+  const viewingLocked = (phase === 'lock' || phase === 'send') && (viewStep === undefined || viewStep >= 3);
+  if (viewingLocked) {
+    return (
+      <LockedPlaces
+        places={places}
+        schedule={schedule}
+        onOpenPlace={onViewOnMap}
+        onReviewBackups={() => onReviewVote?.()}
+      />
+    );
   }
 
   return (

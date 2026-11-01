@@ -1,27 +1,26 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ScheduleItem, PlaceCategory, ConflictLevel } from '../../types';
+import type { ScheduleItem, Place, PlaceCategory, ConflictLevel } from '../../types';
 import { formatTime, formatDuration } from '../../i18n/format';
 import { useLanguage } from '../../i18n/useLanguage';
-import { CategoryIcon } from '../common/CategoryIcon';
-import {
-  Clock,
-  MapPin,
-  WarningCircle,
-  CaretUp,
-  CaretDown,
-  Trash,
-  DotsThree,
-} from '../ui/Icon';
+import { CATEGORY_METADATA } from '../common/categoryMetadata';
+import { placeThumb, formatPriceShort } from '../../room/placeView';
+import { useCuratedData } from '../../room/useCuratedData';
+import { MapPin, WarningCircle, CaretUp, CaretDown, Trash, DotsThree, PencilSimple } from '../ui/Icon';
 
 export interface ScheduleItemCardProps {
   item: ScheduleItem;
   index: number;
   totalItems: number;
+  /** Quán của mục (ảnh nhỏ, giá, danh mục); thiếu thì chỉ có tên. */
+  place?: Pick<Place, 'category' | 'name' | 'external_id' | 'latitude' | 'longitude' | 'estimated_cost'>;
+  /** Giữ để tương thích: dùng khi chưa có `place`. */
   category?: PlaceCategory;
   isConflict?: boolean;
   conflictLevel?: ConflictLevel;
   conflictMessages?: string[];
+  /** Bấm "Sửa" trên chip xung đột → mở sửa giờ của mục này. */
+  onFixConflict?: (id: string) => void;
   isHost?: boolean;
   onDelete?: (id: string) => void;
   onMoveUp?: (id: string) => void;
@@ -31,16 +30,50 @@ export interface ScheduleItemCardProps {
   onDragOver?: (e: React.DragEvent, id: string) => void;
   onDrop?: (e: React.DragEvent, id: string) => void;
   onDragEnd?: (e: React.DragEvent) => void;
+  /** Mục cuối của danh sách: đường dọc dừng ở chấm. */
+  isLast?: boolean;
 }
+
+/** Cột giờ | chấm + đường dọc | nội dung — dùng chung cho mục lịch và hàng "di chuyển" giữa hai mục. */
+export const TIMELINE_GRID = 'grid grid-cols-[4.25rem_1.5rem_minmax(0,1fr)] gap-x-2';
+
+/** Đường dọc nối các chấm (DESIGN §8). */
+export const TimelineRail: React.FC<{ from?: 'top' | 'dot'; to?: 'bottom' | 'dot' }> = ({ from = 'top', to = 'bottom' }) => (
+  <span
+    aria-hidden="true"
+    className={`absolute left-1/2 w-px -translate-x-1/2 bg-line ${from === 'top' ? 'top-0' : 'top-5'} ${
+      to === 'bottom' ? 'bottom-0' : 'bottom-auto h-5'
+    }`}
+  />
+);
+
+/** Ảnh nhỏ của điểm dừng: ảnh tuyển chọn khi có, không thì ô minh hoạ theo danh mục. */
+const StopThumb: React.FC<{ place?: ScheduleItemCardProps['place']; category: PlaceCategory }> = ({ place, category }) => {
+  const curated = useCuratedData();
+  const thumb = place ? placeThumb(place, curated) : { src: null, category };
+  const meta = CATEGORY_METADATA[thumb.category] ?? CATEGORY_METADATA.OTHER;
+  const Icon = meta.IconComponent;
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="stop-thumb"
+      className={`shrink-0 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-field ${meta.bg} ${meta.text}`}
+    >
+      {thumb.src ? <img src={thumb.src} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Icon size={24} weight="duotone" />}
+    </span>
+  );
+};
 
 export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   item,
   index,
   totalItems,
-  category = 'OTHER',
+  place,
+  category,
   isConflict = false,
   conflictLevel = 'CRITICAL',
   conflictMessages = [],
+  onFixConflict,
   isHost = false,
   onDelete,
   onMoveUp,
@@ -50,6 +83,7 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   onDragOver,
   onDrop,
   onDragEnd,
+  isLast = false,
 }) => {
   const { t } = useTranslation();
   const { lang: language } = useLanguage();
@@ -60,175 +94,151 @@ export const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
     duration = item.end_minute + 1440 - item.start_minute;
   }
   const endMinuteNormalized = item.end_minute % 1440;
-  const formattedTimeRange = `${formatTime(item.start_minute, language)} - ${formatTime(
-    endMinuteNormalized,
-    language,
-  )}${isNextDay ? ` ${t('schedule.nextDay')}` : ''}`;
+  const startText = formatTime(item.start_minute, language);
+  const endText = `${formatTime(endMinuteNormalized, language)}${isNextDay ? ` ${t('schedule.nextDay')}` : ''}`;
 
-  const isCriticalOrError =
-    conflictLevel === 'CRITICAL' || conflictLevel === 'ERROR';
+  const isCriticalOrError = conflictLevel === 'CRITICAL' || conflictLevel === 'ERROR';
+  const resolvedCategory = place?.category ?? category ?? 'OTHER';
+  const price = formatPriceShort(place?.estimated_cost);
 
   return (
-    <div
-      draggable={isDraggable}
-      onDragStart={(e) => onDragStart?.(e, item.id)}
-      onDragOver={(e) => onDragOver?.(e, item.id)}
-      onDrop={(e) => onDrop?.(e, item.id)}
-      onDragEnd={onDragEnd}
-      data-testid={`schedule-item-${item.id}`}
-      className={`group relative flex flex-wrap sm:flex-nowrap items-start gap-x-3.5 gap-y-1 p-4 rounded-card bg-surface border transition-colors duration-150 ${
-        isConflict
-          ? isCriticalOrError
-            ? 'border-danger/50 ring-1 ring-danger/25 shadow-xs'
-            : 'border-warning/50 ring-1 ring-warning/25 shadow-xs'
-          : 'border-line hover:border-line shadow-xs'
-      } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
-    >
-      {/* Số thứ tự và tay nắm kéo */}
-      <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
+    <div data-testid={`schedule-item-${item.id}`} className={TIMELINE_GRID}>
+      {/* Giờ ở trái */}
+      <div className="pt-3 text-right">
+        <p className={`whitespace-nowrap text-label font-semibold tabular-nums ${isConflict ? (isCriticalOrError ? 'text-danger' : 'text-warning') : 'text-ink'}`}>
+          {startText}
+        </p>
+        <p className="text-caption tabular-nums text-ink-3">{endText}</p>
+      </div>
+
+      {/* Chấm + đường dọc */}
+      <div className="relative flex justify-center">
+        <TimelineRail from={index === 0 ? 'dot' : 'top'} to={isLast ? 'dot' : 'bottom'} />
         <span
-          className={`w-6 h-6 rounded-full flex items-center justify-center text-caption font-bold tabular-nums ${
-            isConflict
-              ? isCriticalOrError
-                ? 'bg-danger text-surface'
-                : 'bg-warning text-surface'
-              : 'bg-surface-2 text-ink group-hover:bg-accent-soft group-hover:text-accent-text'
+          className={`relative z-[1] mt-3 flex h-6 w-6 items-center justify-center rounded-full text-caption font-semibold tabular-nums ${
+            isConflict ? (isCriticalOrError ? 'bg-danger text-surface' : 'bg-warning text-surface') : 'bg-accent text-ink'
           }`}
         >
           {index + 1}
         </span>
-        {isDraggable && (
-          <span
-            className="text-ink-3 group-hover:text-ink select-none flex items-center justify-center"
-            title={t('schedule.dragHandle')}
-            aria-hidden="true"
-          >
-            <DotsThree size={16} weight="bold" />
-          </span>
-        )}
       </div>
 
-      {/* Chi tiết mục lịch trình */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          {/* Khung giờ */}
-          <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-chip text-caption font-semibold ${
-              isConflict
-                ? isCriticalOrError
-                  ? 'bg-danger-soft text-danger border border-danger/20'
-                  : 'bg-warning-soft text-warning border border-warning/20'
-                : 'bg-surface-2 text-ink border border-line'
-            }`}
-          >
-            <Clock size={14} className="shrink-0" />
-            <span className="tabular-nums">{formattedTimeRange}</span>
-          </span>
-
-          <span className="text-caption text-ink-3 font-medium">
-            ({formatDuration(duration, language, 'short')})
-          </span>
-
-          {item.day_offset > 0 && (
-            <span className="px-2 py-0.5 rounded-chip text-caption font-semibold bg-surface-2 text-ink-2 border border-line">
-              {t('schedule.dayBadge', { day: item.day_offset + 1 })}
-            </span>
-          )}
-
-          {isConflict && (
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-chip text-caption font-bold ${
-                isCriticalOrError
-                  ? 'bg-danger text-surface'
-                  : 'bg-warning text-surface'
-              }`}
-            >
-              <WarningCircle size={12} weight="fill" className="shrink-0" />
-              <span>{t('schedule.conflictBadge')}</span>
-            </span>
-          )}
-        </div>
-
-        {/* Tên quán và icon danh mục */}
-        <div className="flex items-center gap-2 mt-1">
-          <CategoryIcon category={category} size="sm" className="shrink-0 whitespace-nowrap" />
-          <h4 className="text-body font-bold text-ink line-clamp-2 min-w-0">
-            {item.place_name}
-          </h4>
-        </div>
-
-        {/* Địa chỉ */}
-        {item.place_address && (
-          <p className="text-caption text-ink-2 truncate mt-0.5 flex items-center gap-1">
-            <MapPin size={14} className="shrink-0 text-ink-3" />
-            <span className="truncate">{item.place_address}</span>
-          </p>
-        )}
-
-        {/* Ghi chú */}
-        {item.note && (
-          <p className="text-caption text-ink-2 bg-surface-2 rounded-card p-2.5 mt-2 border border-line italic">
-            &ldquo;{item.note}&rdquo;
-          </p>
-        )}
-
-        {/* Cảnh báo xung đột (nếu có): icon + một dòng mô tả từ describeConflict */}
-        {isConflict && conflictMessages.length > 0 && (
-          <div
-            className={`mt-2.5 p-2.5 rounded-card text-caption space-y-1 ${
-              isCriticalOrError
-                ? 'bg-danger-soft border border-danger/30 text-danger'
-                : 'bg-warning-soft border border-warning/30 text-warning'
-            }`}
-          >
-            {conflictMessages.map((msg, i) => (
-              <p key={i} className="flex items-start gap-1.5 leading-relaxed">
-                <WarningCircle size={16} weight="fill" className="shrink-0 mt-0.5" />
-                <span className="line-clamp-2">{msg}</span>
+      {/* Thẻ điểm dừng + chip xung đột ngay dưới */}
+      <div className="min-w-0 pb-2">
+        <div
+          draggable={isDraggable}
+          onDragStart={(e) => onDragStart?.(e, item.id)}
+          onDragOver={(e) => onDragOver?.(e, item.id)}
+          onDrop={(e) => onDrop?.(e, item.id)}
+          onDragEnd={onDragEnd}
+          className={`group rounded-card border bg-surface p-3 transition-colors duration-150 ${
+            isConflict ? (isCriticalOrError ? 'border-danger/50' : 'border-warning/50') : 'border-line'
+          } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        >
+          <div className="flex items-start gap-3">
+            <StopThumb place={place} category={resolvedCategory} />
+            <div className="min-w-0 flex-1">
+              <h4 className="text-body font-semibold leading-snug text-ink line-clamp-2">{item.place_name}</h4>
+              {item.place_address && (
+                <p className="mt-0.5 flex items-center gap-1 text-caption text-ink-2">
+                  <MapPin size={14} className="shrink-0 text-ink-3" />
+                  <span className="truncate">{item.place_address}</span>
+                </p>
+              )}
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 text-caption text-ink-2">
+                <span className="tabular-nums">{formatDuration(duration, language, 'short')}</span>
+                <span aria-hidden="true">·</span>
+                <span className={`tabular-nums ${price ? 'font-medium text-ink' : 'text-ink-3'}`}>{price ?? t('budget.unknownShort')}</span>
+                {item.day_offset > 0 && (
+                  <span className="rounded-chip border border-line bg-surface-2 px-2 text-ink-2">
+                    {t('schedule.dayBadge', { day: item.day_offset + 1 })}
+                  </span>
+                )}
               </p>
-            ))}
+            </div>
+            {isDraggable && (
+              <span className="hidden select-none text-ink-3 sm:flex" title={t('schedule.dragHandle')} aria-hidden="true">
+                <DotsThree size={16} weight="bold" />
+              </span>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Nút hành động: Lên, Xuống, Xoá. Mobile xuống hàng riêng để không bóp tên quán (T-56) */}
-      <div className="flex items-center justify-end gap-0.5 basis-full -mb-2 sm:basis-auto sm:mb-0 self-start sm:pt-0.5 shrink-0">
-        {onMoveUp && (
-          <button
-            type="button"
-            disabled={index === 0}
-            onClick={() => onMoveUp(item.id)}
-            title={t('schedule.moveUp')}
-            aria-label={t('schedule.moveUp')}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
-          >
-            <CaretUp size={16} weight="bold" />
-          </button>
-        )}
+          {item.note && (
+            <p className="mt-2 rounded-field border border-line bg-surface-2 p-2 text-caption italic text-ink-2">
+              &ldquo;{item.note}&rdquo;
+            </p>
+          )}
 
-        {onMoveDown && (
-          <button
-            type="button"
-            disabled={index === totalItems - 1}
-            onClick={() => onMoveDown(item.id)}
-            title={t('schedule.moveDown')}
-            aria-label={t('schedule.moveDown')}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full text-ink-3 hover:text-ink hover:bg-surface-2 disabled:opacity-20 disabled:hover:bg-transparent transition-colors flex items-center justify-center"
-          >
-            <CaretDown size={16} weight="bold" />
-          </button>
-        )}
+          {/* Lên, Xuống, Xoá: vùng chạm 44px, dồn về bên phải một hàng riêng để không bóp tên quán */}
+          <div className="-mb-1 mt-1 flex items-center justify-end gap-0.5">
+            {onMoveUp && (
+              <button
+                type="button"
+                disabled={index === 0}
+                onClick={() => onMoveUp(item.id)}
+                title={t('schedule.moveUp')}
+                aria-label={t('schedule.moveUp')}
+                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+              >
+                <CaretUp size={16} weight="bold" />
+              </button>
+            )}
+            {onMoveDown && (
+              <button
+                type="button"
+                disabled={index === totalItems - 1}
+                onClick={() => onMoveDown(item.id)}
+                title={t('schedule.moveDown')}
+                aria-label={t('schedule.moveDown')}
+                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-20 disabled:hover:bg-transparent"
+              >
+                <CaretDown size={16} weight="bold" />
+              </button>
+            )}
+            {(isHost || onDelete) && (
+              <button
+                type="button"
+                onClick={() => onDelete?.(item.id)}
+                title={t('schedule.deleteItem')}
+                aria-label={t('schedule.deleteItem')}
+                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash size={16} />
+              </button>
+            )}
+          </div>
+        </div>
 
-        {(isHost || onDelete) && (
-          <button
-            type="button"
-            onClick={() => onDelete?.(item.id)}
-            title={t('schedule.deleteItem')}
-            aria-label={t('schedule.deleteItem')}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full text-ink-3 hover:text-danger hover:bg-danger-soft transition-colors flex items-center justify-center"
+        {/* Xung đột hiện ngay dưới mục bị trùng: chip warning/danger + "Sửa" (DESIGN §8). Huy hiệu ngắn nếu không có câu mô tả */}
+        {isConflict && (
+          <div
+            data-testid="item-conflict"
+            role="alert"
+            className={`mt-1.5 flex items-start gap-2 rounded-field p-2.5 text-caption ${
+              isCriticalOrError ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'
+            }`}
           >
-            <Trash size={16} />
-          </button>
+            <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="font-semibold">{t('schedule.conflictBadge')}</p>
+              {conflictMessages.map((msg, i) => (
+                <p key={i} className="leading-snug">
+                  {msg}
+                </p>
+              ))}
+            </div>
+            {onFixConflict && (
+              <button
+                type="button"
+                onClick={() => onFixConflict(item.id)}
+                data-testid="conflict-fix"
+                className="inline-flex min-h-[44px] shrink-0 items-center gap-1 rounded-chip px-3 font-semibold underline-offset-2 hover:underline"
+              >
+                <PencilSimple size={14} />
+                {t('schedule.fix')}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

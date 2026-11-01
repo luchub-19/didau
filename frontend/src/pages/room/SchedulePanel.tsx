@@ -1,9 +1,10 @@
 import React from 'react';
-import type { Member, Place, ScheduleItem } from '../../types';
+import type { Member, Place, Room, ScheduleItem } from '../../types';
 import { ScheduleTimeline } from '../../components/schedule';
 
 export interface SchedulePanelProps {
   roomId: string;
+  room?: Room | null;
   items: ScheduleItem[];
   places: Place[];
   members: Member[];
@@ -14,6 +15,7 @@ export interface SchedulePanelProps {
 
 export const SchedulePanel: React.FC<SchedulePanelProps> = ({
   roomId,
+  room,
   items,
   places,
   members,
@@ -25,6 +27,7 @@ export const SchedulePanel: React.FC<SchedulePanelProps> = ({
     <div className="space-y-5">
       <ScheduleTimeline
         roomId={roomId}
+        room={room}
         items={items}
         places={places}
         members={members}

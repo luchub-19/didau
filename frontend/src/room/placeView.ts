@@ -17,12 +17,16 @@ export function pickBadge(flags: { accepted: boolean; leading: boolean; overBudg
 }
 
 /**
- * Tạm (T-69): giá quán > ngân sách của phòng. T-73 thay bằng ngân sách còn lại
- * (`budget_limit − tổng các quán khác đã trong lịch`, DESIGN §8). Giá 0/thiếu = "chưa rõ giá", không vượt.
+ * Giá quán > ngân sách − `otherSpent` (tổng giá các quán khác đã trong lịch, DESIGN §8; tính bằng
+ * `otherScheduleSpent` ở `room/budget.ts`). Chưa có lịch thì `otherSpent = 0`. Giá 0/thiếu = "chưa rõ giá", không vượt.
  */
-export function isOverBudget(place: Pick<Place, 'estimated_cost'>, budgetLimit: number | null | undefined): boolean {
+export function isOverBudget(
+  place: Pick<Place, 'estimated_cost'>,
+  budgetLimit: number | null | undefined,
+  otherSpent = 0,
+): boolean {
   const cost = place.estimated_cost ?? 0;
-  return budgetLimit != null && budgetLimit > 0 && cost > budgetLimit;
+  return budgetLimit != null && budgetLimit > 0 && cost > budgetLimit - otherSpent;
 }
 
 /** Các quán đang dẫn: điểm cao nhất và > 0, chỉ tính quán chưa bị loại. Hoà thì dẫn chung. */
@@ -37,12 +41,13 @@ export function badgeFor(
   place: Pick<Place, 'id' | 'status' | 'estimated_cost'>,
   leading: ReadonlySet<string>,
   budgetLimit: number | null | undefined,
+  otherSpent = 0,
 ): PlaceBadge | null {
   if (place.status === 'REJECTED') return null;
   return pickBadge({
     accepted: place.status === 'ACCEPTED',
     leading: leading.has(place.id),
-    overBudget: isOverBudget(place, budgetLimit),
+    overBudget: isOverBudget(place, budgetLimit, otherSpent),
   });
 }
 

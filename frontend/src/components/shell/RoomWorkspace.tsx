@@ -41,6 +41,10 @@ export interface RoomWorkspaceProps {
   scheduleCount: number;
   /** Lịch có xung đột → chấm đỏ trên dải/nút Kế hoạch (T-73 đưa cảnh báo vào mục lịch). */
   hasConflicts?: boolean;
+  /** Tổng ngân sách cả buổi dạng ngắn ("295k") trên dải Kế hoạch thu gọn; null/thiếu → "—". */
+  budgetText?: string | null;
+  /** Vượt ngân sách → số chuyển màu cảnh báo. */
+  budgetOver?: boolean;
   /** Tăng mỗi lần cần nhường chỗ cho bản đồ (vd. "xem trên bản đồ"): sheet mobile thu về nấc thấp nhất. */
   mapFocusKey?: number;
 }
@@ -55,6 +59,8 @@ export const RoomWorkspace: React.FC<RoomWorkspaceProps> = ({
   placesCount,
   scheduleCount,
   hasConflicts = false,
+  budgetText = null,
+  budgetOver = false,
   mapFocusKey = 0,
 }) => {
   const { t } = useTranslation();
@@ -114,6 +120,8 @@ export const RoomWorkspace: React.FC<RoomWorkspaceProps> = ({
           onOpenChange={setPlanOpen}
           scheduleCount={scheduleCount}
           hasConflicts={hasConflicts}
+          budgetText={budgetText}
+          budgetOver={budgetOver}
         >
           {plan}
         </PlanColumn>
@@ -139,10 +147,12 @@ interface PlanColumnProps {
   onOpenChange: (open: boolean) => void;
   scheduleCount: number;
   hasConflicts: boolean;
+  budgetText: string | null;
+  budgetOver: boolean;
   children: React.ReactNode;
 }
 
-const PlanColumn: React.FC<PlanColumnProps> = ({ wide, open, onOpenChange, scheduleCount, hasConflicts, children }) => {
+const PlanColumn: React.FC<PlanColumnProps> = ({ wide, open, onOpenChange, scheduleCount, hasConflicts, budgetText, budgetOver, children }) => {
   const { t } = useTranslation();
   const panelId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -209,8 +219,9 @@ const PlanColumn: React.FC<PlanColumnProps> = ({ wide, open, onOpenChange, sched
           )}
           <span className="mt-auto flex flex-col items-center gap-0.5 text-caption text-ink-3">
             <span>{t('room.workspace.budget')}</span>
-            {/* T-73 thay bằng tổng ngân sách cả buổi */}
-            <span className="text-label font-semibold text-ink-2 tabular-nums">—</span>
+            <span className={`text-label font-semibold tabular-nums ${budgetOver ? 'text-warning' : 'text-ink-2'}`}>
+              {budgetText ?? '—'}
+            </span>
           </span>
         </button>
       )}

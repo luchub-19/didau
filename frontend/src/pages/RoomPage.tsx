@@ -36,6 +36,7 @@ import { DecideModal, type DecideIntent } from '../components/decide';
 import { JoinRoomModal } from '../components/room';
 import { flyToPlace } from '../components/map/flyToPlace';
 import { useRoomPhase } from '../room/useRoomPhase';
+import { formatBudgetShort, planBudget } from '../room/budget';
 import { getMotionTier } from '../motion/useMotionTier';
 import { withViewTransition } from '../motion/viewTransition';
 import { duration } from '../motion/tokens';
@@ -255,6 +256,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
   }
 
   const isVotingDisabled = room.status === 'FINALIZED';
+  // Tổng ngân sách cả buổi cho dải Kế hoạch thu gọn (không phải hook: chỉ phép cộng trên vài mục)
+  const planTotals = planBudget({ schedule, places, budgetLimit: room.budget_limit });
 
   return (
     <RoomShell
@@ -290,6 +293,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         placesCount={places.length}
         scheduleCount={schedule.length}
         hasConflicts={conflicts.length > 0}
+        budgetText={formatBudgetShort(planTotals.spent)}
+        budgetOver={planTotals.over}
         mapFocusKey={mapFocusKey}
         list={
           <PlacesPanel
@@ -314,6 +319,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
               setDecideIntent(intent ?? null);
               setDecideModalOpen(true);
             }}
+            schedule={schedule}
+            onReviewVote={() => phaseState.setViewStep(2)}
           />
         }
         map={
@@ -329,6 +336,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         plan={
           <SchedulePanel
             roomId={roomId}
+            room={room}
             items={schedule}
             places={places}
             members={members}

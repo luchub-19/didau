@@ -8,6 +8,8 @@ import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { MapPin } from '../ui/Icon';
 import { Button } from '../ui/Button';
 import { useMapStore } from '../../store/useMapStore';
+import { useScheduleStore } from '../../store/useScheduleStore';
+import { planBudget } from '../../room/budget';
 import { usePresenceStore } from '../../store/usePresenceStore';
 import { useNearbyPois, type NearbyPois } from '../map/NearbySuggestions';
 import type { PeerMap } from '../../stage/presence/rules';
@@ -120,6 +122,9 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
   const peers = source?.peers ?? storePeers;
   const nearby = source?.nearby ?? storeNearby;
   const [collection, setCollection] = useState<CollectionCode | null>(null);
+  // Phần ngân sách đã dùng cho các quán trong lịch (0 khi chưa có lịch, vd. giai đoạn ①)
+  const scheduleItems = useScheduleStore((s) => s.items);
+  const spentOnPlan = useMemo(() => planBudget({ schedule: scheduleItems, places }).spent, [scheduleItems, places]);
 
   const metaFor = (it: DiscoveryItem): string => {
     const parts: string[] = [];
@@ -167,8 +172,8 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
       byKey.set(it.key, it);
     }
     for (const it of nearbyItems) if (!byKey.has(it.key)) byKey.set(it.key, it);
-    return fitsRoomAndBudget([...byKey.values()], room);
-  }, [data, nearby.origin, poisById, nearbyItems, room]);
+    return fitsRoomAndBudget([...byKey.values()], room, undefined, spentOnPlan);
+  }, [data, nearby.origin, poisById, nearbyItems, room, spentOnPlan]);
 
   // Dải 4 — nhóm đang để ý
   const watching = useMemo(
@@ -176,7 +181,7 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
     [peers, currentMemberId, places, members],
   );
 
-  const budget = remainingBudget(room);
+  const budget = remainingBudget(room, spentOnPlan);
   const range = `${formatTime(room.start_minute ?? 1020, lang)}–${formatTime(room.end_minute ?? 1380, lang)}`;
 
   return (
