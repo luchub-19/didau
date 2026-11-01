@@ -900,6 +900,16 @@ export const vi = {
     turnOff: 'Tắt âm thanh',
     hint: 'Chỉ phát ở lúc quẹt thẻ và công bố quán.',
   },
+  curated: {
+    collection: {
+      view: 'Cà phê view đẹp',
+      latenight: 'Ăn đêm',
+      date: 'Hẹn hò',
+      cheap: 'Rẻ mà ngon',
+      local: 'Đặc sản Sài Gòn',
+      chill: 'Ngồi lâu',
+    },
+  },
   phase: {
     ariaLabel: 'Các bước của buổi đi chơi',
     step: { gather: 'Tìm quán', vote: 'Bình chọn', lock: 'Chốt kèo', send: 'Gửi lịch' },

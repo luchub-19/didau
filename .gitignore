@@ -68,3 +68,7 @@ postgres_data/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Ảnh thô quán tuyển chọn (T-70): người dùng thả vào, script xử lý rồi để đây
+curated-inbox/*
+!curated-inbox/.gitkeep

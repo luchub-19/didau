@@ -902,6 +902,16 @@ export const en: Messages = {
     turnOff: 'Turn sound off',
     hint: 'Plays only when swiping cards and revealing the pick.',
   },
+  curated: {
+    collection: {
+      view: 'Coffee spots with a view',
+      latenight: 'Late-night eats',
+      date: 'Date spots',
+      cheap: 'Cheap and good',
+      local: 'Saigon classics',
+      chill: 'Places to linger',
+    },
+  },
   phase: {
     ariaLabel: 'Steps of the outing',
     step: { gather: 'Find places', vote: 'Vote', lock: 'Lock in', send: 'Send plan' },

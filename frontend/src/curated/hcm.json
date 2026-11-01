@@ -1,0 +1,1758 @@
+{
+ "source": "Dữ liệu tuyển chọn tự viết; vị trí © OpenStreetMap contributors (ODbL)",
+ "places": [
+  {
+   "id": "nha-hang-ngon",
+   "wave": 1,
+   "external_id": "osm:node/1985346231",
+   "name": "Nhà Hàng Ngon",
+   "address": "160 Pasteur, Quận 1",
+   "lat": 10.777346,
+   "lng": 106.699633,
+   "category": "FOOD",
+   "price_per_person": 180000,
+   "collections": [
+    "local",
+    "date"
+   ],
+   "intro": {
+    "vi": "Biệt thự cũ với sân vườn, gom món ba miền vào một chỗ, nhiều quầy nấu ngay trước mặt. Hợp đi đông người vì ai cũng tìm được món mình thích.",
+    "en": "A villa with a leafy courtyard that gathers dishes from all three regions, many cooked at open stalls. Great for groups because everyone finds something they like."
+   },
+   "try": {
+    "vi": [
+     "Bánh xèo",
+     "Nem cuốn",
+     "Món Huế"
+    ],
+    "en": [
+     "Banh xeo",
+     "Fresh spring rolls",
+     "Hue specialties"
+    ]
+   },
+   "photos": [
+    {
+     "file": "nha-hang-ngon-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "nha-hang-ngon-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "nha-hang-ngon-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "ca-phe-ciao",
+   "wave": 1,
+   "external_id": "osm:node/1770305118",
+   "name": "Cà Phê Ciao",
+   "address": "74-76 Nguyễn Huệ, Quận 1",
+   "lat": 10.7751,
+   "lng": 106.702969,
+   "category": "DRINK",
+   "price_per_person": 65000,
+   "collections": [
+    "view",
+    "chill"
+   ],
+   "intro": {
+    "vi": "Quán cà phê ngay phố đi bộ Nguyễn Huệ, ngồi nhìn người qua lại và đài phun nước. Chỗ dễ hẹn đầu buổi tối trước khi đi tiếp.",
+    "en": "A café right on the Nguyen Hue walking street, good for watching the crowd and the fountain. An easy spot to meet before the evening moves on."
+   },
+   "try": {
+    "vi": [
+     "Cà phê sữa đá",
+     "Nước ép trái cây"
+    ],
+    "en": [
+     "Iced milk coffee",
+     "Fresh juice"
+    ]
+   },
+   "photos": [
+    {
+     "file": "ca-phe-ciao-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "ca-phe-ciao-2.webp",
+     "kind": "view",
+     "source": ""
+    },
+    {
+     "file": "ca-phe-ciao-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "saigon-saigon-bar",
+   "wave": 1,
+   "external_id": "osm:node/1771654763",
+   "name": "Saigon Saigon Bar",
+   "address": "19-23 Công Trường Lam Sơn, Quận 1",
+   "lat": 10.776083,
+   "lng": 106.703429,
+   "category": "DRINK",
+   "price_per_person": 220000,
+   "collections": [
+    "view",
+    "latenight",
+    "date"
+   ],
+   "intro": {
+    "vi": "Quầy bar trên tầng cao của khách sạn Caravelle, nhìn xuống Nhà hát Thành phố và trung tâm. Có nhạc sống, hợp kết thúc buổi tối cho hai người hoặc nhóm nhỏ.",
+    "en": "A bar high up in the Caravelle hotel, overlooking the Opera House and downtown. Live music makes it a good finish for a date or a small group."
+   },
+   "try": {
+    "vi": [
+     "Cocktail",
+     "Ngắm thành phố về đêm"
+    ],
+    "en": [
+     "Cocktails",
+     "City lights at night"
+    ]
+   },
+   "photos": [
+    {
+     "file": "saigon-saigon-bar-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "saigon-saigon-bar-2.webp",
+     "kind": "view",
+     "source": ""
+    },
+    {
+     "file": "saigon-saigon-bar-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "banh-mi-huynh-hoa",
+   "wave": 1,
+   "external_id": "osm:node/10288742609",
+   "name": "Bánh Mì Huỳnh Hoa",
+   "address": "26 Lê Thị Riêng, Quận 1",
+   "lat": 10.771469,
+   "lng": 106.692371,
+   "category": "FOOD",
+   "price_per_person": 65000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Tiệm bánh mì nổi tiếng với ổ nhân đầy đặn, thường có người xếp hàng. Ăn đứng hoặc mang đi đều tiện, hợp bữa nhẹ trước khi đi chơi.",
+    "en": "A famous banh mi shop known for generously filled rolls and a line that rarely disappears. Easy to eat on the go as a light bite."
+   },
+   "try": {
+    "vi": [
+     "Bánh mì thịt nguội đặc biệt",
+     "Cà phê đá"
+    ],
+    "en": [
+     "The special cold-cut banh mi",
+     "Iced coffee"
+    ]
+   },
+   "photos": [
+    {
+     "file": "banh-mi-huynh-hoa-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "banh-mi-huynh-hoa-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "banh-mi-huynh-hoa-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "oc-oanh-vinh-khanh",
+   "wave": 1,
+   "external_id": "osm:node/5565425321",
+   "name": "Ốc Oanh",
+   "address": "534 Vĩnh Khánh, Quận 4",
+   "lat": 10.761422,
+   "lng": 106.702829,
+   "category": "FOOD",
+   "price_per_person": 160000,
+   "collections": [
+    "latenight",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán ốc trên phố ẩm thực Vĩnh Khánh, đông nhất vào buổi tối. Gọi nhiều đĩa nhỏ chia nhau là cách ăn hợp nhóm bạn.",
+    "en": "A snail and shellfish spot on the Vinh Khanh food street, busiest in the evening. Order several small plates to share with friends."
+   },
+   "try": {
+    "vi": [
+     "Ốc xào",
+     "Ốc nướng",
+     "Sò điệp nướng"
+    ],
+    "en": [
+     "Stir-fried snails",
+     "Grilled snails",
+     "Grilled scallops"
+    ]
+   },
+   "photos": [
+    {
+     "file": "oc-oanh-vinh-khanh-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "oc-oanh-vinh-khanh-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "oc-oanh-vinh-khanh-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "the-workshop-coffee",
+   "wave": 1,
+   "external_id": "osm:node/4214872992",
+   "name": "The Workshop Coffee",
+   "address": "27 Ngô Đức Kế, Quận 1",
+   "lat": 10.773406,
+   "lng": 106.705539,
+   "category": "DRINK",
+   "price_per_person": 80000,
+   "collections": [
+    "chill",
+    "view"
+   ],
+   "intro": {
+    "vi": "Quán cà phê specialty trong một toà nhà cũ, trần cao và nhiều ánh sáng. Ngồi làm việc hay trò chuyện lâu đều thoải mái.",
+    "en": "A specialty coffee place in an older building, with high ceilings and lots of light. Comfortable for long chats or working."
+   },
+   "try": {
+    "vi": [
+     "Cà phê pha phin",
+     "Cà phê pha máy"
+    ],
+    "en": [
+     "Phin-drip coffee",
+     "Espresso drinks"
+    ]
+   },
+   "photos": [
+    {
+     "file": "the-workshop-coffee-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "the-workshop-coffee-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "the-workshop-coffee-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pizza-4ps-thu-khoa-huan",
+   "wave": 1,
+   "external_id": "osm:node/6341024086",
+   "name": "Pizza 4P's Thủ Khoa Huân",
+   "address": "8 Thủ Khoa Huân, Quận 1",
+   "lat": 10.773364,
+   "lng": 106.697676,
+   "category": "FOOD",
+   "price_per_person": 320000,
+   "collections": [
+    "date"
+   ],
+   "intro": {
+    "vi": "Chuỗi pizza lò củi có phô mai tự làm, không gian ấm và đông khách. Nên đặt chỗ trước vào cuối tuần.",
+    "en": "A wood-fired pizza chain with house-made cheese and a warm room. Book ahead on weekends."
+   },
+   "try": {
+    "vi": [
+     "Pizza phô mai burrata",
+     "Pizza 4 loại phô mai"
+    ],
+    "en": [
+     "Burrata pizza",
+     "Four-cheese pizza"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pizza-4ps-thu-khoa-huan-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pizza-4ps-thu-khoa-huan-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pizza-4ps-thu-khoa-huan-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pasteur-street-brewing",
+   "wave": 1,
+   "external_id": "osm:node/5382941625",
+   "name": "Pasteur Street Brewing Co.",
+   "address": "144 Pasteur, Quận 1",
+   "lat": 10.77393,
+   "lng": 106.697381,
+   "category": "DRINK",
+   "price_per_person": 170000,
+   "collections": [
+    "latenight",
+    "chill"
+   ],
+   "intro": {
+    "vi": "Quán bia thủ công, nhiều loại bia ủ với nguyên liệu Việt Nam như chanh dây hay cà phê. Ngồi lâu uống chậm, ăn kèm đồ nhắm.",
+    "en": "A craft brewery pub with beers made using Vietnamese ingredients such as passion fruit or coffee. Easy to linger over a flight and some snacks."
+   },
+   "try": {
+    "vi": [
+     "Bộ bia thử 4 ly",
+     "Đồ nhắm"
+    ],
+    "en": [
+     "A tasting flight of four",
+     "Bar snacks"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pasteur-street-brewing-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pasteur-street-brewing-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pasteur-street-brewing-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "cong-ca-phe-mac-thi-buoi",
+   "wave": 1,
+   "external_id": "osm:node/5333005525",
+   "name": "Cộng Cà Phê (Mạc Thị Bưởi)",
+   "address": "Mạc Thị Bưởi, Quận 1",
+   "lat": 10.776133,
+   "lng": 106.705427,
+   "category": "DRINK",
+   "price_per_person": 50000,
+   "collections": [
+    "cheap",
+    "chill",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán cà phê trang trí kiểu thời bao cấp, nổi tiếng với cà phê cốt dừa. Giá dễ chịu, hợp ngồi lâu cả nhóm.",
+    "en": "A café styled after the subsidy era, known for coconut-milk coffee. Pleasant prices and easy for a long group sit."
+   },
+   "try": {
+    "vi": [
+     "Cà phê cốt dừa",
+     "Sinh tố"
+    ],
+    "en": [
+     "Coconut coffee",
+     "Smoothies"
+    ]
+   },
+   "photos": [
+    {
+     "file": "cong-ca-phe-mac-thi-buoi-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "cong-ca-phe-mac-thi-buoi-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "cong-ca-phe-mac-thi-buoi-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "quan-bui-ly-tu-trong",
+   "wave": 1,
+   "external_id": "osm:node/6235215186",
+   "name": "Quán Bụi (Lý Tự Trọng)",
+   "address": "39 Lý Tự Trọng, Quận 1",
+   "lat": 10.779185,
+   "lng": 106.702288,
+   "category": "FOOD",
+   "price_per_person": 200000,
+   "collections": [
+    "date",
+    "local"
+   ],
+   "intro": {
+    "vi": "Nhà hàng món Việt trang trí kiểu quán quê, không gian nhiều cây. Menu dài, hợp bữa tối có người thích thử món mới.",
+    "en": "A Vietnamese restaurant dressed like a countryside eatery, full of greenery. A long menu suits groups who like to try new dishes."
+   },
+   "try": {
+    "vi": [
+     "Món Việt gia đình",
+     "Nước ép"
+    ],
+    "en": [
+     "Home-style Vietnamese dishes",
+     "Fresh juices"
+    ]
+   },
+   "photos": [
+    {
+     "file": "quan-bui-ly-tu-trong-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "quan-bui-ly-tu-trong-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "quan-bui-ly-tu-trong-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pho-le-nguyen-trai",
+   "wave": 1,
+   "external_id": "osm:way/1536912862",
+   "name": "Phở Lệ",
+   "address": "413-415 Nguyễn Trãi, Quận 5",
+   "lat": 10.755249,
+   "lng": 106.673528,
+   "category": "FOOD",
+   "price_per_person": 75000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán phở lâu năm ở khu Chợ Lớn, nước dùng đậm. Đi cùng bữa tối ở Quận 5 là hợp.",
+    "en": "A long-running pho shop in the Cho Lon area with a rich broth. A good dinner stop when you are around District 5."
+   },
+   "try": {
+    "vi": [
+     "Phở tái",
+     "Phở đặc biệt"
+    ],
+    "en": [
+     "Rare-beef pho",
+     "Special pho"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pho-le-nguyen-trai-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pho-le-nguyen-trai-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pho-le-nguyen-trai-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "maison-marou",
+   "wave": 1,
+   "external_id": "osm:node/4633807289",
+   "name": "Maison Marou",
+   "address": "167-169 Calmette, Quận 1",
+   "lat": 10.769593,
+   "lng": 106.697867,
+   "category": "DRINK",
+   "price_per_person": 95000,
+   "collections": [
+    "chill",
+    "date"
+   ],
+   "intro": {
+    "vi": "Cà phê và chocolate của thương hiệu Marou, nhà hai tầng kiểu Pháp. Có thể mua chocolate thanh về làm quà.",
+    "en": "A café for the Marou chocolate brand in a French-style house over two floors. You can buy bars to take home as gifts."
+   },
+   "try": {
+    "vi": [
+     "Chocolate nóng",
+     "Bánh chocolate"
+    ],
+    "en": [
+     "Hot chocolate",
+     "Chocolate cake"
+    ]
+   },
+   "photos": [
+    {
+     "file": "maison-marou-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "maison-marou-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "maison-marou-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "chill-skybar",
+   "wave": 2,
+   "external_id": "osm:node/1969579818",
+   "name": "Chill Skybar",
+   "address": "76A Lê Lai, Quận 1",
+   "lat": 10.770425,
+   "lng": 106.694336,
+   "category": "DRINK",
+   "price_per_person": 350000,
+   "collections": [
+    "view",
+    "date",
+    "latenight"
+   ],
+   "intro": {
+    "vi": "Bar trên tầng cao của AB Tower, tầm nhìn rộng ra các toà nhà quanh Quận 1. Nên đến khi trời vừa tối để thấy đèn lên dần.",
+    "en": "A bar on the upper floors of AB Tower with wide views of District 1. Go just after dusk to watch the lights come up."
+   },
+   "try": {
+    "vi": [
+     "Cocktail",
+     "Ngắm thành phố về đêm"
+    ],
+    "en": [
+     "Cocktails",
+     "City lights at night"
+    ]
+   },
+   "photos": [
+    {
+     "file": "chill-skybar-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "chill-skybar-2.webp",
+     "kind": "view",
+     "source": ""
+    },
+    {
+     "file": "chill-skybar-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "mit-rooftop-bistro",
+   "wave": 2,
+   "external_id": "osm:node/3508216224",
+   "name": "MIT Rooftop Bistro",
+   "address": "33 Đồng Khởi, Quận 1",
+   "lat": 10.773659,
+   "lng": 106.705478,
+   "category": "FOOD",
+   "price_per_person": 300000,
+   "collections": [
+    "view",
+    "date"
+   ],
+   "intro": {
+    "vi": "Nhà hàng sân thượng trên phố Đồng Khởi, nhìn ra khu trung tâm. Hợp bữa tối nhẹ nhàng cho hai người.",
+    "en": "A rooftop restaurant on Dong Khoi with views over the centre. A calm dinner for two."
+   },
+   "try": {
+    "vi": [
+     "Món bistro",
+     "Cocktail"
+    ],
+    "en": [
+     "Bistro plates",
+     "Cocktails"
+    ]
+   },
+   "photos": [
+    {
+     "file": "mit-rooftop-bistro-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "mit-rooftop-bistro-2.webp",
+     "kind": "view",
+     "source": ""
+    },
+    {
+     "file": "mit-rooftop-bistro-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "secret-garden",
+   "wave": 2,
+   "external_id": "osm:node/5158204822",
+   "name": "Secret Garden",
+   "address": "158 Pasteur, Quận 1",
+   "lat": 10.777323,
+   "lng": 106.699826,
+   "category": "FOOD",
+   "price_per_person": 160000,
+   "collections": [
+    "date",
+    "view",
+    "local"
+   ],
+   "intro": {
+    "vi": "Nhà hàng món Việt trên sân thượng một chung cư cũ, nhiều cây và đèn dây. Cách ngắm nhịp sống thành phố thoáng hơn trong nhà hàng.",
+    "en": "A Vietnamese restaurant on an old apartment rooftop, with plants and string lights. A relaxed view of the city compared with an indoor dining room."
+   },
+   "try": {
+    "vi": [
+     "Món Việt gia đình",
+     "Canh chua"
+    ],
+    "en": [
+     "Home-style dishes",
+     "Sour soup"
+    ]
+   },
+   "photos": [
+    {
+     "file": "secret-garden-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "secret-garden-2.webp",
+     "kind": "view",
+     "source": ""
+    },
+    {
+     "file": "secret-garden-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "propaganda-saigon-bistro",
+   "wave": 2,
+   "external_id": "osm:node/4183849494",
+   "name": "Propaganda Saigon Bistro",
+   "address": "21 Hàn Thuyên, Quận 1",
+   "lat": 10.778708,
+   "lng": 106.698088,
+   "category": "FOOD",
+   "price_per_person": 180000,
+   "collections": [
+    "date",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán trang trí tranh cổ động bằng màu rực, phục vụ món Việt kiểu bistro. Không gian vui, nói chuyện thoải mái.",
+    "en": "A bistro decorated with bright propaganda-style posters, serving Vietnamese dishes. A lively room that is easy to talk in."
+   },
+   "try": {
+    "vi": [
+     "Món Việt kiểu bistro",
+     "Cà phê"
+    ],
+    "en": [
+     "Vietnamese bistro plates",
+     "Coffee"
+    ]
+   },
+   "photos": [
+    {
+     "file": "propaganda-saigon-bistro-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "propaganda-saigon-bistro-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "propaganda-saigon-bistro-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "lusine-le-loi",
+   "wave": 2,
+   "external_id": "osm:node/4245717091",
+   "name": "L'Usine (Lê Lợi)",
+   "address": "70B Lê Lợi, Quận 1",
+   "lat": 10.773101,
+   "lng": 106.69946,
+   "category": "FOOD",
+   "price_per_person": 220000,
+   "collections": [
+    "chill",
+    "date"
+   ],
+   "intro": {
+    "vi": "Quán cà phê kết hợp cửa hàng thiết kế, tầng trên có chỗ ngồi yên tĩnh. Ngồi làm việc ban ngày hay ăn tối nhẹ đều được.",
+    "en": "A café combined with a design shop, with quiet seating upstairs. Works for daytime work or a light dinner."
+   },
+   "try": {
+    "vi": [
+     "Bữa sáng",
+     "Cà phê"
+    ],
+    "en": [
+     "Brunch plates",
+     "Coffee"
+    ]
+   },
+   "photos": [
+    {
+     "file": "lusine-le-loi-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "lusine-le-loi-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "lusine-le-loi-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "hoa-tuc",
+   "wave": 2,
+   "external_id": "osm:node/2176976134",
+   "name": "Hoa Túc",
+   "address": "74 Hai Bà Trưng, Quận 1",
+   "lat": 10.778347,
+   "lng": 106.703889,
+   "category": "FOOD",
+   "price_per_person": 250000,
+   "collections": [
+    "date",
+    "local"
+   ],
+   "intro": {
+    "vi": "Nhà hàng món Việt trong một sân vườn nhỏ phía sau cửa hàng thủ công. Hợp bữa tối yên tĩnh có người chịu khó thử món.",
+    "en": "A Vietnamese restaurant in a small courtyard behind a craft shop. A quiet dinner for people happy to try dishes."
+   },
+   "try": {
+    "vi": [
+     "Món Việt hiện đại",
+     "Món chay"
+    ],
+    "en": [
+     "Modern Vietnamese plates",
+     "Vegetarian dishes"
+    ]
+   },
+   "photos": [
+    {
+     "file": "hoa-tuc-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "hoa-tuc-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "hoa-tuc-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "bep-me-in",
+   "wave": 2,
+   "external_id": "osm:node/11616168569",
+   "name": "Bếp Mẹ Ỉn",
+   "address": "136/9 Lê Thánh Tôn, Quận 1",
+   "lat": 10.773905,
+   "lng": 106.698187,
+   "category": "FOOD",
+   "price_per_person": 150000,
+   "collections": [
+    "local",
+    "date"
+   ],
+   "intro": {
+    "vi": "Quán món Việt gia đình trong hẻm Lê Thánh Tôn. Món cơm nhà, chia nhau nhiều đĩa là hợp nhất.",
+    "en": "A home-style Vietnamese eatery down a Le Thanh Ton alley. Best shared across several plates."
+   },
+   "try": {
+    "vi": [
+     "Món cơm nhà",
+     "Canh"
+    ],
+    "en": [
+     "Home-cooked rice dishes",
+     "Soups"
+    ]
+   },
+   "photos": [
+    {
+     "file": "bep-me-in-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "bep-me-in-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "bep-me-in-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pho-hoa-pasteur",
+   "wave": 2,
+   "external_id": "osm:node/5015735821",
+   "name": "Phở Hòa Pasteur",
+   "address": "260C Pasteur, Quận 3",
+   "lat": 10.786801,
+   "lng": 106.689046,
+   "category": "FOOD",
+   "price_per_person": 85000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán phở lâu năm ở Pasteur, quán rộng, đông khách. Có rau sống và quẩy ăn kèm.",
+    "en": "A long-running pho restaurant on Pasteur with plenty of seating and a steady crowd. Comes with herbs and fried dough sticks."
+   },
+   "try": {
+    "vi": [
+     "Phở tái nạm",
+     "Phở đặc biệt"
+    ],
+    "en": [
+     "Pho with rare beef and brisket",
+     "Special pho"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pho-hoa-pasteur-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pho-hoa-pasteur-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pho-hoa-pasteur-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "banh-mi-hoa-ma",
+   "wave": 2,
+   "external_id": "osm:node/5312851022",
+   "name": "Bánh Mì Hòa Mã",
+   "address": "Cao Thắng, Quận 3",
+   "lat": 10.770314,
+   "lng": 106.681747,
+   "category": "FOOD",
+   "price_per_person": 45000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Tiệm bánh mì quen thuộc trên đường Cao Thắng, bánh nóng giòn. Mua mang đi hoặc ăn nhanh tại chỗ.",
+    "en": "A familiar banh mi shop on Cao Thang with crisp, warm rolls. Grab and go or eat quickly on the spot."
+   },
+   "try": {
+    "vi": [
+     "Bánh mì thịt",
+     "Bánh mì trứng"
+    ],
+    "en": [
+     "Pork banh mi",
+     "Egg banh mi"
+    ]
+   },
+   "photos": [
+    {
+     "file": "banh-mi-hoa-ma-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "banh-mi-hoa-ma-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "banh-mi-hoa-ma-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "com-tam-nguyen-van-cu",
+   "wave": 2,
+   "external_id": "osm:node/3641697177",
+   "name": "Cơm Tấm Nguyễn Văn Cừ",
+   "address": "74 Nguyễn Văn Cừ, Quận 5",
+   "lat": 10.757779,
+   "lng": 106.684522,
+   "category": "FOOD",
+   "price_per_person": 60000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán cơm tấm bình dân, sườn nướng thơm khói. Bữa tối nhanh, giá dễ chịu.",
+    "en": "A casual broken-rice shop with smoky grilled pork chops. A quick dinner at friendly prices."
+   },
+   "try": {
+    "vi": [
+     "Cơm tấm sườn",
+     "Cơm tấm sườn bì chả"
+    ],
+    "en": [
+     "Broken rice with pork chop",
+     "Rice with chop, shredded pork and egg meatloaf"
+    ]
+   },
+   "photos": [
+    {
+     "file": "com-tam-nguyen-van-cu-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "com-tam-nguyen-van-cu-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "com-tam-nguyen-van-cu-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "banh-xeo-46a",
+   "wave": 2,
+   "external_id": "osm:node/3506699501",
+   "name": "Bánh Xèo 46A",
+   "address": "46A Đinh Công Tráng, Quận 1",
+   "lat": 10.789605,
+   "lng": 106.691299,
+   "category": "FOOD",
+   "price_per_person": 90000,
+   "collections": [
+    "local",
+    "cheap"
+   ],
+   "intro": {
+    "vi": "Quán bánh xèo vỏ giòn, ăn với rau sống cuốn bánh tráng. Đông khách vào giờ tối, nên đi sớm.",
+    "en": "A crispy banh xeo place eaten wrapped in rice paper with herbs. Busy in the evening, so go early."
+   },
+   "try": {
+    "vi": [
+     "Bánh xèo",
+     "Nem lụi"
+    ],
+    "en": [
+     "Banh xeo",
+     "Grilled pork skewers"
+    ]
+   },
+   "photos": [
+    {
+     "file": "banh-xeo-46a-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "banh-xeo-46a-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "banh-xeo-46a-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "banh-xeo-muoi-xiem",
+   "wave": 2,
+   "external_id": "osm:node/3654562875",
+   "name": "Bánh Xèo Mười Xiềm",
+   "address": "54A Nguyễn Văn Trỗi, Quận Phú Nhuận",
+   "lat": 10.794319,
+   "lng": 106.677998,
+   "category": "FOOD",
+   "price_per_person": 100000,
+   "collections": [
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán bánh xèo kiểu miền Tây, bánh to và nhiều nhân. Hợp nhóm đông gọi nhiều đĩa cùng ăn.",
+    "en": "A Mekong-style banh xeo place with large, generously filled pancakes. Good for groups to share."
+   },
+   "try": {
+    "vi": [
+     "Bánh xèo tôm thịt",
+     "Gỏi cuốn"
+    ],
+    "en": [
+     "Shrimp and pork banh xeo",
+     "Fresh rolls"
+    ]
+   },
+   "photos": [
+    {
+     "file": "banh-xeo-muoi-xiem-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "banh-xeo-muoi-xiem-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "banh-xeo-muoi-xiem-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "bun-bo-hue-gia-hoi",
+   "wave": 2,
+   "external_id": "osm:node/2041380423",
+   "name": "Bún Bò Huế Gia Hội",
+   "address": "19 Trần Cao Vân, Quận 3",
+   "lat": 10.78415,
+   "lng": 106.697505,
+   "category": "FOOD",
+   "price_per_person": 75000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán bún bò Huế nước dùng cay thơm sả. Bữa tối nóng hổi khi trời lạnh hoặc mưa.",
+    "en": "A Hue-style beef noodle soup place with a spicy, lemongrass-scented broth. A warming dinner on a cold or rainy night."
+   },
+   "try": {
+    "vi": [
+     "Bún bò Huế",
+     "Chả cua"
+    ],
+    "en": [
+     "Hue beef noodle soup",
+     "Crab patty"
+    ]
+   },
+   "photos": [
+    {
+     "file": "bun-bo-hue-gia-hoi-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "bun-bo-hue-gia-hoi-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "bun-bo-hue-gia-hoi-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pho-2000",
+   "wave": 2,
+   "external_id": "osm:node/1969599008",
+   "name": "Phở 2000",
+   "address": "Gần chợ Bến Thành, Quận 1",
+   "lat": 10.771816,
+   "lng": 106.697747,
+   "category": "FOOD",
+   "price_per_person": 85000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán phở gần chợ Bến Thành, tiện ghé khi dạo quanh khu trung tâm. Nước dùng ngọt thanh.",
+    "en": "A pho shop near Ben Thanh Market, convenient while walking the centre. A light, sweet broth."
+   },
+   "try": {
+    "vi": [
+     "Phở bò",
+     "Quẩy"
+    ],
+    "en": [
+     "Beef pho",
+     "Fried dough sticks"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pho-2000-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pho-2000-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pho-2000-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "bun-thit-nuong-kieu-bao",
+   "wave": 2,
+   "external_id": "osm:node/5338832321",
+   "name": "Bún Thịt Nướng Kiều Bảo",
+   "address": "139 Đề Thám, Quận 1",
+   "lat": 10.765133,
+   "lng": 106.694807,
+   "category": "FOOD",
+   "price_per_person": 50000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán bún thịt nướng giá bình dân ở khu Bùi Viện – Đề Thám. Bữa ăn nhanh gọn, nhiều rau và đồ chua.",
+    "en": "A budget grilled-pork noodle shop around the Bui Vien / De Tham area. A quick meal with plenty of herbs and pickles."
+   },
+   "try": {
+    "vi": [
+     "Bún thịt nướng",
+     "Chả giò"
+    ],
+    "en": [
+     "Grilled pork noodles",
+     "Spring rolls"
+    ]
+   },
+   "photos": [
+    {
+     "file": "bun-thit-nuong-kieu-bao-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "bun-thit-nuong-kieu-bao-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "bun-thit-nuong-kieu-bao-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "cuc-gach-quan",
+   "wave": 2,
+   "external_id": "osm:node/4707519389",
+   "name": "Cục Gạch Quán",
+   "address": "10 Đặng Tất, Quận 1",
+   "lat": 10.793,
+   "lng": 106.68893,
+   "category": "FOOD",
+   "price_per_person": 200000,
+   "collections": [
+    "date",
+    "chill",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán món Việt trong căn nhà cũ ở Tân Định, trang trí hoài cổ. Không gian vừa ăn vừa trò chuyện lâu.",
+    "en": "A Vietnamese restaurant in an older Tan Dinh house with nostalgic decor. A good room for a long meal and conversation."
+   },
+   "try": {
+    "vi": [
+     "Món Việt gia đình",
+     "Cà phê"
+    ],
+    "en": [
+     "Home-style Vietnamese dishes",
+     "Coffee"
+    ]
+   },
+   "photos": [
+    {
+     "file": "cuc-gach-quan-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "cuc-gach-quan-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "cuc-gach-quan-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "kem-bach-dang",
+   "wave": 2,
+   "external_id": "osm:node/1985346319",
+   "name": "Kem Bạch Đằng",
+   "address": "Bạch Đằng, Quận 1",
+   "lat": 10.774748,
+   "lng": 106.70097,
+   "category": "FOOD",
+   "price_per_person": 35000,
+   "collections": [
+    "cheap",
+    "chill"
+   ],
+   "intro": {
+    "vi": "Quán kem trên đường Bạch Đằng ven sông, cầm kem đi dạo là hợp. Mua rồi ngồi bờ sông.",
+    "en": "An ice cream stall by the Bach Dang riverside, ideal to eat on a stroll. Take it to the riverbank."
+   },
+   "try": {
+    "vi": [
+     "Kem dừa",
+     "Kem ly"
+    ],
+    "en": [
+     "Coconut ice cream",
+     "Ice cream cup"
+    ]
+   },
+   "photos": [
+    {
+     "file": "kem-bach-dang-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "kem-bach-dang-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "kem-bach-dang-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "the-coffee-house-le-duan",
+   "wave": 2,
+   "external_id": "osm:node/1769692429",
+   "name": "The Coffee House (Lê Duẩn)",
+   "address": "2 Lê Duẩn, Quận 1",
+   "lat": 10.785027,
+   "lng": 106.702666,
+   "category": "DRINK",
+   "price_per_person": 55000,
+   "collections": [
+    "chill"
+   ],
+   "intro": {
+    "vi": "Chuỗi cà phê có chỗ ngồi rộng, mở cửa linh hoạt, wifi ổn. Ngồi học hay họp nhóm đều tiện.",
+    "en": "A café chain with ample seating and reliable wifi. Handy for studying or group meetings."
+   },
+   "try": {
+    "vi": [
+     "Cà phê sữa",
+     "Trà trái cây"
+    ],
+    "en": [
+     "Milk coffee",
+     "Fruit tea"
+    ]
+   },
+   "photos": [
+    {
+     "file": "the-coffee-house-le-duan-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "the-coffee-house-le-duan-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "the-coffee-house-le-duan-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "cong-ca-phe-bui-vien",
+   "wave": 2,
+   "external_id": "osm:node/4385092389",
+   "name": "Cộng Cà Phê (Bùi Viện)",
+   "address": "129 Bùi Viện, Quận 1",
+   "lat": 10.766606,
+   "lng": 106.69208,
+   "category": "DRINK",
+   "price_per_person": 50000,
+   "collections": [
+    "cheap",
+    "latenight",
+    "chill"
+   ],
+   "intro": {
+    "vi": "Chi nhánh Cộng ở phố Tây Bùi Viện, ngồi ban công nhìn phố xá náo nhiệt. Cà phê cốt dừa vẫn là món chính.",
+    "en": "The Cong branch on the Bui Vien backpacker street; a balcony seat overlooks the busy road. Coconut coffee is still the thing to order."
+   },
+   "try": {
+    "vi": [
+     "Cà phê cốt dừa",
+     "Sinh tố"
+    ],
+    "en": [
+     "Coconut coffee",
+     "Smoothies"
+    ]
+   },
+   "photos": [
+    {
+     "file": "cong-ca-phe-bui-vien-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "cong-ca-phe-bui-vien-2.webp",
+     "kind": "view",
+     "source": ""
+    },
+    {
+     "file": "cong-ca-phe-bui-vien-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pizza-4ps-le-thanh-ton",
+   "wave": 2,
+   "external_id": "osm:node/2139904216",
+   "name": "Pizza 4P's Lê Thánh Tôn",
+   "address": "8/15 Lê Thánh Tôn, Quận 1",
+   "lat": 10.781847,
+   "lng": 106.705108,
+   "category": "FOOD",
+   "price_per_person": 320000,
+   "collections": [
+    "date"
+   ],
+   "intro": {
+    "vi": "Chi nhánh Pizza 4P's trong hẻm Lê Thánh Tôn, nằm trong ngôi nhà cũ. Nên đặt chỗ trước.",
+    "en": "The Pizza 4P's branch in a Le Thanh Ton alley, set in an older building. Book ahead."
+   },
+   "try": {
+    "vi": [
+     "Pizza burrata",
+     "Mì Ý"
+    ],
+    "en": [
+     "Burrata pizza",
+     "Pasta"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pizza-4ps-le-thanh-ton-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pizza-4ps-le-thanh-ton-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pizza-4ps-le-thanh-ton-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "hummus-and-grill",
+   "wave": 2,
+   "external_id": "osm:node/4212531394",
+   "name": "Hummus And Grill",
+   "address": "175/16 Phạm Ngũ Lão, Quận 1",
+   "lat": 10.768439,
+   "lng": 106.694256,
+   "category": "FOOD",
+   "price_per_person": 220000,
+   "collections": [
+    "latenight",
+    "date"
+   ],
+   "intro": {
+    "vi": "Nhà hàng Lebanon trong hẻm Phạm Ngũ Lão, đồ nướng và hummus ăn với bánh mì dẹt. Cách đổi vị khỏi món Việt.",
+    "en": "A Lebanese restaurant in a Pham Ngu Lao alley with grills and hummus eaten with flatbread. A change from Vietnamese food."
+   },
+   "try": {
+    "vi": [
+     "Hummus",
+     "Thịt nướng"
+    ],
+    "en": [
+     "Hummus",
+     "Grilled meats"
+    ]
+   },
+   "photos": [
+    {
+     "file": "hummus-and-grill-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "hummus-and-grill-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "hummus-and-grill-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "deme-brewing",
+   "wave": 2,
+   "external_id": "osm:node/12513714752",
+   "name": "Deme Brewing",
+   "address": "7 Hẻm 393 Hai Bà Trưng, Quận 3",
+   "lat": 10.790196,
+   "lng": 106.688399,
+   "category": "DRINK",
+   "price_per_person": 150000,
+   "collections": [
+    "latenight",
+    "chill"
+   ],
+   "intro": {
+    "vi": "Quán bia thủ công trong hẻm yên tĩnh ở Quận 3. Hợp ngồi uống chậm với bạn bè.",
+    "en": "A craft beer spot in a quiet District 3 alley. Good for slow drinks with friends."
+   },
+   "try": {
+    "vi": [
+     "Bia thủ công",
+     "Đồ nhắm"
+    ],
+    "en": [
+     "Craft beer",
+     "Bar snacks"
+    ]
+   },
+   "photos": [
+    {
+     "file": "deme-brewing-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "deme-brewing-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "deme-brewing-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "pasteur-street-craft-beer",
+   "wave": 2,
+   "external_id": "osm:node/13541335701",
+   "name": "Pasteur Street Craft Beer",
+   "address": "Quận 1",
+   "lat": 10.767394,
+   "lng": 106.694061,
+   "category": "DRINK",
+   "price_per_person": 150000,
+   "collections": [
+    "latenight",
+    "chill"
+   ],
+   "intro": {
+    "vi": "Quầy bia thủ công của Pasteur Street ở Quận 1. Ghé tối thử bia theo ly nhỏ.",
+    "en": "A Pasteur Street craft beer outlet in District 1. Drop in at night for small tasting pours."
+   },
+   "try": {
+    "vi": [
+     "Bia thủ công theo ly",
+     "Đồ nhắm"
+    ],
+    "en": [
+     "Craft beer by the glass",
+     "Bar snacks"
+    ]
+   },
+   "photos": [
+    {
+     "file": "pasteur-street-craft-beer-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "pasteur-street-craft-beer-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "pasteur-street-craft-beer-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "oc-phat",
+   "wave": 2,
+   "external_id": "osm:node/2954494133",
+   "name": "Ốc Phát",
+   "address": "Quận 4",
+   "lat": 10.761912,
+   "lng": 106.702156,
+   "category": "FOOD",
+   "price_per_person": 140000,
+   "collections": [
+    "latenight",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán ốc khu Quận 4, ăn tối và ăn khuya đều được. Gọi nhiều món nhỏ chia nhau.",
+    "en": "A snail shop in District 4 for dinner or a late bite. Order several small dishes to share."
+   },
+   "try": {
+    "vi": [
+     "Ốc xào",
+     "Ốc nướng"
+    ],
+    "en": [
+     "Stir-fried snails",
+     "Grilled snails"
+    ]
+   },
+   "photos": [
+    {
+     "file": "oc-phat-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "oc-phat-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "oc-phat-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "bo-ne-ba-nui",
+   "wave": 2,
+   "external_id": "osm:node/10291273209",
+   "name": "Bò Né Bà Nũi",
+   "address": "Nguyễn Thái Bình, Quận 1",
+   "lat": 10.768487,
+   "lng": 106.698867,
+   "category": "FOOD",
+   "price_per_person": 70000,
+   "collections": [
+    "cheap",
+    "local"
+   ],
+   "intro": {
+    "vi": "Quán bò né kiểu Sài Gòn: trứng, bò và pa-tê dọn trên chảo nóng với bánh mì. Ăn buổi sáng hoặc tối nhẹ đều được.",
+    "en": "A Saigon-style bo ne spot: eggs, beef and pâté served on a sizzling pan with bread. Works for breakfast or a light dinner."
+   },
+   "try": {
+    "vi": [
+     "Bò né chảo",
+     "Bánh mì chấm"
+    ],
+    "en": [
+     "Sizzling beef pan",
+     "Bread for dipping"
+    ]
+   },
+   "photos": [
+    {
+     "file": "bo-ne-ba-nui-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "bo-ne-ba-nui-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "bo-ne-ba-nui-3.webp",
+     "kind": "dish",
+     "source": ""
+    }
+   ]
+  },
+  {
+   "id": "soo-kafe-ben-thanh",
+   "wave": 2,
+   "external_id": "osm:node/12485938001",
+   "name": "Soo Kafe (Bến Thành)",
+   "address": "35 Phan Chu Trinh, Quận 1",
+   "lat": 10.772543,
+   "lng": 106.697155,
+   "category": "DRINK",
+   "price_per_person": 70000,
+   "collections": [
+    "chill"
+   ],
+   "intro": {
+    "vi": "Quán cà phê nhỏ gần chợ Bến Thành, tiện nghỉ chân khi dạo trung tâm. Có chỗ ngồi gọn cho nhóm nhỏ.",
+    "en": "A small café near Ben Thanh Market, handy for a break while exploring the centre. Seating suits a small group."
+   },
+   "try": {
+    "vi": [
+     "Cà phê",
+     "Nước ép"
+    ],
+    "en": [
+     "Coffee",
+     "Juice"
+    ]
+   },
+   "photos": [
+    {
+     "file": "soo-kafe-ben-thanh-1.webp",
+     "kind": "cover",
+     "source": ""
+    },
+    {
+     "file": "soo-kafe-ben-thanh-2.webp",
+     "kind": "dish",
+     "source": ""
+    },
+    {
+     "file": "soo-kafe-ben-thanh-3.webp",
+     "kind": "view",
+     "source": ""
+    }
+   ]
+  }
+ ]
+}
