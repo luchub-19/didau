@@ -6,7 +6,7 @@ import { tokenStorage } from '../services/storage/tokenStorage';
 import { reviewApi } from '../services/api';
 import { MOCK_HOST_TOKEN, mockPois, mockRoom } from '../mocks/mockData';
 import { usePlaceStore } from '../store/usePlaceStore';
-import { PlaceSheet } from '../components/map/PlaceSheet';
+import { PlaceDetail } from '../components/places/PlaceDetail';
 import {
   InternalReviews,
   REVIEW_TAGS,
@@ -122,10 +122,10 @@ describe('reviewApi (MSW)', () => {
   });
 });
 
-describe('PlaceSheet + review', () => {
+describe('PlaceDetail + review', () => {
   it('thay placeholder bằng InternalReviews', () => {
     const html = renderToStaticMarkup(
-      <PlaceSheet room={mockRoom} poi={mockPois[0]} onClose={() => {}} />,
+      <PlaceDetail variant="panel" room={mockRoom} poi={mockPois[0]} onClose={() => {}} />,
     );
     expect(html).toContain('data-testid="internal-reviews"');
     expect(html).not.toContain('internal-reviews-placeholder');

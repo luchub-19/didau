@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { withViewTransition, type TransitionDirection } from '../../motion/viewTransition';
+import { useMapStore } from '../../store/useMapStore';
 
 /** Tab của phòng trên mobile (<1024px, DESIGN gđ5 §2). Desktop không có tab: 3 cột cùng hiện. */
 export type RoomTab = 'explore' | 'plan';
@@ -138,4 +139,120 @@ export function useRoomTab() {
   }, []);
 
   return { activeTab, setTab, openedFromGroupLink };
+}
+
+// ── ?place=<id>: trang chi tiết quán chia sẻ được (T-71, DESIGN gđ5 §2 "URL") ───────────────────────
+
+/** Id quán trong `?place=`; thiếu/rỗng → null. */
+export function placeFromSearch(search: string | null | undefined): string | null {
+  if (!search) return null;
+  try {
+    return new URLSearchParams(search).get('place') || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Query sau khi đặt (id) hoặc bỏ (null) `?place=`, giữ các tham số khác; '' khi không còn gì. */
+export function searchWithPlace(search: string | null | undefined, placeId: string | null): string {
+  const params = new URLSearchParams(search ?? '');
+  if (placeId) params.set('place', placeId);
+  else params.delete('place');
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
+
+export type PlaceUrlStep =
+  /** Mở panel từ trạng thái đóng: thêm mục lịch sử để Back đóng panel. */
+  | { kind: 'push'; search: string }
+  /** Đổi sang quán khác khi panel đang mở (↑ ↓, bấm thẻ khác): thay tại chỗ. */
+  | { kind: 'replace'; search: string }
+  /** Đóng panel bằng nút/Esc khi mục hiện tại là mục mình đã push: lùi lịch sử (giống Back). */
+  | { kind: 'back' }
+  | null;
+
+/**
+ * Bước cần làm với URL khi quán đang mở đổi. `ownsEntry` = mục lịch sử hiện tại do panel push
+ * (đóng thì lùi về; không thì thay tại chỗ để khỏi rời phòng).
+ */
+export function placeUrlStep(search: string, nextPlaceId: string | null, ownsEntry: boolean): PlaceUrlStep {
+  const current = placeFromSearch(search);
+  if (current === nextPlaceId) return null;
+  if (nextPlaceId === null) {
+    return ownsEntry ? { kind: 'back' } : { kind: 'replace', search: searchWithPlace(search, null) };
+  }
+  if (current === null) return { kind: 'push', search: searchWithPlace(search, nextPlaceId) };
+  return { kind: 'replace', search: searchWithPlace(search, nextPlaceId) };
+}
+
+/** Quán đang mở trên bản đồ (chỉ quán trong phòng mới có `?place=`; POI thì không). */
+function selectedRoomPlace(): string | null {
+  const sel = useMapStore.getState().selection;
+  return sel?.kind === 'place' ? sel.id : null;
+}
+
+/**
+ * Đồng bộ quán đang mở ↔ `?place=` (gọi một lần, ở MapView).
+ * - Tải trang có `?place=x`: mở x; URL được tách thành [phòng] → [phòng?place=x] để Back đóng panel trước.
+ * - Mở quán: push; đổi quán: replace; đóng bằng nút/Esc: history.back() nếu mục đó do panel push.
+ * - Back/forward: đọc `?place=` và mở/đóng theo. Tab mobile không đổi (popstate của useRoomTab thấy tab giữ nguyên).
+ */
+export function usePlaceUrlSync(): void {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // href của mục lịch sử panel đã push; đóng panel chỉ lùi khi vẫn đứng ở đúng mục đó
+    let ownedHref: string | null = null;
+    const path = () => `${window.location.pathname}`;
+    const hash = () => window.location.hash;
+
+    try {
+      const initial = placeFromSearch(window.location.search);
+      if (initial) {
+        const base = searchWithPlace(window.location.search, null);
+        window.history.replaceState(window.history.state, '', `${path()}${base}${hash()}`);
+        window.history.pushState(null, '', `${path()}${searchWithPlace(base, initial)}${hash()}`);
+        ownedHref = window.location.href;
+        useMapStore.getState().selectPlace(initial);
+      }
+    } catch {
+      // Môi trường không có history
+    }
+
+    const unsub = useMapStore.subscribe((s, prev) => {
+      if (s.selection === prev.selection) return;
+      const next = selectedRoomPlace();
+      const step = placeUrlStep(window.location.search, next, ownedHref === window.location.href);
+      if (!step) return;
+      try {
+        if (step.kind === 'back') {
+          ownedHref = null;
+          window.history.back();
+        } else if (step.kind === 'push') {
+          window.history.pushState(null, '', `${path()}${step.search}${hash()}`);
+          ownedHref = window.location.href;
+        } else {
+          const owned = ownedHref === window.location.href;
+          window.history.replaceState(window.history.state, '', `${path()}${step.search}${hash()}`);
+          ownedHref = owned && step.search.includes('place=') ? window.location.href : null;
+        }
+      } catch {
+        // Bỏ qua: URL chỉ là phụ, panel vẫn đúng theo store
+      }
+    });
+
+    const onPop = () => {
+      const fromUrl = placeFromSearch(window.location.search);
+      const open = selectedRoomPlace();
+      if (fromUrl === open) return;
+      // Forward vào lại mục có ?place=: mục đó vẫn là của panel
+      ownedHref = fromUrl ? window.location.href : null;
+      if (fromUrl) useMapStore.getState().selectPlace(fromUrl);
+      else if (open) useMapStore.getState().selectPlace(null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => {
+      unsub();
+      window.removeEventListener('popstate', onPop);
+    };
+  }, []);
 }

@@ -9,13 +9,21 @@ import { usePlaceStore } from '../../store/usePlaceStore';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import type { Place, Poi, Room } from '../../types';
 import { highlightPoi, installPoiLayer, updatePoiLayerTheme, updatePoiSource } from './PoiLayer';
-import { installRoomPlacesLayer, updateRoomPlacesLayerTheme, updateRoomPlacesSource } from './RoomPlacesLayer';
+import {
+  ROOM_PLACES_LAYER,
+  installRoomPlacesLayer,
+  updateRoomPlacesLayerTheme,
+  updateRoomPlacesSource,
+} from './RoomPlacesLayer';
+import { getCssColor } from './PoiLayer';
 import { installRouteLayer, updateRouteLayerTheme, updateRouteSource } from './RouteLayer';
 import { useTheme } from '../../theme/useTheme';
 import { registerMapFlyer } from './flyToPlace';
 import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
-import { PlaceSheet } from './PlaceSheet';
+import { PlaceDetail } from '../places/PlaceDetail';
+import { useWorkspaceLayout } from '../shell/workspace';
+import { usePlaceUrlSync } from '../shell/useRoomTab';
 import { NearbySuggestions } from './NearbySuggestions';
 import { Button, EmptyState, IconButton, Skeleton, toast } from '../ui';
 import { MapPin, WarningCircle } from '../ui/Icon';
@@ -60,6 +68,11 @@ export function MapView({
   const isLoading = useMapStore((s) => s.isLoading);
   const selectPoi = useMapStore((s) => s.selectPoi);
   const selectPlace = useMapStore((s) => s.selectPlace);
+  const placesLoading = usePlaceStore((s) => s.isLoading);
+  const layout = useWorkspaceLayout();
+
+  // ?place=<id> ↔ quán đang mở; Back đóng trang chi tiết trước (T-71)
+  usePlaceUrlSync();
 
   const hasOrigin = room.origin_lat != null && room.origin_lng != null;
   const initialCenter = useRef(
@@ -255,6 +268,32 @@ export function MapView({
     if (map && mapReady) highlightPoi(map, selection?.kind === 'poi' ? selection.id : null);
   }, [map, mapReady, selection]);
 
+  // Sáng ghim quán đang mở trang chi tiết: to hơn + viền đậm màu chữ. Chạy lại sau khi đổi theme
+  // (updateRoomPlacesLayerTheme đặt lại màu viền).
+  const openPlaceId = selection?.kind === 'place' ? selection.id : null;
+  useEffect(() => {
+    if (!map || !mapReady || !map.getLayer(ROOM_PLACES_LAYER)) return;
+    const isOpen: import('maplibre-gl').ExpressionSpecification = ['==', ['get', 'id'], openPlaceId ?? ''];
+    try {
+      map.setPaintProperty(ROOM_PLACES_LAYER, 'circle-radius', ['case', isOpen, 17, 13]);
+      map.setPaintProperty(ROOM_PLACES_LAYER, 'circle-stroke-width', ['case', isOpen, 4, 3]);
+      map.setPaintProperty(ROOM_PLACES_LAYER, 'circle-stroke-color', [
+        'case',
+        isOpen,
+        getCssColor('--color-ink', '#1C1917'),
+        getCssColor('--color-surface', '#FFFFFF'),
+      ]);
+    } catch (err) {
+      console.warn('[MapView] loi sang ghim quan dang mo', err);
+    }
+  }, [map, mapReady, openPlaceId, resolvedTheme]);
+
+  // ?place= trỏ tới quán không có (đã xoá, link sai): đóng khi danh sách đã tải xong
+  useEffect(() => {
+    if (!openPlaceId || placesLoading || places.length === 0) return;
+    if (!places.some((p) => p.id === openPlaceId)) selectPlace(null);
+  }, [openPlaceId, places, placesLoading, selectPlace]);
+
   const getCenter = useCallback(() => {
     const c = map?.getCenter();
     return c ? { lat: c.lat, lng: c.lng } : initialCenter.current;
@@ -366,13 +405,29 @@ export function MapView({
         </div>
       )}
 
-      {/* Desktop: chi tiet quan/POI la panel noi ben phai ban do (T-71 thay bang PlaceDetail 500/440px) */}
-      {(selectedPoi || selectedPlace) && (
-        <div
-          className="hidden lg:flex flex-col absolute top-3 right-3 bottom-3 z-10 rounded-card border border-line bg-surface p-4 shadow-float overflow-hidden"
-          style={{ width: 'min(var(--ws-detail), calc(100% - 24px))' }}
-        >
-          <PlaceSheet
+      {/* Trang chi tiết quán (T-71): ≥1024 panel nổi bên phải bản đồ rộng --ws-detail (500/440px);
+          <1024 toàn màn (portal), vuốt xuống đóng. Chỉ một bản được mount để Esc/focus không trùng. */}
+      {(selectedPoi || selectedPlace) &&
+        (layout !== 'mobile' ? (
+          <div
+            className="absolute top-3 right-3 bottom-3 z-content flex"
+            style={{ width: 'min(var(--ws-detail), calc(100% - 24px))' }}
+          >
+            <PlaceDetail
+              variant="panel"
+              room={room}
+              poi={selectedPoi}
+              place={selectedPlace}
+              onClose={() => {
+                selectPoi(null);
+                selectPlace(null);
+              }}
+              isVotingDisabled={isVotingDisabled}
+            />
+          </div>
+        ) : (
+          <PlaceDetail
+            variant="screen"
             room={room}
             poi={selectedPoi}
             place={selectedPlace}
@@ -381,26 +436,8 @@ export function MapView({
               selectPlace(null);
             }}
             isVotingDisabled={isVotingDisabled}
-            isDesktopColumn
           />
-        </div>
-      )}
-
-      {/* Tren mobile: PlaceSheet bottom sheet khong chan */}
-      <div className="lg:hidden">
-        {(selectedPoi || selectedPlace) && (
-          <PlaceSheet
-            room={room}
-            poi={selectedPoi}
-            place={selectedPlace}
-            onClose={() => {
-              selectPoi(null);
-              selectPlace(null);
-            }}
-            isVotingDisabled={isVotingDisabled}
-          />
-        )}
-      </div>
+        ))}
 
       <span className="sr-only">
         {t('map.attribution')}

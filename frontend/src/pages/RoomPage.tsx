@@ -37,6 +37,7 @@ import { JoinRoomModal } from '../components/room';
 import { flyToPlace } from '../components/map/flyToPlace';
 import { useRoomPhase } from '../room/useRoomPhase';
 import { getMotionTier } from '../motion/useMotionTier';
+import { withViewTransition } from '../motion/viewTransition';
 import { duration } from '../motion/tokens';
 
 export interface RoomPageProps {
@@ -92,7 +93,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
 
   // Chọn quán từ danh sách: không đổi tab nữa — chọn trên bản đồ (đang hiện cạnh danh sách) và bay tới (T-67)
   const handleViewOnMap = (p: Place) => {
-    useMapStore.getState().selectPlace(p.id);
+    // Thẻ vừa bấm (PlaceRow đánh dấu) bay sang trang chi tiết quán (T-71, View Transitions; static → mở thẳng)
+    withViewTransition(() => useMapStore.getState().selectPlace(p.id));
     setMapFocusKey((k) => k + 1);
     const tier = getMotionTier();
     flyToPlace(p, {

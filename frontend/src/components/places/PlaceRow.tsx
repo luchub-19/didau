@@ -25,6 +25,7 @@ import {
   placeThumb,
   type PlaceBadge,
 } from '../../room/placeView';
+import { curatedLoaded, loadCurated } from '../../room/curated';
 import type { Place, Room } from '../../types';
 
 const ACCEPTED_TOAST_DELAY_MS = 800;
@@ -48,7 +49,19 @@ export interface PlaceRowProps {
 
 /** Ảnh đại diện: ảnh thật khi có (T-70), thiếu thì ô minh hoạ theo danh mục. */
 const PlaceThumbBox: React.FC<{ place: Place }> = ({ place }) => {
-  const thumb = placeThumb(place);
+  // Bộ tuyển chọn nạp lười (chunk JSON riêng, T-71): xong thì vẽ lại để có ảnh thật
+  const [curated, setCurated] = useState(curatedLoaded);
+  useEffect(() => {
+    if (curated) return;
+    let alive = true;
+    loadCurated()
+      .then((d) => alive && setCurated(d))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [curated]);
+  const thumb = placeThumb(place, curated);
   const meta = CATEGORY_METADATA[thumb.category] ?? CATEGORY_METADATA.OTHER;
   const Icon = meta.IconComponent;
   return (

@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useEffect, useRef, useState } from 'react';
 import { poiApi } from '../../services/api/poiApi';
 import { loadPlacesUiKit } from '../../services/google/loadPlacesUiKit';
 import { GOOGLE_MAPS_BROWSER_KEY } from '../../config';
@@ -10,7 +9,12 @@ export interface GooglePlaceCardProps {
   lat: number;
   lng: number;
   googlePlaceId?: string | null;
+  /** Báo kết quả cho trang chi tiết: 'failed' (không key, không khớp, lỗi, quá 4 s) → lùi xuống iframe Embed. */
+  onStatusChange?: (status: 'ready' | 'failed') => void;
 }
+
+/** Hết thời gian chờ khớp + tải thư viện UI Kit thì bỏ tầng 2 (DESIGN gđ5 §6). */
+const UI_KIT_TIMEOUT_MS = 4000;
 
 export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
   externalId,
@@ -18,10 +22,18 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
   lat,
   lng,
   googlePlaceId,
+  onStatusChange,
 }) => {
-  const { t } = useTranslation();
   const [resolvedPlaceId, setResolvedPlaceId] = useState<string | null>(googlePlaceId ?? null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'hidden'>('idle');
+  // Giữ callback mới nhất mà không chạy lại effect tải
+  const onStatusRef = useRef(onStatusChange);
+  onStatusRef.current = onStatusChange;
+
+  useEffect(() => {
+    if (status === 'ready') onStatusRef.current?.('ready');
+    else if (status === 'hidden') onStatusRef.current?.('failed');
+  }, [status]);
 
   useEffect(() => {
     // Neu khong co browser key, khong goi va khong hien thi
@@ -36,12 +48,12 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
     let isMounted = true;
     setStatus('loading');
 
-    // Timeout 4s theo yeu cau: neu lau hon 4s hoac co loi, an the khong bao loi
+    // Hết 4 s hoặc lỗi: ẩn thẻ, không báo lỗi. Đã quá hạn thì kết quả về muộn cũng bỏ.
+    let timedOut = false;
     const timeoutId = setTimeout(() => {
-      if (isMounted) {
-        setStatus('hidden');
-      }
-    }, 4000);
+      timedOut = true;
+      if (isMounted) setStatus('hidden');
+    }, UI_KIT_TIMEOUT_MS);
 
     const init = async () => {
       try {
@@ -56,13 +68,13 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
           placeId = matchRes.google_place_id;
         }
 
-        if (!placeId) {
+        if (!placeId || timedOut) {
           if (isMounted) setStatus('hidden');
           return;
         }
 
         const loaded = await loadPlacesUiKit();
-        if (!isMounted) return;
+        if (!isMounted || timedOut) return;
 
         if (loaded) {
           setResolvedPlaceId(placeId);
@@ -91,16 +103,8 @@ export const GooglePlaceCard: React.FC<GooglePlaceCardProps> = ({
   }
 
   return (
-    <div
-      className="my-3 rounded-card border border-line bg-surface-2 p-3.5"
-      data-testid="google-place-card"
-    >
-      <div className="mb-2 flex items-center gap-1.5 text-label font-semibold text-ink">
-        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-info text-caption font-bold text-surface">
-          G
-        </span>
-        <span>{t('map.place.googleReviews')}</span>
-      </div>
+    <div className="rounded-card border border-line bg-surface p-3" data-testid="google-place-card">
+      {/* Giao diện + logo do Google vẽ (điều khoản UI Kit); không tự vẽ logo giả */}
       <gmp-place-details data-testid="gmp-place-details" className="block w-full min-h-[120px]">
         <gmp-place-details-place-request
           data-testid="gmp-place-details-place-request"

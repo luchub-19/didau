@@ -6,7 +6,7 @@ import { tokenStorage } from '../services/storage/tokenStorage';
 import { MOCK_HOST_TOKEN, mockRoom, mockPois } from '../mocks/mockData';
 import { usePlaceStore } from '../store/usePlaceStore';
 import { useMapStore } from '../store/useMapStore';
-import { PlaceSheet } from '../components/map/PlaceSheet';
+import { PlaceDetail } from '../components/places/PlaceDetail';
 import { GooglePlaceCard } from '../components/map/GooglePlaceCard';
 import { NearbySuggestions } from '../components/map/NearbySuggestions';
 import { PlaceRow } from '../components/places/PlaceRow';
@@ -60,7 +60,7 @@ const sampleRoom: Room = {
   origin_lng: 106.7009,
 };
 
-describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard', () => {
+describe('T-28 (T-71 thay PlaceSheet bằng PlaceDetail): "Thêm vào lựa chọn" & GooglePlaceCard', () => {
   describe('1. usePlaceStore.addPlaceFromPoi', () => {
     it('thêm POI vào chuyến đi tạo đúng payload (external_id, toạ độ, category, giờ, cuisine)', async () => {
       const added = await usePlaceStore.getState().addPlaceFromPoi(sampleRoom.id, samplePoi);
@@ -93,19 +93,17 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
     });
   });
 
-  describe('2. PlaceSheet Component', () => {
-    it('hiển thị đầy đủ thông tin quán mới và nút "+ Thêm vào lựa chọn"', () => {
+  describe('2. PlaceDetail (thay PlaceSheet)', () => {
+    it('POI chưa vào phòng: đủ thông tin + nút "Thêm vào lựa chọn" ở thanh đáy', () => {
       const html = renderToStaticMarkup(
-        <PlaceSheet
-          room={sampleRoom}
-          poi={samplePoi}
-          onClose={() => {}}
-        />,
+        <PlaceDetail variant="panel" room={sampleRoom} poi={samplePoi} onClose={() => {}} />,
       );
 
       expect(html).toContain('Phở Hòa Pasteur');
       expect(html).toContain('260C Pasteur, P. Võ Thị Sáu, Q.3');
-      expect(html).toContain('06:00 - 22:30');
+      // 06:00–22:30 đóng trước 23:00 của phòng → cam "Đóng sớm"
+      expect(html).toContain('Đóng sớm');
+      expect(html).toContain('22:30');
       expect(html).toContain('Món Việt');
       expect(html).toContain('từ điểm hẹn');
       expect(html).toContain('Thêm vào lựa chọn');
@@ -113,14 +111,14 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
       expect(html).toContain('Chưa có đánh giá');
     });
 
-    it('khi quán đã có trong phòng, nút đổi thành "Đã trong lựa chọn" và hiển thị VoteButtons', () => {
+    it('quán đã có trong phòng: thanh đáy Không / Muốn đi thay cho nút thêm', () => {
       const existingPlace: Place = {
         id: 'place-pho-hoa',
         room_id: sampleRoom.id,
         submitted_by_id: 'host-1',
         name: 'Phở Hòa Pasteur',
         category: 'FOOD',
-        status: 'ACCEPTED',
+        status: 'PROPOSED',
         external_id: samplePoi.external_id,
         source: 'OSM',
         latitude: samplePoi.lat,
@@ -132,22 +130,15 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
         current_user_vote: 1,
         created_at: new Date().toISOString(),
       };
-
-      // Đặt existingPlace vào store
       usePlaceStore.setState({ places: [existingPlace] });
 
       const html = renderToStaticMarkup(
-        <PlaceSheet
-          room={sampleRoom}
-          poi={samplePoi}
-          place={existingPlace}
-          onClose={() => {}}
-        />,
+        <PlaceDetail variant="panel" room={sampleRoom} poi={samplePoi} place={existingPlace} onClose={() => {}} />,
       );
 
-      expect(html).toContain('Đã trong lựa chọn');
-      expect(html).toContain('Điểm vote: 4');
-      // Không còn nút thêm vào lựa chọn
+      expect(html).toContain('data-testid="detail-vote-up"');
+      expect(html).toContain('data-testid="detail-vote-down"');
+      expect(html).toContain('5 người muốn đi');
       expect(html).not.toContain('Thêm vào lựa chọn');
     });
   });
@@ -282,7 +273,7 @@ describe('T-28: Frontend PlaceSheet, "Thêm vào lựa chọn" & GooglePlaceCard
         expect(html).not.toContain('btn-view-on-map');
         expect(html).not.toContain('Mới đề xuất');
         expect(html).toContain('data-testid="place-row-open"');
-        expect(html).toContain('Xem Quán Cơm Tấm OSM trên bản đồ');
+        expect(html).toContain('Xem chi tiết Quán Cơm Tấm OSM');
       }
     });
 

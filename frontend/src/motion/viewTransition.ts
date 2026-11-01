@@ -57,7 +57,7 @@ export function markSharedOrigin(el: SharedElement | null): void {
   }
 }
 
-// Kho nhỏ: phía đích (PlaceSheet) đọc để gán tên trong lúc chuyển có phần tử dùng chung
+// Kho nhỏ: phía đích (PlaceDetail) đọc để gán tên trong lúc chuyển có phần tử dùng chung
 const sharedListeners = new Set<() => void>();
 let sharedActive = false;
 
