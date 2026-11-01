@@ -58,8 +58,9 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
               onClick={handleCopyCode}
               aria-label={t('room.copyCode')}
               title={t('room.copyCode')}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-field bg-surface-2 hover:bg-line text-ink-2 hover:text-ink text-caption tabular-nums tracking-wider font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text flex-shrink-0"
+              className="relative inline-flex items-center gap-1 px-2 py-0.5 rounded-field bg-surface-2 hover:bg-line text-ink-2 hover:text-ink text-caption tabular-nums tracking-wider font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text flex-shrink-0 before:absolute before:inset-x-0 before:-inset-y-[11px] before:content-['']"
             >
+              {/* before: = vùng chạm mở rộng tới 44px mà không làm to nút (T-75) */}
               <span>{code}</span>
               <Copy size={13} aria-hidden="true" />
             </button>

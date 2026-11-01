@@ -16,6 +16,7 @@ import { usePlaceStore } from '../store/usePlaceStore';
 import { SwipeDeck } from '../components/decide/SwipeDeck';
 import { LuckyLadder } from '../components/decide/LuckyLadder';
 import { DecideModal } from '../components/decide/DecideModal';
+import { renderSettled } from './lazyRender';
 import type { DecisionSession } from '../types';
 
 beforeAll(() => {
@@ -373,8 +374,8 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
       expect(html).not.toContain('Sắp có');
     });
 
-    it('chuyển tab sang SWIPE sẽ render SwipeDeck', () => {
-      const html = renderToStaticMarkup(
+    it('chuyển tab sang SWIPE sẽ render SwipeDeck', async () => {
+      const html = await renderSettled(
         <DecideModal
           isOpen={true}
           onClose={() => {}}
@@ -388,8 +389,8 @@ describe('T-33: Frontend "👆 Quẹt thẻ" (SwipeDeck) & "🪜 Thang may mắn
       expect(html).toContain('swipe-deck-container');
     });
 
-    it('chuyển tab sang LADDER sẽ render LuckyLadder', () => {
-      const html = renderToStaticMarkup(
+    it('chuyển tab sang LADDER sẽ render LuckyLadder', async () => {
+      const html = await renderSettled(
         <DecideModal
           isOpen={true}
           onClose={() => {}}

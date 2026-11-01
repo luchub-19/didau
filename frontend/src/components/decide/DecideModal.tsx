@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
@@ -11,12 +11,20 @@ import {
   HandSwipeLeft,
   SlidersHorizontal,
 } from '../ui';
-import { SmartPickCard } from './SmartPickCard';
-import { SpinWheel } from './SpinWheel';
-import { SwipeDeck } from './SwipeDeck';
-import { LuckyLadder } from './LuckyLadder';
+import { Skeleton } from '../ui';
 import { RevealHost, prefetchRevealStage } from '../../stage/reveal';
 import type { DecisionMode, Member, Place, ScoredPick } from '../../types';
+
+// Bốn màn chọn hộ chỉ cần khi mở sheet: tải lười để giữ entry của phòng nhỏ (T-75). RevealHost vẫn nạp tĩnh
+// vì phải luôn mount kể cả khi sheet đóng.
+const SmartPickCard = lazy(() =>
+  import('./SmartPickCard').then((m) => ({ default: m.SmartPickCard })),
+);
+const SpinWheel = lazy(() => import('./SpinWheel').then((m) => ({ default: m.SpinWheel })));
+const SwipeDeck = lazy(() => import('./SwipeDeck').then((m) => ({ default: m.SwipeDeck })));
+const LuckyLadder = lazy(() =>
+  import('./LuckyLadder').then((m) => ({ default: m.LuckyLadder })),
+);
 
 /** Ý định mở bảng chọn hộ: `mode` = vào thẳng kiểu đó (chạy ngay); `chooseMode` = mở ở bước chọn kiểu. */
 export interface DecideIntent {
@@ -262,35 +270,37 @@ export const DecideModal: React.FC<DecideModalProps> = ({
               </div>
 
               {/* Nội dung theo chế độ đã chọn */}
-              {activeMode === 'SMART' && (
-                <SmartPickCard
-                  roomId={roomId}
-                  isHost={isHost}
-                  smartPicks={smartPicks}
-                  places={places}
-                  onOpenWheel={() => {
-                    setSelectedMode('WHEEL');
-                    setIsChoosingMode(false);
-                  }}
-                />
-              )}
+              <Suspense fallback={<Skeleton.PlaceCard />}>
+                {activeMode === 'SMART' && (
+                  <SmartPickCard
+                    roomId={roomId}
+                    isHost={isHost}
+                    smartPicks={smartPicks}
+                    places={places}
+                    onOpenWheel={() => {
+                      setSelectedMode('WHEEL');
+                      setIsChoosingMode(false);
+                    }}
+                  />
+                )}
 
-              {activeMode === 'WHEEL' && (
-                <SpinWheel roomId={roomId} isHost={isHost} places={places} />
-              )}
+                {activeMode === 'WHEEL' && (
+                  <SpinWheel roomId={roomId} isHost={isHost} places={places} />
+                )}
 
-              {activeMode === 'SWIPE' && (
-                <SwipeDeck roomId={roomId} isHost={isHost} places={places} />
-              )}
+                {activeMode === 'SWIPE' && (
+                  <SwipeDeck roomId={roomId} isHost={isHost} places={places} />
+                )}
 
-              {activeMode === 'LADDER' && (
-                <LuckyLadder
-                  roomId={roomId}
-                  isHost={isHost}
-                  places={places}
-                  members={members}
-                />
-              )}
+                {activeMode === 'LADDER' && (
+                  <LuckyLadder
+                    roomId={roomId}
+                    isHost={isHost}
+                    places={places}
+                    members={members}
+                  />
+                )}
+              </Suspense>
             </div>
           )}
         </div>

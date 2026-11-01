@@ -91,7 +91,7 @@ export interface PresenceAvatarsProps {
   className?: string;
 }
 
-/** Bản nối store: dùng trong PlaceCard. */
+/** Bản nối store: dùng trong PlaceRow. */
 export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ placeId, className }) => {
   const { t } = useTranslation();
   const meId = useRoomStore((s) => s.currentMember?.id);

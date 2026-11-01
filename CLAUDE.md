@@ -3,10 +3,12 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 5 "Không gian phòng" (T-65 → T-75) — ĐANG LÀM
+## Giai đoạn 5 "Không gian phòng" (T-65 → T-75) — T-75 XONG, CHỜ CỔNG G2/G3 của người dùng
 Thiết kế lại trang phòng: desktop 3 cột (danh sách | bản đồ | kế hoạch), mobile 2 tab, bố cục đổi theo giai đoạn
 (tìm quán → bình chọn → chốt → gửi lịch), trang chi tiết quán có ảnh/giới thiệu, ngân sách cả buổi, avatar hoạt hình.
 **Chỉ frontend**; việc backend ghi ở `docs/phase5/BACKEND-NOTES.md`, không tự làm.
+T-65 → T-75 đều DONE (T-75: 2026-11-01, số đo ở `docs/phase5/DESIGN.md` §13, demo `docs/phase5/DEMO.md`, ảnh `docs/phase5/screens/final/`).
+Còn mở: G2 (dùng thử) + G3 (duyệt ảnh/demo), CLS khi giai đoạn đổi do máy khác chưa đạt, danh sách "Chưa làm/chưa kiểm" ở PROGRESS dòng T-75.
 - Tiến độ, cổng G1–G3, việc của người: `docs/phase5/PROGRESS.md`. Lộ trình + model/effort + ước lượng token: `docs/phase5/PLAN.md` §6.
 - Luật giao diện gđ5 (ghi đè bố cục của gđ3): `docs/phase5/DESIGN.md`. Mock: `docs/phase5/mock/*.dc.html` (chỉ bố cục).
 - File task: `docs/phase5/tasks/T-xx.md`. Bàn giao vào `docs/phase5/PROGRESS.md` (tối đa 6 gạch đầu dòng).

@@ -185,6 +185,21 @@ Chuyển động: [phim hero](docs/phase4/screens/final/hero-1440.gif) ·
 
 ---
 
+## 🧭 Giai đoạn 5: "Không gian phòng" (trang phòng 3 cột, bố cục theo giai đoạn)
+
+Trang phòng thiết kế lại: desktop 3 cột (danh sách | bản đồ | Kế hoạch), mobile 2 tab, bố cục đổi theo 4 bước
+(Tìm quán → Bình chọn → Chốt kèo → Gửi lịch), trang chi tiết quán, ngân sách cả buổi, avatar nhân vật, tạo phòng một màn.
+Luật thiết kế + số đo cuối: `docs/phase5/DESIGN.md` (§13); kịch bản demo 2 phút: `docs/phase5/DEMO.md`; ảnh: `docs/phase5/screens/final/`.
+
+| Màn | 1440 sáng (VI) | 500 tối (EN) |
+| :--- | :--- | :--- |
+| ① Tìm quán | ![](docs/phase5/screens/final/gather-1440-light-vi.webp) | ![](docs/phase5/screens/final/gather-500-dark-en.webp) |
+| ② Bình chọn | ![](docs/phase5/screens/final/vote-1440-light-vi.webp) | ![](docs/phase5/screens/final/vote-500-dark-en.webp) |
+| ④ Gửi lịch | ![](docs/phase5/screens/final/send-1440-light-vi.webp) | ![](docs/phase5/screens/final/send-500-dark-en.webp) |
+
+- Hiệu năng (T-75): entry 201,99 kB gzip, LCP phòng ≈ 0,25 s, CLS tải trang 0,008; CLS khi đổi giai đoạn do máy khác vẫn còn (xem DESIGN §13).
+- Còn chờ người dùng: cổng G2 (dùng thử) và G3 (duyệt ảnh + demo); việc backend phát sinh: `docs/phase5/BACKEND-NOTES.md`.
+
 ## 🧪 Kiểm Thử Tự Động (Automated Testing)
 
 Toàn bộ hệ thống đạt độ phủ kiểm thử 100% các tiêu chí hợp đồng:
@@ -199,7 +214,7 @@ cd backend
 poetry run pytest -v
 ```
 
-### 2. Frontend Tests (398 Tests Pass across 27 suites)
+### 2. Frontend Tests (567 Tests Pass across 35 suites)
 ```bash
 cd frontend
 npm test

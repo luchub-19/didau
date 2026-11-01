@@ -326,7 +326,7 @@ export const PlaceRow: React.FC<PlaceRowProps> = ({
           <PlaceThumbBox place={place} />
           <span className="min-w-0 flex-1">
             <span className="block text-body font-bold leading-snug text-ink line-clamp-2">{place.name || ''}</span>
-            <span className="mt-0.5 block truncate text-label font-normal text-ink-2">{metaParts.join(' · ')}</span>
+            <span className="mt-0.5 block line-clamp-2 text-label font-normal text-ink-2">{metaParts.join(' · ')}</span>
             {(badge || likers.length > 0 || viewerIds.length > 0) && (
               <span className="mt-1 flex items-center gap-2">
             {badge && badgeText && (

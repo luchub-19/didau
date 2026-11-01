@@ -145,3 +145,28 @@ e. Giữ bộ lọc danh mục và sắp xếp "Mới nhất" (thu vào nút ⋯
 - Thiếu dữ liệu (không ảnh, không giá, không giờ, không điểm hẹn, 0 quán) vẫn có bố cục đủ.
 - `?motion=off` không chuyển động; đổi giai đoạn không giật bản đồ (CLS ≈0).
 - Ghi số bundle sau task vào PROGRESS.
+
+## 13. Số đo cuối (T-75, 2026-11-01)
+Máy: Chrome 156.0.8078.79 headless (SwiftShader, không GPU thật) + MSW, `vite build`; mạng giả lập như Lighthouse desktop (RTT 40 ms, 10 Mbps, 1350×940).
+Lighthouse không chạy được ở đây (không tải từ npm), nên đo bằng CDP + `PerformanceObserver` như T-64. Số FPS/GPU thật **chưa đo** (cần máy có GPU).
+
+| Hạng mục | Ngân sách | Số đo | Kết luận |
+| :--- | :--- | :--- | :--- |
+| Entry `index.js` gzip | ≤ 216 kB | **201,99 kB** (T-74: 216,29 → −14,30) | đạt |
+| Phòng cộng thêm so với đầu giai đoạn (185,8 kB) | ≤ +25 kB | **+16,2 kB** | đạt |
+| `MapView` (chunk bản đồ, gzip) | – | 15,24 kB (UI Kit/Embed chỉ ở chunk này) | không đổi |
+| Chunk lười mới (gzip) | – | `SmartPickCard` 1,86 · `SpinWheel` 3,23 · `LuckyLadder` 3,67 · `SwipeDeck` 4,05 (chỉ tải khi mở "Chọn hộ"); `hcm.json` 8,57 (ảnh tuyển chọn) | – |
+| LCP trang phòng, cache lạnh | ≤ 2,5 s | **248–252 ms** (lượt đầu 564 ms gồm khởi động Chrome) · cache ấm 232 ms; phần tử LCP = `P.leading-snug` (tên quán trong cột trái) | đạt |
+| CLS khi tải trang phòng | ≤ 0,05 | **0,0082** (do cụm nút zoom của MapLibre nhích 44 px lúc bản đồ dựng xong) | đạt |
+| CLS khi **người dùng** đổi giai đoạn (bấm ＋ thêm quán thứ 2: ①→②) | ≤ 0,05 | 0,070 nhưng Chrome gắn `hadRecentInput` → **không tính vào CLS** (0) | đạt |
+| CLS khi giai đoạn đổi do **dữ liệu từ máy khác** (ví dụ WS báo quán được chốt) | ≈ 0 | ①→② 0,070 · ②→hoà 0,031 · hoà→③ 0,081 · ③→④ 0,004 · ④→① 0,173 | **không đạt** (xem dưới) |
+| Cuộn ngang ở 375 px | không | `scrollWidth = 375` ở cả 5 giai đoạn; 500/1440 cũng không | đạt |
+| Vùng chạm ≥ 44 px (mobile 375, mọi phần tử tương tác trong khung nhìn, trừ điều khiển MapLibre) | 0 vi phạm | 1 vi phạm: nút mã phòng 88×22 → đã nới vùng chạm bằng `::before` (`RoomTopBar`) | đạt sau sửa |
+| Thứ tự Tab (1440, giai đoạn ② và ④) | trái → bản đồ → Kế hoạch | thanh đỉnh → cột trái → bản đồ → (ô tìm địa điểm, nút đặt điểm hẹn nằm sau liên kết bản quyền) → Kế hoạch | đạt, có ghi chú |
+| Console | sạch | 0 lỗi trong 20 ảnh (trừ banner "mất kết nối" do mock không có WS) | đạt |
+
+**CLS do dữ liệu từ xa không đạt**: cột trái đổi 400 ↔ 560 px (bước ①) và cột Kế hoạch 72 ↔ 440 px (bước ④) làm khung bản đồ co giãn, bản đồ (`flex-1`) dời mép trái. Khi chính người dùng gây ra (bấm trong 500 ms) Chrome bỏ qua; khi người khác làm thì mỗi lần dịch 0,004–0,17.
+Cách chữa nếu cần (chưa làm, ngoài phạm vi đánh bóng): cho bản đồ luôn tràn khung và để cột trái/phải **đè lên** (đã làm cho ngăn kéo 1024–1279 px), thay vì đẩy bản đồ.
+Phát hiện thêm: banner "Mất kết nối" đẩy cả workspace xuống 35 px mỗi lần hiện/ẩn (0,023/lần) — chỉ xảy ra khi WS rớt; chưa sửa.
+
+**Đã làm ở T-75 để đạt ngân sách**: `DecideModal` tải lười 4 màn chọn hộ (`React.lazy`, `RevealHost` vẫn nạp tĩnh vì phải luôn mount); gỡ 65 khoá i18n mồ côi. Test render tĩnh dùng `__tests__/lazyRender.ts` (render lần 1 kích tải, chờ, render lần 2).

@@ -17,6 +17,7 @@ import { TieBlock } from '../components/decide/TieBlock';
 import { SmartPickCard } from '../components/decide/SmartPickCard';
 import { SpinWheel } from '../components/decide/SpinWheel';
 import { DecideModal } from '../components/decide/DecideModal';
+import { renderSettled } from './lazyRender';
 import { TieBreakSelectorModal } from '../components/voting/TieBreakSelectorModal';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import type { DeciderHint, DecisionStartedPayload, ScoredPick } from '../types';
@@ -506,14 +507,14 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
   });
 
   describe('4. DecideModal & Điều hướng chế độ', () => {
-    it('mở modal với tab mặc định là "Gợi ý 1 chạm", có thể chuyển sang "Vòng quay"', () => {
+    it('mở modal với tab mặc định là "Gợi ý 1 chạm", có thể chuyển sang "Vòng quay"', async () => {
       useDecisionStore.setState({
         isDecideModalOpen: true,
         selectedMode: 'SMART',
         smartPicks: sampleSmartPicks,
       });
 
-      const smartModalHtml = renderToStaticMarkup(
+      const smartModalHtml = await renderSettled(
         <DecideModal
           isOpen={true}
           onClose={() => {}}
@@ -534,7 +535,7 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
 
       // Chuyển sang WHEEL
       useDecisionStore.setState({ selectedMode: 'WHEEL' });
-      const wheelModalHtml = renderToStaticMarkup(
+      const wheelModalHtml = await renderSettled(
         <DecideModal
           isOpen={true}
           onClose={() => {}}
@@ -547,13 +548,13 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       expect(wheelModalHtml).toContain('spin-wheel-container');
     });
 
-    it('chế độ SWIPE render SwipeDeck khi đủ quán', () => {
+    it('chế độ SWIPE render SwipeDeck khi đủ quán', async () => {
       useDecisionStore.setState({
         isDecideModalOpen: true,
         selectedMode: 'SWIPE',
       });
 
-      const swipeModalHtml = renderToStaticMarkup(
+      const swipeModalHtml = await renderSettled(
         <DecideModal
           isOpen={true}
           onClose={() => {}}
