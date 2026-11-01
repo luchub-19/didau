@@ -35,6 +35,8 @@ export interface PlaceListProps {
   /** Thành viên / phiếu thấy được cho thanh "x/y đã chọn"; thiếu thì đọc từ store. */
   members?: Member[];
   pulses?: PulseMap;
+  /** Ẩn nút "Thêm quán" dính đáy (giai đoạn ①: khay của GatherPanel đã có ô "+ quán" và liên kết tự nhập). */
+  hideAddButton?: boolean;
   className?: string;
 }
 
@@ -60,6 +62,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   phase,
   members: propMembers,
   pulses: propPulses,
+  hideAddButton = false,
   className = '',
 }) => {
   const { t } = useTranslation();
@@ -326,19 +329,21 @@ export const PlaceList: React.FC<PlaceListProps> = ({
       )}
 
       {/* Nút Thêm quán dính đáy cột/sheet (trong vùng cuộn, không còn `fixed`); giai đoạn hoà thu còn icon */}
-      <div className="pointer-events-none sticky bottom-4 z-20 mt-auto flex justify-end">
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={onOpenAddModal}
-          leftIcon={<Plus size={20} weight="bold" />}
-          className="pointer-events-auto shadow-float"
-          aria-label={t('place.addPlace')}
-          data-testid="btn-add-place"
-        >
-          {phase !== 'tie' && <span>{t('place.addPlace')}</span>}
-        </Button>
-      </div>
+      {!hideAddButton && (
+        <div className="pointer-events-none sticky bottom-4 z-20 mt-auto flex justify-end">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={onOpenAddModal}
+            leftIcon={<Plus size={20} weight="bold" />}
+            className="pointer-events-auto shadow-float"
+            aria-label={t('place.addPlace')}
+            data-testid="btn-add-place"
+          >
+            {phase !== 'tie' && <span>{t('place.addPlace')}</span>}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

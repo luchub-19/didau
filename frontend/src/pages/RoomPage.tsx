@@ -296,6 +296,9 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
             roomId={roomId}
             room={room}
             phase={phaseState.phase}
+            viewStep={phaseState.viewStep}
+            members={members}
+            onOriginChange={handleOriginChange}
             places={places}
             selectedCategory={selectedCategory}
             onSelectCategory={(cat: PlaceCategory | 'ALL') =>
@@ -320,6 +323,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
             isHost={isHost}
             isVotingDisabled={isVotingDisabled}
             onOriginChange={handleOriginChange}
+            showSearch={phaseState.viewStep !== 1}
           />
         }
         plan={

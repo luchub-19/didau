@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMapStore } from '../../store/useMapStore';
 import type { Poi } from '../../types';
@@ -12,10 +12,15 @@ export interface MapSearchBoxProps {
   getCenter: () => { lat: number; lng: number };
   onPick: (poi: Poi) => void;
   className?: string;
+  /** `large`: ô tìm kiếm to của giai đoạn ① (GatherPanel); mặc định là ô nhỏ nổi trên bản đồ. */
+  size?: 'default' | 'large';
+  /** Để nơi khác (vd. ô trống "+ quán thứ 2") đưa focus vào ô. */
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 /** O tim `/pois/search` (osm mode): debounce 300 ms, ket qua khong dau xep theo do khop roi khoang cach. */
-export function MapSearchBox({ getCenter, onPick, className = '' }: MapSearchBoxProps) {
+export function MapSearchBox({ getCenter, onPick, className = '', size = 'default', inputRef }: MapSearchBoxProps) {
+  const large = size === 'large';
   const { t, i18n } = useTranslation();
   const lang = (i18n.language as Language) || 'vi';
   const [text, setText] = useState('');
@@ -61,24 +66,27 @@ export function MapSearchBox({ getCenter, onPick, className = '' }: MapSearchBox
     <div ref={containerRef} className={`relative w-full ${className}`}>
       <div className="relative flex items-center">
         <MagnifyingGlass
-          size={18}
-          className="pointer-events-none absolute left-3.5 text-ink-3"
+          size={large ? 22 : 18}
+          className={`pointer-events-none absolute text-ink-3 ${large ? 'left-4' : 'left-3.5'}`}
           aria-hidden="true"
         />
         <input
+          ref={inputRef}
           type="search"
           value={text}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => setOpen(true)}
           placeholder={t('map.search.placeholder')}
           aria-label={t('map.search.ariaLabel')}
-          className="w-full rounded-full border border-line bg-surface/95 pl-10 pr-9 py-2.5 text-body text-ink placeholder:text-ink-3 shadow-float outline-none transition-colors focus:border-accent-text focus:ring-2 focus:ring-accent-text/20"
+          className={`w-full rounded-full border border-line bg-surface/95 text-ink placeholder:text-ink-3 outline-none transition-colors focus:border-accent-text focus:ring-2 focus:ring-accent-text/20 ${
+            large ? 'min-h-[52px] pl-12 pr-11 py-3.5 text-[1.0625rem] shadow-sm' : 'pl-10 pr-9 py-2.5 text-body shadow-float'
+          }`}
         />
         {text && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 text-ink-3 hover:text-ink transition-colors p-1"
+            className={`absolute text-ink-3 hover:text-ink transition-colors p-1 ${large ? 'right-4' : 'right-3'}`}
             aria-label={t('common.clear', 'Clear')}
           >
             <X size={14} />

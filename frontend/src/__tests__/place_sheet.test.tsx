@@ -3,12 +3,11 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from
 import { server } from '../mocks/server';
 import { resetMockDb } from '../mocks/handlers';
 import { tokenStorage } from '../services/storage/tokenStorage';
-import { MOCK_HOST_TOKEN, mockRoom, mockPois } from '../mocks/mockData';
+import { MOCK_HOST_TOKEN, mockRoom } from '../mocks/mockData';
 import { usePlaceStore } from '../store/usePlaceStore';
 import { useMapStore } from '../store/useMapStore';
 import { PlaceDetail } from '../components/places/PlaceDetail';
 import { GooglePlaceCard } from '../components/map/GooglePlaceCard';
-import { NearbySuggestions } from '../components/map/NearbySuggestions';
 import { PlaceRow } from '../components/places/PlaceRow';
 import { loadPlacesUiKit, resetPlacesUiKitLoader } from '../services/google/loadPlacesUiKit';
 import type { Place, Poi, Room } from '../types';
@@ -164,85 +163,6 @@ describe('T-28 (T-71 thay PlaceSheet bằng PlaceDetail): "Thêm vào lựa ch�
 
       // Không có key -> thẻ bị ẩn, không phát sinh lỗi
       expect(html).toBe('');
-    });
-  });
-
-  describe('4. NearbySuggestions Component', () => {
-    it('khi phòng đã có quán (places > 0), không hiển thị gợi ý', () => {
-      const existingPlace: Place = {
-        id: 'p1',
-        room_id: sampleRoom.id,
-        submitted_by_id: 'host-1',
-        name: 'Quán cũ',
-        category: 'FOOD',
-        status: 'PROPOSED',
-        estimated_cost: 50000,
-        upvotes: 0,
-        downvotes: 0,
-        score: 0,
-        current_user_vote: 0,
-        created_at: new Date().toISOString(),
-      };
-
-      const html = renderToStaticMarkup(
-        <NearbySuggestions
-          room={sampleRoom}
-          places={[existingPlace]}
-          pois={mockPois}
-          onSelectPoi={() => {}}
-        />,
-      );
-
-      expect(html).toBe('');
-    });
-
-    it('khi phòng trống (places = 0), gợi ý tối đa 5 quán gần điểm hẹn kèm nút + Thêm', () => {
-      const html = renderToStaticMarkup(
-        <NearbySuggestions
-          room={sampleRoom}
-          places={[]}
-          pois={mockPois}
-          onSelectPoi={() => {}}
-          onAddPoi={() => {}}
-        />,
-      );
-
-      expect(html).toContain('Gợi ý quanh điểm hẹn');
-      expect(html).toContain('Phòng chưa có địa điểm nào');
-      expect(html).toContain('+ Thêm');
-      // Chứa các POI mẫu gần Q.1 trong mockPois
-      expect(html).toContain('km');
-    });
-
-    it('T-56: cột desktop khi phòng đã có quán không ghi "Phòng chưa có địa điểm nào"', () => {
-      const existingPlace: Place = {
-        id: 'p1',
-        room_id: sampleRoom.id,
-        submitted_by_id: 'host-1',
-        name: 'Quán cũ',
-        category: 'FOOD',
-        status: 'PROPOSED',
-        estimated_cost: 50000,
-        upvotes: 0,
-        downvotes: 0,
-        score: 0,
-        current_user_vote: 0,
-        created_at: new Date().toISOString(),
-      };
-
-      const html = renderToStaticMarkup(
-        <NearbySuggestions
-          room={sampleRoom}
-          places={[existingPlace]}
-          pois={mockPois}
-          onSelectPoi={() => {}}
-          isDesktopColumn
-        />,
-      );
-
-      expect(html).toContain('Gợi ý quanh điểm hẹn');
-      expect(html).toContain('Các quán gần điểm hẹn nhất');
-      expect(html).not.toContain('Phòng chưa có địa điểm nào');
     });
   });
 

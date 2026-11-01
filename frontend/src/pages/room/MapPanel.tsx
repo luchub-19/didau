@@ -10,6 +10,8 @@ export interface MapPanelProps {
   isHost: boolean;
   isVotingDisabled?: boolean;
   onOriginChange: (lat: number, lng: number) => void;
+  /** Ẩn ô tìm kiếm nổi khi cột trái đã có ô tìm kiếm lớn (giai đoạn ①). */
+  showSearch?: boolean;
 }
 
 /** Cột giữa của không gian phòng: bản đồ luôn mounted, tràn khung (T-67). MapView tự `resize()` qua ResizeObserver. */
@@ -19,6 +21,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({
   isHost,
   isVotingDisabled = false,
   onOriginChange,
+  showSearch = true,
 }) => {
   return (
     <Suspense fallback={<Skeleton.Block className="h-full w-full" />}>
@@ -28,6 +31,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({
         isHost={isHost}
         isVotingDisabled={isVotingDisabled}
         onOriginChange={onOriginChange}
+        showSearch={showSearch}
       />
     </Suspense>
   );

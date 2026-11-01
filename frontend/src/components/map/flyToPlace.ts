@@ -17,6 +17,8 @@ export interface MapFlyer {
   fly: (target: MapFlyTarget) => void;
   /** Bản đồ đang hiện trên màn hình (không bị display:none / kích thước 0). */
   isVisible: () => boolean;
+  /** Tâm bản đồ hiện tại (cho nút "Đặt điểm hẹn ở giữa bản đồ" ngoài MapView). */
+  center?: () => { lat: number; lng: number };
 }
 
 let active: MapFlyer | null = null;
@@ -40,4 +42,9 @@ export function flyToPlace(
   if (!active || !canFlyToPlace(place)) return false;
   active.fly({ ...opts, lng: place.longitude as number, lat: place.latitude as number });
   return true;
+}
+
+/** Tâm bản đồ phòng; `null` nếu bản đồ chưa sẵn sàng. */
+export function currentMapCenter(): { lat: number; lng: number } | null {
+  return active?.center ? active.center() : null;
 }

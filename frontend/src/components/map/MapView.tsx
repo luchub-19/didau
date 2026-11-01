@@ -24,7 +24,6 @@ import { MapSearchBox } from './MapSearchBox';
 import { PlaceDetail } from '../places/PlaceDetail';
 import { useWorkspaceLayout } from '../shell/workspace';
 import { usePlaceUrlSync } from '../shell/useRoomTab';
-import { NearbySuggestions } from './NearbySuggestions';
 import { Button, EmptyState, IconButton, Skeleton, toast } from '../ui';
 import { MapPin, WarningCircle } from '../ui/Icon';
 
@@ -35,6 +34,8 @@ export interface MapViewProps {
   isVotingDisabled?: boolean;
   /** Host keo ghim diem hen xong: goi `PATCH /rooms/{id}`. */
   onOriginChange: (lat: number, lng: number) => void;
+  /** Ô tìm kiếm nổi trên bản đồ; giai đoạn ① đã có ô tìm kiếm lớn ở cột trái nên ẩn (T-72). */
+  showSearch?: boolean;
 }
 
 function hasWebGL(): boolean {
@@ -54,6 +55,7 @@ export function MapView({
   places,
   isHost,
   isVotingDisabled = false,
+  showSearch = true,
   onOriginChange,
 }: MapViewProps) {
   const { t } = useTranslation();
@@ -190,6 +192,10 @@ export function MapView({
       isVisible: () => {
         const el = map.getContainer();
         return el.offsetParent !== null && el.clientWidth > 0 && el.clientHeight > 0;
+      },
+      center: () => {
+        const c = map.getCenter();
+        return { lat: c.lat, lng: c.lng };
       },
       fly: ({ lng, lat, zoom, pitch, bearingDelta, durationMs, offsetY }) => {
         map.flyTo({
@@ -355,9 +361,11 @@ export function MapView({
       )}
 
       {/* O tim kiem noi phia tren */}
-      <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
-        <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
-      </div>
+      {showSearch && (
+        <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
+          <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
+        </div>
+      )}
 
       {/* Ghim diem tap trung */}
       <OriginPin
@@ -387,22 +395,6 @@ export function MapView({
         <span className="absolute right-3 top-16 z-10 rounded-full bg-surface/90 border border-line px-2.5 py-1 text-caption text-ink-3 shadow-float">
           {t('map.loadingPlaces')}
         </span>
-      )}
-
-      {/* Goi y gan day khi phong chua co quan (moi co man hinh). Mobile chua 96px day cho nac thu cua
-          sheet danh sach; T-72 dua goi y vao cot trai / dau sheet. */}
-      {places.length === 0 && !selection && (
-        <div className="absolute inset-x-0 top-0 bottom-24 lg:bottom-0 pointer-events-none [&>*]:pointer-events-auto">
-          <NearbySuggestions
-            room={room}
-            places={places}
-            pois={Object.values(poisById)}
-            onSelectPoi={flyToPoi}
-            onAddPoi={(poi) => {
-              void usePlaceStore.getState().addPlaceFromPoi(room.id, poi);
-            }}
-          />
-        </div>
       )}
 
       {/* Trang chi tiết quán (T-71): ≥1024 panel nổi bên phải bản đồ rộng --ws-detail (500/440px);
