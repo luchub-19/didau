@@ -372,3 +372,105 @@ Giao diện Stage (PLAN §3) cần biết "ai đang xem quán nào" và "ai vừ
 
 ### 3. Phương án nếu không duyệt
 Chỉ chấm nhịp từ `MEMBER_JOINED` và "+1" ẩn danh đã có ở T-60; không có avatar trên quán.
+
+---
+
+## CR-10: Ghi nhận `note` trong `PUT /schedule` (bulk update) — client phải gửi lại ghi chú
+
+- **Người đề xuất**: Session T-76 (2026-11-04), lập kế hoạch giai đoạn 6 "Lịch chung"
+- **Ngày tạo**: 2026-11-04
+- **Trạng thái**: PROPOSED (chờ người dùng duyệt ở cổng G1 gđ6; áp ở T-78)
+- **Task đã DONE bị ảnh hưởng**: T-73 (nút "Sửa" giờ trong timeline), timeline kéo thứ tự gđ2–3. Không đổi schema DB, không đổi backend.
+
+### 1. Vấn đề
+Backend `ScheduleItemReorderItem` (`backend/app/schemas/schedule.py`) đã có `note: str | None = None`, và
+`model_dump()` luôn có khoá `note`, nên `bulk_update` ghi `note = NULL` cho mọi mục gửi lên mà không kèm `note`.
+CONTRACTS §3.3 mục 11 và kiểu TS `BulkUpdateScheduleItem` (§6) **không có** `note` → frontend làm đúng hợp đồng nhưng
+mỗi lần sửa giờ/kéo thứ tự đều xoá ghi chú. Giai đoạn 6 cho sửa ghi chú trong popup lịch nên cần đường ghi `note` chính thức.
+
+### 2. Đề xuất
+- CONTRACTS §3.3 mục 11: thêm `"note": "..."` (tuỳ chọn) vào mỗi item; ghi rõ "thiếu `note` = đặt `NULL`; client gửi
+  lại ghi chú hiện có cho mục không đổi ghi chú".
+- CONTRACTS §6 `BulkUpdateScheduleItem`: thêm `note?: string | null`.
+- Frontend (T-78): mọi payload bulk dựng qua `toBulkPayload()` luôn kèm `note`; MSW mô phỏng đúng hành vi backend.
+- Không đổi backend (hành vi đã như trên). Tuỳ chọn để sau: đổi backend thành "thiếu `note` = giữ nguyên"
+  (`model_dump(exclude_unset=True)`) — an toàn hơn cho client cũ, cần sửa test backend.
+
+### 3. Phương án nếu không duyệt
+Frontend vẫn phải gửi `note` (nếu không lỗi mất ghi chú còn), chỉ là lệch khỏi hợp đồng không ghi lại; hoặc sửa ghi chú
+bằng xoá + tạo lại mục (`DELETE` + `POST`), đổi id mục và phát 2 sự kiện WS.
+
+---
+
+## CR-11: Vị trí xuất phát của từng thành viên (riêng tư) + tâm nhóm
+
+- **Người đề xuất**: Session T-76 (2026-11-04), theo tài liệu đồ án ALGO-01/02 (`docs/proposal/`) và quyết định người dùng
+- **Ngày tạo**: 2026-11-04
+- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; áp ở T-85, phần tâm nhóm ở T-86)
+- **Task đã DONE bị ảnh hưởng**: không. Thay BACKEND-NOTES gđ5 #5.
+
+### 1. Vấn đề
+Hoà phiếu theo thời gian di chuyển và tâm nhóm cần nơi xuất phát của **từng** người; hiện chỉ có `rooms.origin_*` (điểm hẹn host).
+
+### 2. Đề xuất
+- DB: `members.origin_lat`, `members.origin_lng` (DOUBLE PRECISION NULL, cùng ràng buộc như rooms).
+- `PATCH /api/v1/rooms/{room_id}/members/me` body `{origin_lat, origin_lng}` (cả hai `null` = xoá; nửa cặp = 422). Trả `MemberResponse` của mình (có toạ độ).
+- **Riêng tư:** toạ độ chỉ trả cho chính chủ (`GET /members/me`, phản hồi PATCH). Mọi chỗ trả thành viên khác (REST, `ROOM_STATE_SYNC`, `MEMBER_JOINED`) có `has_origin: bool`, không có toạ độ.
+- WS `MEMBER_UPDATED {member_id, has_origin}`; `GROUP_CENTER_UPDATED {available, center?, area_label?, member_count}`.
+- `GET /api/v1/rooms/{room_id}/group-center` → `{available, center: {lat, lng} (làm tròn 3 số)?, area_label?, member_count, nearby_pois[]}` (ALGORITHMS §3).
+
+### 3. Phương án nếu không duyệt
+Chỉ dùng điểm hẹn của host cho mọi người: ALGO-02 thành "quán gần điểm hẹn nhất", mất tiêu chí công bằng M (người đi xa nhất); không có ALGO-01.
+
+---
+
+## CR-12: Algorithm Engine — hoà phiếu `TRAVEL_TIME`, khả thi lịch, ưu tiên quán
+
+- **Người đề xuất**: Session T-76 (2026-11-04), theo `docs/phase6/ALGORITHMS.md` §4–§6
+- **Ngày tạo**: 2026-11-04
+- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; phần 1 áp ở T-86, phần 2 ở T-87)
+- **Task đã DONE bị ảnh hưởng**: T-05/T-12 + CR-07 (`TravelTimeConflictRule`: đổi params, giữ hành vi chồng giờ), T-73 (timeline hiện xung đột), CR-06 §1.13 A.
+
+### 2. Đề xuất
+**Phần 1 (T-86):**
+- Enum `TieBreakStrategyName` thêm `TRAVEL_TIME`; mặc định cho phòng mới. `POST /voting/resolve {strategy: "TRAVEL_TIME"}` server tự tính lại và chốt quán đứng đầu.
+- `GET /api/v1/rooms/{room_id}/tie-break/suggestion` → `TieSuggestion` (ALGORITHMS §4: candidates, members {member_id, nickname, origin_source}, matrix {minutes, distance_km, source}, ranking {place_id, S, M, D}, recommended_place_id, margin_vs_second_min, threshold_min, travel_mode, excluded_member_count, estimated, available, reason?). Không chứa toạ độ.
+
+**Phần 2 (T-87):**
+- `TRAVEL_TIME` conflict: điều kiện theo ALGORITHMS §5 (biên giờ cao điểm + gửi xe), `level = WARNING`, `params = {eta_min, margin_min, buffer_min, gap_min, slack_min, distance_km, risk: SAFE|SOFT_CONFLICT|HIGH_RISK, peak, source, estimated}` (thay params cũ ở §1.13 A). Cặp chồng giờ vẫn chỉ `TIME_OVERLAP` (CR-07).
+- `GET /api/v1/rooms/{room_id}/schedule/feasibility` → `{window_min, required_total_min, buffer_total_min, is_feasible, legs[]}`.
+- Place summary thêm `priority {rank, risk, slack_min, max_eta_min, labels[], estimated, hours_unknown, eta_unknown}`; `GET /places?sort=priority` trả theo `rank` (mặc định giữ thứ tự cũ). Cách phát cập nhật (kèm sự kiện cũ hay `PRIORITY_UPDATED`) do T-87 chọn và ghi lại tại đây trước khi áp.
+- Google `computeRouteMatrix` chỉ khi `PLACES_PROVIDER=google` + key; lỗi/timeout lùi về ước lượng; mọi số mang `source`.
+
+### 3. Phương án nếu không duyệt
+Giữ 6 chiến lược hoà cũ; cảnh báo di chuyển như CR-07; danh sách xếp theo phiếu. Thuật toán chỉ có trong báo cáo.
+
+---
+
+## CR-13: `state_version` cho realtime
+
+- **Người đề xuất**: Session T-76 (2026-11-04), theo OUTPUT.docx §3 ("stateVersion chống gói tin trễ"), giữ WebSocket hiện tại
+- **Ngày tạo**: 2026-11-04
+- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
+- **Task đã DONE bị ảnh hưởng**: không (trường thêm, client cũ bỏ qua được).
+
+### 2. Đề xuất
+`rooms.state_version BIGINT NOT NULL DEFAULT 0`, tăng 1 trong cùng transaction với mọi thay đổi có phát WS. Mọi tin WS server→client và `ROOM_STATE_SYNC` có `state_version`; REST trả header `X-State-Version`. Client bỏ tin có số nhỏ hơn số đã áp; nhảy cóc thì đồng bộ lại.
+
+### 3. Phương án nếu không duyệt
+Lịch kéo thả nhiều người sửa có thể bị tin trễ đè tạm thời (tự đúng lại ở tin sau).
+
+---
+
+## CR-14: Giới hạn số quán mỗi thành viên đề xuất
+
+- **Người đề xuất**: Session T-76 (2026-11-04), theo INPUT.docx (0–2 quán/người) + quyết định người dùng "host đặt giới hạn"
+- **Ngày tạo**: 2026-11-04
+- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
+- **Task đã DONE bị ảnh hưởng**: không.
+
+### 2. Đề xuất
+`rooms.max_places_per_member INT NULL` (phòng mới mặc định 2; `NULL` = không giới hạn; 1–10). Tạo phòng và `PATCH /rooms/{id}` (host) nhận trường này. `POST /places` vượt → 409 `PLACE_LIMIT_REACHED`, `details {limit, used}`; quán đã xoá không tính.
+
+### 3. Phương án nếu không duyệt
+Chỉ chặn ở frontend (lách được bằng gọi API trực tiếp).
