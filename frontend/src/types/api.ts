@@ -150,6 +150,8 @@ export interface BulkUpdateScheduleItem {
   start_minute: number;
   end_minute: number;
   order_index: number;
+  /** CR-10: thiếu `note` = backend đặt NULL, nên client luôn gửi (dựng qua `toBulkPayload`). */
+  note?: string | null;
 }
 
 export interface BulkUpdateScheduleRequest {

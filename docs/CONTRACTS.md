@@ -633,18 +633,22 @@ Khi có lỗi (status $\ge 400$):
       "day_offset": 0,
       "start_minute": 540,
       "end_minute": 630,
-      "order_index": 0
+      "order_index": 0,
+      "note": "Uống cà phê sáng"
     },
     {
       "id": "5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e",
       "day_offset": 0,
       "start_minute": 660,
       "end_minute": 750,
-      "order_index": 1
+      "order_index": 1,
+      "note": null
     }
   ]
 }
 ```
+- **`note` (CR-10)**: tuỳ chọn nhưng **thiếu `note` = đặt `NULL`** (xoá ghi chú). Client phải gửi lại ghi chú hiện có
+  cho mục không đổi ghi chú (frontend dựng payload qua `toBulkPayload()` ở `room/calendar.ts`).
 - **Response 200 OK**: Trả về mảng schedule items đã cập nhật.
 
 #### 12. Kiểm tra xung đột (Evaluate Conflicts)
@@ -1502,6 +1506,8 @@ export interface BulkUpdateScheduleItem {
   start_minute: number;
   end_minute: number;
   order_index: number;
+  /** CR-10: thiếu = backend đặt NULL; client luôn gửi note hiện có. */
+  note?: string | null;
 }
 
 export interface BulkUpdateScheduleRequest {

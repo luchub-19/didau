@@ -379,7 +379,7 @@ Chỉ chấm nhịp từ `MEMBER_JOINED` và "+1" ẩn danh đã có ở T-60; k
 
 - **Người đề xuất**: Session T-76 (2026-11-04), lập kế hoạch giai đoạn 6 "Lịch chung"
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: PROPOSED (chờ người dùng duyệt ở cổng G1 gđ6; áp ở T-78)
+- **Trạng thái**: APPLIED 2026-11-04 (T-78 áp vào CONTRACTS §3.3 mục 11 + §6; duyệt ở cổng G1 gđ6)
 - **Task đã DONE bị ảnh hưởng**: T-73 (nút "Sửa" giờ trong timeline), timeline kéo thứ tự gđ2–3. Không đổi schema DB, không đổi backend.
 
 ### 1. Vấn đề
@@ -406,7 +406,7 @@ bằng xoá + tạo lại mục (`DELETE` + `POST`), đổi id mục và phát 2
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo tài liệu đồ án ALGO-01/02 (`docs/proposal/`) và quyết định người dùng
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; áp ở T-85, phần tâm nhóm ở T-86)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; áp ở T-85, phần tâm nhóm ở T-86)
 - **Task đã DONE bị ảnh hưởng**: không. Thay BACKEND-NOTES gđ5 #5.
 
 ### 1. Vấn đề
@@ -428,7 +428,7 @@ Chỉ dùng điểm hẹn của host cho mọi người: ALGO-02 thành "quán g
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo `docs/phase6/ALGORITHMS.md` §4–§6
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; phần 1 áp ở T-86, phần 2 ở T-87)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; phần 1 áp ở T-86, phần 2 ở T-87)
 - **Task đã DONE bị ảnh hưởng**: T-05/T-12 + CR-07 (`TravelTimeConflictRule`: đổi params, giữ hành vi chồng giờ), T-73 (timeline hiện xung đột), CR-06 §1.13 A.
 
 ### 2. Đề xuất
@@ -451,7 +451,7 @@ Giữ 6 chiến lược hoà cũ; cảnh báo di chuyển như CR-07; danh sách
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo OUTPUT.docx §3 ("stateVersion chống gói tin trễ"), giữ WebSocket hiện tại
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
 - **Task đã DONE bị ảnh hưởng**: không (trường thêm, client cũ bỏ qua được).
 
 ### 2. Đề xuất
@@ -466,7 +466,7 @@ Lịch kéo thả nhiều người sửa có thể bị tin trễ đè tạm th�
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo INPUT.docx (0–2 quán/người) + quyết định người dùng "host đặt giới hạn"
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: PROPOSED (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
 - **Task đã DONE bị ảnh hưởng**: không.
 
 ### 2. Đề xuất

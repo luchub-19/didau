@@ -9,6 +9,11 @@ import type {
   ScheduleItem,
 } from '../types';
 import { errorKey } from '../i18n/serverText';
+import { reorderByStart, toBulkPayload, type ScheduleChange } from '../room/calendar';
+
+const byOrder = (a: ScheduleItem, b: ScheduleItem) => a.order_index - b.order_index;
+/** Số thứ tự của lần `moveItems` mới nhất: kết quả server của lần cũ không được đè bản vẽ lạc quan của lần sau. */
+let moveSeq = 0;
 
 interface ScheduleState {
   items: ScheduleItem[];
@@ -31,6 +36,11 @@ interface ScheduleState {
     roomId: string,
     data: BulkUpdateScheduleRequest,
   ) => Promise<ScheduleItem[]>;
+  /**
+   * Di/đổi giờ/sửa ghi chú nhiều mục (lạc quan): vẽ ngay, sắp lại `order_index` theo giờ, `PUT` chỉ các mục đổi
+   * (luôn kèm `note`), rồi thay bằng kết quả server. Lỗi → khôi phục các mục đã đổi và ném lại lỗi để UI toast.
+   */
+  moveItems: (roomId: string, updates: ScheduleChange[]) => Promise<ScheduleItem[]>;
   deleteItem: (roomId: string, itemId: string) => Promise<void>;
 
   // AutoPlan actions
@@ -54,7 +64,7 @@ interface ScheduleState {
   reset: () => void;
 }
 
-export const useScheduleStore = create<ScheduleState>((set) => ({
+export const useScheduleStore = create<ScheduleState>((set, get) => ({
   items: [],
   isLoading: false,
   error: null,
@@ -98,7 +108,14 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
 
   bulkUpdate: async (roomId: string, data: BulkUpdateScheduleRequest) => {
     try {
-      const updated = await scheduleApi.bulkUpdateSchedule(roomId, data);
+      // Phòng hờ nơi gọi cũ: mục thiếu `note` thì lấy từ bản hiện có (CR-10), không để backend xoá ghi chú
+      const current = new Map(get().items.map((i) => [i.id, i]));
+      const safe: BulkUpdateScheduleRequest = {
+        items: data.items.map((i) =>
+          'note' in i ? i : { ...i, note: current.get(i.id)?.note ?? null },
+        ),
+      };
+      const updated = await scheduleApi.bulkUpdateSchedule(roomId, safe);
       updated.sort((a, b) => a.order_index - b.order_index);
       set({ items: updated });
       return updated;
@@ -106,6 +123,32 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       const errorMsg =
         errorKey(err, 'UPDATE_SCHEDULE_FAILED');
       set({ error: errorMsg });
+      throw err;
+    }
+  },
+
+  moveItems: async (roomId: string, updates: ScheduleChange[]) => {
+    const before = get().items;
+    const patch = new Map(updates.map((u) => [u.id, u]));
+    const next = reorderByStart(before.map((i) => (patch.has(i.id) ? { ...i, ...patch.get(i.id) } : i)));
+    const payload = toBulkPayload(next, before);
+    if (payload.length === 0) return before;
+
+    const prev = new Map(before.map((i) => [i.id, i]));
+    const sent = new Set(payload.map((p) => p.id));
+    const seq = ++moveSeq;
+    set({ items: next.sort(byOrder), error: null });
+    try {
+      const updated = await scheduleApi.bulkUpdateSchedule(roomId, { items: payload });
+      updated.sort(byOrder);
+      if (seq === moveSeq) set({ items: updated });
+      return updated;
+    } catch (err: unknown) {
+      const errorMsg = errorKey(err, 'UPDATE_SCHEDULE_FAILED');
+      set((state) => ({
+        items: state.items.map((i) => (sent.has(i.id) ? prev.get(i.id) ?? i : i)).sort(byOrder),
+        error: errorMsg,
+      }));
       throw err;
     }
   },

@@ -524,6 +524,8 @@ export const handlers = [
           start_minute: update.start_minute,
           end_minute: update.end_minute,
           order_index: update.order_index,
+          // Giống backend (CR-10): thiếu `note` trong payload = đặt NULL
+          note: update.note ?? null,
         };
       }
       return item;

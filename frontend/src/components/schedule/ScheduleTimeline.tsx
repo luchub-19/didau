@@ -12,6 +12,7 @@ import { AutoPlanPreview } from './AutoPlanPreview';
 import { buildInviteUrl, shareRoom } from '../room/shareRoom';
 import { buildScheduleIcs, downloadIcs, icsFileName } from '../../stage/reveal/actions';
 import { planBudget } from '../../room/budget';
+import { toBulkPayload } from '../../room/calendar';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { useConflictStore } from '../../store/useConflictStore';
 import { useLanguage } from '../../i18n/useLanguage';
@@ -181,15 +182,14 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
     const [moved] = reordered.splice(sourceIndex, 1);
     reordered.splice(targetIndex, 0, moved);
 
-    const bulkItems = reordered.map((item, idx) => ({
-      id: item.id,
-      day_offset: item.day_offset,
-      start_minute: item.start_minute,
-      end_minute: item.end_minute,
-      order_index: idx,
-    }));
+    // Chỉ gửi mục đổi `order_index`, luôn kèm `note` (CR-10)
+    const bulkItems = toBulkPayload(
+      reordered.map((item, idx) => ({ id: item.id, order_index: idx })),
+      items,
+    );
 
     setDraggedItemId(null);
+    if (bulkItems.length === 0) return;
 
     try {
       await bulkUpdate(roomId, { items: bulkItems });
@@ -216,13 +216,13 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
     reordered[currentIndex] = reordered[targetIndex];
     reordered[targetIndex] = temp;
 
-    const bulkItems = reordered.map((item, idx) => ({
-      id: item.id,
-      day_offset: item.day_offset,
-      start_minute: item.start_minute,
-      end_minute: item.end_minute,
-      order_index: idx,
-    }));
+    // Chỉ gửi mục đổi `order_index`, luôn kèm `note` (CR-10)
+    const bulkItems = toBulkPayload(
+      reordered.map((item, idx) => ({ id: item.id, order_index: idx })),
+      items,
+    );
+
+    if (bulkItems.length === 0) return;
 
     try {
       await bulkUpdate(roomId, { items: bulkItems });
@@ -303,14 +303,16 @@ export const ScheduleTimeline: React.FC<ScheduleTimelineProps> = ({
   const editInvalid = editSlot.start >= editSlot.end;
   const handleSaveEdit = async () => {
     if (!editingItem || editInvalid) return;
-    const bulkItems = items.map((item, idx) => ({
-      id: item.id,
-      day_offset: item.day_offset,
-      start_minute: item.id === editingItem.id ? editSlot.start : item.start_minute,
-      end_minute: item.id === editingItem.id ? editSlot.end : item.end_minute,
-      order_index: idx,
-    }));
+    const bulkItems = toBulkPayload(
+      items.map((item, idx) =>
+        item.id === editingItem.id
+          ? { id: item.id, order_index: idx, start_minute: editSlot.start, end_minute: editSlot.end }
+          : { id: item.id, order_index: idx },
+      ),
+      items,
+    );
     setEditingId(null);
+    if (bulkItems.length === 0) return;
     try {
       await bulkUpdate(roomId, { items: bulkItems });
       await evaluateConflicts(roomId);
