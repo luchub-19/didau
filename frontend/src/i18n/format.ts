@@ -56,6 +56,36 @@ export function formatTimeRange(
   return `${formatTime(startMinute, lang)} - ${formatTime(endMinute, lang)}`;
 }
 
+/**
+ * Khoảng giờ gọn cho chip khung giờ (DESIGN gđ6 §2).
+ * VI: `18:00 – 22:00`. EN: `6 – 10 PM` (cùng buổi), `11 AM – 2 PM` (khác buổi), `6:30 – 10 PM` (giữ phút lẻ).
+ */
+export function formatTimeWindow(startMinute: number, endMinute: number, lang: Language = 'vi'): string {
+  if (lang !== 'en') return `${formatTime(startMinute, 'vi')} – ${formatTime(endMinute, 'vi')}`;
+  const part = (m: number) => {
+    const n = Math.min(1439, Math.max(0, Math.floor(m)));
+    const h24 = Math.floor(n / 60);
+    const min = n % 60;
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return { text: min === 0 ? `${h12}` : `${h12}:${String(min).padStart(2, '0')}`, ap: h24 < 12 ? 'AM' : 'PM' };
+  };
+  const a = part(startMinute);
+  const b = part(endMinute);
+  return a.ap === b.ap ? `${a.text} – ${b.text} ${b.ap}` : `${a.text} ${a.ap} – ${b.text} ${b.ap}`;
+}
+
+/** Ngày dài theo ngôn ngữ ("Thứ Bảy 08/11" / "Sat, Nov 8"); lỗi/rỗng → ''. */
+export function describeEventDate(eventDate: string | undefined, lang: Language): string {
+  const m = eventDate?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (isNaN(d.getTime())) return '';
+  if (lang === 'en') return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(d);
+  const wd = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(d);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${p(d.getDate())}/${p(d.getMonth() + 1)}`;
+}
+
 export function formatDuration(
   minutes: number,
   lang: Language = 'vi',

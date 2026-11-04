@@ -1,6 +1,8 @@
-// Logic thuần của form tạo phòng (DESIGN gđ5 §9): chip ngân sách, ngày, vị trí, ghép payload.
+// Logic thuần của form tạo phòng (DESIGN gđ6 §1): chip ngân sách, ngày, ghép payload.
+
+/** Khối ngân sách trong form tạo phòng đang ẩn (gđ6); bật lại = đổi một dòng. */
+export const SHOW_BUDGET_IN_CREATE = false;
 import { avatarUrlFor } from '../components/ui/characterAvatar';
-import { cityFromCoords } from './city';
 import type { CreateRoomRequest, TieBreakStrategyName } from '../types';
 
 export type BudgetChoice = 'under200' | 'to500' | 'to1m' | 'none' | 'custom';
@@ -29,40 +31,6 @@ export function localIsoDate(offsetDays = 0, from: Date = new Date()): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export interface OriginPoint {
-  lat: number;
-  lng: number;
-  label: string;
-}
-
-export type LocateResult =
-  | { ok: true; lat: number; lng: number }
-  | { ok: false; reason: 'unsupported' | 'denied' | 'unavailable' | 'timeout' };
-
-/** Hỏi vị trí MỘT lần, timeout 8 s. Chỉ gọi sau khi người dùng bấm. */
-export function locateOnce(
-  geo: Pick<Geolocation, 'getCurrentPosition'> | undefined = typeof navigator !== 'undefined' ? navigator.geolocation : undefined,
-  timeoutMs = 8000,
-): Promise<LocateResult> {
-  return new Promise((resolve) => {
-    if (!geo) return resolve({ ok: false, reason: 'unsupported' });
-    let done = false;
-    const finish = (r: LocateResult) => {
-      if (done) return;
-      done = true;
-      clearTimeout(guard);
-      resolve(r);
-    };
-    // Một số trình duyệt không bao giờ gọi lại khi hộp thoại quyền bị bỏ qua → tự đặt hạn.
-    const guard = setTimeout(() => finish({ ok: false, reason: 'timeout' }), timeoutMs + 500);
-    geo.getCurrentPosition(
-      (pos) => finish({ ok: true, lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => finish({ ok: false, reason: err.code === 1 ? 'denied' : err.code === 3 ? 'timeout' : 'unavailable' }),
-      { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 60000 },
-    );
-  });
-}
-
 export interface CreateFormValues {
   title: string;
   nickname: string;
@@ -70,8 +38,7 @@ export interface CreateFormValues {
   eventDate: string;
   startMinute: number;
   endMinute: number;
-  origin: OriginPoint | null;
-  /** Thành phố đang chọn tay (dùng khi chưa có toạ độ hoặc toạ độ ngoài HCM/HN). */
+  /** Thành phố: chip TP.HCM / Hà Nội. */
   city: string;
   budget: BudgetChoice;
   customBudget: string;
@@ -80,8 +47,7 @@ export interface CreateFormValues {
 }
 
 export function buildCreatePayload(v: CreateFormValues): CreateRoomRequest {
-  const budget_limit = budgetLimitFor(v.budget, v.customBudget);
-  const guessed = v.origin ? cityFromCoords(v.origin.lat, v.origin.lng) : null;
+  const budget_limit = SHOW_BUDGET_IN_CREATE ? budgetLimitFor(v.budget, v.customBudget) : undefined;
   return {
     title: v.title.trim(),
     event_date: v.eventDate,
@@ -90,8 +56,7 @@ export function buildCreatePayload(v: CreateFormValues): CreateRoomRequest {
     description: v.description.trim() || undefined,
     ...(budget_limit !== undefined ? { budget_limit } : {}),
     tie_break_strategy: v.strategy,
-    city: guessed ?? v.city,
-    ...(v.origin ? { origin_lat: v.origin.lat, origin_lng: v.origin.lng } : {}),
+    city: v.city,
     start_minute: v.startMinute,
     end_minute: v.endMinute,
   };

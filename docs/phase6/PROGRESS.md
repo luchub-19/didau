@@ -1,12 +1,12 @@
 # Tiến độ giai đoạn 6 "Lịch chung & Algorithm Engine"
 
 Mỗi ô ghi chú tối đa 6 gạch đầu dòng. Chi tiết dài ghi vào mục "Nhật ký" cuối file task (`tasks/T-xx.md`).
-Thứ tự làm, phụ thuộc, model: `PLAN.md` §6. Luật giao diện: `DESIGN.md`. Thuật toán: `ALGORITHMS.md`.
+Thứ tự làm, phụ thuộc, model: `PLAN.md` §6. Prompt cho từng session: `PROMPTS.md`. Luật giao diện: `DESIGN.md`. Thuật toán: `ALGORITHMS.md`.
 
 ## Cổng chờ người dùng
 | Cổng | Sau task | Nội dung | Trạng thái |
 | :--- | :--- | :--- | :--- |
-| G1 | T-76 | Duyệt `PLAN.md`, `DESIGN.md`, `ALGORITHMS.md` (đặc biệt bảng §0 và các hằng số §2/§5), CR-10 → CR-14, 3 câu hỏi mở dưới đây | CHỜ |
+| G1 | T-76 | Duyệt `PLAN.md`, `DESIGN.md`, `ALGORITHMS.md` (đặc biệt bảng §0 và các hằng số §2/§5), CR-10 → CR-14, 3 câu hỏi mở dưới đây | **QUA 2026-11-04** — duyệt nguyên văn, CR-10 → CR-14 APPROVED; 3 câu hỏi mở dùng phương án (a): nút chính "Xuất kế hoạch", chỉ thẻ 4:5, giữ "Xếp lịch tự động" làm nút phụ |
 | G2 | T-80 → T-91 | Tự dùng thử: lịch kéo thả (desktop + điện thoại, 2 trình duyệt cùng phòng), chia sẻ vị trí, hoà phiếu, cảnh báo thiếu giờ, xuất kế hoạch | CHỜ |
 | G3 | T-92 | Duyệt ảnh `screens/final/`, `DEMO.md`, `ALGORITHMS.md` §11 (số liệu cho báo cáo) | CHỜ |
 
@@ -27,7 +27,7 @@ Thứ tự làm, phụ thuộc, model: `PLAN.md` §6. Luật giao diện: `DESIG
 | Task | Trạng thái | Session | Ghi chú |
 | :--- | :---: | :---: | :--- |
 | T-76 | DONE | 39cdf548 | • Làm: `docs/phase6/` PLAN, DESIGN, ALGORITHMS, PROGRESS, 17 file task (T-76 → T-92); CR-10 → CR-14 (PROPOSED) trong `docs/CHANGE_REQUESTS.md`; mục gđ6 trong `CLAUDE.md`. Không đổi code, không chạy test; commit `1c8a0c6` · • Hỏi người dùng 2 lượt (4 + 20 câu) sau khi đọc `docs/proposal/` (Algorithm Engine, INPUT, OUTPUT, phân tích giao diện); quyết định ở PLAN §1 + ALGORITHMS §0 · • Phát hiện: `PUT /schedule` đang xoá `note` (CR-10); `HaversineTravelEstimator` (30 km/h, +10' gửi xe) và `TravelTimeConflictRule` (30 km/h) lệch tham số → T-84 thống nhất · • Lệch tài liệu đồ án có chủ ý: không làm heatmap/lịch rảnh, không P90 thật (biên ước lượng có nhãn), Google sau cờ, giữ WS thay Socket.io · • Task sau: sau G1 làm song song được mạch A (T-77/T-78/T-83) và mạch B (T-84), T-91 độc lập |
-| T-77 | TODO | | |
+| T-77 | DONE | (session) | • Làm: form tạo phòng bỏ `OriginPicker` + khối ngân sách (`SHOW_BUDGET_IN_CREATE=false` trong `room/createRoom.ts`), chip thành phố TP.HCM/Hà Nội; payload không gửi `origin_*`/`budget_limit`; xoá `OriginPicker`, `locateOnce`, `OriginPoint` + 9 khoá i18n `room.create.origin*`; `formatTimeWindow` + `describeEventDate` (`i18n/format.ts`); `TimeWindowChip` (desktop sau mã phòng) + `PhaseStepper` prop `windowText` (dòng compact mobile); `RoomShell` truyền `timeWindow` từ `room.start/end_minute`. Test 566 (565 xanh); lint/build xanh, entry chính 71,49 kB gz 28,17 (chunk lớn 657 kB giữ nguyên bản chất) · • Quyết định: khoá i18n mới ở cấp gốc `timeWindow.label` vì `room.timeWindow` đã là chuỗi · • Bẫy: `OriginPicker` kéo i18n vào test ngầm → `create_room.test.tsx` giờ `import '../i18n'` · • **Chưa làm:** ảnh chụp 1440/390 (sáng VI, tối EN) và kiểm 375px không cuộn ngang; mục 5 (BudgetMeter không limit, dải "Gần điểm hẹn") chưa xác nhận bằng mắt · • Test `decide_wheel` (SWIPE render SwipeDeck) lỗi khi chạy riêng cả trước khi sửa — không liên quan T-77 |
 | T-78 | TODO | | |
 | T-79 | TODO | | |
 | T-80 | TODO | | |

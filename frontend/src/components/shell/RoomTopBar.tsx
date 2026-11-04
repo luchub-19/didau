@@ -4,6 +4,9 @@ import { ArrowLeft, Copy, ShareNetwork, IconButton } from '../ui';
 import { copyText, shareRoom } from '../room/shareRoom';
 import { useRoomPhase, type UseRoomPhaseResult } from '../../room/useRoomPhase';
 import { PhaseStepper } from './PhaseStepper';
+import { TimeWindowChip } from './TimeWindowChip';
+import { formatTimeWindow } from '../../i18n/format';
+import { useLanguage } from '../../i18n/useLanguage';
 
 export interface RoomTopBarProps {
   title: string;
@@ -12,6 +15,8 @@ export interface RoomTopBarProps {
   onGoHome: () => void;
   /** Giai đoạn do RoomPage tính một lần, dùng chung với RoomWorkspace; thiếu thì tự tính (test, nơi gọi khác). */
   phase?: UseRoomPhaseResult;
+  /** Khung giờ rảnh của nhóm (chip sau mã phòng + dòng compact mobile). */
+  timeWindow?: { startMinute: number; endMinute: number; eventDate?: string };
   /** "N đang xem" — đứng trước nút mời. */
   viewers?: React.ReactNode;
   /** Avatar + tên + vai trò (IdentityMenu) — cuối thanh. */
@@ -24,10 +29,12 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
   roomId,
   onGoHome,
   phase,
+  timeWindow,
   viewers,
   identity,
 }) => {
   const { t } = useTranslation();
+  const { lang } = useLanguage();
   const ownPhase = useRoomPhase();
   const { step, viewStep, setViewStep } = phase ?? ownPhase;
 
@@ -64,6 +71,10 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
               <span>{code}</span>
               <Copy size={13} aria-hidden="true" />
             </button>
+
+            {timeWindow && (
+              <TimeWindowChip {...timeWindow} className="hidden md:inline-flex" />
+            )}
           </div>
         </div>
 
@@ -86,7 +97,13 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
 
       {/* Mobile: "Bước x/4 · tên" dưới tên phòng */}
       <div className="md:hidden px-3 sm:px-4 pb-2 -mt-1">
-        <PhaseStepper variant="compact" step={step} viewStep={viewStep} onViewStep={setViewStep} />
+        <PhaseStepper
+          variant="compact"
+          step={step}
+          viewStep={viewStep}
+          onViewStep={setViewStep}
+          windowText={timeWindow ? formatTimeWindow(timeWindow.startMinute, timeWindow.endMinute, lang) : undefined}
+        />
       </div>
     </header>
   );

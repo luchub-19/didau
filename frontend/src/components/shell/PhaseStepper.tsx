@@ -11,12 +11,14 @@ export interface PhaseStepperProps {
   onViewStep: (s: PhaseStep | null) => void;
   /** `full` = 4 nút (desktop), `compact` = chữ "Bước x/4" (mobile). */
   variant?: 'full' | 'compact';
+  /** Chỉ cho `compact`: khoảng giờ nối vào cuối dòng ("… · 18:00 – 22:00"). */
+  windowText?: string;
   className?: string;
 }
 
 const KEYS = ['gather', 'vote', 'lock', 'send'] as const;
 
-export const PhaseStepper: React.FC<PhaseStepperProps> = ({ step, viewStep, onViewStep, variant = 'full', className = '' }) => {
+export const PhaseStepper: React.FC<PhaseStepperProps> = ({ step, viewStep, onViewStep, variant = 'full', windowText, className = '' }) => {
   const { t } = useTranslation();
   const name = (s: PhaseStep) => t(`phase.step.${KEYS[s - 1]}`);
 
@@ -24,6 +26,7 @@ export const PhaseStepper: React.FC<PhaseStepperProps> = ({ step, viewStep, onVi
     return (
       <p className={`text-caption text-ink-2 tabular-nums ${className}`}>
         {t('phase.mobile', { n: viewStep, name: name(viewStep) })}
+        {windowText ? ` · ${windowText}` : ''}
       </p>
     );
   }

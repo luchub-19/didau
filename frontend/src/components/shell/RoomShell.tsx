@@ -46,6 +46,11 @@ export const RoomShell: React.FC<RoomShellProps> = ({
         roomId={room.id}
         onGoHome={onGoHome}
         phase={phase}
+        timeWindow={
+          room.start_minute != null && room.end_minute != null
+            ? { startMinute: room.start_minute, endMinute: room.end_minute, eventDate: room.event_date }
+            : undefined
+        }
         viewers={topBarViewers}
         identity={topBarIdentity}
       />

@@ -94,16 +94,6 @@ export const vi = {
       today: 'Hôm nay',
       tomorrow: 'Ngày mai',
       pickDate: 'Chọn ngày',
-      originLabel: 'Nhóm hẹn nhau ở đâu?',
-      originHere: 'Chỗ tôi đang đứng',
-      originSearch: 'Tìm địa điểm',
-      originLater: 'Để sau',
-      originLocating: 'Đang lấy vị trí…',
-      originHereLabel: 'Vị trí hiện tại của bạn',
-      originChosen: 'Điểm hẹn',
-      originDenied: 'Chưa lấy được vị trí của bạn — tìm một địa điểm gần đó nhé.',
-      originFailed: 'Chưa xác định được vị trí — tìm một địa điểm gần đó nhé.',
-      originLaterHint: 'Chưa có điểm hẹn cũng được, đặt sau trong phòng.',
       budgetCustom: 'Số tiền mỗi người, cả buổi (₫)',
       budgetChip: {
         under200: 'Dưới 200k',
@@ -950,6 +940,9 @@ export const vi = {
       local: 'Đặc sản Sài Gòn',
       chill: 'Ngồi lâu',
     },
+  },
+  timeWindow: {
+    label: 'Khung giờ rảnh của nhóm: {{range}}',
   },
   phase: {
     ariaLabel: 'Các bước của buổi đi chơi',

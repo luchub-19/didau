@@ -107,6 +107,22 @@ describe('T-41/T-67: RoomShell, RoomTopBar, BottomTabBar', () => {
       expect(html).not.toContain('max-w-7xl');
     });
 
+    it('chip khung giờ: desktop có aria-label kèm ngày; dòng compact mobile nối giờ (T-77)', () => {
+      const html = renderToStaticMarkup(
+        <RoomTopBar
+          title="Phòng"
+          code="ABC123"
+          roomId="r"
+          onGoHome={() => {}}
+          timeWindow={{ startMinute: 1080, endMinute: 1320, eventDate: '2026-11-08' }}
+        />,
+      );
+      expect(html).toContain('aria-label="Khung giờ rảnh của nhóm: 18:00 – 22:00, Chủ Nhật 08/11"');
+      expect(html).toMatch(/Bước \d\/4 · [^<]*· 18:00 – 22:00/);
+      const none = renderToStaticMarkup(<RoomTopBar title="P" code="A" roomId="r" onGoHome={() => {}} />);
+      expect(none).not.toContain('Khung giờ rảnh');
+    });
+
     it('nhận phase từ ngoài (một nguồn viewStep) và slot nút phụ', () => {
       const html = renderToStaticMarkup(
         <RoomTopBar

@@ -4,10 +4,8 @@ import { Button, CaretDown, CharacterAvatar, Chip, Sheet, Shuffle, TextField, ra
 import { useRoomStore } from '../../store/useRoomStore';
 import { describeRoomError } from './roomErrors';
 import { BudgetChips } from './BudgetChips';
-import { OriginPicker } from './OriginPicker';
 import { minuteToTimeString, timeStringToMinute } from '../../i18n/format';
-import { cityFromCoords } from '../../room/city';
-import { buildCreatePayload, localIsoDate, type BudgetChoice, type OriginPoint } from '../../room/createRoom';
+import { SHOW_BUDGET_IN_CREATE, buildCreatePayload, localIsoDate, type BudgetChoice } from '../../room/createRoom';
 import type { TieBreakStrategyName } from '../../types';
 
 export interface CreateRoomModalProps {
@@ -47,7 +45,6 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   const [showMore, setShowMore] = useState(false);
   const [dateChoice, setDateChoice] = useState<'today' | 'tomorrow' | 'pick'>('tomorrow');
   const [pickedDate, setPickedDate] = useState(() => localIsoDate(2));
-  const [origin, setOrigin] = useState<OriginPoint | null>(null);
   const [budget, setBudget] = useState<BudgetChoice>('none');
   const [city, setCity] = useState('HCM');
   const [startTime, setStartTime] = useState(minuteToTimeString(DEFAULT_START));
@@ -85,7 +82,6 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
           eventDate,
           startMinute,
           endMinute,
-          origin,
           city,
           budget,
           customBudget,
@@ -197,37 +193,35 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
         </fieldset>
 
         <fieldset className="space-y-2">
-          <legend className="text-label font-semibold text-ink-2">{t('room.create.originLabel')}</legend>
-          <OriginPicker value={origin} onChange={setOrigin} />
-          {!(origin && cityFromCoords(origin.lat, origin.lng)) && (
-            <TextField
-              as="select"
-              label={t('room.create.city')}
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            >
-              <option value="HCM">{t('room.create.cityHcm')}</option>
-              <option value="HN">{t('room.create.cityHn')}</option>
-            </TextField>
-          )}
+          <legend className="text-label font-semibold text-ink-2">{t('room.create.city')}</legend>
+          <div className="flex flex-wrap gap-2">
+            <Chip selected={city === 'HCM'} onClick={() => setCity('HCM')}>
+              {t('room.create.cityHcm')}
+            </Chip>
+            <Chip selected={city === 'HN'} onClick={() => setCity('HN')}>
+              {t('room.create.cityHn')}
+            </Chip>
+          </div>
         </fieldset>
 
-        <fieldset className="space-y-2">
-          <legend className="text-label font-semibold text-ink-2">{t('room.create.budget')}</legend>
-          <BudgetChips value={budget} onChange={setBudget} />
-          {budget === 'custom' && (
-            <TextField
-              label={t('room.create.budgetCustom')}
-              type="number"
-              inputMode="numeric"
-              min="0"
-              step="10000"
-              value={customBudget}
-              onChange={(e) => setCustomBudget(e.target.value)}
-            />
-          )}
-          <p className="text-caption text-ink-3">{t('room.create.budgetHint')}</p>
-        </fieldset>
+        {SHOW_BUDGET_IN_CREATE && (
+          <fieldset className="space-y-2">
+            <legend className="text-label font-semibold text-ink-2">{t('room.create.budget')}</legend>
+            <BudgetChips value={budget} onChange={setBudget} />
+            {budget === 'custom' && (
+              <TextField
+                label={t('room.create.budgetCustom')}
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="10000"
+                value={customBudget}
+                onChange={(e) => setCustomBudget(e.target.value)}
+              />
+            )}
+            <p className="text-caption text-ink-3">{t('room.create.budgetHint')}</p>
+          </fieldset>
+        )}
 
         <button
           type="button"

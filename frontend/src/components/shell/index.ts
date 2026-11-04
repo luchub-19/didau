@@ -7,5 +7,6 @@ export * from './ConnectionBanner';
 export * from './HomeHeader';
 export * from './useRoomTab';
 export * from './PhaseStepper';
+export * from './TimeWindowChip';
 export * from './IdentityMenu';
 export * from './identity';

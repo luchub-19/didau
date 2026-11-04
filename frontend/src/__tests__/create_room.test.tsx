@@ -1,15 +1,16 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, it, expect, vi as vitest } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { cityFromCoords } from '../room/city';
 import {
   buildCreatePayload,
   budgetLimitFor,
+  SHOW_BUDGET_IN_CREATE,
   localIsoDate,
-  locateOnce,
   type CreateFormValues,
 } from '../room/createRoom';
 import { avatarUrlFor } from '../components/ui/characterAvatar';
-import { CreateRoomModal, BudgetChips, OriginPicker } from '../components/room';
+import { CreateRoomModal, BudgetChips } from '../components/room';
+import '../i18n';
 import { vi } from '../i18n/locales/vi';
 import { en } from '../i18n/locales/en';
 
@@ -20,7 +21,6 @@ const base: CreateFormValues = {
   eventDate: '2026-11-02',
   startMinute: 1020,
   endMinute: 1380,
-  origin: null,
   city: 'HN',
   budget: 'none',
   customBudget: '',
@@ -41,16 +41,10 @@ describe('T-74: payload tạo phòng', () => {
     expect(p.end_minute).toBe(1380);
   });
 
-  it('có vị trí: gửi toạ độ và suy city (đè giá trị chọn tay)', () => {
-    const p = buildCreatePayload({ ...base, origin: { lat: 10.78, lng: 106.7, label: 'x' } });
-    expect(p.origin_lat).toBe(10.78);
-    expect(p.origin_lng).toBe(106.7);
-    expect(p.city).toBe('HCM');
-  });
-
-  it('vị trí ngoài HCM/HN: giữ city chọn tay', () => {
-    const p = buildCreatePayload({ ...base, city: 'HCM', origin: { lat: 16.05, lng: 108.2, label: 'Đà Nẵng' } });
-    expect(p.origin_lat).toBe(16.05);
+  it('không bao giờ gửi origin_*; city lấy từ chip', () => {
+    const p = buildCreatePayload({ ...base, city: 'HCM' });
+    expect(p).not.toHaveProperty('origin_lat');
+    expect(p).not.toHaveProperty('origin_lng');
     expect(p.city).toBe('HCM');
   });
 
@@ -64,9 +58,10 @@ describe('T-74: payload tạo phòng', () => {
     ['custom', '-5', undefined],
   ] as const)('ngân sách %s (%s) → %s', (choice, custom, expected) => {
     expect(budgetLimitFor(choice, custom)).toBe(expected);
+    // Khối ngân sách đang ẩn (SHOW_BUDGET_IN_CREATE = false): payload không gửi budget_limit dù state có giá trị.
+    expect(SHOW_BUDGET_IN_CREATE).toBe(false);
     const p = buildCreatePayload({ ...base, budget: choice, customBudget: custom });
-    if (expected === undefined) expect(p).not.toHaveProperty('budget_limit');
-    else expect(p.budget_limit).toBe(expected);
+    expect(p).not.toHaveProperty('budget_limit');
   });
 
   it('localIsoDate theo giờ máy, cộng ngày qua tháng', () => {
@@ -85,67 +80,33 @@ describe('T-74: city từ toạ độ', () => {
   });
 });
 
-describe('T-74: locateOnce', () => {
-  it('thành công trả toạ độ', async () => {
-    const geo = {
-      getCurrentPosition: (ok: PositionCallback) =>
-        ok({ coords: { latitude: 10.8, longitude: 106.7 } } as GeolocationPosition),
-    };
-    expect(await locateOnce(geo)).toEqual({ ok: true, lat: 10.8, lng: 106.7 });
-  });
-
-  it('từ chối quyền → denied (để UI chuyển sang tìm địa điểm)', async () => {
-    const geo = {
-      getCurrentPosition: (_: PositionCallback, err: PositionErrorCallback) =>
-        err({ code: 1 } as GeolocationPositionError),
-    };
-    expect(await locateOnce(geo)).toEqual({ ok: false, reason: 'denied' });
-  });
-
-  it('không hỗ trợ → unsupported', async () => {
-    expect(await locateOnce(undefined)).toEqual({ ok: false, reason: 'unsupported' });
-  });
-
-  it('trình duyệt im lặng quá hạn → timeout', async () => {
-    vitest.useFakeTimers();
-    const p = locateOnce({ getCurrentPosition: () => {} }, 8000);
-    vitest.advanceTimersByTime(8600);
-    expect(await p).toEqual({ ok: false, reason: 'timeout' });
-    vitest.useRealTimers();
-  });
-});
-
 describe('T-74: markup form', () => {
-  it('mặc định có avatar, đổi nhân vật, chip ngày/ngân sách, 3 lựa chọn điểm hẹn, nút tạo không disabled', () => {
+  it('mặc định có avatar, đổi nhân vật, chip ngày + thành phố, không còn điểm hẹn/ngân sách, nút tạo không disabled', () => {
     const html = renderToStaticMarkup(<CreateRoomModal isOpen onClose={() => {}} onSuccess={() => {}} />);
     for (const s of [
       vi.avatar.reroll,
       vi.room.create.today,
       vi.room.create.tomorrow,
-      vi.room.create.originHere,
-      vi.room.create.originSearch,
-      vi.room.create.originLater,
-      vi.room.create.budgetChip.under200,
-      vi.room.create.budgetChip.none,
-      vi.room.create.budgetChip.custom,
       vi.room.create.city,
+      vi.room.create.cityHcm,
+      vi.room.create.cityHn,
     ]) {
       expect(html).toContain(s);
+    }
+    for (const s of [vi.room.create.budget, vi.room.create.budgetChip.under200, 'Nhóm hẹn nhau ở đâu?']) {
+      expect(html).not.toContain(s);
     }
     expect(html).not.toMatch(/<button[^>]*type="submit"[^>]*disabled/);
   });
 
-  it('BudgetChips đánh dấu chip đang chọn; OriginPicker hiện điểm đã chọn', () => {
+  it('BudgetChips đánh dấu chip đang chọn', () => {
     const chips = renderToStaticMarkup(<BudgetChips value="to500" onChange={() => {}} />);
     expect(chips).toMatch(/aria-pressed="true"[^>]*>(?:<span>)?200–500k/);
-    const picker = renderToStaticMarkup(
-      <OriginPicker value={{ lat: 1, lng: 2, label: 'Chợ Bến Thành' }} onChange={() => {}} />,
-    );
-    expect(picker).toContain(vi.room.create.originLaterHint);
   });
 
   it('i18n: khoá mới có đủ ở cả vi và en', () => {
     expect(Object.keys(en.room.create.budgetChip).sort()).toEqual(Object.keys(vi.room.create.budgetChip).sort());
-    expect(en.room.create.originDenied).toBeTruthy();
+    expect(en.timeWindow.label).toBeTruthy();
+    expect(vi.timeWindow.label).toContain('{{range}}');
   });
 });

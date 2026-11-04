@@ -96,16 +96,6 @@ export const en: Messages = {
       today: 'Today',
       tomorrow: 'Tomorrow',
       pickDate: 'Pick a date',
-      originLabel: 'Where is the group meeting?',
-      originHere: 'Where I am now',
-      originSearch: 'Search a place',
-      originLater: 'Decide later',
-      originLocating: 'Getting location…',
-      originHereLabel: 'Your current location',
-      originChosen: 'Meeting point',
-      originDenied: "Couldn't get your location — search for a place nearby instead.",
-      originFailed: "Couldn't work out where you are — search for a place nearby instead.",
-      originLaterHint: 'No meeting point yet is fine — set it later in the room.',
       budgetCustom: 'Amount per person, whole outing (₫)',
       budgetChip: {
         under200: 'Under 200k',
@@ -952,6 +942,9 @@ export const en: Messages = {
       local: 'Saigon classics',
       chill: 'Places to linger',
     },
+  },
+  timeWindow: {
+    label: 'Group availability: {{range}}',
   },
   phase: {
     ariaLabel: 'Steps of the outing',

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatTime,
   formatTimeRange,
+  formatTimeWindow,
   formatDuration,
   formatMoney,
   formatDistance,
@@ -119,6 +120,23 @@ describe('i18n format test (chuẩn hoá Intl vi-VN / en-US)', () => {
 
       expect(formatRelative(inTwoHours, 'vi', now)).toMatch(/2 giờ/);
       expect(formatRelative(inTwoHours, 'en', now)).toBe('in 2 hours');
+    });
+  });
+
+  describe('formatTimeWindow (T-77)', () => {
+    it('VI: 24h, gạch dài', () => {
+      expect(formatTimeWindow(1080, 1320, 'vi')).toBe('18:00 – 22:00');
+      expect(formatTimeWindow(0, 720, 'vi')).toBe('00:00 – 12:00');
+    });
+    it('EN: cùng buổi gộp AM/PM, khác buổi giữ cả hai', () => {
+      expect(formatTimeWindow(1080, 1320, 'en')).toBe('6 – 10 PM');
+      expect(formatTimeWindow(660, 840, 'en')).toBe('11 AM – 2 PM');
+      expect(formatTimeWindow(1110, 1320, 'en')).toBe('6:30 – 10 PM');
+    });
+    it('EN: 00:00 là 12 AM, 12:00 là 12 PM', () => {
+      expect(formatTimeWindow(0, 180, 'en')).toBe('12 – 3 AM');
+      expect(formatTimeWindow(720, 840, 'en')).toBe('12 – 2 PM');
+      expect(formatTimeWindow(600, 720, 'en')).toBe('10 AM – 12 PM');
     });
   });
 });
