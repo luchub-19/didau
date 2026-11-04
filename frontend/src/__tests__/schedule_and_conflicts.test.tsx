@@ -8,8 +8,7 @@ import {
   useMinuteFormat,
 } from '../hooks/useMinuteFormat';
 import { TimeSlotPicker } from '../components/schedule/TimeSlotPicker';
-import { ScheduleItemCard } from '../components/schedule/ScheduleItemCard';
-import { ScheduleTimeline } from '../components/schedule/ScheduleTimeline';
+import { CalendarColumn } from '../components/schedule/CalendarColumn';
 import { AddScheduleItemModal } from '../components/schedule/AddScheduleItemModal';
 import { ConflictListModal } from '../components/conflicts/ConflictListModal';
 import { mockScheduleItems, mockPlaces, mockConflicts } from '../mocks/mockData';
@@ -89,74 +88,10 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
     });
   });
 
-  describe('3. ScheduleItemCard Component', () => {
-    const item: ScheduleItem = mockScheduleItems[0];
-
-    it('render thông tin mục lịch trình bình thường', () => {
+  describe('4. CalendarColumn (T-79, thay dòng thời gian cũ)', () => {
+    it('render lưới lịch với các mục đã xếp + nút thêm quán tạm', () => {
       const html = renderToStaticMarkup(
-        <ScheduleItemCard
-          item={item}
-          index={0}
-          totalItems={1}
-          category="DRINK"
-          isConflict={false}
-          isHost={true}
-          onDelete={() => {}}
-          onMoveUp={() => {}}
-          onMoveDown={() => {}}
-        />,
-      );
-
-      expect(html).toContain('Cà Phê Trứng 3T');
-      // Giờ bắt đầu ở cột trái, giờ kết thúc ngay dưới (DESIGN gđ5 §8)
-      expect(html).toContain('>09:00<');
-      expect(html).toContain('>10:30<');
-      expect(html).toContain('1h 30m');
-      expect(html).toContain('1A Tôn Đức Thắng, Q1');
-      expect(html).toContain('Uống cà phê sáng và ngắm tàu thuyền');
-      expect(html).toContain('data-testid="schedule-item-4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d"');
-    });
-
-    it('render cảnh báo màu đỏ khi mục lịch trình có xung đột thời gian', () => {
-      const html = renderToStaticMarkup(
-        <ScheduleItemCard
-          item={item}
-          index={0}
-          totalItems={2}
-          category="DRINK"
-          isConflict={true}
-          conflictMessages={['Trùng lặp thời gian với Cơm Tấm Ba Ghiền']}
-          isHost={true}
-        />,
-      );
-
-      expect(html).toContain('border-danger');
-      // Chip xung đột nằm ngay dưới mục, có câu mô tả; không có onFixConflict thì chưa có nút "Sửa"
-      expect(html).toContain('data-testid="item-conflict"');
-      expect(html).toContain('Xung đột');
-      expect(html).toContain('Trùng lặp thời gian với Cơm Tấm Ba Ghiền');
-      expect(html).not.toContain('data-testid="conflict-fix"');
-    });
-
-    it('chip xung đột có nút "Sửa" khi truyền onFixConflict', () => {
-      const html = renderToStaticMarkup(
-        <ScheduleItemCard
-          item={item}
-          index={0}
-          totalItems={1}
-          isConflict={true}
-          conflictMessages={['Trùng giờ']}
-          onFixConflict={() => {}}
-        />,
-      );
-      expect(html).toMatch(/data-testid="conflict-fix"[^>]*>(?:(?!<\/button>).)*Sửa/);
-    });
-  });
-
-  describe('4. ScheduleTimeline Component', () => {
-    it('render trục thời gian với danh sách các địa điểm đã xếp lịch', () => {
-      const html = renderToStaticMarkup(
-        <ScheduleTimeline
+        <CalendarColumn
           roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
           items={mockScheduleItems}
           places={mockPlaces}
@@ -165,30 +100,30 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('data-testid="schedule-list"');
-      expect(html).toContain('Xếp lịch mới');
+      expect(html).toContain('data-testid="calendar-grid"');
+      expect(html).toContain('Thêm quán vào lịch');
       expect(html).toContain('Cà Phê Trứng 3T');
-      expect(html).toContain('>09:00<');
-      // Một ngày thì không cần thanh lọc ngày
-      expect(html).not.toContain('Tất cả (1)');
+      expect(html).toContain('09:00 – 10:30');
+      // Một ngày thì không có dòng "Ngày khác"
+      expect(html).not.toContain('data-testid="calendar-other-days"');
     });
 
-    it('lịch nhiều ngày có thanh lọc ngày', () => {
+    it('mục ở ngày khác không vẽ trên lưới, chỉ có dòng "Ngày khác: N mục"', () => {
       const day2: ScheduleItem = { ...mockScheduleItems[0], id: 'day2-item', day_offset: 1 };
       const html = renderToStaticMarkup(
-        <ScheduleTimeline
+        <CalendarColumn
           roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
           items={[mockScheduleItems[0], day2]}
           places={mockPlaces}
         />,
       );
-      expect(html).toContain('Tất cả (2)');
-      expect(html).toContain('Ngày 2 (1)');
+      expect(html).toContain('Ngày khác: 1 mục');
+      expect(html).not.toContain('data-testid="calendar-event-day2-item"');
     });
 
-    it('render giao diện trống khi chưa có mục nào trong lịch trình', () => {
+    it('lịch trống: lưới vẫn vẽ, có gợi ý kéo thả và nút xếp lịch tự động', () => {
       const html = renderToStaticMarkup(
-        <ScheduleTimeline
+        <CalendarColumn
           roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
           items={[]}
           places={mockPlaces}
@@ -196,8 +131,9 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      expect(html).toContain('Chưa có lịch');
-      expect(html).toContain('Lên lịch giúp tôi');
+      expect(html).toContain('data-testid="calendar-grid"');
+      expect(html).toContain('Kéo quán đã chốt từ bên trái thả vào đây');
+      expect(html).toContain('Xếp lịch tự động');
     });
   });
 
@@ -243,82 +179,6 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
   });
 
   describe('7. T-46: Dòng thời gian, a11y sắp xếp bàn phím, qua nửa đêm & song ngữ', () => {
-    it('hiển thị nhãn "(hôm sau)" khi mục lịch trình kết thúc qua nửa đêm', () => {
-      const midnightItem: ScheduleItem = {
-        ...mockScheduleItems[0],
-        id: 'midnight-item-1',
-        start_minute: 1380, // 23:00
-        end_minute: 1470, // 00:30 next day (or 30)
-      };
-
-      const html = renderToStaticMarkup(
-        <ScheduleItemCard
-          item={midnightItem}
-          index={0}
-          totalItems={1}
-          category="DRINK"
-        />,
-      );
-
-      expect(html).toContain('>23:00<');
-      expect(html).toContain('>00:30 (hôm sau)<');
-    });
-
-    it('nút di chuyển lên/xuống có aria-label và disabled đúng vị trí đầu/cuối danh sách', () => {
-      const item: ScheduleItem = mockScheduleItems[0];
-      const html = renderToStaticMarkup(
-        <ScheduleItemCard
-          item={item}
-          index={0}
-          totalItems={3}
-          onMoveUp={() => {}}
-          onMoveDown={() => {}}
-          onDelete={() => {}}
-        />,
-      );
-
-      expect(html).toContain('aria-label="Di chuyển lên"');
-      expect(html).toContain('aria-label="Di chuyển xuống"');
-      expect(html).toContain('aria-label="Xoá khỏi lịch"');
-      // Index 0 disabled Move Up
-      expect(html).toMatch(/disabled=""[^>]*aria-label="Di chuyển lên"/);
-    });
-
-    it('ScheduleTimeline hiển thị thời gian di chuyển và khoảng trống giữa 2 mục', () => {
-      const item1: ScheduleItem = {
-        ...mockScheduleItems[0],
-        id: 'item-1',
-        place_id: mockPlaces[0].id,
-        start_minute: 540, // 09:00
-        end_minute: 600, // 10:00
-        order_index: 0,
-        day_offset: 0,
-      };
-      const item2: ScheduleItem = {
-        ...mockScheduleItems[0],
-        id: 'item-2',
-        place_id: mockPlaces[1].id,
-        start_minute: 690, // 11:30 (trống 90m = 1h 30m)
-        end_minute: 750, // 12:30
-        order_index: 1,
-        day_offset: 0,
-      };
-
-      const html = renderToStaticMarkup(
-        <ScheduleTimeline
-          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
-          items={[item1, item2]}
-          places={mockPlaces}
-          isHost={true}
-        />,
-      );
-
-      // Khoảng trống lớn hiển thị "Trống 1 giờ 30 phút"
-      expect(html).toContain('Trống 1 giờ 30 phút');
-      // Di chuyển giữa 2 điểm có toạ độ: ~3,9 km / 30 km/h = 8 phút, cùng công thức TravelTimeConflictRule
-      expect(html).toContain('8 phút di chuyển');
-    });
-
     it('AddScheduleItemModal cảnh báo ngay nếu khung giờ chọn nằm ngoài giờ mở cửa', () => {
       const placeWithHours = {
         ...mockPlaces[0],
@@ -341,23 +201,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
       expect(html).toContain('nằm ngoài giờ mở cửa');
     });
 
-    it('xung đột hiện ngay dưới mục bị trùng, không còn dải tóm tắt chung', () => {
-      const html = renderToStaticMarkup(
-        <ScheduleTimeline
-          roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
-          items={mockScheduleItems}
-          places={mockPlaces}
-          conflicts={mockConflicts}
-        />,
-      );
-
-      expect(html).not.toContain('data-testid="schedule-conflicts-summary"');
-      expect(html).not.toContain('1 vấn đề trong lịch');
-      expect(html).toContain('data-testid="item-conflict"');
-      expect(html).toContain('data-testid="conflict-fix"');
-    });
-
-    it('V6: xung đột của một cặp chỉ hiện câu mô tả ở thẻ sau, cả 2 thẻ đều có huy hiệu', () => {
+    it('ô có xung đột: viền danger + icon, câu mô tả nằm trong nhãn của ô (popup T-81 hiện đầy đủ)', () => {
       const second: ScheduleItem = {
         ...mockScheduleItems[0],
         id: '5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e',
@@ -368,7 +212,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         note: null,
       };
       const html = renderToStaticMarkup(
-        <ScheduleTimeline
+        <CalendarColumn
           roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
           items={[second, mockScheduleItems[0]]}
           places={mockPlaces}
@@ -376,13 +220,12 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         />,
       );
 
-      // Chip "Xung đột" dưới cả 2 thẻ, nhưng chỉ chip của thẻ sau có câu mô tả
-      expect(html.match(/data-testid="item-conflict"/g)?.length).toBe(2);
-      expect(html.match(/leading-snug">[^<]+<\/p>/g)?.length).toBe(1);
-      // Câu mô tả nằm sau tên quán thứ hai (thẻ sau)
-      const secondName = html.indexOf('Cơm Tấm Ba Ghiền</h4>');
-      expect(secondName).toBeGreaterThan(-1);
-      expect(html.indexOf('leading-snug">')).toBeGreaterThan(secondName);
+      expect(html.match(/data-conflict="true"/g)?.length).toBe(2);
+      expect(html).toContain('outline-danger');
+      // Chip tổng ở đầu cột
+      expect(html).toContain('data-testid="calendar-conflicts"');
+      expect(html).toContain('1 xung đột');
+      expect(html).toMatch(/aria-label="Cơm Tấm Ba Ghiền, 10:00 – 11:30\. [^"]*trùng giờ/);
     });
 
     it('T-56: thanh công cụ không chen câu giải thích khi chưa đủ điều kiện lên lịch tự động', () => {
@@ -394,7 +237,7 @@ describe('T-21: Frontend UI - Drag-and-Drop Schedule Builder & Conflict Alert Ba
         downvotes: 0,
       }));
       const html = renderToStaticMarkup(
-        <ScheduleTimeline
+        <CalendarColumn
           roomId="c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21"
           items={mockScheduleItems}
           places={notEligiblePlaces}

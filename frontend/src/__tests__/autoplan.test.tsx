@@ -10,7 +10,7 @@ import {
   shouldShowAutoPlanButton,
 } from '../components/schedule/AutoPlanButton';
 import { AutoPlanPreview } from '../components/schedule/AutoPlanPreview';
-import { ScheduleTimeline } from '../components/schedule/ScheduleTimeline';
+import { CalendarColumn } from '../components/schedule/CalendarColumn';
 import {
   coordinatesToRouteGeoJSON,
   installRouteLayer,
@@ -330,7 +330,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
     });
   });
 
-  describe('5. RouteLayer & ScheduleTimeline Tích hợp', () => {
+  describe('5. RouteLayer & CalendarColumn Tích hợp', () => {
     it('coordinatesToRouteGeoJSON sinh GeoJSON LineString hợp lệ khi có >= 2 điểm', () => {
       const coords: [number, number][] = [
         [106.69, 10.78],
@@ -387,7 +387,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       }));
     });
 
-    it('ScheduleTimeline hiển thị nút "Xếp lại tự động" khi danh sách lịch không rỗng', () => {
+    it('CalendarColumn hiển thị nút "Xếp lại tự động" khi danh sách lịch không rỗng', () => {
       const sampleItem: ScheduleItem = {
         id: 'item-1',
         room_id: mockRoom.id,
@@ -402,7 +402,7 @@ describe('T-36: Frontend "✨ Lên lịch giúp tôi"', () => {
       };
 
       const html = renderToStaticMarkup(
-        <ScheduleTimeline
+        <CalendarColumn
           roomId={mockRoom.id}
           items={[sampleItem]}
           places={mockPlaces}

@@ -13,7 +13,7 @@ import {
 } from '../room/budget';
 import { isOverBudget } from '../room/placeView';
 import { remainingBudget } from '../room/discovery';
-import { BudgetMeter, LockedPlaces, ScheduleTimeline } from '../components/schedule';
+import { BudgetMeter, CalendarColumn, LockedPlaces } from '../components/schedule';
 import { buildScheduleIcs, foldIcsLine } from '../stage/reveal/actions';
 import { mockPlaces, mockRoom, mockScheduleItems } from '../mocks/mockData';
 import { vi } from '../i18n/locales/vi';
@@ -297,7 +297,7 @@ describe('T-73: chân cột Kế hoạch', () => {
   };
 
   it('có lịch + room: nút chính "Gửi kế hoạch cho nhóm", "Thêm vào lịch", "Xếp lại tự động"', () => {
-    const html = renderToStaticMarkup(<ScheduleTimeline {...props} room={mockRoom} />);
+    const html = renderToStaticMarkup(<CalendarColumn {...props} room={mockRoom} />);
     expect(html).toContain('data-testid="send-plan-btn"');
     expect(html).toContain('Gửi kế hoạch cho nhóm');
     expect(html).toContain('data-testid="add-to-calendar-btn"');
@@ -305,10 +305,12 @@ describe('T-73: chân cột Kế hoạch', () => {
     expect(html).toContain('data-testid="budget-meter"');
   });
 
-  it('chưa có lịch: không có chân cột, nút chính là xếp lịch tự động', () => {
-    const html = renderToStaticMarkup(<ScheduleTimeline {...props} items={[]} room={mockRoom} />);
+  it('chưa có lịch (bước ③): chân cột chỉ còn nút "Xếp lịch tự động"', () => {
+    const html = renderToStaticMarkup(<CalendarColumn {...props} items={[]} room={mockRoom} />);
     expect(html).not.toContain('data-testid="plan-footer"');
-    expect(html).toContain('Lên lịch giúp tôi');
+    expect(html).toContain('data-testid="plan-footer-empty"');
+    expect(html).not.toContain('data-testid="send-plan-btn"');
+    expect(html).toContain('Xếp lịch tự động');
   });
 });
 

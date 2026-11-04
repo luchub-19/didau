@@ -121,6 +121,10 @@
   --ws-plan-rail: 72px;      /* cột Kế hoạch thu gọn */
   --ws-plan-open: 440px;     /* cột Kế hoạch mở / ngăn kéo 1024–1279 */
   --ws-detail: 440px;        /* panel chi tiết quán nổi trên bản đồ, 1024–1279 */
+
+  /* ===== Lịch chung (giai đoạn 6, docs/phase6/DESIGN.md §3) ===== */
+  --cal-hour: 64px;          /* 1 giờ trên lưới (15' = 16px); khớp PX_PER_MIN trong room/calendar.ts */
+  --cal-stripe: rgb(var(--color-line) / 0.55); /* sọc chéo vùng ngoài khung giờ */
 }
 
 @media (min-width: 1280px) {
@@ -141,6 +145,17 @@
 
 .ws-plan .sm\:flex-nowrap {
   flex-wrap: wrap;
+}
+
+/* Lịch (gđ6 §3): vùng ngoài khung giờ của phòng tô sọc chéo nhạt; đang kéo thì cả trang giữ con trỏ "nắm" */
+.cal-outside {
+  background-image: repeating-linear-gradient(135deg, var(--cal-stripe) 0 1px, transparent 1px 8px);
+}
+
+.cal-dragging,
+.cal-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
 }
 
 /* Chế độ tối (DESIGN.md §2, T-54) */
