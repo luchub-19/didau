@@ -965,6 +965,7 @@ export const en: Messages = {
   hero: {
     sectionLabel: 'Intro: one evening in central Ho Chi Minh City',
     posterAlt: 'Aerial map of central Ho Chi Minh City in the late afternoon sun',
+    globeLoading: 'Building the 3D map…',
     skip: 'Skip intro',
     planLabel: 'Sample plan for one evening',
     pinLabel: '{{stop}}: {{name}}, show time and address',

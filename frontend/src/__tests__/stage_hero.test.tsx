@@ -243,3 +243,24 @@ describe('T-59: mức chuyển động → thành phần hero', () => {
     expect(html).toContain('Nhập mã');
   });
 });
+
+describe('T-83: quả địa cầu tải bản đồ', () => {
+  afterEach(() => setMotionOverride(null));
+
+  it('có globe khi loading (mức full/lite), dòng trạng thái VI/EN', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    const html = renderToStaticMarkup(<HeroGlobe state="loading" delayMs={0} tier="lite" />);
+    expect(html).toContain('data-hero-globe');
+    expect(html).toContain('role="status"');
+    expect(html).toContain(i18n.t('hero.globeLoading', { lng: 'vi' }));
+    expect(i18n.t('hero.globeLoading', { lng: 'en' })).toBe('Building the 3D map…');
+  });
+
+  it('không có globe khi ready/failed, trước 300 ms, hoặc mức static', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    expect(renderToStaticMarkup(<HeroGlobe state="ready" delayMs={0} tier="lite" />)).toContain('data-hero-globe'); // đang mờ dần
+    expect(renderToStaticMarkup(<HeroGlobe state="failed" delayMs={0} tier="lite" />)).not.toContain('data-hero-globe');
+    expect(renderToStaticMarkup(<HeroGlobe state="loading" tier="lite" />)).not.toContain('data-hero-globe');
+    expect(renderToStaticMarkup(<HeroGlobe state="loading" delayMs={0} tier="static" />)).not.toContain('data-hero-globe');
+  });
+});

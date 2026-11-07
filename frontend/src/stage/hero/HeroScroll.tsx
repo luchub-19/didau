@@ -9,6 +9,7 @@ import { useGSAP } from '@gsap/react';
 import { duration, easing, getTimeScale, motionAttrs, resolvePreset, stageLog } from '../../motion';
 import { HeroActions, type HeroActionsProps } from './HeroActions';
 import { HeroCaption } from './HeroCaption';
+import { HeroGlobe } from './HeroGlobe';
 import { HeroPoster } from './HeroPoster';
 import type { HeroMapHandle } from './HeroMap';
 import { cameraAt, duskAt, HERO_SHOTS, reachedStops, routeProgressAt, shotIndexAt, type HeroShot } from './shots';
@@ -208,6 +209,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
           </div>
         )}
 
+        <HeroGlobe state={mapState} tier={tier} />
         <div ref={sunlightRef} aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'var(--stage-sunlight)' }} />
       </div>
     </section>
