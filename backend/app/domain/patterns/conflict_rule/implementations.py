@@ -1,4 +1,3 @@
-import math
 from collections import defaultdict
 from difflib import SequenceMatcher
 from typing import Any
@@ -11,7 +10,11 @@ from app.domain.patterns.conflict_rule.rule import (
     IConflictRule,
     PlaceVoteSummary,
 )
-from app.domain.patterns.itinerary.travel import ITravelTimeEstimator, haversine_distance_km
+from app.domain.patterns.itinerary.travel import (
+    ITravelTimeEstimator,
+    get_travel_estimator,
+    haversine_distance_km,
+)
 
 
 def format_minute(minute: int) -> str:
@@ -128,19 +131,15 @@ class TravelTimeConflictRule(IConflictRule):
     """Quy tắc kiểm tra thời gian di chuyển giữa 2 địa điểm liên tiếp (TRAVEL_TIME).
 
     Báo WARNING nếu khoảng thời gian giữa 2 địa điểm liên tiếp bé hơn thời gian di chuyển
-    ước tính dựa trên khoảng cách tọa độ Haversine.
+    ước tính của estimator chung (`Leg.minutes`, không gồm gửi xe).
     """
 
-    def __init__(
-        self,
-        average_speed_kmh: float = 30.0,
-        estimator: ITravelTimeEstimator | None = None,
-    ) -> None:
-        """Khởi tạo luật di chuyển với vận tốc trung bình (mặc định 30 km/h trong đô thị).
+    def __init__(self, estimator: ITravelTimeEstimator | None = None) -> None:
+        """Dùng estimator chung của backend (`get_travel_estimator()`, xe máy 25 km/h) trừ khi truyền riêng.
 
-        Nếu truyền `estimator` thì dùng nó thay cho công thức Haversine / vận tốc.
+        Từ T-84 không còn tham số vận tốc riêng: một nguồn thời gian di chuyển duy nhất (ALGORITHMS §2).
+        Luật cảnh báo (gap < thời gian đi) giữ nguyên, T-87 sẽ đổi sang eta + biên + gửi xe.
         """
-        self.average_speed_kmh = max(1.0, average_speed_kmh)
         self.estimator = estimator
 
     @property
@@ -151,6 +150,7 @@ class TravelTimeConflictRule(IConflictRule):
         results: list[ConflictResult] = []
         if not context.schedule_items or len(context.schedule_items) < 2:
             return results
+        estimator = self.estimator or get_travel_estimator()
 
         # Gom nhóm và sắp xếp các mục lịch trình theo ngày và thứ tự thời gian
         items_by_day: dict[int, list[dict[str, Any]]] = defaultdict(list)
@@ -203,23 +203,12 @@ class TravelTimeConflictRule(IConflictRule):
                 if lat_curr is None or lon_curr is None or lat_next is None or lon_next is None:
                     continue
 
-                distance_km = haversine_distance_km(
-                    float(lat_curr),
-                    float(lon_curr),
-                    float(lat_next),
-                    float(lon_next),
+                leg = estimator.leg(
+                    (float(lat_curr), float(lon_curr)),
+                    (float(lat_next), float(lon_next)),
                 )
-
-                # Ước tính số phút di chuyển = (khoảng cách / vận tốc) * 60 (làm tròn lên)
-                if self.estimator is not None:
-                    estimated_travel_minutes = self.estimator.minutes(
-                        (float(lat_curr), float(lon_curr)),
-                        (float(lat_next), float(lon_next)),
-                    )
-                else:
-                    estimated_travel_minutes = math.ceil(
-                        (distance_km / self.average_speed_kmh) * 60.0
-                    )
+                distance_km = leg.distance_km
+                estimated_travel_minutes = leg.minutes
 
                 # Nếu khoảng cách > 0 và thời gian nghỉ giữa 2 chặng < thời gian di chuyển ước tính
                 if estimated_travel_minutes > 0 and gap_minutes < estimated_travel_minutes:

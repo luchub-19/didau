@@ -1,0 +1,711 @@
+{
+ "_meta": {
+  "version": 1,
+  "purpose": "Ví dụ chung backend + frontend cho Algorithm Engine gđ6 (ALGORITHMS.md). Hai bên chạy cùng file này và phải ra cùng số. Backend: backend/tests/unit/test_algo_fixtures.py. Frontend (T-85+): room/travel.ts.",
+  "source": "docs/proposal/HangoutplannerFPT_Algorithm_Engine_Proposal.docx (toạ độ minh hoạ, ma trận giả lập, ca slack, ca xếp ưu tiên) + ALGORITHMS.md §2–§6.",
+  "constants": {
+   "DETOUR_FACTOR": 1.3,
+   "MOTORBIKE_KMH": 25,
+   "BUFFER_MIN": 5,
+   "TIE_THRESHOLD_MIN": 2,
+   "MARGIN_MIN": 5,
+   "PEAK_MARGIN_RATIO": 0.5,
+   "OFFPEAK_MARGIN_RATIO": 0.25,
+   "PEAK_START_MIN": 990,
+   "PEAK_END_MIN": 1170,
+   "DEFAULT_ACTIVITY_MIN": 60,
+   "HIGH_RISK_SLACK_MIN": -30,
+   "SCHEDULE_SAFE_SLACK_MIN": 30
+  },
+  "tolerance": {
+   "distance_km": 0.001,
+   "center_deg": 0.0005
+  },
+  "notes": [
+   "Ma trận thời gian ở tie_break/priority là DỮ LIỆU GIẢ LẬP của tài liệu, không phải kết quả định tuyến thật.",
+   "Biên giờ cao điểm 16:30 và 19:30 chưa có ca kiểm vì tài liệu không nói đầu/cuối có tính hay không; T-87 chọn [16:30, 19:30) và ghi lại.",
+   "Thứ Hai–Sáu: 2026-11-09 là thứ Hai; 2026-11-07 là thứ Bảy."
+  ]
+ },
+ "points": {
+  "bao": {
+   "label": "Bảo — ĐH Khoa học Tự nhiên, Q5",
+   "lat": 10.7626,
+   "lng": 106.682
+  },
+  "nam": {
+   "label": "Nam — Landmark 81, Bình Thạnh",
+   "lat": 10.795,
+   "lng": 106.7218
+  },
+  "linh": {
+   "label": "Linh — AEON Mall Tân Phú",
+   "lat": 10.8015,
+   "lng": 106.6185
+  },
+  "ben_thanh": {
+   "label": "Chợ Bến Thành",
+   "lat": 10.7725,
+   "lng": 106.698
+  },
+  "nha_tho": {
+   "label": "Nhà thờ Đức Bà",
+   "lat": 10.7798,
+   "lng": 106.6992
+  }
+ },
+ "estimate": [
+  {
+   "id": "same-point",
+   "from": "bao",
+   "to": "bao",
+   "expect": {
+    "minutes": 0,
+    "distance_km": 0.0,
+    "source": "ESTIMATE"
+   }
+  },
+  {
+   "id": "short-hop",
+   "from": "ben_thanh",
+   "to": "nha_tho",
+   "expect": {
+    "minutes": 3,
+    "distance_km": 1.069,
+    "source": "ESTIMATE"
+   },
+   "why": "0,82 km chim bay × 1,3 = 1,07 km → 2,57' → làm tròn lên 3"
+  },
+  {
+   "id": "bao-nam",
+   "from": "bao",
+   "to": "nam",
+   "expect": {
+    "minutes": 18,
+    "distance_km": 7.34,
+    "source": "ESTIMATE"
+   }
+  },
+  {
+   "id": "bao-linh",
+   "from": "bao",
+   "to": "linh",
+   "expect": {
+    "minutes": 26,
+    "distance_km": 10.627,
+    "source": "ESTIMATE"
+   }
+  },
+  {
+   "id": "nam-linh",
+   "from": "nam",
+   "to": "linh",
+   "expect": {
+    "minutes": 36,
+    "distance_km": 14.698,
+    "source": "ESTIMATE"
+   }
+  },
+  {
+   "id": "north-1km",
+   "from": {
+    "lat": 10.7626,
+    "lng": 106.682
+   },
+   "to": {
+    "lat": 10.771595,
+    "lng": 106.682
+   },
+   "expect": {
+    "minutes": 4,
+    "distance_km": 1.3,
+    "source": "ESTIMATE"
+   },
+   "why": "đúng 1 km chim bay → 1,3 km → 3,12' → 4 (làm tròn lên)"
+  }
+ ],
+ "group_center": {
+  "algo": "ALGO-01 (§3): tâm trên mặt cầu, w=1",
+  "members": [
+   "bao",
+   "nam",
+   "linh"
+  ],
+  "expect": {
+   "lat": 10.7864,
+   "lng": 106.6741,
+   "member_count": 3
+  },
+  "min_members": 2
+ },
+ "tie_break": {
+  "doc_case": {
+   "id": "TC-04",
+   "algo": "ALGO-02 (§4)",
+   "members": [
+    "bao",
+    "nam",
+    "linh"
+   ],
+   "places": [
+    {
+     "id": "dinh_doc_lap",
+     "name": "Dinh Độc Lập",
+     "upvotes": 7,
+     "created_order": 0,
+     "minutes": [
+      14,
+      19,
+      32
+     ]
+    },
+    {
+     "id": "saigon_centre",
+     "name": "Saigon Centre",
+     "upvotes": 7,
+     "created_order": 1,
+     "minutes": [
+      18,
+      14,
+      28
+     ]
+    },
+    {
+     "id": "van_hanh_mall",
+     "name": "Vạn Hạnh Mall",
+     "upvotes": 7,
+     "created_order": 2,
+     "minutes": [
+      12,
+      25,
+      20
+     ]
+    }
+   ],
+   "distance_km": {
+    "dinh_doc_lap": [
+     1,
+     1,
+     1
+    ],
+    "saigon_centre": [
+     1,
+     1,
+     1
+    ],
+    "van_hanh_mall": [
+     1,
+     1,
+     1
+    ]
+   },
+   "expect": {
+    "S": {
+     "dinh_doc_lap": 65,
+     "saigon_centre": 60,
+     "van_hanh_mall": 57
+    },
+    "M": {
+     "dinh_doc_lap": 32,
+     "saigon_centre": 28,
+     "van_hanh_mall": 25
+    },
+    "ranking": [
+     "van_hanh_mall",
+     "saigon_centre",
+     "dinh_doc_lap"
+    ],
+    "recommended_place_id": "van_hanh_mall",
+    "margin_vs_second_min": 3
+   }
+  },
+  "threshold_not_transitive": {
+   "id": "ALGO-02-threshold",
+   "note": "S = 60/62/64, ngưỡng 2: 60~62 và 62~64 nhưng 60≁64. C={60,62} → chọn M nhỏ nhất → p62 (M 30). Cài sai theo kiểu bắc cầu sẽ gom cả p64 (M 22) và chọn nhầm nó. Phần còn lại {p60,p64}: min S=60, C={p60} → hạng 2 p60, hạng 3 p64. Vì vậy KHÔNG dùng sort với so sánh có ngưỡng.",
+   "members": [
+    "a",
+    "b",
+    "c"
+   ],
+   "places": [
+    {
+     "id": "p60",
+     "upvotes": 5,
+     "created_order": 0,
+     "minutes": [
+      10,
+      10,
+      40
+     ],
+     "distance_km": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "id": "p62",
+     "upvotes": 5,
+     "created_order": 1,
+     "minutes": [
+      16,
+      16,
+      30
+     ],
+     "distance_km": [
+      3,
+      3,
+      3
+     ]
+    },
+    {
+     "id": "p64",
+     "upvotes": 5,
+     "created_order": 2,
+     "minutes": [
+      22,
+      21,
+      21
+     ],
+     "distance_km": [
+      3,
+      3,
+      3
+     ]
+    }
+   ],
+   "expect": {
+    "S": {
+     "p60": 60,
+     "p62": 62,
+     "p64": 64
+    },
+    "M": {
+     "p60": 40,
+     "p62": 30,
+     "p64": 22
+    },
+    "ranking": [
+     "p62",
+     "p60",
+     "p64"
+    ]
+   }
+  },
+  "tie_break_by_distance_then_created": {
+   "id": "ALGO-02-ties",
+   "note": "S và M bằng nhau → D nhỏ nhất; D bằng nhau nữa → quán thêm sớm hơn (created_order nhỏ).",
+   "members": [
+    "a",
+    "b"
+   ],
+   "places": [
+    {
+     "id": "far",
+     "upvotes": 3,
+     "created_order": 0,
+     "minutes": [
+      10,
+      10
+     ],
+     "distance_km": [
+      5,
+      5
+     ]
+    },
+    {
+     "id": "near_late",
+     "upvotes": 3,
+     "created_order": 2,
+     "minutes": [
+      10,
+      10
+     ],
+     "distance_km": [
+      4,
+      4
+     ]
+    },
+    {
+     "id": "near_early",
+     "upvotes": 3,
+     "created_order": 1,
+     "minutes": [
+      10,
+      10
+     ],
+     "distance_km": [
+      4,
+      4
+     ]
+    }
+   ],
+   "expect": {
+    "ranking": [
+     "near_early",
+     "near_late",
+     "far"
+    ]
+   }
+  }
+ },
+ "margin": {
+  "algo": "ALGO-03 (§5) biên dự phòng = max(MARGIN_MIN, ceil(eta × tỉ lệ))",
+  "cases": [
+   {
+    "id": "weekday-peak",
+    "eta_min": 12,
+    "end_curr_min": 1080,
+    "date": "2026-11-09",
+    "expect_margin": 6,
+    "why": "18:00 thứ Hai, trong giờ cao điểm → ceil(12 × 0,5)"
+   },
+   {
+    "id": "weekday-offpeak",
+    "eta_min": 12,
+    "end_curr_min": 1230,
+    "date": "2026-11-09",
+    "expect_margin": 5,
+    "why": "20:30 ngoài giờ cao điểm → ceil(12 × 0,25)=3 → sàn 5"
+   },
+   {
+    "id": "weekend-peak-hours",
+    "eta_min": 12,
+    "end_curr_min": 1080,
+    "date": "2026-11-07",
+    "expect_margin": 5,
+    "why": "18:00 thứ Bảy: không tính cao điểm → 3 → sàn 5"
+   },
+   {
+    "id": "offpeak-large-eta",
+    "eta_min": 40,
+    "end_curr_min": 1230,
+    "date": "2026-11-09",
+    "expect_margin": 10
+   },
+   {
+    "id": "peak-large-eta",
+    "eta_min": 41,
+    "end_curr_min": 1000,
+    "date": "2026-11-09",
+    "expect_margin": 21,
+    "why": "16:40 thứ Hai; ceil(20,5)=21"
+   },
+   {
+    "id": "min-floor",
+    "eta_min": 1,
+    "end_curr_min": 1000,
+    "date": "2026-11-09",
+    "expect_margin": 5
+   }
+  ]
+ },
+ "slack": {
+  "algo": "ALGO-03 (§5) cho một cặp mục liên tiếp: required = eta + margin + BUFFER_MIN; slack = gap − required",
+  "cases": [
+   {
+    "id": "doc-why-example",
+    "gap_min": 15,
+    "eta_min": 12,
+    "margin_min": 6,
+    "expect": {
+     "required_min": 23,
+     "slack_min": -8,
+     "risk": "SOFT_CONFLICT"
+    },
+    "why": "Ví dụ 'Vì sao?' §7: đi 12' + dự phòng 6' + gửi xe 5' = 23', khe 15' → thiếu 8'"
+   },
+   {
+    "id": "safe-exact",
+    "gap_min": 23,
+    "eta_min": 12,
+    "margin_min": 6,
+    "expect": {
+     "required_min": 23,
+     "slack_min": 0,
+     "risk": "SAFE"
+    }
+   },
+   {
+    "id": "high-risk",
+    "gap_min": 10,
+    "eta_min": 12,
+    "margin_min": 6,
+    "expect": {
+     "required_min": 23,
+     "slack_min": -13,
+     "risk": "HIGH_RISK"
+    },
+    "why": "gap < eta: thiếu cả thời gian đi thường"
+   },
+   {
+    "id": "gap-equals-eta",
+    "gap_min": 12,
+    "eta_min": 12,
+    "margin_min": 6,
+    "expect": {
+     "required_min": 23,
+     "slack_min": -11,
+     "risk": "SOFT_CONFLICT"
+    }
+   }
+  ],
+  "feasibility": {
+   "id": "plan-total",
+   "window": {
+    "start_minute": 1020,
+    "end_minute": 1380
+   },
+   "durations_min": [
+    60,
+    60,
+    60
+   ],
+   "legs": [
+    {
+     "eta": 12,
+     "margin": 6
+    },
+    {
+     "eta": 12,
+     "margin": 6
+    }
+   ],
+   "expect": {
+    "required_total_min": 226,
+    "buffer_total_min": 134,
+    "is_feasible": true
+   }
+  },
+  "doc_tc05_tc06": {
+   "note": "Ca tài liệu §3 ALGO-03 tính theo TỔNG nhu cầu hoạt động (ăn 40 + dự phòng 17 + gửi xe 3 = 60), không theo công thức cặp mục ở trên; dùng cho kiểm phân loại mức từ (gap, required, eta).",
+   "cases": [
+    {
+     "id": "TC-05",
+     "gap_min": 30,
+     "required_min": 60,
+     "eta_min": 17,
+     "expect": {
+      "slack_min": -30,
+      "risk": "SOFT_CONFLICT"
+     }
+    },
+    {
+     "id": "TC-06",
+     "gap_min": 70,
+     "required_min": 60,
+     "eta_min": 17,
+     "expect": {
+      "slack_min": 10,
+      "risk": "SAFE"
+     }
+    }
+   ]
+  }
+ },
+ "priority": {
+  "algo": "ALGO-04 (§6)",
+  "required_cases": [
+   {
+    "id": "weekday-peak-start",
+    "room": {
+     "start_minute": 1020,
+     "end_minute": 1380,
+     "date": "2026-11-09"
+    },
+    "open_minute": 1200,
+    "close_minute": 1380,
+    "max_eta_min": 20,
+    "expect": {
+     "available_min": 180,
+     "margin_min": 10,
+     "required_min": 95,
+     "slack_min": 85,
+     "risk": "SAFE"
+    }
+   },
+   {
+    "id": "weekend",
+    "room": {
+     "start_minute": 1020,
+     "end_minute": 1380,
+     "date": "2026-11-07"
+    },
+    "open_minute": 1200,
+    "close_minute": 1380,
+    "max_eta_min": 20,
+    "expect": {
+     "available_min": 180,
+     "margin_min": 5,
+     "required_min": 90,
+     "slack_min": 90,
+     "risk": "SAFE"
+    }
+   },
+   {
+    "id": "opens-late-soft",
+    "room": {
+     "start_minute": 1020,
+     "end_minute": 1380,
+     "date": "2026-11-07"
+    },
+    "open_minute": 1320,
+    "close_minute": 1380,
+    "max_eta_min": 20,
+    "expect": {
+     "available_min": 60,
+     "margin_min": 5,
+     "required_min": 90,
+     "slack_min": -30,
+     "risk": "SOFT_CONFLICT"
+    }
+   },
+   {
+    "id": "closed-high",
+    "room": {
+     "start_minute": 1020,
+     "end_minute": 1380,
+     "date": "2026-11-07"
+    },
+    "open_minute": 480,
+    "close_minute": 960,
+    "max_eta_min": 10,
+    "expect": {
+     "available_min": 0,
+     "risk": "HIGH_RISK"
+    }
+   },
+   {
+    "id": "very-short-high",
+    "room": {
+     "start_minute": 1020,
+     "end_minute": 1380,
+     "date": "2026-11-07"
+    },
+    "open_minute": 1350,
+    "close_minute": 1380,
+    "max_eta_min": 20,
+    "expect": {
+     "available_min": 30,
+     "margin_min": 5,
+     "required_min": 90,
+     "slack_min": -60,
+     "risk": "HIGH_RISK"
+    }
+   }
+  ],
+  "ordering_cases": [
+   {
+    "id": "TC-08",
+    "note": "Dinh Độc Lập nhiều phiếu nhất nhưng thiếu 30' (SOFT) → xuống cuối nhóm khả thi.",
+    "places": [
+     {
+      "id": "van_hanh_mall",
+      "upvotes": 10,
+      "slack_min": 15,
+      "risk": "SAFE",
+      "max_eta_min": 25,
+      "created_order": 0
+     },
+     {
+      "id": "saigon_centre",
+      "upvotes": 8,
+      "slack_min": 20,
+      "risk": "SAFE",
+      "max_eta_min": 28,
+      "created_order": 1
+     },
+     {
+      "id": "dinh_doc_lap",
+      "upvotes": 12,
+      "slack_min": -30,
+      "risk": "SOFT_CONFLICT",
+      "max_eta_min": 32,
+      "created_order": 2
+     }
+    ],
+    "expect": {
+     "order": [
+      "van_hanh_mall",
+      "saigon_centre",
+      "dinh_doc_lap"
+     ],
+     "labels": {
+      "van_hanh_mall": [
+       "RECOMMENDED"
+      ],
+      "saigon_centre": [],
+      "dinh_doc_lap": [
+       "MOST_VOTED_RISKY"
+      ]
+     }
+    }
+   },
+   {
+    "id": "TC-07",
+    "note": "Cùng phiếu, cùng slack, cùng max_eta → giữ thứ tự thêm quán (created_order).",
+    "places": [
+     {
+      "id": "second",
+      "upvotes": 4,
+      "slack_min": 10,
+      "risk": "SAFE",
+      "max_eta_min": 15,
+      "created_order": 1
+     },
+     {
+      "id": "third",
+      "upvotes": 4,
+      "slack_min": 10,
+      "risk": "SAFE",
+      "max_eta_min": 15,
+      "created_order": 2
+     },
+     {
+      "id": "first",
+      "upvotes": 4,
+      "slack_min": 10,
+      "risk": "SAFE",
+      "max_eta_min": 15,
+      "created_order": 0
+     }
+    ],
+    "expect": {
+     "order": [
+      "first",
+      "second",
+      "third"
+     ]
+    }
+   },
+   {
+    "id": "same-risk-same-votes-more-slack-first",
+    "note": "Cùng rủi ro, cùng phiếu: slack lớn hơn trước (tài liệu §3 ALGO-04). Nhãn cho ca hoà phiếu chưa chốt nên không kiểm.",
+    "places": [
+     {
+      "id": "tight",
+      "upvotes": 6,
+      "slack_min": 5,
+      "risk": "SAFE",
+      "max_eta_min": 10,
+      "created_order": 0
+     },
+     {
+      "id": "roomy",
+      "upvotes": 6,
+      "slack_min": 40,
+      "risk": "SAFE",
+      "max_eta_min": 10,
+      "created_order": 1
+     }
+    ],
+    "expect": {
+     "order": [
+      "roomy",
+      "tight"
+     ]
+    }
+   }
+  ]
+ }
+}

@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Trần số lần gọi Google Text Search mỗi ngày (miễn phí, chặn để phòng lạm dụng)
     GOOGLE_MATCH_DAILY_LIMIT: int = 1000
 
+    # Trần số phần tử Routes API `computeRouteMatrix` mỗi ngày (T-84); quá trần → ước lượng
+    GOOGLE_ROUTES_DAILY_LIMIT: int = 1000
+
     # Thư mục chứa snapshot POI (pois_*.json.gz); rỗng = backend/app/data
     POI_DATA_DIR: str = ""
 

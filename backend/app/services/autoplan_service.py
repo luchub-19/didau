@@ -10,6 +10,7 @@ from app.domain.patterns.itinerary import (
     HeuristicItineraryPlanner,
     PlanConstraints,
     PlannedSlot,
+    get_travel_estimator,
     select_candidates,
 )
 from app.domain.patterns.tie_break.strategy import PlaceVoteSummary
@@ -39,7 +40,7 @@ class AutoPlanService:
         self.place_repo = place_repo
         self.vote_repo = vote_repo
         self.schedule_service = schedule_service
-        self.planner = planner or HeuristicItineraryPlanner()
+        self.planner = planner or HeuristicItineraryPlanner(get_travel_estimator())
 
     def _build_place_vote_summaries(
         self,

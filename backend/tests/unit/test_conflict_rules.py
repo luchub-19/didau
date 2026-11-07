@@ -216,7 +216,7 @@ def test_travel_time_empty_or_single(base_context):
 
 
 def test_travel_time_sufficient_gap(base_context):
-    rule = TravelTimeConflictRule(average_speed_kmh=30.0)
+    rule = TravelTimeConflictRule()
     # 2 địa điểm cách nhau khoảng 1 km (~2 phút di chuyển), gap là 30 phút
     # Tọa độ Q1 TP.HCM cách nhau ~1km
     p1 = create_place(name="Bưu điện TP", latitude=10.7797, longitude=106.6999)
@@ -236,7 +236,7 @@ def test_travel_time_sufficient_gap(base_context):
 
 
 def test_travel_time_insufficient_gap_triggers_warning(base_context):
-    rule = TravelTimeConflictRule(average_speed_kmh=30.0)
+    rule = TravelTimeConflictRule()
     # Tọa độ Quận 1 đến Quận 9 (cách nhau ~15 km).
     # Với vận tốc 30 km/h cần ~30 phút di chuyển.
     # Nhưng gap thời gian chỉ có 5 phút (kết thúc 10:00, bắt đầu 10:05).
@@ -276,7 +276,7 @@ def test_travel_time_overlapping_items_skipped(base_context):
     item2 = create_schedule_item(place_id=p2.place_id, start_minute=1140, end_minute=1230)
     base_context.schedule_items = [item1, item2]
 
-    assert TravelTimeConflictRule(average_speed_kmh=30.0).evaluate(base_context) == []
+    assert TravelTimeConflictRule().evaluate(base_context) == []
     overlap = TimeOverlapConflictRule().evaluate(base_context)
     assert [c.rule_code for c in overlap] == ["TIME_OVERLAP"]
 
@@ -645,7 +645,7 @@ def test_cr06_all_rules_generate_valid_params(base_context):
     sched2 = create_schedule_item(place_id=p_loc2.place_id, start_minute=605, end_minute=700, order_index=2)  # gap = 5 min
     base_context.schedule_items = [sched1, sched2]
 
-    travel_results = TravelTimeConflictRule(average_speed_kmh=30.0).evaluate(base_context)
+    travel_results = TravelTimeConflictRule().evaluate(base_context)
     assert len(travel_results) == 1
     p_travel = travel_results[0].params
     assert p_travel["from_item_id"] == str(sched1["id"])
