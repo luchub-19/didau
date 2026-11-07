@@ -298,3 +298,86 @@ export function addToCalendarSlot(
   const lastEnd = items.filter(onFirstDay).reduce((m, i) => Math.max(m, i.end_minute), grid.start);
   return dropSlot(snapUp(lastEnd), grid, duration);
 }
+
+// ── Form sửa giờ + ghi chú trong popup ô (T-81, DESIGN gđ6 §4) ──────────────────────────────────────
+
+/** Ghi chú tối đa (ký tự); backend cũng chặn ở 500. */
+export const NOTE_MAX = 500;
+/** Đếm ký tự ghi chú chỉ hiện khi dài hơn mức này. */
+export const NOTE_COUNTER_FROM = 400;
+/** Chip thời lượng nhanh (phút): đổi giờ kết thúc = bắt đầu + thời lượng. */
+export const DURATION_CHIPS = [30, 60, 90, 120] as const;
+
+/** `"18:10"` → 1090; rỗng/sai định dạng/ngoài 00:00–23:59 → `null`. Không ép 15'. */
+export function parseTimeInput(value: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h < 24 && min < 60 ? h * 60 + min : null;
+}
+
+/** 1090 → `"18:10"` cho `<input type="time">` (luôn 24 giờ, độc lập ngôn ngữ). */
+export function minuteToInput(minute: number): string {
+  const v = Math.min(MAX_END_MINUTE, Math.max(0, Math.floor(minute)));
+  return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`;
+}
+
+/** Số ký tự (điểm mã Unicode, không phải đơn vị UTF-16) của ghi chú sau khi cắt khoảng trắng hai đầu. */
+export const noteLength = (note: string): number => Array.from(note.trim()).length;
+
+/** Lỗi chặn Lưu. */
+export type EditError = 'timeInvalid' | 'endNotAfterStart' | 'noteTooLong';
+/** Nhắc vàng, vẫn cho Lưu. */
+export type EditNotice = 'outsideWindow' | 'overlap';
+
+export interface EditValidation {
+  errors: EditError[];
+  notices: EditNotice[];
+  /** Giờ đã đọc được (cả khi có lỗi kết thúc ≤ bắt đầu); `null` khi một trong hai ô không đọc được. */
+  slot: Slot | null;
+  /** Các mục khác chồng giờ với `slot` (để câu nhắc nêu tên). */
+  overlapIds: string[];
+  /** Độ dài ghi chú đã cắt khoảng trắng. */
+  noteLength: number;
+  canSave: boolean;
+}
+
+/**
+ * Kiểm form sửa của một ô. Chặn Lưu: giờ không đọc được, kết thúc ≤ bắt đầu, ghi chú > 500.
+ * Chỉ nhắc: ngoài khung giờ của phòng, chồng giờ mục khác (cùng ngày đầu, trừ chính nó).
+ */
+export function validateEdit(
+  input: { start: string; end: string; note: string },
+  ctx: {
+    itemId: string;
+    window: Pick<Room, 'start_minute' | 'end_minute'>;
+    others: readonly (Slot & { id: string; day_offset?: number })[];
+  },
+): EditValidation {
+  const errors: EditError[] = [];
+  const notices: EditNotice[] = [];
+  const start = parseTimeInput(input.start);
+  const end = parseTimeInput(input.end);
+  let slot: Slot | null = null;
+  let overlapIds: string[] = [];
+
+  if (start === null || end === null) {
+    errors.push('timeInvalid');
+  } else {
+    slot = { start_minute: start, end_minute: end };
+    if (end <= start) {
+      errors.push('endNotAfterStart');
+    } else {
+      const ws = ctx.window.start_minute ?? DEFAULT_WINDOW.start;
+      const we = ctx.window.end_minute ?? DEFAULT_WINDOW.end;
+      if (start < ws || end > we) notices.push('outsideWindow');
+      overlapIds = ctx.others.filter((o) => o.id !== ctx.itemId && onFirstDay(o) && overlaps(slot!, o)).map((o) => o.id);
+      if (overlapIds.length > 0) notices.push('overlap');
+    }
+  }
+
+  const len = noteLength(input.note);
+  if (len > NOTE_MAX) errors.push('noteTooLong');
+  return { errors, notices, slot, overlapIds, noteLength: len, canSave: errors.length === 0 };
+}

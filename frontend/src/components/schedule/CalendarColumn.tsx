@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ConflictAlert, Member, Place, Room, ScheduleItem } from '../../types';
@@ -26,7 +26,6 @@ import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { planBudget } from '../../room/budget';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { useConflictStore } from '../../store/useConflictStore';
-import { useMapStore } from '../../store/useMapStore';
 import { useWorkspaceLayout } from '../shell/workspace';
 import { useLanguage, type Language } from '../../i18n/useLanguage';
 import { formatTime, formatTimeWindow } from '../../i18n/format';
@@ -41,6 +40,11 @@ import { BudgetMeter } from './BudgetMeter';
 import { AutoPlanButton } from './AutoPlanButton';
 import { AutoPlanPreview } from './AutoPlanPreview';
 import { CalendarEvent } from './CalendarEvent';
+
+/** Popup ô (T-81): chunk riêng, chỉ tải khi bấm ô đầu tiên. KHÔNG re-export ở `schedule/index.ts` (sẽ gộp lại vào bundle chính). */
+const CalendarItemLayer = lazy(() =>
+  import('./CalendarItemPopover').then((m) => ({ default: m.CalendarItemLayer })),
+);
 
 /** `useLayoutEffect` chỉ ở trình duyệt (render tĩnh trong test không cảnh báo). */
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -68,7 +72,7 @@ export interface CalendarColumnProps {
   conflicts?: ConflictAlert[];
   onOpenAddModal?: () => void;
   onOpenDecideModal?: () => void;
-  /** Mở popup ô (T-81). Thiếu → tạm mở `PlaceDetail` của quán. */
+  /** Thay popup mặc định (test, nơi gọi riêng). Thiếu → `CalendarItemPopover` (xem/sửa giờ + ghi chú, bỏ khỏi lịch). */
   onOpenItem?: (itemId: string, anchorRect: DOMRect) => void;
   externalDrag?: ExternalCalendarDrag | null;
   onExternalDrop?: (placeId: string, slot: Slot) => void;
@@ -150,6 +154,8 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [openCluster, setOpenCluster] = useState<number | null>(null);
+  // Popup ô: `undefined` = chưa mở lần nào (chưa tải chunk); `null` = đóng nhưng lớp còn sống (thanh Hoàn tác)
+  const [popup, setPopup] = useState<{ id: string; rect: DOMRect | null } | null | undefined>(undefined);
   const [announce, setAnnounce] = useState('');
   // Bản nháp bàn phím (↑/↓): lưu sau 600 ms không bấm
   const [kbDraft, setKbDraft] = useState<{ id: string; slot: Slot } | null>(null);
@@ -180,7 +186,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   const range = (s: Slot) =>
     t('calendar.range', { start: formatTime(s.start_minute, lang), end: formatTime(s.end_minute, lang) });
 
-  // Xung đột theo mục: câu mô tả của mọi xung đột chứa mục (popup T-81 sẽ hiện đầy đủ)
+  // Xung đột theo mục: câu mô tả của mọi xung đột chứa mục (ô chỉ báo icon, popup hiện đầy đủ)
   const itemConflicts = useMemo(() => {
     const map = new Map<string, { messages: string[] }>();
     for (const c of conflicts) {
@@ -302,7 +308,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
     [],
   );
 
-  // "Thêm vào lịch" từ menu cột trái: focus ô mới khi nó có mặt trên lưới (popup của ô: T-81)
+  // "Thêm vào lịch" từ menu cột trái: focus ô mới khi nó có mặt trên lưới (không tự mở popup)
   useEffect(() => {
     if (!focusId) return;
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-event-id="${focusId}"]`);
@@ -350,9 +356,29 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
     kbTimer.current = setTimeout(flushKeyboard, KEYBOARD_SAVE_MS);
   };
 
+  const getAnchor = useCallback(
+    (id: string) => gridRef.current?.querySelector<HTMLElement>(`[data-event-id="${id}"]`)?.getBoundingClientRect() ?? null,
+    [],
+  );
+  const closePopup = useCallback((restoreFocusId?: string) => {
+    setPopup(null);
+    if (restoreFocusId) {
+      const focusCell = () => {
+        const cell = gridRef.current?.querySelector<HTMLElement>(`[data-event-id="${restoreFocusId}"]`);
+        // Đã mở popup khác trong lúc chờ → để popup đó giữ focus
+        if (document.querySelector('[data-testid="calendar-popover"]')) return;
+        if (cell && document.activeElement !== cell) cell.focus({ preventScroll: true });
+      };
+      requestAnimationFrame(focusCell);
+      // Sheet (<1024) có hiệu ứng thoát rồi tự trả focus về phần tử đã mở nó → đặt lại sau khi nó gỡ
+      window.setTimeout(focusCell, 400);
+    }
+  }, []);
+  // Bấm lại ô đang mở thì đóng; bấm ô khác thì thay nội dung (một popup một lúc)
   const openItem = (item: ScheduleItem, el: HTMLElement) => {
     if (onOpenItem) onOpenItem(item.id, el.getBoundingClientRect());
-    else useMapStore.getState().selectPlace(item.place_id);
+    else if (popup?.id === item.id) closePopup(item.id);
+    else setPopup({ id: item.id, rect: el.getBoundingClientRect() });
   };
 
   const handleOpenAutoPlan = async () => {
@@ -746,6 +772,21 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
         )}
       </div>
 
+      {popup !== undefined && (
+        <Suspense fallback={null}>
+          <CalendarItemLayer
+            roomId={roomId}
+            room={room}
+            items={items}
+            places={places}
+            members={members}
+            itemConflicts={itemConflicts}
+            popup={popup}
+            getAnchor={getAnchor}
+            onClose={closePopup}
+          />
+        </Suspense>
+      )}
       {channelDrag && typeof document !== 'undefined' && createPortal(<DragGhost drag={channelDrag} />, document.body)}
 
       <AutoPlanPreview
