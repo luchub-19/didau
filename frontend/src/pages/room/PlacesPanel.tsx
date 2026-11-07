@@ -8,6 +8,8 @@ import { TieBlock, type DecideIntent } from '../../components/decide';
 import { Button, Sheet } from '../../components/ui';
 import { Plus } from '../../components/ui/Icon';
 import type { PhaseStep, RoomPhase } from '../../room/phase';
+import { useCalendarPlacement } from '../../room/useCalendarDrag';
+import { useWorkspaceLayout } from '../../components/shell/workspace';
 
 export interface PlacesPanelProps {
   roomId: string;
@@ -60,6 +62,8 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const layout = useWorkspaceLayout();
+  const placement = useCalendarPlacement(roomId, room);
 
   const renderList = (hideAddButton = false) => (
     <PlaceList
@@ -109,6 +113,13 @@ export const PlacesPanel: React.FC<PlacesPanelProps> = ({
         schedule={schedule}
         onOpenPlace={onViewOnMap}
         onReviewBackups={() => onReviewVote?.()}
+        calendar={{
+          // Mobile: lịch nằm ở tab khác → không kéo, dùng menu ⋯ hoặc khay tab Kế hoạch
+          draggable: layout !== 'mobile',
+          onDrop: placement.drop,
+          onAdd: placement.add,
+          onShow: placement.show,
+        }}
       />
     );
   }

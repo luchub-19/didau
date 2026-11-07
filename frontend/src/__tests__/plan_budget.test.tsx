@@ -233,14 +233,15 @@ describe('T-73: splitLockedPlaces / LockedPlaces', () => {
     expect(splitLockedPlaces(noAccepted, []).main).toBeNull();
   });
 
-  it('render: ảnh lớn, hàng đi kèm, liên kết "Xem lại N quán dự bị"', () => {
+  it('render: ảnh lớn, hàng đi kèm, mục gập "Dự bị (N)" (T-80)', () => {
     const html = renderToStaticMarkup(
       <LockedPlaces places={places} schedule={[sched('c', 0)]} onOpenPlace={() => {}} onReviewBackups={() => {}} />,
     );
     expect(html).toContain('Quán đã chốt');
     expect(html).toContain('Quán b');
     expect(html).toContain('Đi kèm');
-    expect(html).toContain('Xem lại 1 quán dự bị');
+    expect(html).toContain('Dự bị (1)');
+    expect(html).toContain('Xem lại bình chọn');
     expect(html).toContain('data-testid="locked-cover"');
   });
 

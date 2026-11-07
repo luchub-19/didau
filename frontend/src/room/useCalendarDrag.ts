@@ -1,10 +1,29 @@
 // Kéo thả trong lịch (DESIGN gđ6 §3 "Tương tác", T-79): di ô, kéo dãn mép dưới, nhấn giữ trên cảm ứng, Esc huỷ,
 // cuộn tự động sát mép, snap 15' theo con trỏ trừ độ lệch chỗ cầm. Tự viết bằng Pointer Events (không HTML5 DnD).
 // Trong lúc kéo chỉ đổi bản nháp (transform/chiều cao của một ô) mỗi rAF; thả mới gọi `onCommit` (→ `moveItems`).
-// T-80 thêm nguồn kéo từ ngoài lịch: dùng `slotAtClientY` + `isInsideGrid` để tính ô xem trước/chỗ thả.
-import { useCallback, useEffect, useRef, useState } from 'react';
+// T-80 thêm nguồn kéo từ ngoài lịch (thẻ cột trái, khay mobile): kênh `calendarChannel` nối nguồn ↔ lịch ↔ khung
+// phòng (tự mở ngăn kéo), `usePlaceDragSource` cho nguồn, `placeOnCalendar` thêm mới/dời mục cũ khi thả.
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { RefObject } from 'react';
-import { minuteAtY, moveSlot, resizeSlot, SNAP_MIN, type CalendarGrid, type Slot } from './calendar';
+import type { PlaceCategory, Room, ScheduleItem } from '../types';
+import {
+  addToCalendarSlot,
+  gridRange,
+  minuteAtY,
+  moveSlot,
+  placeDropAction,
+  placeScheduleItem,
+  resizeSlot,
+  SNAP_MIN,
+  DEFAULT_WINDOW,
+  type CalendarGrid,
+  type Slot,
+} from './calendar';
+import { useScheduleStore } from '../store/useScheduleStore';
+import { useConflictStore } from '../store/useConflictStore';
+import { toast } from '../components/ui/toastStore';
+import { formatTime } from '../i18n/format';
 
 /** Di chuột quá ngưỡng này (px) mới thành kéo; dưới ngưỡng là bấm (mở popup). */
 export const DRAG_THRESHOLD_PX = 4;
@@ -396,4 +415,371 @@ export function useCalendarDrag({
   const clearSelection = useCallback(() => setSelectedId(null), []);
 
   return { drag, selectedId, onPointerDown, consumeClick, clearSelection, slotAtClientY, isInsideGrid };
+}
+
+/* ---------- Kéo quán từ ngoài lịch vào lịch (T-80) ---------- */
+
+/** Quán đang được cầm (nguồn kéo điền). */
+export interface PlaceDragInfo {
+  placeId: string;
+  name: string;
+  category?: PlaceCategory;
+  /** Ảnh nhỏ cho bóng kéo (thiếu → icon danh mục). */
+  photo?: string;
+  /** Thời lượng ô thả (phút): mặc định 60; quán đã có trên lịch thì giữ thời lượng mục cũ. */
+  duration?: number;
+}
+
+/** Quán đang được kéo từ ngoài lịch + vị trí con trỏ. `dropped` chỉ dùng cho nơi gọi cũ qua prop của `CalendarColumn`. */
+export interface ExternalCalendarDrag extends PlaceDragInfo {
+  clientX: number;
+  clientY: number;
+  dropped?: boolean;
+}
+
+/** Ô đang chờ `POST` (vẽ skeleton tại chỗ thả). */
+export interface PendingDrop {
+  placeId: string;
+  name: string;
+  category?: PlaceCategory;
+  slot: Slot;
+}
+
+export interface CalendarChannelState {
+  drag: ExternalCalendarDrag | null;
+  /** Lần kéo gần nhất kết thúc: `dropped = false` là huỷ (khung phòng đóng lại ngăn kéo nó đã tự mở). */
+  lastEnd: { seq: number; dropped: boolean } | null;
+  pending: readonly PendingDrop[];
+  /** Mục cần nhận focus khi lịch hiện ra (sau "Thêm vào lịch" bằng menu). */
+  focusId: string | null;
+  /** Tăng mỗi lần cần mở cột Kế hoạch mà không kéo (menu "Thêm vào lịch"/"Xem trên lịch"). */
+  revealSeq: number;
+}
+
+/** Lịch đang hiện đăng ký hàm tính chỗ thả theo toạ độ màn hình; `null` = con trỏ ngoài lưới. */
+export type DropResolver = (clientX: number, clientY: number, duration?: number) => Slot | null;
+
+const INITIAL_CHANNEL: CalendarChannelState = { drag: null, lastEnd: null, pending: [], focusId: null, revealSeq: 0 };
+let channelState: CalendarChannelState = INITIAL_CHANNEL;
+let dropResolver: DropResolver | null = null;
+let endSeq = 0;
+const channelListeners = new Set<() => void>();
+
+/** Kênh dùng chung giữa nguồn kéo (cột trái/khay), lịch (đích) và khung phòng. Ngoài React để không phải truyền prop qua RoomPage. */
+export const calendarChannel = {
+  get: (): CalendarChannelState => channelState,
+  set(patch: Partial<CalendarChannelState>) {
+    channelState = { ...channelState, ...patch };
+    channelListeners.forEach((l) => l());
+  },
+  subscribe(l: () => void) {
+    channelListeners.add(l);
+    return () => {
+      channelListeners.delete(l);
+    };
+  },
+  /** Lịch gọi khi mount; trả hàm gỡ (chỉ gỡ nếu vẫn là hàm của mình). */
+  registerDropTarget(resolve: DropResolver) {
+    dropResolver = resolve;
+    return () => {
+      if (dropResolver === resolve) dropResolver = null;
+    };
+  },
+  resolveDrop(clientX: number, clientY: number, duration?: number): Slot | null {
+    return dropResolver ? dropResolver(clientX, clientY, duration) : null;
+  },
+  /** Kết thúc một lần kéo. */
+  end(dropped: boolean) {
+    endSeq += 1;
+    this.set({ drag: null, lastEnd: { seq: endSeq, dropped } });
+  },
+  /** Test: về trạng thái đầu. */
+  reset() {
+    channelState = INITIAL_CHANNEL;
+    dropResolver = null;
+    channelListeners.forEach((l) => l());
+  },
+};
+
+/** Đọc một phần kênh (selector phải trả giá trị nguyên thuỷ hoặc tham chiếu có sẵn trong state). */
+export function useCalendarChannel<T>(selector: (s: CalendarChannelState) => T): T {
+  return useSyncExternalStore(
+    calendarChannel.subscribe,
+    () => selector(channelState),
+    () => selector(channelState),
+  );
+}
+
+const roomWindow = (room?: Pick<Room, 'start_minute' | 'end_minute'> | null) => ({
+  start_minute: room?.start_minute ?? DEFAULT_WINDOW.start,
+  end_minute: room?.end_minute ?? DEFAULT_WINDOW.end,
+});
+
+/** Lưới ngày đầu đang vẽ (cho "Thêm vào lịch" khi lịch chưa mount). */
+export function currentGrid(room: Pick<Room, 'start_minute' | 'end_minute'> | null | undefined, items: readonly ScheduleItem[]): CalendarGrid {
+  return gridRange(roomWindow(room), items);
+}
+
+/** Kết quả đặt quán lên lịch: id mục + giờ; `null` khi đang chờ thêm chính quán này. */
+export interface PlacedResult {
+  itemId: string;
+  slot: Slot;
+  added: boolean;
+}
+
+/**
+ * Đặt quán vào `slot` (ngày đầu): chưa có mục → `POST` (skeleton tại chỗ trong lúc chờ, rồi sắp lại `order_index`
+ * theo giờ); đã có → `moveItems` (lạc quan, dời mục cũ, không nhân bản). Sau đó đánh giá xung đột ở nền. Lỗi → ném lại.
+ */
+export async function placeOnCalendar(roomId: string, info: PlaceDragInfo, slot: Slot): Promise<PlacedResult | null> {
+  if (channelState.pending.some((p) => p.placeId === info.placeId)) return null;
+  const store = useScheduleStore.getState();
+  const action = placeDropAction(info.placeId, slot, store.items);
+  const evaluate = () => void useConflictStore.getState().evaluateConflicts(roomId).catch(() => {});
+  if (action.kind === 'none') return { itemId: action.itemId, slot, added: false };
+  if (action.kind === 'move') {
+    await store.moveItems(roomId, [{ id: action.itemId, day_offset: 0, ...action.slot }]);
+    evaluate();
+    return { itemId: action.itemId, slot: action.slot, added: false };
+  }
+  const pend: PendingDrop = { placeId: info.placeId, name: info.name, category: info.category, slot: action.slot };
+  calendarChannel.set({ pending: [...channelState.pending, pend] });
+  try {
+    const item = await store.addItem(roomId, { place_id: info.placeId, day_offset: 0, ...action.slot });
+    // WS `SCHEDULE_UPDATED` có thể tới trước kết quả POST → `addItem` nối trùng id: gộp lại
+    const s = useScheduleStore.getState();
+    if (s.items.filter((i) => i.id === item.id).length > 1) {
+      const seen = new Set<string>();
+      s.setItems(s.items.filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true))));
+    }
+    // Mục mới nhận `order_index` cuối: sắp lại theo giờ (PUT chỉ khi có mục đổi thứ tự)
+    await s.moveItems(roomId, []).catch(() => {});
+    evaluate();
+    return { itemId: item.id, slot: action.slot, added: true };
+  } finally {
+    calendarChannel.set({ pending: channelState.pending.filter((p) => p !== pend) });
+  }
+}
+
+/** "Thêm vào lịch" không kéo: giờ trống đầu tiên ≥ 60' (kín thì sau mục cuối, kẹp trong khung). Quán đã có mục → giữ nguyên. */
+export async function addToFirstFree(
+  roomId: string,
+  room: Pick<Room, 'start_minute' | 'end_minute'> | null | undefined,
+  info: PlaceDragInfo,
+): Promise<PlacedResult | null> {
+  const items = useScheduleStore.getState().items;
+  const existing = items.find((i) => i.place_id === info.placeId);
+  if (existing) return { itemId: existing.id, slot: { start_minute: existing.start_minute, end_minute: existing.end_minute }, added: false };
+  return placeOnCalendar(roomId, info, addToCalendarSlot(items, currentGrid(room, items), info.duration));
+}
+
+export interface UsePlaceDragSourceOptions {
+  /** Thả trong lưới: chỗ thả đã snap/kẹp. */
+  onDrop: (info: PlaceDragInfo, slot: Slot) => void;
+  /** Cảm ứng phải nhấn giữ 350 ms mới nhấc (khay mobile). `false` = bỏ qua chạm (thẻ cột trái). */
+  touchLongPress?: boolean;
+  disabled?: boolean;
+}
+
+export interface UsePlaceDragSourceResult {
+  /** Gắn vào `onPointerDown` của thẻ/chip nguồn. */
+  onPointerDown: (e: React.PointerEvent, info: PlaceDragInfo) => void;
+  /** Gọi trong `onClick`: `true` = cú bấm thuộc một lần kéo, bỏ qua. */
+  consumeClick: (placeId: string) => boolean;
+  /** Ref cho phần tử bọc các nguồn cảm ứng: listener `touchmove` non-passive có sẵn từ touchstart để chặn cuộn khi đã nhấc. */
+  touchBlockRef: (el: HTMLElement | null) => void;
+}
+
+/** Nguồn kéo quán vào lịch: chuột/bút qua ngưỡng 4px; cảm ứng nhấn giữ 350 ms (+ rung), xê dịch > 8px trước đó = cuộn. */
+export function usePlaceDragSource({ onDrop, touchLongPress = false, disabled = false }: UsePlaceDragSourceOptions): UsePlaceDragSourceResult {
+  const active = useRef<{ active: boolean; cancel: () => void } | null>(null);
+  const clickGuard = useRef<string | null>(null);
+  const onDropRef = useRef(onDrop);
+  onDropRef.current = onDrop;
+  const blockEl = useRef<HTMLElement | null>(null);
+
+  const blockTouch = useCallback((ev: TouchEvent) => {
+    if (active.current?.active && ev.cancelable) ev.preventDefault();
+  }, []);
+  const touchBlockRef = useCallback(
+    (el: HTMLElement | null) => {
+      blockEl.current?.removeEventListener('touchmove', blockTouch);
+      blockEl.current = el;
+      el?.addEventListener('touchmove', blockTouch, { passive: false });
+    },
+    [blockTouch],
+  );
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent, info: PlaceDragInfo) => {
+      if (disabled || active.current) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const isTouch = e.pointerType === 'touch';
+      if (isTouch && !touchLongPress) return;
+
+      const st = { active: false, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, pointerId: e.pointerId };
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let raf: number | null = null;
+
+      const publish = () => {
+        raf = null;
+        const d = calendarChannel.get().drag;
+        if (st.active && d && d.placeId === info.placeId) calendarChannel.set({ drag: { ...d, clientX: st.x, clientY: st.y } });
+      };
+      const activate = () => {
+        st.active = true;
+        if (active.current) active.current.active = true;
+        document.documentElement.classList.add('cal-dragging');
+        if (isTouch) {
+          try {
+            navigator.vibrate?.(10);
+          } catch {
+            /* trình duyệt chặn rung: bỏ qua */
+          }
+        }
+        calendarChannel.set({ drag: { ...info, clientX: st.x, clientY: st.y } });
+      };
+      const finish = (drop: boolean) => {
+        if (timer) clearTimeout(timer);
+        if (raf !== null) cancelAnimationFrame(raf);
+        teardown();
+        active.current = null;
+        if (!st.active) return;
+        document.documentElement.classList.remove('cal-dragging');
+        clickGuard.current = info.placeId;
+        setTimeout(() => {
+          if (clickGuard.current === info.placeId) clickGuard.current = null;
+        }, 0);
+        const slot = drop ? calendarChannel.resolveDrop(st.x, st.y, info.duration) : null;
+        calendarChannel.end(slot !== null);
+        if (slot) onDropRef.current(info, slot);
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== st.pointerId) return;
+        st.x = ev.clientX;
+        st.y = ev.clientY;
+        if (!st.active) {
+          const dist = Math.hypot(st.x - st.startX, st.y - st.startY);
+          if (isTouch) {
+            if (dist > TOUCH_SLOP_PX) finish(false); // đang cuộn khay/cột
+            return;
+          }
+          if (dist > DRAG_THRESHOLD_PX) activate();
+          return;
+        }
+        if (raf === null) raf = requestAnimationFrame(publish);
+      };
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== st.pointerId) return;
+        st.x = ev.clientX;
+        st.y = ev.clientY;
+        finish(true);
+      };
+      const onCancel = (ev: PointerEvent) => {
+        if (ev.pointerId === st.pointerId) finish(false);
+      };
+      const onKey = (ev: KeyboardEvent) => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          ev.stopPropagation();
+          finish(false);
+        }
+      };
+      const onTouchMove = (ev: TouchEvent) => {
+        if (st.active && ev.cancelable) ev.preventDefault();
+      };
+      const onContext = (ev: Event) => {
+        if (isTouch) ev.preventDefault();
+      };
+      const onScroll = () => {
+        if (!st.active && timer) finish(false);
+      };
+      const teardown = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onCancel);
+        window.removeEventListener('keydown', onKey, true);
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('contextmenu', onContext);
+        window.removeEventListener('scroll', onScroll, true);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onCancel);
+      window.addEventListener('keydown', onKey, true);
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('contextmenu', onContext);
+      window.addEventListener('scroll', onScroll, true);
+      active.current = { active: false, cancel: () => finish(false) };
+
+      if (isTouch) {
+        timer = setTimeout(() => {
+          timer = null;
+          activate();
+        }, LONG_PRESS_MS);
+      }
+    },
+    [disabled, touchLongPress],
+  );
+
+  // Unmount giữa lúc kéo: huỷ, gỡ listener
+  useEffect(
+    () => () => {
+      active.current?.cancel();
+      blockEl.current?.removeEventListener('touchmove', blockTouch);
+    },
+    [blockTouch],
+  );
+
+  const consumeClick = useCallback((placeId: string) => {
+    if (clickGuard.current === placeId) {
+      clickGuard.current = null;
+      return true;
+    }
+    return false;
+  }, []);
+
+  return { onPointerDown, consumeClick, touchBlockRef };
+}
+
+/** Việc nối nguồn kéo/menu với lịch, dùng chung cho cột trái, khay mobile: thả, "Thêm vào lịch", "Xem trên lịch". */
+export function useCalendarPlacement(roomId: string, room: Pick<Room, 'start_minute' | 'end_minute'> | null | undefined) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'en' ? 'en' : 'vi';
+  return useMemo(() => {
+    const failText = (placeId: string) =>
+      placeScheduleItem(placeId, useScheduleStore.getState().items) ? t('calendar.saveFailed') : t('calendar.addFailed');
+    return {
+      /** Thả trong lưới: thêm mới hoặc dời mục cũ. Lỗi → toast (dời: store đã hoàn tác). */
+      drop(info: PlaceDragInfo, slot: Slot) {
+        const fail = failText(info.placeId);
+        void placeOnCalendar(roomId, info, slot).catch(() => toast.error(fail));
+      },
+      /** Không kéo: giờ trống đầu tiên, mở cột Kế hoạch, focus ô mới, báo bằng toast (mobile không thấy lịch). */
+      add(info: PlaceDragInfo) {
+        void addToFirstFree(roomId, room, info)
+          .then((r) => {
+            if (!r) return;
+            calendarChannel.set({ focusId: r.itemId, revealSeq: calendarChannel.get().revealSeq + 1 });
+            if (r.added) {
+              toast.success(
+                t('calendar.added', {
+                  name: info.name,
+                  range: t('calendar.range', {
+                    start: formatTime(r.slot.start_minute, lang),
+                    end: formatTime(r.slot.end_minute, lang),
+                  }),
+                }),
+              );
+            }
+          })
+          .catch(() => toast.error(t('calendar.addFailed')));
+      },
+      /** "Xem trên lịch": mở cột Kế hoạch + focus ô. */
+      show(itemId: string) {
+        calendarChannel.set({ focusId: itemId, revealSeq: calendarChannel.get().revealSeq + 1 });
+      },
+    };
+  }, [roomId, room, t, lang]);
 }

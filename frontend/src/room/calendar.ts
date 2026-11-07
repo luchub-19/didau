@@ -263,3 +263,38 @@ export function placeScheduleItem<T extends Pick<ScheduleItem, 'place_id' | 'day
     .filter((i) => i.place_id === placeId)
     .sort((a, b) => a.day_offset - b.day_offset || a.order_index - b.order_index)[0];
 }
+
+/** Thả một quán vào lịch (T-80): chưa có mục → thêm mới; đã có → dời mục cũ (một quán một mục); trùng giờ → không làm gì. */
+export type PlaceDropAction =
+  | { kind: 'add'; placeId: string; slot: Slot }
+  | { kind: 'move'; itemId: string; slot: Slot }
+  | { kind: 'none'; itemId: string };
+
+/** Quyết định "thêm mới / dời mục cũ" khi thả quán `placeId` vào `slot` của ngày đầu. */
+export function placeDropAction(
+  placeId: string,
+  slot: Slot,
+  items: readonly Pick<ScheduleItem, 'id' | 'place_id' | 'day_offset' | 'order_index' | 'start_minute' | 'end_minute'>[],
+): PlaceDropAction {
+  const cur = placeScheduleItem(placeId, items);
+  if (!cur) return { kind: 'add', placeId, slot: { ...slot } };
+  if (cur.day_offset === 0 && cur.start_minute === slot.start_minute && cur.end_minute === slot.end_minute) {
+    return { kind: 'none', itemId: cur.id };
+  }
+  return { kind: 'move', itemId: cur.id, slot: { ...slot } };
+}
+
+/**
+ * Chỗ cho "Thêm vào lịch" không cần kéo (bàn phím, chạm chip): khe trống đầu tiên ≥ `duration`; lịch kín thì ngay
+ * sau mục cuối, kẹp trong lưới như `dropSlot` (lùi lại để kết thúc đúng cuối lưới).
+ */
+export function addToCalendarSlot(
+  items: readonly SlotItem[],
+  grid: CalendarGrid,
+  duration: number = DEFAULT_DURATION_MIN,
+): Slot {
+  const free = firstFreeSlot(items, grid, duration);
+  if (free) return free;
+  const lastEnd = items.filter(onFirstDay).reduce((m, i) => Math.max(m, i.end_minute), grid.start);
+  return dropSlot(snapUp(lastEnd), grid, duration);
+}

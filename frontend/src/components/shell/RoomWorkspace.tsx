@@ -4,6 +4,7 @@ import { ArrowRight, CalendarBlank, IconButton } from '../ui';
 import type { PhaseStep, RoomPhase } from '../../room/phase';
 import type { RoomTab } from './useRoomTab';
 import { useMotionTier } from '../../motion/useMotionTier';
+import { useCalendarChannel } from '../../room/useCalendarDrag';
 import {
   SHEET_TOP_GAP_PX,
   defaultSheetSnap,
@@ -72,6 +73,34 @@ export const RoomWorkspace: React.FC<RoomWorkspaceProps> = ({
   const [planOverride, setPlanOverride] = useState<PlanOverride | null>(null);
   const planOpen = resolvePlanOpen(viewStep, phase, planOverride);
   const setPlanOpen = useCallback((open: boolean) => setPlanOverride({ phase, open }), [phase]);
+
+  // Kéo quán từ cột trái (T-80): bắt đầu kéo khi cột Kế hoạch đang đóng (ngăn kéo 1024–1279, hoặc dải thu ≥1280)
+  // → tự mở; huỷ kéo → trả đúng trạng thái cũ. Thả được thì giữ mở. Menu "Thêm vào lịch" cũng mở cột (revealSeq).
+  const extDragging = useCalendarChannel((s) => s.drag !== null);
+  const lastEnd = useCalendarChannel((s) => s.lastEnd);
+  const revealSeq = useCalendarChannel((s) => s.revealSeq);
+  const autoOpened = useRef<{ prev: PlanOverride | null } | null>(null);
+  const live = useRef({ isDesktop, planOpen, planOverride, phase });
+  live.current = { isDesktop, planOpen, planOverride, phase };
+  useEffect(() => {
+    const cur = live.current;
+    if (!extDragging || !cur.isDesktop || cur.planOpen) return;
+    autoOpened.current = { prev: cur.planOverride };
+    setPlanOverride({ phase: cur.phase, open: true });
+  }, [extDragging]);
+  useEffect(() => {
+    const auto = autoOpened.current;
+    if (!lastEnd || !auto) return;
+    autoOpened.current = null;
+    if (!lastEnd.dropped) setPlanOverride(auto.prev);
+  }, [lastEnd]);
+  const seenReveal = useRef(revealSeq);
+  useEffect(() => {
+    if (seenReveal.current === revealSeq) return;
+    seenReveal.current = revealSeq;
+    const cur = live.current;
+    if (cur.isDesktop && !cur.planOpen) setPlanOverride({ phase: cur.phase, open: true });
+  }, [revealSeq]);
 
   const leftWidth =
     layout === 'medium' ? 'var(--ws-left-md)' : viewStep === 1 ? 'var(--ws-left-gather)' : 'var(--ws-left)';

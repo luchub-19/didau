@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import type { ConflictAlert, Member, Place, PlaceCategory, Room, ScheduleItem } from '../../types';
+import type { ConflictAlert, Member, Place, Room, ScheduleItem } from '../../types';
 import {
   DEFAULT_WINDOW,
   MAX_COLUMNS,
@@ -12,7 +13,16 @@ import {
   type CalendarGrid,
   type Slot,
 } from '../../room/calendar';
-import { keyboardSlot, useCalendarDrag } from '../../room/useCalendarDrag';
+import {
+  autoScrollStep,
+  calendarChannel,
+  keyboardSlot,
+  scrollParent,
+  useCalendarChannel,
+  useCalendarDrag,
+  type ExternalCalendarDrag,
+} from '../../room/useCalendarDrag';
+import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { planBudget } from '../../room/budget';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { useConflictStore } from '../../store/useConflictStore';
@@ -41,19 +51,11 @@ const KEYBOARD_SAVE_MS = 600;
 const EVENT_GAP_PX = 2;
 
 /**
- * Quán đang được kéo từ ngoài lịch (T-80 nối nguồn). Cột chỉ vẽ ô xem trước 60' đã snap khi con trỏ ở trong lưới;
- * `dropped = true` ở trong lưới → gọi `onExternalDrop(placeId, slot)`.
+ * Quán đang được kéo từ ngoài lịch. Thường đến từ `calendarChannel` (nguồn kéo T-80); prop `externalDrag` (test,
+ * nơi gọi cũ) thắng kênh. Cột chỉ vẽ ô xem trước đã snap khi con trỏ ở phần lưới đang nhìn thấy; prop có
+ * `dropped = true` trong lưới → gọi `onExternalDrop(placeId, slot)`.
  */
-export interface ExternalCalendarDrag {
-  placeId: string;
-  name: string;
-  category?: PlaceCategory;
-  clientX: number;
-  clientY: number;
-  /** Thời lượng ô thả (phút), mặc định 60. */
-  duration?: number;
-  dropped?: boolean;
-}
+export type { ExternalCalendarDrag };
 
 export interface CalendarColumnProps {
   roomId: string;
@@ -72,6 +74,8 @@ export interface CalendarColumnProps {
   onExternalDrop?: (placeId: string, slot: Slot) => void;
   /** Giờ hiện tại (test). Thiếu → đồng hồ thật, cập nhật mỗi phút khi tab hiện. */
   now?: Date;
+  /** Khay "Chưa xếp lịch" (mobile, T-80): nằm trong đầu cột dính, ngay trên lưới. */
+  tray?: React.ReactNode;
 }
 
 /** Nhãn giờ ở gutter: VI `18:00`, EN `6 PM`. */
@@ -131,6 +135,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   externalDrag = null,
   onExternalDrop,
   now: fixedNow,
+  tray,
 }) => {
   const { t } = useTranslation();
   const { lang } = useLanguage();
@@ -153,6 +158,12 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   kbRef.current = kbDraft;
   const refocusId = useRef<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const channelDrag = useCalendarChannel((s) => s.drag);
+  const pendingDrops = useCalendarChannel((s) => s.pending);
+  const focusId = useCalendarChannel((s) => s.focusId);
+  // Tăng khi khung cuộn trôi trong lúc kéo từ ngoài (ô xem trước tính lại theo vị trí lưới mới)
+  const [scrollTick, setScrollTick] = useState(0);
 
   const placeMap = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const firstDay = useMemo(() => items.filter((i) => (i.day_offset ?? 0) === 0), [items]);
@@ -208,15 +219,61 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
     useCalendarDrag({ grid, gridRef, pxPerMin: PX_PER_MIN, onCommit: (id, slot) => void commit(id, slot) });
   const dragging = drag?.active ? drag : null;
 
-  // Kéo từ ngoài (T-80): ô xem trước + thả
+  // Kéo từ ngoài (T-80): chỗ thả = phần lưới đang nhìn thấy (trừ khung cuộn và đầu cột dính đè lên lưới)
+  const resolveDrop = useCallback(
+    (clientX: number, clientY: number, duration?: number): Slot | null => {
+      const el = gridRef.current;
+      if (!el || !isInsideGrid(clientX, clientY)) return null;
+      const sc = scrollParent(el);
+      if (sc && sc !== document.scrollingElement) {
+        const r = sc.getBoundingClientRect();
+        if (clientY < r.top || clientY > r.bottom) return null;
+      }
+      const head = headerRef.current?.getBoundingClientRect();
+      if (head && clientY <= head.bottom && clientY >= head.top) return null;
+      const m = slotAtClientY(clientY);
+      return m === null ? null : dropSlot(m, grid, duration);
+    },
+    [isInsideGrid, slotAtClientY, grid],
+  );
+  useEffect(() => calendarChannel.registerDropTarget(resolveDrop), [resolveDrop]);
+
+  const extDrag = externalDrag ?? channelDrag;
   const external = useMemo(() => {
-    if (!externalDrag || !isInsideGrid(externalDrag.clientX, externalDrag.clientY)) return null;
-    const m = slotAtClientY(externalDrag.clientY);
-    return m === null ? null : { ...externalDrag, slot: dropSlot(m, grid, externalDrag.duration) };
-  }, [externalDrag, isInsideGrid, slotAtClientY, grid]);
+    if (!extDrag) return null;
+    const slot = resolveDrop(extDrag.clientX, extDrag.clientY, extDrag.duration);
+    return slot ? { ...extDrag, slot } : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDrag, resolveDrop, scrollTick]);
   useEffect(() => {
-    if (external?.dropped) onExternalDrop?.(external.placeId, external.slot);
-  }, [external, onExternalDrop]);
+    if (externalDrag?.dropped && external) onExternalDrop?.(external.placeId, external.slot);
+  }, [externalDrag, external, onExternalDrop]);
+
+  // Kéo từ ngoài sát mép trên/dưới khung cuộn của cột → cuộn tự động (rAF), như kéo trong lịch
+  const extActive = channelDrag !== null;
+  useEffect(() => {
+    if (!extActive) return;
+    let raf = 0;
+    const loop = () => {
+      const d = calendarChannel.get().drag;
+      const sc = scrollParent(gridRef.current);
+      if (d && sc && sc !== document.scrollingElement) {
+        const r = sc.getBoundingClientRect();
+        const top = Math.max(r.top, headerRef.current?.getBoundingClientRect().bottom ?? r.top);
+        if (d.clientX >= r.left && d.clientX <= r.right && d.clientY >= top - 8 && d.clientY <= r.bottom) {
+          const step = autoScrollStep(d.clientY, top, r.bottom);
+          if (step !== 0) {
+            const before = sc.scrollTop;
+            sc.scrollTop = before + step;
+            if (sc.scrollTop !== before) setScrollTick((n) => n + 1);
+          }
+        }
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [extActive]);
 
   // Bố cục cột: ô đang kéo/sửa bằng phím giữ chỗ cũ (cập nhật từ xa tới ô đang kéo bị hoãn tới khi thả)
   const layoutItems = useMemo(
@@ -244,6 +301,16 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
     },
     [],
   );
+
+  // "Thêm vào lịch" từ menu cột trái: focus ô mới khi nó có mặt trên lưới (popup của ô: T-81)
+  useEffect(() => {
+    if (!focusId) return;
+    const el = gridRef.current?.querySelector<HTMLElement>(`[data-event-id="${focusId}"]`);
+    if (!el) return;
+    calendarChannel.set({ focusId: null });
+    el.scrollIntoView?.({ block: 'nearest' });
+    el.focus();
+  }, [focusId, items]);
 
   const flushKeyboard = () => {
     if (kbTimer.current) clearTimeout(kbTimer.current);
@@ -342,7 +409,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   return (
     <section data-testid="calendar-column" aria-label={t('calendar.region')} className="relative">
       {/* Đầu cột dính: tiêu đề + khung giờ, chip xung đột, ngân sách */}
-      <div className="sticky top-0 z-content -mx-4 space-y-3 bg-surface px-4 pb-3">
+      <div ref={headerRef} className="sticky top-0 z-content -mx-4 space-y-3 bg-surface px-4 pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-body font-semibold leading-tight text-ink tabular-nums" data-testid="calendar-title">
             {title}
@@ -360,9 +427,10 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
           )}
         </div>
         {(hasItems || budget.limit !== null) && <BudgetMeter budget={budget} />}
+        {tray}
       </div>
 
-      {isLoading && !hasItems ? (
+      {isLoading && !hasItems && pendingDrops.length === 0 ? (
         <div className="space-y-3 py-2" data-testid="calendar-loading">
           <Skeleton className="h-16 w-full rounded-field" />
           <Skeleton className="h-24 w-full rounded-field" />
@@ -533,6 +601,24 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
                 );
               })}
 
+              {/* Ô vừa thả đang chờ POST: skeleton tại chỗ, đúng giờ thả */}
+              {pendingDrops.map((p) => (
+                <div
+                  key={`pending-${p.placeId}`}
+                  data-testid="calendar-pending"
+                  aria-busy="true"
+                  className="pointer-events-none absolute inset-x-0 overflow-hidden rounded-field bg-surface-2 px-2 py-1"
+                  style={{
+                    top: y(p.slot.start_minute),
+                    height: (p.slot.end_minute - p.slot.start_minute) * PX_PER_MIN - EVENT_GAP_PX,
+                  }}
+                >
+                  <Skeleton className="absolute inset-0 rounded-field" />
+                  <span className="relative block truncate text-label font-semibold text-ink-2">{p.name}</span>
+                  <span className="relative block text-caption tabular-nums text-ink-3">{t('calendar.adding')}</span>
+                </div>
+              ))}
+
               {/* Ô xem trước khi kéo quán từ ngoài vào (T-80) */}
               {external && (
                 <div
@@ -564,7 +650,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
             )}
 
             {/* Lịch trống: lưới vẫn vẽ đủ, gợi ý ở giữa */}
-            {!hasItems && (
+            {!hasItems && !external && pendingDrops.length === 0 && (
               <div
                 data-testid="calendar-empty"
                 className="pointer-events-none absolute inset-y-0 left-12 right-0 flex flex-col items-center justify-center gap-2 px-6 text-center"
@@ -660,6 +746,8 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
         )}
       </div>
 
+      {channelDrag && typeof document !== 'undefined' && createPortal(<DragGhost drag={channelDrag} />, document.body)}
+
       <AutoPlanPreview
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
@@ -671,5 +759,24 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
         }}
       />
     </section>
+  );
+};
+
+/** Bóng kéo: chip gọn (ảnh nhỏ + tên) theo con trỏ, portal ra `body`, không nhận con trỏ. */
+const DragGhost: React.FC<{ drag: ExternalCalendarDrag }> = ({ drag }) => {
+  const meta = (drag.category && CATEGORY_METADATA[drag.category]) || CATEGORY_METADATA.OTHER;
+  const Icon = meta.IconComponent;
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="calendar-drag-ghost"
+      className="pointer-events-none fixed left-0 top-0 z-toast flex max-w-[14rem] items-center gap-2 rounded-chip bg-surface py-1 pl-1 pr-3 shadow-float"
+      style={{ transform: `translate3d(${drag.clientX + 12}px, ${drag.clientY + 12}px, 0)` }}
+    >
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full ${meta.bg} ${meta.text}`}>
+        {drag.photo ? <img src={drag.photo} alt="" className="h-full w-full object-cover" /> : <Icon size={16} weight="duotone" />}
+      </span>
+      <span className="truncate text-label font-semibold text-ink">{drag.name}</span>
+    </div>
   );
 };

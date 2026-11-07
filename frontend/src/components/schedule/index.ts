@@ -6,3 +6,4 @@ export * from './AutoPlanButton';
 export * from './AutoPlanPreview';
 export * from './BudgetMeter';
 export * from './LockedPlaces';
+export * from './UnscheduledTray';
