@@ -102,9 +102,9 @@ Task backend phải chạy `poetry run ruff check . && poetry run pytest` với 
 | 7 | T-82 | Xuất: thẻ PNG + văn bản emoji + `.ics` + link | T-79 | | ~130k | Sonnet 5.5 · high |
 | 8 | T-83 | Quả địa cầu khi bản đồ 3D đang tải | G1 | | ~75k | Sonnet 5.5 · medium |
 | **B** | | | | | | |
-| 9 | T-84 | Nền backend: ETA thống nhất + Google sau cờ + fixture + `algo_config` | G1 | | ~120k | **Opus 5.5 · high** |
+| 9 | T-84 | Nền backend: ETA thống nhất + Google sau cờ + fixture + `algo_config` | G1 | | ~120k | Sonnet 5.5 · high |
 | 10 | T-85 | Vị trí xuất phát thành viên (CR-11) + `state_version` (CR-13) + giới hạn đề xuất (CR-14) — backend | T-84 | | ~140k | Sonnet 5.5 · high |
-| 11 | T-86 | ALGO-01 tâm nhóm + ALGO-02 hoà phiếu (CR-12 phần 1) — backend | T-85 | | ~130k | **Opus 5.5 · high** |
+| 11 | T-86 | ALGO-01 tâm nhóm + ALGO-02 hoà phiếu (CR-12 phần 1) — backend | T-85 | | ~130k | Sonnet 5.5 · high (Opus nếu sai fixture) |
 | 12 | T-87 | ALGO-03 khả thi lịch + ALGO-04 ưu tiên (CR-12 phần 2) — backend | T-86 | | ~130k | **Opus 5.5 · high** |
 | 13 | T-88 | FE: "Xuất phát từ đâu?", widget tâm nhóm, dải "Gần cả nhóm", giới hạn đề xuất, `state_version` | T-85, T-86 | | ~130k | Sonnet 5.5 · high |
 | 14 | T-89 | FE: thẻ hoà phiếu ALGO-02 + "Vì sao?" + "Cách khác" | T-86, T-88 | | ~125k | Sonnet 5.5 · high |
@@ -125,9 +125,9 @@ T-76 ─▶ G1 ─┬─▶ T-77 ───────────────�
 Song song an toàn (worktree riêng): mạch A và mạch B không đụng file của nhau cho tới T-90 (T-90 cần cả lịch T-81 và
 backend T-87). T-77, T-83, T-91 độc lập. T-91 đụng i18n nhiều nơi → làm sớm hoặc sát cuối, tránh xung đột merge khoá i18n.
 
-**Vì sao chọn model:** Opus cho kéo thả tự viết (T-79/T-80), nền ETA + adapter Google (T-84: chỗ mọi thuật toán dựa vào),
-thuật toán có ngưỡng/không bắc cầu và riêng tư (T-86/T-87), và T-90 (ghép cảnh báo backend với dải tính tức thì ở FE khi
-kéo). Sonnet high cho API/CRUD rõ ràng và component nhiều trạng thái. Sonnet medium cho form, đổi tên, địa cầu, đánh bóng.
+**Vì sao chọn model** (xem lại 2026-11-04): Opus chỉ cho việc test tự động không bắt được lỗi — kéo thả tự viết
+(T-79/T-80), ghép số FE tức thì với số backend (T-90), sửa luật xung đột đang chạy + tính lại ưu tiên (T-87). T-84/T-86
+đặc tả và số mong đợi đã chốt trong ALGORITHMS nên Sonnet high đủ. **Prompt dán cho từng session: `PROMPTS.md`.** Sonnet high cho API/CRUD rõ ràng và component nhiều trạng thái. Sonnet medium cho form, đổi tên, địa cầu, đánh bóng.
 
 ## 7. Rủi ro và cách chặn
 | Rủi ro | Chặn |

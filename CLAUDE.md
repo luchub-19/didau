@@ -3,7 +3,7 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — T-76 (tài liệu) XONG, CHỜ CỔNG G1
+## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — T-76 XONG, G1 QUA 2026-11-04; làm T-77…
 Mạch A (FE): lịch kéo thả kiểu Google Calendar ở cột Kế hoạch, popup xem/sửa giờ + ghi chú, xuất kế hoạch (PNG, văn bản
 emoji, `.ics`, link), form tạo phòng bỏ ngân sách + điểm hẹn, chip khung giờ, quả địa cầu khi bản đồ 3D đang tải.
 Mạch B (backend + FE): Algorithm Engine theo tài liệu đồ án `docs/proposal/` — ALGO-01 tâm nhóm, ALGO-02 hoà phiếu theo
@@ -11,7 +11,7 @@ thời gian di chuyển, ALGO-03 sai số thời gian trên lịch, ALGO-04 sắ
 - Tiến độ, cổng G1/G2/G3, việc của người: `docs/phase6/PROGRESS.md`. Lộ trình + model/effort: `docs/phase6/PLAN.md` §6.
 - **Đặc tả thuật toán đã chốt (code theo file này, không theo docx): `docs/phase6/ALGORITHMS.md`.**
 - Luật giao diện gđ6 (ghi đè gđ5 §4/§8/§9): `docs/phase6/DESIGN.md`. File task: `docs/phase6/tasks/T-xx.md`.
-- CR-10 → CR-14 (PROPOSED) chờ G1; task backend chỉ áp CR đã duyệt.
+- CR-10 → CR-14 đã APPROVED (G1, 2026-11-04); task backend áp theo task ghi trong CR.
 - **Bẫy:** `PUT /schedule` thiếu `note` = xoá ghi chú (CR-10) — payload bulk phải đi qua `toBulkPayload()`.
   Không phản hồi nào được chứa toạ độ của thành viên khác (CR-11).
 
