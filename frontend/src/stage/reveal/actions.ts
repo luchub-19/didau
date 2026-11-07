@@ -70,6 +70,12 @@ export function buildIcs({ room, place, url, now = new Date() }: IcsInput): stri
   ].join('\r\n');
 }
 
+/** Chặng tới điểm sau của một mục (số liệu ALGO-03); `text` đã dịch sẵn, vd "Đi tiếp tới X: ~12 phút". */
+export interface IcsLeg {
+  fromItemId: string;
+  text: string;
+}
+
 export interface ScheduleIcsInput {
   room: Pick<Room, 'id' | 'title' | 'event_date'>;
   items: readonly Pick<
@@ -78,6 +84,8 @@ export interface ScheduleIcsInput {
   >[];
   /** Địa chỉ/toạ độ dự phòng khi mục lịch thiếu địa chỉ. */
   places?: readonly Pick<Place, 'id' | 'address'>[];
+  /** Chặng di chuyển tới điểm sau; có thì mô tả sự kiện thêm một dòng cho mục đó. */
+  legs?: readonly IcsLeg[];
   url: string;
   now?: Date;
 }
@@ -107,9 +115,10 @@ export function foldIcsLine(line: string): string {
  * Cả lịch là một tệp nhiều VEVENT: mỗi mục một sự kiện, ngày = ngày phòng + `day_offset`, giờ địa phương "trôi"
  * (không múi giờ). Mục kết thúc <= bắt đầu coi là qua nửa đêm. Thứ tự theo (ngày, order_index).
  */
-export function buildScheduleIcs({ room, items, places = [], url, now = new Date() }: ScheduleIcsInput): string {
+export function buildScheduleIcs({ room, items, places = [], legs = [], url, now = new Date() }: ScheduleIcsInput): string {
   const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const addressOf = new Map(places.map((p) => [p.id, p.address]));
+  const legOf = new Map(legs.map((l) => [l.fromItemId, l.text]));
   const ordered = [...items].sort((a, b) => a.day_offset - b.day_offset || a.order_index - b.order_index);
   const events = ordered.flatMap((item) => {
     const base = item.day_offset * 1440;
@@ -117,6 +126,7 @@ export function buildScheduleIcs({ room, items, places = [], url, now = new Date
     let end = base + item.end_minute;
     if (end <= start) end += 1440;
     const address = item.place_address || addressOf.get(item.place_id) || '';
+    const description = [item.note, legOf.get(item.id)].filter(Boolean).join('\n');
     return [
       'BEGIN:VEVENT',
       `UID:${room.id}-${item.id}@didau`,
@@ -125,7 +135,7 @@ export function buildScheduleIcs({ room, items, places = [], url, now = new Date
       `DTEND:${icsLocalTime(room.event_date, end)}`,
       `SUMMARY:${icsText(`${item.place_name} · ${room.title}`)}`,
       ...(address ? [`LOCATION:${icsText(address)}`] : []),
-      ...(item.note ? [`DESCRIPTION:${icsText(item.note)}`] : []),
+      ...(description ? [`DESCRIPTION:${icsText(description)}`] : []),
       `URL:${url}`,
       'END:VEVENT',
     ];

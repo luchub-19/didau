@@ -33,6 +33,7 @@ export {
   ForkKnife,
   MapTrifold,
   CalendarBlank,
+  ImageSquare,
   Users,
   ThumbsUp,
   ThumbsDown,

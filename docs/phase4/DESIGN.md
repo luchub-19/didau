@@ -18,6 +18,7 @@ Trang thử trực quan: `VITE_ENABLE_MOCK=true npm run dev` → `/_styleguide` 
 **File thuộc Stage** (thêm file Stage mới thì cập nhật bảng này trong cùng commit):
 - `frontend/src/motion/*`, `frontend/src/sound/*` (hạ tầng; Operate **không** import).
 - `frontend/src/stage/**` (T-59 → T-62 tạo: `hero/`, `deck/`, `reveal/`, lớp chuyển tab).
+- `frontend/src/stage/card/**` (T-82, gđ6: `TripCard`, `ExportPlanModal`, `exportCard`, `routeSketch`, `planText`) — thẻ chuyến đi PNG + văn bản emoji; chunk lười, luật ở `docs/phase6/DESIGN.md` §5.
 - `frontend/src/pages/HomePage.tsx` (khi T-59 thay bằng hero).
 - Lớp trình diễn quanh `components/decide/SwipeDeck.tsx` và kết quả chốt quán (T-60, T-61). Logic, store,
   `services/*` vẫn là Operate: **không sửa** (giữ bản sửa `bac1f30`, `289a929`).

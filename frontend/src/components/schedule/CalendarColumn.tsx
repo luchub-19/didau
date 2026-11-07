@@ -35,7 +35,7 @@ import { buildScheduleIcs, downloadIcs, icsFileName } from '../../stage/reveal/a
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
 import { toast } from '../ui/toastStore';
-import { CalendarBlank, Plus, ShareNetwork, Sparkle, WarningCircle } from '../ui/Icon';
+import { CalendarBlank, ImageSquare, Plus, ShareNetwork, Sparkle, WarningCircle } from '../ui/Icon';
 import { BudgetMeter } from './BudgetMeter';
 import { AutoPlanButton } from './AutoPlanButton';
 import { AutoPlanPreview } from './AutoPlanPreview';
@@ -45,6 +45,9 @@ import { CalendarEvent } from './CalendarEvent';
 const CalendarItemLayer = lazy(() =>
   import('./CalendarItemPopover').then((m) => ({ default: m.CalendarItemLayer })),
 );
+
+/** Modal "Xuất kế hoạch" (T-82): chunk riêng (thẻ + html-to-image), chỉ tải khi bấm nút. */
+const ExportPlanModal = lazy(() => import('../../stage/card').then((m) => ({ default: m.ExportPlanModal })));
 
 /** `useLayoutEffect` chỉ ở trình duyệt (render tĩnh trong test không cảnh báo). */
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -153,6 +156,8 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   const conflicts = propConflicts ?? storeConflicts;
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  // `undefined` = chưa mở lần nào (chưa tải chunk); sau đó giữ mount để Sheet chạy hoạt ảnh đóng
+  const [exportOpen, setExportOpen] = useState<boolean | undefined>(undefined);
   const [openCluster, setOpenCluster] = useState<number | null>(null);
   // Popup ô: `undefined` = chưa mở lần nào (chưa tải chunk); `null` = đóng nhưng lớp còn sống (thanh Hoàn tác)
   const [popup, setPopup] = useState<{ id: string; rect: DOMRect | null } | null | undefined>(undefined);
@@ -728,23 +733,34 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
               <Button
                 variant="primary"
                 className="w-full"
-                onClick={handleSend}
-                data-testid="send-plan-btn"
-                leftIcon={<ShareNetwork size={18} weight="bold" />}
+                onClick={() => setExportOpen(true)}
+                data-testid="export-plan-btn"
+                leftIcon={<ImageSquare size={18} weight="bold" />}
               >
-                {t('plan.send')}
+                {t('export.button')}
               </Button>
             )}
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${room ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              {room && (
+                <Button
+                  variant="secondary"
+                  onClick={handleSend}
+                  data-testid="send-plan-btn"
+                  className="px-2"
+                  leftIcon={<ShareNetwork size={16} />}
+                >
+                  {t('plan.sendLink')}
+                </Button>
+              )}
               {room && (
                 <Button
                   variant="secondary"
                   onClick={handleAddToCalendar}
                   data-testid="add-to-calendar-btn"
-                  className="px-3"
+                  className="px-2"
                   leftIcon={<CalendarBlank size={16} />}
                 >
-                  {t('plan.addToCalendar')}
+                  {t('plan.calendarShort')}
                 </Button>
               )}
               <Button
@@ -752,9 +768,9 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
                 onClick={handleOpenAutoPlan}
                 data-testid="reoptimize-schedule-btn"
                 leftIcon={<Sparkle size={16} />}
-                className={room ? 'px-3' : 'col-span-2'}
+                className="px-2"
               >
-                {t('schedule.reoptimize')}
+                {t(room ? 'plan.reoptimizeShort' : 'schedule.reoptimize')}
               </Button>
             </div>
           </>
@@ -769,6 +785,23 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
             label={t('calendar.autoPlan')}
             className="w-full"
           />
+        )}
+        {!hasItems && room && (
+          <div>
+            <Button
+              variant="ghost"
+              className="w-full"
+              disabled
+              aria-describedby="export-empty-hint"
+              data-testid="export-plan-btn-locked"
+              leftIcon={<ImageSquare size={18} />}
+            >
+              {t('export.button')}
+            </Button>
+            <p id="export-empty-hint" className="mt-1 text-center text-caption text-ink-2">
+              {t('export.emptyHint')}
+            </p>
+          </div>
         )}
       </div>
 
@@ -787,6 +820,20 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
           />
         </Suspense>
       )}
+
+      {exportOpen !== undefined && room && (
+        <Suspense fallback={null}>
+          <ExportPlanModal
+            isOpen={exportOpen}
+            onClose={() => setExportOpen(false)}
+            room={room}
+            items={items}
+            places={places}
+            members={members}
+          />
+        </Suspense>
+      )}
+
       {channelDrag && typeof document !== 'undefined' && createPortal(<DragGhost drag={channelDrag} />, document.body)}
 
       <AutoPlanPreview

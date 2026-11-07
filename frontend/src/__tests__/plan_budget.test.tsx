@@ -297,21 +297,27 @@ describe('T-73: chân cột Kế hoạch', () => {
     conflicts: [],
   };
 
-  it('có lịch + room: nút chính "Gửi kế hoạch cho nhóm", "Thêm vào lịch", "Xếp lại tự động"', () => {
+  it('có lịch + room (T-82): nút chính "Xuất kế hoạch", hàng phụ "Gửi link", "Thêm vào lịch", "Xếp lại"', () => {
     const html = renderToStaticMarkup(<CalendarColumn {...props} room={mockRoom} />);
+    expect(html).toContain('data-testid="export-plan-btn"');
+    expect(html).toContain('Xuất kế hoạch');
     expect(html).toContain('data-testid="send-plan-btn"');
-    expect(html).toContain('Gửi kế hoạch cho nhóm');
+    expect(html).toContain('Gửi link');
     expect(html).toContain('data-testid="add-to-calendar-btn"');
-    expect(html).toContain('Xếp lại tự động');
+    expect(html).toContain('data-testid="reoptimize-schedule-btn"');
+    expect(html).not.toContain('Gửi kế hoạch cho nhóm');
     expect(html).toContain('data-testid="budget-meter"');
   });
 
-  it('chưa có lịch (bước ③): chân cột chỉ còn nút "Xếp lịch tự động"', () => {
+  it('chưa có lịch (bước ③): "Xếp lịch tự động" + nút xuất bị khoá kèm câu giải thích', () => {
     const html = renderToStaticMarkup(<CalendarColumn {...props} items={[]} room={mockRoom} />);
     expect(html).not.toContain('data-testid="plan-footer"');
     expect(html).toContain('data-testid="plan-footer-empty"');
     expect(html).not.toContain('data-testid="send-plan-btn"');
     expect(html).toContain('Xếp lịch tự động');
+    expect(html).toMatch(/data-testid="export-plan-btn-locked"[^>]*disabled|disabled=""[^>]*data-testid="export-plan-btn-locked"/);
+    expect(html).toContain('Xếp ít nhất một quán vào lịch');
+    expect(html).not.toContain('data-testid="export-plan-btn"');
   });
 });
 
