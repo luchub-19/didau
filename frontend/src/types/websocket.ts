@@ -5,6 +5,13 @@ export interface WebSocketEnvelope<T = unknown> {
   type: string;
   payload: T;
   ts: number;
+  /**
+   * CR-13: số phiên bản trạng thái phòng. Có ở mọi tin server → client (server cũ không gửi).
+   * Tin đổi trạng thái mang số mới (tăng đúng 1); tin tạm thời (chat, gõ, hiện diện, PONG) mang số
+   * hiện tại. Client giữ số lớn nhất đã áp: tin nhỏ hơn → bỏ; nhảy cóc (> +1) → SUBSCRIBE_ROOM lại.
+   * `CONFLICTS_UPDATED` do đánh giá ngầm dùng lại số của thay đổi gây ra nó (bằng, không tăng).
+   */
+  state_version?: number;
 }
 
 // Client -> Server Payloads
@@ -33,6 +40,8 @@ export interface RoomStateSyncPayload {
   places: Place[];
   schedule: ScheduleItem[];
   conflicts: ConflictAlert[];
+  /** CR-13: trùng với `state_version` của khung ngoài và của `room`. */
+  state_version?: number;
 }
 
 export interface RoomUpdatedPayload {
@@ -41,6 +50,12 @@ export interface RoomUpdatedPayload {
 
 export interface MemberJoinedPayload {
   member: Member;
+}
+
+/** CR-11: thành viên đổi/xoá vị trí xuất phát. Chỉ có cờ, không bao giờ có toạ độ. */
+export interface MemberUpdatedPayload {
+  member_id: string;
+  has_origin: boolean;
 }
 
 export interface MemberLeftPayload {

@@ -22,7 +22,7 @@ from app.repositories import (
     VoteRepository,
 )
 from app.schemas.conflict import ConflictResponse
-from app.schemas.member import MemberResponse
+from app.schemas.member import MemberResponse, SelfMemberResponse
 from app.schemas.place import PlaceResponse
 from app.schemas.room import RoomResponse
 from app.schemas.schedule import ScheduleItemResponse
@@ -137,7 +137,10 @@ async def _gather_room_state_sync(room_id: UUID, current_member_id: UUID) -> dic
                 else {}
             ),
             "members": [
-                MemberResponse.model_validate(m).model_dump(mode="json")
+                # Riêng tư (CR-11): chỉ mục của chính người nhận có toạ độ; người khác chỉ has_origin
+                (SelfMemberResponse if m.id == current_member_id else MemberResponse)
+                .model_validate(m)
+                .model_dump(mode="json")
                 for m in members
             ],
             "places": [
@@ -153,6 +156,12 @@ async def _gather_room_state_sync(room_id: UUID, current_member_id: UUID) -> dic
                 for c in conflicts
             ],
         }
+
+
+async def _load_state_version(room_id: UUID) -> int:
+    """Đọc state_version hiện tại của phòng từ DB (CR-13)."""
+    async with get_session_factory()() as session:
+        return await RoomRepository(session).get_state_version(room_id)
 
 
 def _presence_envelope(member_id: UUID, focus: dict[str, Any] | None) -> dict[str, Any]:
@@ -200,12 +209,19 @@ async def _handle_websocket_room(
     ws_manager = get_websocket_manager()
     await ws_manager.connect(room_id, member.id, websocket)
 
+    # Seed state_version đã biết của phòng để đóng dấu các tin không đổi trạng thái (CR-13)
+    ws_manager.note_state_version(room_id, await _load_state_version(room_id))
+
+    async def _send(message: dict[str, Any]) -> None:
+        """Gửi tin cho riêng kết nối này, đính state_version hiện tại của phòng (CR-13)."""
+        await websocket.send_json(ws_manager.stamp(room_id, message))
+
     # 3. Server WebSocket gửi ping mỗi 25 giây
     async def _server_ping_loop() -> None:
         try:
             while True:
                 await asyncio.sleep(25)
-                await websocket.send_json(
+                await _send(
                     {
                         "type": "PING",
                         "payload": {},
@@ -226,7 +242,7 @@ async def _handle_websocket_room(
             try:
                 data = json.loads(raw_text)
             except json.JSONDecodeError:
-                await websocket.send_json(
+                await _send(
                     {
                         "type": "ERROR",
                         "payload": {
@@ -243,7 +259,7 @@ async def _handle_websocket_room(
 
             # Heartbeat PING -> PONG
             if msg_type == "PING":
-                await websocket.send_json(
+                await _send(
                     {
                         "type": "PONG",
                         "payload": {},
@@ -257,11 +273,15 @@ async def _handle_websocket_room(
             # Đồng bộ toàn diện trạng thái phòng
             elif msg_type == "SUBSCRIBE_ROOM":
                 state = await _gather_room_state_sync(room_id, member.id)
-                await websocket.send_json(
+                sync_version = int(state["room"].get("state_version") or 0)
+                state["state_version"] = sync_version
+                ws_manager.note_state_version(room_id, sync_version)
+                await _send(
                     {
                         "type": "ROOM_STATE_SYNC",
                         "payload": state,
                         "ts": int(now_utc().timestamp() * 1000),
+                        "state_version": sync_version,
                     }
                 )
 
@@ -290,7 +310,7 @@ async def _handle_websocket_room(
                     continue
 
                 if len(content) > 500:
-                    await websocket.send_json(
+                    await _send(
                         {
                             "type": "ERROR",
                             "payload": {
@@ -303,7 +323,7 @@ async def _handle_websocket_room(
                     continue
 
                 if not chat_message_limiter.is_allowed(str(member.id)):
-                    await websocket.send_json(
+                    await _send(
                         {
                             "type": "ERROR",
                             "payload": {

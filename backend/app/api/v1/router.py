@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.conflicts import router as conflicts_router
 from app.api.v1.decisions import router as decisions_router
+from app.api.v1.members import room_members_router
 from app.api.v1.members import router as members_router
 from app.api.v1.places import router as places_router
 from app.api.v1.pois import router as pois_router
@@ -16,6 +17,7 @@ from app.core.exceptions import AppException
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(rooms_router)
 api_router.include_router(members_router)
+api_router.include_router(room_members_router)
 api_router.include_router(places_router)
 api_router.include_router(votes_router)
 api_router.include_router(schedule_router)

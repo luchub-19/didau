@@ -37,6 +37,7 @@ from app.repositories import (
     IVoteRepository,
 )
 from app.schemas.decision import CreateDecisionRequest, SubmitSwipeRequest
+from app.services.state_version import publish_versioned
 from app.services.voting_service import VotingService
 
 logger = logging.getLogger(__name__)
@@ -329,7 +330,7 @@ class DecisionService:
             result_payload=session.result_payload,
             closes_at=session.closes_at,
         )
-        await self.event_bus.publish(event)
+        await publish_versioned(self.room_repo, self.event_bus, event)
 
         logger.info(
             "Đã tạo phiên chọn hộ %s (mode=%s) trong phòng %s với seed=%d",
@@ -409,7 +410,7 @@ class DecisionService:
             done_member_ids=done_member_ids,
             total_members=total_members,
         )
-        await self.event_bus.publish(progress_event)
+        await publish_versioned(self.room_repo, self.event_bus, progress_event)
 
         # Nếu toàn bộ thành viên đã hoàn thành quẹt, tự động tổng hợp kết quả
         if total_members > 0 and len(done_member_ids) >= total_members:
@@ -527,7 +528,7 @@ class DecisionService:
             result_place_id=session.result_place_id,
             status=DecisionStatus.RESOLVED.value,
         )
-        await self.event_bus.publish(resolved_event)
+        await publish_versioned(self.room_repo, self.event_bus, resolved_event)
 
         resolved_place = await self.place_repo.get_by_id(session.result_place_id)
         resolved_place_data: dict[str, Any] | None = None
@@ -626,6 +627,6 @@ class DecisionService:
             result_place_id=None,
             status=DecisionStatus.CANCELLED.value,
         )
-        await self.event_bus.publish(resolved_event)
+        await publish_versioned(self.room_repo, self.event_bus, resolved_event)
 
         return {"session": session}

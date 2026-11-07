@@ -21,6 +21,9 @@ export const mockRoom: Room = {
   status: 'PLANNING',
   tie_break_strategy: 'EARLIEST_SUBMISSION',
   budget_limit: 500000,
+  // Phòng mẫu giống "phòng cũ" sau migration: không giới hạn đề xuất (phòng tạo mới mặc định 2, CR-14)
+  max_places_per_member: null,
+  state_version: 0,
   created_at: '2026-10-17T07:30:00Z',
   updated_at: '2026-10-17T07:30:00Z',
 };
@@ -32,6 +35,7 @@ export const mockHostMember: Member = {
   avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=HoangNam',
   role: 'HOST',
   is_active: true,
+  has_origin: false,
   joined_at: '2026-10-17T07:30:00Z',
 };
 
@@ -42,6 +46,7 @@ export const mockGuestMember: Member = {
   avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=ThuTrang',
   role: 'MEMBER',
   is_active: true,
+  has_origin: false,
   joined_at: '2026-10-17T07:35:00Z',
 };
 

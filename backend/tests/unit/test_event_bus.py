@@ -90,6 +90,7 @@ def test_member_joined_event_creation_and_envelope(room_id: UUID) -> None:
             "id": str(member_id),
             "nickname": "MinhTrang",
             "role": "HOST",
+            "has_origin": False,  # CR-11: người mới chưa có vị trí xuất phát
             "avatar_url": "https://avatar.local/minh.png",
         }
     }

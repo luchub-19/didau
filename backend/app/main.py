@@ -10,6 +10,7 @@ from app.api.v1.router import api_router, register_exception_handlers
 from app.api.v1.websocket import router as websocket_router
 from app.config import get_settings
 from app.core.database import AsyncSessionLocal
+from app.core.state_version import STATE_VERSION_HEADER, StateVersionHeaderMiddleware
 from app.domain.patterns.event_bus.handlers import register_websocket_broadcast_handlers
 from app.services.conflict_service import register_conflict_evaluation_handlers
 from app.services.websocket_manager import get_websocket_manager
@@ -48,13 +49,17 @@ app = FastAPI(
     debug=False if is_prod else settings.DEBUG,
 )
 
-# Cấu hình CORS Middleware
+# Gắn header X-State-Version (CR-13). Thêm trước CORS để CORS bọc ngoài và vẫn xử lý preflight.
+app.add_middleware(StateVersionHeaderMiddleware)
+
+# Cấu hình CORS Middleware (expose X-State-Version để trình duyệt đọc được)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[STATE_VERSION_HEADER],
 )
 
 # Đăng ký exception handlers định dạng ApiErrorEnvelope

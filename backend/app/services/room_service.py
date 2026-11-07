@@ -7,6 +7,7 @@ from app.core.id_generator import generate_room_code
 from app.domain.enums import MemberRole, RoomStatus, TieBreakStrategyName
 from app.domain.patterns.event_bus import IEventBus, MemberJoinedEvent, RoomUpdatedEvent
 from app.repositories import IMemberRepository, IPlaceRepository, IRoomRepository
+from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,8 @@ class RoomService:
             "status": RoomStatus.PLANNING.value,
             "tie_break_strategy": tie_break_strategy_val,
             "budget_limit": data.get("budget_limit"),
+            # CR-14: phòng mới mặc định 2 quán/người; null tường minh = không giới hạn
+            "max_places_per_member": data.get("max_places_per_member", 2),
         }
         room = await self.room_repo.create(room_dict)
 
@@ -152,7 +155,7 @@ class RoomService:
             role=member.role,
             avatar_url=member.avatar_url,
         )
-        await self.event_bus.publish(event)
+        await publish_versioned(self.room_repo, self.event_bus, event)
 
         logger.info(
             "Thành viên '%s' đã tham gia phòng '%s' (code: %s)",
@@ -197,6 +200,8 @@ class RoomService:
             "origin_lng": room.origin_lng,
             "start_minute": room.start_minute,
             "end_minute": room.end_minute,
+            "max_places_per_member": room.max_places_per_member,
+            "state_version": room.state_version,
             "members": members,
             "total_places": total_places,
             "created_at": room.created_at,
@@ -214,7 +219,8 @@ class RoomService:
 
         changes: dict[str, Any] = {}
         for key, value in data.items():
-            if value is None:
+            # `max_places_per_member = null` có nghĩa "bỏ giới hạn" (CR-14), khác với "không gửi"
+            if value is None and key != "max_places_per_member":
                 continue
             changes[key] = getattr(value, "value", value)
 
@@ -239,6 +245,10 @@ class RoomService:
         from app.schemas.room import RoomResponse
 
         room_payload = RoomResponse.model_validate(updated).model_dump(mode="json")
+        # Số phiên bản đi ở khung ngoài của tin WS (sau khi tăng); bản trong payload sẽ cũ nên bỏ
+        room_payload.pop("state_version", None)
         if changes:
-            await self.event_bus.publish(RoomUpdatedEvent(room_id=room_id, room=room_payload))
+            await publish_versioned(
+                self.room_repo, self.event_bus, RoomUpdatedEvent(room_id=room_id, room=room_payload)
+            )
         return updated

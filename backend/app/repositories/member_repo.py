@@ -65,3 +65,16 @@ class MemberRepository(BaseRepository, IMemberRepository):
         )
         await self.session.execute(stmt)
         await self.session.flush()
+
+    async def set_origin(
+        self, member_id: UUID, origin_lat: float | None, origin_lng: float | None
+    ) -> Member | None:
+        """Ghi/xoá vị trí xuất phát riêng của thành viên (CR-11)."""
+        member = await self.session.get(Member, member_id)
+        if member is None:
+            return None
+        member.origin_lat = origin_lat
+        member.origin_lng = origin_lng
+        await self.session.flush()
+        await self.session.refresh(member)
+        return member

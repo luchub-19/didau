@@ -16,6 +16,7 @@ import type {
   Poi,
   Room,
   ScheduleItem,
+  SelfMember,
 } from './models';
 
 export interface ApiErrorEnvelope {
@@ -47,6 +48,8 @@ export interface CreateRoomRequest {
   origin_lng?: number;
   start_minute?: number;
   end_minute?: number;
+  /** CR-14: mặc định 2 khi bỏ trống; `null` = không giới hạn. */
+  max_places_per_member?: number | null;
 }
 
 export interface UpdateRoomRequest {
@@ -60,11 +63,25 @@ export interface UpdateRoomRequest {
   origin_lng?: number | null;
   start_minute?: number;
   end_minute?: number;
+  /** CR-14 (Host): 1–10; gửi `null` tường minh = bỏ giới hạn; không gửi = giữ nguyên. */
+  max_places_per_member?: number | null;
+}
+
+/** CR-11: `PATCH /rooms/{room_id}/members/me`. Cả hai `null` = xoá; chỉ một `null` hoặc thiếu = 422. */
+export interface UpdateMyOriginRequest {
+  origin_lat: number | null;
+  origin_lng: number | null;
+}
+
+/** CR-14: `details` của lỗi 409 `PLACE_LIMIT_REACHED`. */
+export interface PlaceLimitReachedDetails {
+  limit: number;
+  used: number;
 }
 
 export interface CreateRoomResponse {
   room: Room;
-  creator_member: Member;
+  creator_member: SelfMember;
   member_token: string;
 }
 
@@ -76,7 +93,7 @@ export interface JoinRoomRequest {
 
 export interface JoinRoomResponse {
   room: Room;
-  member: Member;
+  member: SelfMember;
   member_token: string;
 }
 

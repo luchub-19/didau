@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.core.exceptions import ForbiddenHostOnlyError, UnauthorizedError
+from app.core.state_version import record_state_version
 from app.domain.enums import MemberRole
 from app.domain.models.member import Member
 from app.domain.patterns.event_bus import IEventBus, InMemoryEventBus
@@ -102,9 +103,11 @@ def get_conflict_repository(
 
 def get_member_service(
     member_repo: Annotated[IMemberRepository, Depends(get_member_repository)],
+    room_repo: Annotated[IRoomRepository, Depends(get_room_repository)],
+    event_bus: Annotated[IEventBus, Depends(get_event_bus)],
 ) -> MemberService:
     """Dependency cung cấp MemberService."""
-    return MemberService(member_repo=member_repo)
+    return MemberService(member_repo=member_repo, room_repo=room_repo, event_bus=event_bus)
 
 
 def get_room_service(
@@ -136,10 +139,17 @@ def ensure_room_access(member: Member, room_id: UUID) -> None:
 
 async def get_current_member(
     member_service: Annotated[MemberService, Depends(get_member_service)],
+    room_repo: Annotated[IRoomRepository, Depends(get_room_repository)],
     x_member_token: Annotated[str | None, Header(alias="X-Member-Token")] = None,
 ) -> Member:
-    """Dependency xác thực người dùng dựa trên header X-Member-Token."""
-    return await member_service.validate_token(x_member_token)
+    """Dependency xác thực người dùng dựa trên header X-Member-Token.
+
+    Đồng thời ghi `state_version` hiện tại của phòng để response mang header `X-State-Version`
+    (CR-13); endpoint ghi dữ liệu sẽ ghi đè bằng số mới sau khi tăng.
+    """
+    member = await member_service.validate_token(x_member_token)
+    record_state_version(await room_repo.get_state_version(member.room_id))
+    return member
 
 
 async def get_current_host(

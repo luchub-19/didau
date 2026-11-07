@@ -31,6 +31,7 @@ from app.domain.patterns.tie_break import (
     resolve_voting_with_tie_break,
 )
 from app.repositories import IMemberRepository, IPlaceRepository, IRoomRepository, IVoteRepository
+from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ class VotingService:
             downvotes=vote_summary["downvotes"],
             score=vote_summary["score"],
         )
-        await self.event_bus.publish(event)
+        await publish_versioned(self.room_repo, self.event_bus, event)
 
         logger.info(
             "Thành viên %s đã bỏ phiếu %d cho địa điểm %s trong phòng %s",
@@ -218,7 +219,7 @@ class VotingService:
             downvotes=vote_summary["downvotes"],
             score=vote_summary["score"],
         )
-        await self.event_bus.publish(event)
+        await publish_versioned(self.room_repo, self.event_bus, event)
 
         logger.info(
             "Thành viên %s đã rút phiếu bầu cho địa điểm %s trong phòng %s",
@@ -411,7 +412,7 @@ class VotingService:
                 new_status=rp.status,
                 old_status=old_status,
             )
-            await self.event_bus.publish(status_event)
+            await publish_versioned(self.room_repo, self.event_bus, status_event)
 
         # 9. Phát sự kiện VotingResolvedEvent
         resolved_event = VotingResolvedEvent(
@@ -419,7 +420,7 @@ class VotingService:
             strategy=strategy_key,
             accepted_place_ids=accepted_place_ids,
         )
-        await self.event_bus.publish(resolved_event)
+        await publish_versioned(self.room_repo, self.event_bus, resolved_event)
 
         # 10. Cập nhật trạng thái phòng sang FINALIZED và lưu tie_break_strategy
         await self.room_repo.update(

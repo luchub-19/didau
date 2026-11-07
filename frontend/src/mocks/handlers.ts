@@ -19,8 +19,10 @@ import type {
   ResolveVotingRequest,
   Room,
   ScheduleItem,
+  SelfMember,
   SubmitSwipeRequest,
   TriggerHint,
+  UpdateMyOriginRequest,
   VoteRequest,
 } from '../types';
 import {
@@ -47,7 +49,42 @@ const googleLinks: Map<string, string | null> = new Map();
 const decisionSessions: Map<string, DecisionSession> = new Map();
 const decisionSwipes: Map<string, DecisionSwipe[]> = new Map();
 
+// CR-13: số phiên bản trạng thái phòng — tăng 1 ở mỗi thay đổi (như backend), trả qua header
+// `X-State-Version` và trường `state_version` của phòng.
+let stateVersion = 0;
+// CR-11: vị trí xuất phát riêng của từng thành viên (chỉ chính chủ đọc được toạ độ)
+const memberOrigins: Map<string, { lat: number; lng: number }> = new Map();
+
+function bumpStateVersion(): number {
+  stateVersion += 1;
+  currentRoom = { ...currentRoom, state_version: stateVersion };
+  return stateVersion;
+}
+
+function versionHeaders(): Record<string, string> {
+  return { 'X-State-Version': String(stateVersion) };
+}
+
+/** Thành viên ứng với token trong mock (token chủ phòng → chủ phòng, còn lại → khách đầu tiên). */
+function memberForToken(token: string | null): Member {
+  return token === MOCK_HOST_TOKEN
+    ? (membersList.find((m) => m.id === mockHostMember.id) ?? mockHostMember)
+    : (membersList.find((m) => m.role === 'MEMBER') ?? mockGuestMember);
+}
+
+function toSelfMember(member: Member): SelfMember {
+  const origin = memberOrigins.get(member.id);
+  return {
+    ...member,
+    has_origin: origin !== undefined,
+    origin_lat: origin?.lat ?? null,
+    origin_lng: origin?.lng ?? null,
+  };
+}
+
 export function resetMockDb(): void {
+  stateVersion = 0;
+  memberOrigins.clear();
   currentRoom = { ...mockRoom };
   membersList = [{ ...mockHostMember }, { ...mockGuestMember }];
   placesList = mockPlaces.map((p) => ({ ...p }));
@@ -145,9 +182,15 @@ export const handlers = [
       status: 'PLANNING',
       tie_break_strategy: body.tie_break_strategy ?? 'EARLIEST_SUBMISSION',
       budget_limit: body.budget_limit ?? null,
+      // CR-14: phòng mới mặc định 2 quán/người; gửi null tường minh = không giới hạn
+      max_places_per_member:
+        'max_places_per_member' in body ? (body.max_places_per_member ?? null) : 2,
+      state_version: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    stateVersion = 0;
+    memberOrigins.clear();
 
     const host: Member = {
       id: memberId,
@@ -156,6 +199,7 @@ export const handlers = [
       avatar_url: body.creator_avatar_url ?? null,
       role: 'HOST',
       is_active: true,
+      has_origin: false,
       joined_at: new Date().toISOString(),
     };
 
@@ -200,18 +244,20 @@ export const handlers = [
       avatar_url: body.avatar_url ?? null,
       role: 'MEMBER',
       is_active: true,
+      has_origin: false,
       joined_at: new Date().toISOString(),
     };
 
     membersList.push(newMember);
+    bumpStateVersion();
 
     return HttpResponse.json(
       {
         room: currentRoom,
-        member: newMember,
+        member: toSelfMember(newMember),
         member_token: token,
       },
-      { status: 200 },
+      { status: 200, headers: versionHeaders() },
     );
   }),
 
@@ -231,11 +277,15 @@ export const handlers = [
       );
     }
 
-    return HttpResponse.json({
-      ...currentRoom,
-      members: membersList,
-      total_places: placesList.length,
-    });
+    // CR-11: người xem chỉ thấy `has_origin` của các thành viên, không có toạ độ
+    return HttpResponse.json(
+      {
+        ...currentRoom,
+        members: membersList.map((m) => ({ ...m, has_origin: memberOrigins.has(m.id) })),
+        total_places: placesList.length,
+      },
+      { headers: versionHeaders() },
+    );
   }),
 
   // 3b. Cập nhật cấu hình phòng (CR-03, Host only)
@@ -248,8 +298,23 @@ export const handlers = [
       );
     }
     const body = (await request.json()) as Record<string, unknown>;
+    // CR-14: 1–10 hoặc null (bỏ giới hạn)
+    const limit = body.max_places_per_member;
+    if (limit !== undefined && limit !== null && (typeof limit !== 'number' || limit < 1 || limit > 10)) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Dữ liệu đầu vào không hợp lệ.',
+            details: { field: 'max_places_per_member' },
+          },
+        },
+        { status: 422 },
+      );
+    }
     currentRoom = { ...currentRoom, ...body, updated_at: new Date().toISOString() } as Room;
-    return HttpResponse.json(currentRoom);
+    bumpStateVersion();
+    return HttpResponse.json(currentRoom, { headers: versionHeaders() });
   }),
 
   // 4. Lấy thông tin thành viên hiện tại
@@ -267,12 +332,48 @@ export const handlers = [
       );
     }
 
-    const member =
-      token === MOCK_HOST_TOKEN
-        ? mockHostMember
-        : membersList.find((m) => m.role === 'MEMBER') ?? mockGuestMember;
+    return HttpResponse.json(toSelfMember(memberForToken(token)), { headers: versionHeaders() });
+  }),
 
-    return HttpResponse.json(member);
+  // 4b. Đặt/xoá vị trí xuất phát riêng của mình (CR-11)
+  http.patch('*/api/v1/rooms/:roomId/members/me', async ({ request }) => {
+    const token = request.headers.get('X-Member-Token');
+    if (!token) {
+      return HttpResponse.json(
+        { error: { code: 'UNAUTHORIZED', message: 'Thiếu header xác thực X-Member-Token.' } },
+        { status: 401 },
+      );
+    }
+    const body = (await request.json()) as Partial<UpdateMyOriginRequest>;
+    const { origin_lat: lat, origin_lng: lng } = body;
+    const bothMissing = lat === undefined || lng === undefined;
+    const half = (lat === null) !== (lng === null);
+    const outOfRange =
+      (typeof lat === 'number' && (lat < -90 || lat > 90)) ||
+      (typeof lng === 'number' && (lng < -180 || lng > 180));
+    if (bothMissing || half || outOfRange) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Dữ liệu đầu vào không hợp lệ.',
+            details: { fields: ['origin_lat', 'origin_lng'] },
+          },
+        },
+        { status: 422 },
+      );
+    }
+    const member = memberForToken(token);
+    if (lat === null || lng === null) {
+      memberOrigins.delete(member.id);
+    } else {
+      memberOrigins.set(member.id, { lat, lng });
+    }
+    membersList = membersList.map((m) =>
+      m.id === member.id ? { ...m, has_origin: memberOrigins.has(m.id) } : m,
+    );
+    bumpStateVersion();
+    return HttpResponse.json(toSelfMember(member), { headers: versionHeaders() });
   }),
 
   // 5. Lấy danh sách địa điểm
@@ -301,6 +402,24 @@ export const handlers = [
               code: 'PLACE_ALREADY_ADDED',
               message: 'Địa điểm này đã được thêm vào chuyến đi.',
               details: { place_id: existing.id },
+            },
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    // CR-14: giới hạn số quán mỗi người đề xuất (quán đã xoá không còn trong danh sách nên không tính)
+    const limit = currentRoom.max_places_per_member;
+    if (limit != null) {
+      const used = placesList.filter((p) => p.submitted_by_id === mockHostMember.id).length;
+      if (used >= limit) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'PLACE_LIMIT_REACHED',
+              message: 'Bạn đã đề xuất đủ số quán cho phòng này.',
+              details: { limit, used },
             },
           },
           { status: 409 },
@@ -338,7 +457,8 @@ export const handlers = [
     };
 
     placesList.unshift(newPlace);
-    return HttpResponse.json(newPlace, { status: 201 });
+    bumpStateVersion();
+    return HttpResponse.json(newPlace, { status: 201, headers: versionHeaders() });
   }),
 
   // 7. Cập nhật trạng thái / thông tin địa điểm
@@ -369,7 +489,8 @@ export const handlers = [
   http.delete('*/api/v1/rooms/:roomId/places/:placeId', ({ params }) => {
     const { placeId } = params;
     placesList = placesList.filter((p) => p.id !== placeId);
-    return HttpResponse.json({ success: true, deleted_id: placeId });
+    bumpStateVersion();
+    return HttpResponse.json({ success: true, deleted_id: placeId }, { headers: versionHeaders() });
   }),
 
   // 9. Bỏ phiếu cho địa điểm

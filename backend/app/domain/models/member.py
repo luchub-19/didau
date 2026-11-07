@@ -4,7 +4,9 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     String,
@@ -31,6 +33,15 @@ class Member(Base):
     __tablename__ = "members"
     __table_args__ = (
         UniqueConstraint("room_id", "nickname", name="uq_room_nickname"),
+        CheckConstraint(
+            "(origin_lat IS NULL OR (origin_lat >= -90 AND origin_lat <= 90)) AND "
+            "(origin_lng IS NULL OR (origin_lng >= -180 AND origin_lng <= 180))",
+            name="chk_members_origin_range",
+        ),
+        CheckConstraint(
+            "(origin_lat IS NULL) = (origin_lng IS NULL)",
+            name="chk_members_origin_pair",
+        ),
         Index("idx_members_room_id", "room_id"),
         Index("idx_members_token", "token"),
     )
@@ -71,6 +82,14 @@ class Member(Base):
         default=True,
         server_default="true",
     )
+    origin_lat: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    origin_lng: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -84,6 +103,11 @@ class Member(Base):
         onupdate=func.now(),
         default=now_utc,
     )
+
+    @property
+    def has_origin(self) -> bool:
+        """Đã đặt vị trí xuất phát riêng chưa (CR-11); schema công khai chỉ lộ cờ này."""
+        return self.origin_lat is not None and self.origin_lng is not None
 
     # Relationships
     room: Mapped["Room"] = relationship(

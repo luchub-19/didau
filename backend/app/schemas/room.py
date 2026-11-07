@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.enums import CityCode, RoomStatus, TieBreakStrategyName
-from app.schemas.member import MemberResponse, RoomDetailMemberResponse
+from app.schemas.member import RoomDetailMemberResponse, SelfMemberResponse
 
 
 class CreateRoomRequest(BaseModel):
@@ -44,6 +44,12 @@ class CreateRoomRequest(BaseModel):
         le=1439,
         description="Giờ kết thúc khung thời gian phòng (phút)",
     )
+    max_places_per_member: int | None = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Số quán tối đa mỗi người được đề xuất (CR-14); null = không giới hạn",
+    )
 
 
 class UpdateRoomRequest(BaseModel):
@@ -59,6 +65,12 @@ class UpdateRoomRequest(BaseModel):
     origin_lng: float | None = Field(default=None, ge=-180.0, le=180.0)
     start_minute: int | None = Field(default=None, ge=0, le=1439)
     end_minute: int | None = Field(default=None, ge=0, le=1439)
+    max_places_per_member: int | None = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description="Giới hạn quán mỗi người (CR-14); gửi null tường minh = bỏ giới hạn",
+    )
 
 
 class RoomResponse(BaseModel):
@@ -77,6 +89,8 @@ class RoomResponse(BaseModel):
     origin_lng: float | None = None
     start_minute: int = 1020
     end_minute: int = 1380
+    max_places_per_member: int | None = None
+    state_version: int = 0
     created_at: datetime
     updated_at: datetime | None = None
 
@@ -87,7 +101,7 @@ class CreateRoomResponse(BaseModel):
     """Kết quả phản hồi khi tạo phòng mới thành công (201 Created)."""
 
     room: RoomResponse
-    creator_member: MemberResponse
+    creator_member: SelfMemberResponse
     member_token: str
 
 
@@ -103,7 +117,7 @@ class JoinRoomResponse(BaseModel):
     """Kết quả phản hồi khi tham gia phòng thành công (200 OK)."""
 
     room: RoomResponse
-    member: MemberResponse
+    member: SelfMemberResponse
     member_token: str
 
 
@@ -123,6 +137,8 @@ class RoomDetailResponse(BaseModel):
     origin_lng: float | None = None
     start_minute: int = 1020
     end_minute: int = 1380
+    max_places_per_member: int | None = None
+    state_version: int = 0
     members: list[RoomDetailMemberResponse] = Field(default_factory=list)
     total_places: int = 0
     created_at: datetime

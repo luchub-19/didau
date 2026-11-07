@@ -32,6 +32,7 @@ class DomainEvent(BaseModel):
     event_id: UUID = Field(default_factory=generate_uuid)
     room_id: UUID
     occurred_at: datetime = Field(default_factory=now_utc)
+    state_version: int | None = None
 
     @property
     def event_type(self) -> str:
@@ -40,15 +41,20 @@ class DomainEvent(BaseModel):
 
     def to_envelope_payload(self) -> dict[str, Any]:
         """Chuyển đổi dữ liệu sự kiện thành payload chuẩn gửi qua WebSocket."""
-        return self.model_dump(mode="json", exclude={"event_id", "room_id", "occurred_at"})
+        return self.model_dump(
+            mode="json", exclude={"event_id", "room_id", "occurred_at", "state_version"}
+        )
 
     def to_envelope(self) -> dict[str, Any]:
         """Đóng gói sự kiện thành WebSocket Envelope hoàn chỉnh {type, payload, ts}."""
-        return {
+        envelope: dict[str, Any] = {
             "type": self.event_type,
             "payload": self.to_envelope_payload(),
             "ts": int(self.occurred_at.timestamp() * 1000),
         }
+        if self.state_version is not None:
+            envelope["state_version"] = self.state_version
+        return envelope
 
 
 class MemberJoinedEvent(DomainEvent):
@@ -88,10 +94,28 @@ class MemberJoinedEvent(DomainEvent):
             "id": str(self.member_id),
             "nickname": self.nickname,
             "role": role_val,
+            "has_origin": False,  # Người mới vào chưa có vị trí xuất phát (CR-11)
         }
         if self.avatar_url:
             member_data["avatar_url"] = self.avatar_url
         return {"member": member_data}
+
+
+class MemberUpdatedEvent(DomainEvent):
+    """Sự kiện thành viên đổi/xoá vị trí xuất phát (MEMBER_UPDATED, CR-11).
+
+    Chỉ mang cờ `has_origin`: toạ độ là riêng tư, không bao giờ đi qua WebSocket.
+    """
+
+    member_id: UUID
+    has_origin: bool
+
+    @property
+    def event_type(self) -> str:
+        return "MEMBER_UPDATED"
+
+    def to_envelope_payload(self) -> dict[str, Any]:
+        return {"member_id": str(self.member_id), "has_origin": self.has_origin}
 
 
 class MemberLeftEvent(DomainEvent):

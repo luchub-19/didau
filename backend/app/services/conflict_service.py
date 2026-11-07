@@ -34,6 +34,7 @@ from app.repositories import (
     ScheduleRepository,
     VoteRepository,
 )
+from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
 
@@ -144,8 +145,19 @@ class ConflictService:
         context = await self._build_context(room_id)
         return self.engine.evaluate_all(context)
 
-    async def evaluate_and_save(self, room_id: UUID) -> list[Conflict]:
-        """Thực thi đánh giá xung đột, lưu mới vào database và phát tán ConflictDetectedEvent."""
+    async def evaluate_and_save(
+        self,
+        room_id: UUID,
+        *,
+        derived_from: DomainEvent | None = None,
+    ) -> list[Conflict]:
+        """Thực thi đánh giá xung đột, lưu mới vào database và phát tán ConflictDetectedEvent.
+
+        `derived_from`: sự kiện đã gây ra lần đánh giá ngầm này (chạy trong session riêng của
+        handler). Khi có, KHÔNG tăng `state_version` — session riêng sẽ chờ khoá hàng phòng mà
+        request gốc đang giữ (bế tắc) — mà dùng lại số của sự kiện gốc (CR-13): tin phái sinh
+        cùng số với thay đổi sinh ra nó, client vẫn áp được vì chỉ bỏ tin có số *nhỏ hơn*.
+        """
         conflict_results = await self.evaluate_conflicts(room_id)
         saved_conflicts = await self.conflict_repo.replace_conflicts(room_id, conflict_results)
 
@@ -169,9 +181,12 @@ class ConflictService:
             for c in saved_conflicts
         ]
 
-        await self.event_bus.publish(
-            ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
-        )
+        conflict_event = ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
+        if derived_from is not None:
+            conflict_event.state_version = getattr(derived_from, "state_version", None)
+            await self.event_bus.publish(conflict_event)
+        else:
+            await publish_versioned(self.room_repo, self.event_bus, conflict_event)
         return saved_conflicts
 
 
@@ -218,7 +233,7 @@ class ConflictEvaluationHandler(IEventHandler[DomainEvent]):
                     vote_repo=vote_repo,
                     engine=self.engine,
                 )
-                await service.evaluate_and_save(room_id)
+                await service.evaluate_and_save(room_id, derived_from=event)
                 await session.commit()
                 logger.info(
                     "Đã hoàn thành đánh giá xung đột ngầm cho phòng %s sau sự kiện %s",

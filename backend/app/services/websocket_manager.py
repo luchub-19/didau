@@ -29,7 +29,34 @@ class WebSocketConnectionManager(IWebSocketConnectionManager):
     def __init__(self) -> None:
         # room_id -> {member_id -> set of active websocket connections}
         self._rooms: dict[UUID, dict[UUID, set[Any]]] = {}
+        # room_id -> state_version mới nhất đã thấy (CR-13), để đóng dấu tin không đổi trạng thái
+        self._versions: dict[UUID, int] = {}
         self._lock = asyncio.Lock()
+
+    def note_state_version(self, room_id: UUID, version: int | None) -> None:
+        """Ghi nhận state_version lớn nhất đã biết của phòng (không bao giờ giảm)."""
+        if version is None:
+            return
+        if version > self._versions.get(room_id, -1):
+            self._versions[room_id] = version
+
+    def get_state_version(self, room_id: UUID) -> int | None:
+        """state_version đã biết của phòng, hoặc None nếu chưa từng thấy."""
+        return self._versions.get(room_id)
+
+    def stamp(self, room_id: UUID, message: dict[str, Any]) -> dict[str, Any]:
+        """Đính `state_version` vào tin (CR-13).
+
+        Tin đã mang số (sự kiện đổi trạng thái) thì chỉ ghi nhận; tin tạm thời (chat, gõ, hiện diện,
+        PING/PONG, lỗi) mang số hiện tại của phòng mà không tăng. Trả bản sao, không sửa tin gốc.
+        """
+        if message.get("state_version") is not None:
+            self.note_state_version(room_id, int(message["state_version"]))
+            return message
+        current = self._versions.get(room_id)
+        if current is None:
+            return message
+        return {**message, "state_version": current}
 
     async def connect(self, room_id: UUID, member_id: UUID, websocket: Any) -> None:
         """Lưu trữ kết nối WebSocket của thành viên."""
@@ -67,6 +94,7 @@ class WebSocketConnectionManager(IWebSocketConnectionManager):
 
                 if not self._rooms[room_id]:
                     del self._rooms[room_id]
+                    self._versions.pop(room_id, None)
 
         logger.info(
             "WebSocket disconnected: room=%s, member=%s, remaining_in_room=%d",
@@ -86,6 +114,7 @@ class WebSocketConnectionManager(IWebSocketConnectionManager):
 
         Tự động dọn dẹp các socket đã ngắt kết nối không bình thường.
         """
+        message = self.stamp(room_id, message)
         async with self._lock:
             if room_id not in self._rooms:
                 return
@@ -123,9 +152,14 @@ class WebSocketConnectionManager(IWebSocketConnectionManager):
                                 del self._rooms[room_id][m_id]
                     if not self._rooms[room_id]:
                         del self._rooms[room_id]
+                        self._versions.pop(room_id, None)
 
-    async def send_personal_message(self, websocket: Any, message: dict[str, Any]) -> None:
-        """Gửi trực tiếp thông điệp tới một kết nối cụ thể."""
+    async def send_personal_message(
+        self, websocket: Any, message: dict[str, Any], room_id: UUID | None = None
+    ) -> None:
+        """Gửi trực tiếp thông điệp tới một kết nối cụ thể (đóng dấu state_version nếu biết phòng)."""
+        if room_id is not None:
+            message = self.stamp(room_id, message)
         try:
             await websocket.send_json(message)
         except Exception as exc:  # noqa: BLE001

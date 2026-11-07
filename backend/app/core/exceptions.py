@@ -174,3 +174,20 @@ class RateLimitExceededError(AppException):
         super().__init__(
             code="RATE_LIMIT_EXCEEDED", message=message, status_code=429, details=details
         )
+
+
+class PlaceLimitReachedError(AppException):
+    """Lỗi khi thành viên đã đề xuất đủ số quán tối đa của phòng (CR-14)."""
+
+    def __init__(
+        self,
+        limit: int,
+        used: int,
+        message: str | None = None,
+    ) -> None:
+        super().__init__(
+            code="PLACE_LIMIT_REACHED",
+            message=message or f"Bạn đã đề xuất đủ {limit} quán cho phòng này.",
+            status_code=409,
+            details={"limit": limit, "used": used},
+        )

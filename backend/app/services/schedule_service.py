@@ -28,6 +28,7 @@ from app.repositories import (
     IScheduleRepository,
     IVoteRepository,
 )
+from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,9 @@ class ScheduleService:
             }
             for s in all_schedule_items
         ]
-        await self.event_bus.publish(ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts))
+        await publish_versioned(
+            self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
+        )
 
         conflicts_payload = [
             {
@@ -317,7 +320,9 @@ class ScheduleService:
             }
             for s in updated_items
         ]
-        await self.event_bus.publish(ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts))
+        await publish_versioned(
+            self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
+        )
 
         return [self._format_schedule_item(item) for item in updated_items]
 
@@ -368,7 +373,9 @@ class ScheduleService:
             }
             for s in remaining_items
         ]
-        await self.event_bus.publish(ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts))
+        await publish_versioned(
+            self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
+        )
 
         return True
 
@@ -487,8 +494,8 @@ class ScheduleService:
             }
             for s in all_items
         ]
-        await self.event_bus.publish(
-            ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
+        await publish_versioned(
+            self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
         )
 
         # 6. Phát sự kiện ConflictDetectedEvent (CONFLICTS_UPDATED)
@@ -526,8 +533,8 @@ class ScheduleService:
                 }
                 for cr in detected_conflicts
             ]
-        await self.event_bus.publish(
-            ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
+        await publish_versioned(
+            self.room_repo, self.event_bus, ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
         )
 
         return [self._format_schedule_item(item) for item in all_items]

@@ -33,6 +33,20 @@ class IRoomRepository(ABC):
     async def update(self, room_id: UUID, update_data: dict[str, Any]) -> Any | None:
         """Cập nhật thông tin phòng."""
 
+    async def bump_state_version(self, room_id: UUID) -> int:
+        """Tăng `rooms.state_version` thêm 1 trong transaction hiện tại và trả số mới (CR-13).
+
+        Mặc định không làm gì (repo giả lập trong test không có cột này) và trả 0.
+        """
+        return 0
+
+    async def get_state_version(self, room_id: UUID) -> int:
+        """Đọc `rooms.state_version` hiện tại (0 nếu không có phòng)."""
+        return 0
+
+    async def lock_for_update(self, room_id: UUID) -> None:
+        """Khoá hàng phòng đến hết transaction để tuần tự hoá thao tác cùng phòng (CR-14)."""
+
 
 class IMemberRepository(ABC):
     """Interface quản trị truy vấn thực thể Member theo CONTRACTS.md."""
@@ -56,6 +70,12 @@ class IMemberRepository(ABC):
     @abstractmethod
     async def update_last_active(self, member_id: UUID) -> None:
         """Cập nhật thời điểm hoạt động cuối cùng của thành viên."""
+
+    async def set_origin(
+        self, member_id: UUID, origin_lat: float | None, origin_lng: float | None
+    ) -> Any | None:
+        """Ghi vị trí xuất phát riêng của thành viên (cả hai None = xoá) (CR-11)."""
+        raise NotImplementedError
 
 
 class IPlaceRepository(ABC):

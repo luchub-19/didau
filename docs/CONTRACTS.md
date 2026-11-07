@@ -157,6 +157,9 @@ CREATE TABLE rooms (
     origin_lng DOUBLE PRECISION NULL,
     start_minute INTEGER NOT NULL DEFAULT 1020 CHECK (start_minute >= 0 AND start_minute <= 1439),
     end_minute INTEGER NOT NULL DEFAULT 1380 CHECK (end_minute >= 0 AND end_minute <= 1439),
+    state_version BIGINT NOT NULL DEFAULT 0, -- CR-13: +1 trong cùng transaction với mỗi thay đổi có phát WS
+    max_places_per_member INTEGER NULL      -- CR-14: NULL = không giới hạn (phòng cũ); phòng mới mặc định 2
+        CONSTRAINT chk_rooms_max_places_per_member CHECK (max_places_per_member IS NULL OR (max_places_per_member >= 1 AND max_places_per_member <= 10)),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -173,9 +176,13 @@ CREATE TABLE members (
     role VARCHAR(20) NOT NULL DEFAULT 'MEMBER',
     token VARCHAR(64) NOT NULL UNIQUE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    origin_lat DOUBLE PRECISION NULL, -- CR-11: vị trí xuất phát RIÊNG TƯ, chỉ chính chủ đọc được
+    origin_lng DOUBLE PRECISION NULL,
     joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_room_nickname UNIQUE (room_id, nickname)
+    CONSTRAINT uq_room_nickname UNIQUE (room_id, nickname),
+    CONSTRAINT chk_members_origin_range CHECK ((origin_lat IS NULL OR (origin_lat >= -90 AND origin_lat <= 90)) AND (origin_lng IS NULL OR (origin_lng >= -180 AND origin_lng <= 180))),
+    CONSTRAINT chk_members_origin_pair CHECK ((origin_lat IS NULL) = (origin_lng IS NULL))
 );
 
 CREATE INDEX idx_members_room_id ON members(room_id);
@@ -327,6 +334,8 @@ Mọi request (ngoại trừ tạo phòng và join phòng) bắt buộc phải t
 - `Content-Type: application/json`
 - `X-Member-Token: <UUIDv4_TOKEN>`
 
+**Header response `X-State-Version` (CR-13)**: mọi response của endpoint có token (thuộc một phòng) mang số `rooms.state_version` hiện tại; endpoint ghi dữ liệu trả số **sau** khi tăng. CORS đã `expose` header này. Cùng số xuất hiện ở trường `state_version` của `RoomResponse` / `RoomDetailResponse`.
+
 ### 3.2. Định dạng Lỗi Thống nhất
 Khi có lỗi (status $\ge 400$):
 ```json
@@ -357,10 +366,12 @@ Khi có lỗi (status $\ge 400$):
   "creator_nickname": "HoangNam",
   "creator_avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=HoangNam",
   "budget_limit": 500000,
-  "tie_break_strategy": "EARLIEST_SUBMISSION"
+  "tie_break_strategy": "EARLIEST_SUBMISSION",
+  "max_places_per_member": 2
 }
 ```
-- **Response 201 Created**:
+- `max_places_per_member` (CR-14, tuỳ chọn, 1–10): bỏ trống = **2**; `null` = không giới hạn.
+- **Response 201 Created**: (`creator_member` là `SelfMemberResponse`, CR-11; `room` có thêm `max_places_per_member`, `state_version`)
 ```json
 {
   "room": {
@@ -778,18 +789,27 @@ Khi có lỗi (status $\ge 400$):
 #### 27. Cập nhật cấu hình phòng (CR-03)
 - **Method & Path**: `PATCH /api/v1/rooms/{room_id}`
 - **Auth**: Header `X-Member-Token: <token>` (Host only)
-- **Payload**: mọi trường tuỳ chọn: `title`, `description`, `event_date`, `budget_limit`, `tie_break_strategy`, `city`, `origin_lat`, `origin_lng`, `start_minute`, `end_minute`
+- **Payload**: mọi trường tuỳ chọn: `title`, `description`, `event_date`, `budget_limit`, `tie_break_strategy`, `city`, `origin_lat`, `origin_lng`, `start_minute`, `end_minute`, `max_places_per_member` (CR-14: 1–10; gửi `null` tường minh = bỏ giới hạn; không gửi = giữ nguyên)
 - **Response 200 OK**: `RoomResponse`; phát WS `ROOM_UPDATED`.
 - **Error Codes**: `FORBIDDEN_HOST_ONLY` (403), `VALIDATION_ERROR` (422).
 
 #### Mã lỗi bổ sung (CR-03)
 - `PLACE_ALREADY_ADDED` (409): `POST /rooms/{room_id}/places` trùng `(room_id, external_id)`; `details.place_id` là id quán đã có.
+- `PLACE_LIMIT_REACHED` (409, CR-14): `POST /rooms/{room_id}/places` khi người gọi đã đề xuất đủ `rooms.max_places_per_member` quán; `details = { "limit": 2, "used": 2 }`. Quán đã xoá không tính (xoá là xoá thật); xoá một quán rồi thêm lại được; `max_places_per_member = NULL` thì không bao giờ gặp mã này. Kiểm tra tuần tự hoá theo phòng (khoá hàng phòng) nên hai request song song của cùng một người không cùng lọt qua.
 
-#### 28. Lấy thành viên hiện tại (CR-05)
+#### 28. Lấy thành viên hiện tại (CR-05, CR-11)
 - **Method & Path**: `GET /api/v1/members/me`
 - **Auth**: Header `X-Member-Token: <token>`
-- **Response 200 OK**: `MemberResponse` của thành viên ứng với token.
+- **Response 200 OK**: `SelfMemberResponse` của thành viên ứng với token: `MemberResponse` + `origin_lat`, `origin_lng` (toạ độ riêng của CHÍNH người gọi, `null` nếu chưa đặt).
 - **Error Codes**: `UNAUTHORIZED` (401).
+
+#### 33. Đặt / xoá vị trí xuất phát riêng của mình (CR-11)
+- **Method & Path**: `PATCH /api/v1/rooms/{room_id}/members/me`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Payload**: `{ "origin_lat": 10.7712, "origin_lng": 106.6987 }`. Cả hai trường **bắt buộc có mặt**: cả hai `null` = xoá vị trí; chỉ một `null`, thiếu trường hoặc ngoài biên (±90 / ±180) = `VALIDATION_ERROR` (422).
+- **Response 200 OK**: `SelfMemberResponse` (có toạ độ của chính người gọi); phát WS `MEMBER_UPDATED { member_id, has_origin }` (không có toạ độ).
+- **Riêng tư (bất biến)**: toạ độ xuất phát của một thành viên chỉ xuất hiện ở `GET /members/me`, phản hồi endpoint này, phản hồi tạo/vào phòng của chính người đó và mục *của chính người nhận* trong `ROOM_STATE_SYNC`. Mọi chỗ trả thành viên khác (`GET /rooms/{id}`, `ROOM_STATE_SYNC`, `MEMBER_JOINED`, `MEMBER_UPDATED`) chỉ có `has_origin: bool`.
+- **Error Codes**: `UNAUTHORIZED` (401, kể cả khi `room_id` không phải phòng của token), `VALIDATION_ERROR` (422).
 
 #### 29. Chi tiết một địa điểm trong phòng (CR-05)
 - **Method & Path**: `GET /api/v1/rooms/{room_id}/places/{place_id}`
@@ -826,9 +846,17 @@ Khi có lỗi (status $\ge 400$):
 {
   "type": "TÊN_SỰ_KIỆN_IN_HOA",
   "payload": {},
-  "ts": 1729148400000
+  "ts": 1729148400000,
+  "state_version": 42
 }
 ```
+
+**`state_version` (CR-13)** — có ở **mọi** tin server → client sau khi xác thực (riêng `ERROR` do xác thực thất bại không có vì chưa biết phòng):
+- Tin **đổi trạng thái** (`MEMBER_JOINED`, `MEMBER_UPDATED`, `PLACE_*`, `VOTE_UPDATED`, `VOTING_RESOLVED`, `SCHEDULE_UPDATED`, `ROOM_UPDATED`, `DECISION_*`, `CONFLICTS_UPDATED` do API gọi trực tiếp) mang số **mới**, tăng đúng +1 so với tin đổi trạng thái liền trước của phòng (bump trong cùng transaction với thay đổi). Một thao tác phát hai tin (vd. `VOTE_UPDATED` + `PLACE_UPDATED`) thì tăng +2.
+- Tin **tạm thời** (`CHAT_MESSAGE`, `TYPING_PLACE`, `PRESENCE_UPDATED`, `PING`, `PONG`, `ERROR` sau xác thực) mang số **hiện tại**, không làm số tăng.
+- `CONFLICTS_UPDATED` do **đánh giá ngầm** sau `SCHEDULE_UPDATED`/`PLACE_ADDED` mang lại **chính số của tin gây ra nó** (bằng, không +1): handler chạy ở session riêng, tăng số ở đó sẽ chờ khoá hàng phòng mà request gốc đang giữ.
+- `ROOM_STATE_SYNC` mang số hiện tại ở khung ngoài, ở `payload.state_version` và ở `payload.room.state_version`.
+- **Quy tắc client**: giữ số lớn nhất đã áp; tin có số **nhỏ hơn** → bỏ; số **lớn hơn +1** so với tin đổi trạng thái đã áp (nhảy cóc) → gửi `SUBSCRIBE_ROOM` để đồng bộ lại; bằng nhau thì áp bình thường.
 
 ### 4.1. Chiều Client $\rightarrow$ Server
 | Type | Ý nghĩa | Payload mẫu |
@@ -846,8 +874,9 @@ Khi có lỗi (status $\ge 400$):
 | `PING` | Server chủ động gửi mỗi 25 s; client có thể trả `PONG` hoặc bỏ qua (CR-04) | `{}` |
 | `CHAT_MESSAGE` | Tin chat broadcast tới cả phòng (CR-04) | `{ "member_id": "...", "nickname": "ThuTrang", "avatar_url": null, "message": "Tối nay đi đâu?" }` |
 | `ERROR` | Thông báo lỗi xử lý socket | `{ "code": "UNAUTHORIZED", "message": "Token không hợp lệ" }`; mã bổ sung (CR-04): `MESSAGE_TOO_LONG`, `RATE_LIMIT_EXCEEDED` |
-| `ROOM_STATE_SYNC` | Đồng bộ toàn bộ dữ liệu khi vừa connect | `{ "room": {...}, "members": [...], "places": [...], "schedule": [...], "conflicts": [...] }` |
-| `MEMBER_JOINED` | Có thành viên mới tham gia | `{ "member": { "id": "...", "nickname": "ThuTrang", "role": "MEMBER" } }` |
+| `ROOM_STATE_SYNC` | Đồng bộ toàn bộ dữ liệu khi vừa connect (CR-11: mục `members` của chính người nhận có `origin_lat/lng`, của người khác chỉ có `has_origin`; CR-13: có `state_version`) | `{ "room": {...}, "members": [...], "places": [...], "schedule": [...], "conflicts": [...], "state_version": 42 }` |
+| `MEMBER_JOINED` | Có thành viên mới tham gia (CR-11: có `has_origin`, luôn `false` lúc mới vào) | `{ "member": { "id": "...", "nickname": "ThuTrang", "role": "MEMBER", "has_origin": false } }` |
+| `MEMBER_UPDATED` | Thành viên đặt/xoá vị trí xuất phát (CR-11); chỉ có cờ, **không bao giờ** có toạ độ | `{ "member_id": "...", "has_origin": true }` |
 | `MEMBER_LEFT` | Thành viên ngắt kết nối / rời phòng | `{ "member_id": "...", "nickname": "ThuTrang" }` |
 | `PLACE_ADDED` | Có địa điểm mới được thêm | `{ "place": { "id": "...", "name": "Cà phê 3T", "category": "DRINK", ... } }` |
 | `PLACE_UPDATED` | Thông tin địa điểm cập nhật | `{ "place": { "id": "...", "status": "ACCEPTED", ... } }` |
@@ -1212,6 +1241,8 @@ export interface Room {
   origin_lng?: number | null; // CR-02
   start_minute?: number; // CR-02, mặc định 1020 (17:00)
   end_minute?: number; // CR-02, mặc định 1380 (23:00)
+  max_places_per_member?: number | null; // CR-14, null = không giới hạn
+  state_version?: number; // CR-13
   created_at: string;
   updated_at: string;
 }
@@ -1223,8 +1254,15 @@ export interface Member {
   avatar_url?: string | null;
   role: MemberRole;
   is_active: boolean;
+  has_origin?: boolean; // CR-11
   joined_at: string;
   last_active_at?: string;
+}
+
+/** CR-11: dạng dành cho chính chủ (GET /members/me, PATCH .../members/me, tạo/vào phòng). */
+export interface SelfMember extends Member {
+  origin_lat?: number | null;
+  origin_lng?: number | null;
 }
 
 export interface Place {

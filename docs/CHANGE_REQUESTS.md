@@ -406,7 +406,7 @@ bằng xoá + tạo lại mục (`DELETE` + `POST`), đổi id mục và phát 2
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo tài liệu đồ án ALGO-01/02 (`docs/proposal/`) và quyết định người dùng
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; áp ở T-85, phần tâm nhóm ở T-86)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — ĐÃ ÁP phần vị trí/riêng tư/`MEMBER_UPDATED` ở T-85 (2026-11-08, CONTRACTS §2, §3.3 mục 28 + 33, §4); còn `GET /group-center` + `GROUP_CENTER_UPDATED` ở T-86
 - **Task đã DONE bị ảnh hưởng**: không. Thay BACKEND-NOTES gđ5 #5.
 
 ### 1. Vấn đề
@@ -451,7 +451,7 @@ Giữ 6 chiến lược hoà cũ; cảnh báo di chuyển như CR-07; danh sách
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo OUTPUT.docx §3 ("stateVersion chống gói tin trễ"), giữ WebSocket hiện tại
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — BACKEND ĐÃ ÁP ở T-85 (2026-11-08, CONTRACTS §2, §3.1, §4); FE ở T-88
 - **Task đã DONE bị ảnh hưởng**: không (trường thêm, client cũ bỏ qua được).
 
 ### 2. Đề xuất
@@ -466,7 +466,7 @@ Lịch kéo thả nhiều người sửa có thể bị tin trễ đè tạm th�
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo INPUT.docx (0–2 quán/người) + quyết định người dùng "host đặt giới hạn"
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; áp ở T-85, FE ở T-88)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — BACKEND ĐÃ ÁP ở T-85 (2026-11-08, CONTRACTS §2, §3.3 mục 1, 27 + mã lỗi `PLACE_LIMIT_REACHED`); FE ở T-88
 - **Task đã DONE bị ảnh hưởng**: không.
 
 ### 2. Đề xuất

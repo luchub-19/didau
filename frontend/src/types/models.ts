@@ -27,6 +27,10 @@ export interface Room {
   origin_lng?: number | null;
   start_minute?: number; // 0 - 1439, default 1020 (17:00)
   end_minute?: number; // 0 - 1439, default 1380 (23:00)
+  /** CR-14: số quán tối đa mỗi người đề xuất (1–10). `null` = không giới hạn (phòng cũ). */
+  max_places_per_member?: number | null;
+  /** CR-13: tăng 1 ở mỗi thay đổi có phát WS; client bỏ tin có số nhỏ hơn số đã áp. */
+  state_version?: number;
   created_at: string;
   updated_at: string;
 }
@@ -38,8 +42,20 @@ export interface Member {
   avatar_url?: string | null;
   role: MemberRole;
   is_active: boolean;
+  /** CR-11: thành viên này đã đặt vị trí xuất phát riêng chưa (người khác chỉ thấy cờ, không thấy toạ độ). */
+  has_origin?: boolean;
   joined_at: string;
   last_active_at?: string;
+}
+
+/**
+ * CR-11: thành viên ở dạng dành cho CHÍNH CHỦ — kèm toạ độ xuất phát riêng.
+ * Chỉ có ở `GET /members/me`, phản hồi `PATCH /rooms/{id}/members/me`, tạo/vào phòng, và mục của
+ * chính mình trong `ROOM_STATE_SYNC`. Không bao giờ có toạ độ của người khác.
+ */
+export interface SelfMember extends Member {
+  origin_lat?: number | null;
+  origin_lng?: number | null;
 }
 
 export interface Place {

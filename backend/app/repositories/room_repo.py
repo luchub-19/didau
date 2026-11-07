@@ -2,7 +2,7 @@ from datetime import date
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.time_utils import now_utc
@@ -59,3 +59,37 @@ class RoomRepository(BaseRepository, IRoomRepository):
         await self.session.flush()
         await self.session.refresh(room)
         return room
+
+    async def bump_state_version(self, room_id: UUID) -> int:
+        """Tăng state_version nguyên tử bằng một câu UPDATE ... RETURNING (CR-13).
+
+        Câu UPDATE khoá hàng phòng đến hết transaction nên hai thay đổi đồng thời
+        được tuần tự hoá và nhận hai số liên tiếp khác nhau.
+        """
+        stmt = (
+            update(Room)
+            .where(Room.id == room_id)
+            # Giữ nguyên updated_at: đổi state_version không phải thay đổi cấu hình phòng
+            .values(state_version=Room.state_version + 1, updated_at=Room.updated_at)
+            .returning(Room.state_version)
+        )
+        result = await self.session.execute(stmt)
+        new_version = result.scalar_one_or_none()
+        return int(new_version or 0)
+
+    async def get_state_version(self, room_id: UUID) -> int:
+        """Đọc state_version hiện tại của phòng."""
+        stmt = select(Room.state_version).where(Room.id == room_id)
+        result = await self.session.execute(stmt)
+        value = result.scalar_one_or_none()
+        return int(value or 0)
+
+    async def lock_for_update(self, room_id: UUID) -> None:
+        """SELECT ... FOR NO KEY UPDATE hàng phòng.
+
+        Dùng NO KEY UPDATE (không phải FOR UPDATE) vì FOR UPDATE xung đột với khoá KEY SHARE của
+        kiểm tra khoá ngoại khi session khác (vd. handler xung đột) INSERT bản ghi con của phòng,
+        gây treo. NO KEY UPDATE vẫn tuần tự hoá các request cùng phòng (và cùng mức với bump).
+        """
+        stmt = select(Room.id).where(Room.id == room_id).with_for_update(key_share=True)
+        await self.session.execute(stmt)

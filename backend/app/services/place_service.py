@@ -5,6 +5,7 @@ from uuid import UUID
 from app.core.exceptions import (
     ForbiddenHostOnlyError,
     PlaceAlreadyAddedError,
+    PlaceLimitReachedError,
     PlaceNotFoundError,
     RoomNotFoundError,
     RoomStatusInvalidError,
@@ -24,6 +25,7 @@ from app.domain.patterns.event_bus import (
     PlaceStatusChangedEvent,
 )
 from app.repositories import IPlaceRepository, IRoomRepository, IVoteRepository
+from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +133,19 @@ class PlaceService:
                 details={"room_id": str(room_id), "status": room_status_str},
             )
 
+        # 2b. Giới hạn số quán mỗi người đề xuất (CR-14). Khoá hàng phòng để hai request song song
+        # của cùng một người không cùng lọt qua; quán đã xoá đã bị xoá thật nên không được đếm.
+        limit = getattr(room, "max_places_per_member", None)
+        if limit is not None:
+            await self.room_repo.lock_for_update(room_id)
+            used = sum(
+                1
+                for existing in await self.place_repo.list_by_room(room_id)
+                if existing.submitted_by_id == member_id
+            )
+            if used >= limit:
+                raise PlaceLimitReachedError(limit=limit, used=used)
+
         # 3. Kiểm tra tên địa điểm
         raw_name = data.get("name")
         if not raw_name or not str(raw_name).strip():
@@ -211,7 +226,7 @@ class PlaceService:
             address=place.address,
             place=place,
         )
-        await self.event_bus.publish(event)
+        await publish_versioned(self.room_repo, self.event_bus, event)
 
         logger.info(
             "Đã thêm địa điểm mới '%s' (category: %s) vào phòng %s",
@@ -365,7 +380,7 @@ class PlaceService:
                 old_status=old_status,
                 place=final_place,
             )
-            await self.event_bus.publish(status_event)
+            await publish_versioned(self.room_repo, self.event_bus, status_event)
 
         vote_summary = await self.vote_repo.get_vote_summary_by_room(room_id)
         summary = vote_summary.get(final_place.id, {"upvotes": 0, "downvotes": 0, "score": 0})
@@ -415,7 +430,7 @@ class PlaceService:
 
         # Phát sự kiện PlaceDeletedEvent qua EventBus
         event = PlaceDeletedEvent(room_id=room_id, place_id=place_id)
-        await self.event_bus.publish(event)
+        await publish_versioned(self.room_repo, self.event_bus, event)
 
         logger.info("Đã xóa địa điểm %s khỏi phòng %s", place_id, room_id)
         return True

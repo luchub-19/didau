@@ -43,6 +43,11 @@ class Room(Base):
             "end_minute >= 0 AND end_minute <= 1439",
             name="chk_rooms_end_minute",
         ),
+        CheckConstraint(
+            "max_places_per_member IS NULL OR "
+            "(max_places_per_member >= 1 AND max_places_per_member <= 10)",
+            name="chk_rooms_max_places_per_member",
+        ),
         Index("idx_rooms_code", "code"),
         Index("idx_rooms_status", "status"),
     )
@@ -111,6 +116,16 @@ class Room(Base):
         nullable=False,
         default=1380,
         server_default="1380",
+    )
+    state_version: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    max_places_per_member: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
