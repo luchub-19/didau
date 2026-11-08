@@ -110,7 +110,7 @@ describe('IdentityMenu', () => {
     onOpenTieBreakModal: () => {},
   };
 
-  it('chỉ chủ phòng, khi chưa chốt, thấy nút chọn chiến lược hoà phiếu', () => {
+  it('quyền thấy mục chọn chiến lược hoà vẫn theo chủ phòng + chưa chốt; nhưng nút 6 quy tắc cũ đã ẩn (T-89)', () => {
     expect(identityMenuItems(true, 'VOTING').tieBreak).toBe(true);
     expect(identityMenuItems(true, 'FINALIZED').tieBreak).toBe(false);
     expect(identityMenuItems(false, 'VOTING').tieBreak).toBe(false);
@@ -121,7 +121,8 @@ describe('IdentityMenu', () => {
     const guest = renderToStaticMarkup(
       <IdentityMenu {...base} room={{ ...mockRoom, status: 'VOTING' }} currentMember={mockGuestMember} isHost={false} />,
     );
-    expect(host).toContain(vi.room.summary.tieBreakAction);
+    // CR-12: hoà phiếu đi qua thẻ ALGO-02 + "Cách khác"; menu không còn mở bảng 6 quy tắc cũ
+    expect(host).not.toContain(vi.room.summary.tieBreakAction);
     expect(guest).not.toContain(vi.room.summary.tieBreakAction);
   });
 

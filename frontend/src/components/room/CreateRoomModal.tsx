@@ -21,6 +21,10 @@ const FORM_ID = 'create-room-form';
 const DEFAULT_START = 1020;
 const DEFAULT_END = 1380;
 
+// CR-12 (T-89): 6 quy tắc hoà cũ ẩn khỏi form; phòng mới mặc định `TRAVEL_TIME`. Các kiểu chọn hộ còn ở "Cách khác".
+const SHOW_LEGACY_STRATEGIES = false;
+const DEFAULT_STRATEGY: TieBreakStrategyName = 'TRAVEL_TIME';
+
 const STRATEGIES: { value: TieBreakStrategyName; key: 'room.create.strategyEarliest' | 'room.create.strategyUpvotes' | 'room.create.strategyCreator' | 'room.create.strategyDiversity' | 'room.create.strategyRandom' }[] = [
   { value: 'EARLIEST_SUBMISSION', key: 'room.create.strategyEarliest' },
   { value: 'MOST_UPVOTES', key: 'room.create.strategyUpvotes' },
@@ -51,7 +55,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   const [startTime, setStartTime] = useState(minuteToTimeString(DEFAULT_START));
   const [endTime, setEndTime] = useState(minuteToTimeString(DEFAULT_END));
   const [customBudget, setCustomBudget] = useState('');
-  const [strategy, setStrategy] = useState<TieBreakStrategyName>('EARLIEST_SUBMISSION');
+  const [strategy, setStrategy] = useState<TieBreakStrategyName>(DEFAULT_STRATEGY);
   const [description, setDescription] = useState('');
   const [maxPlaces, setMaxPlaces] = useState<number | null>(DEFAULT_PLACE_LIMIT);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -239,19 +243,21 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
         {showMore && (
           <div id="create-room-more" className="space-y-4">
-            <TextField
-              as="select"
-              label={t('room.create.strategy')}
-              hint={t('room.create.strategyHint')}
-              value={strategy}
-              onChange={(e) => setStrategy(e.target.value as TieBreakStrategyName)}
-            >
-              {STRATEGIES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {t(s.key)}
-                </option>
-              ))}
-            </TextField>
+            {SHOW_LEGACY_STRATEGIES && (
+              <TextField
+                as="select"
+                label={t('room.create.strategy')}
+                hint={t('room.create.strategyHint')}
+                value={strategy}
+                onChange={(e) => setStrategy(e.target.value as TieBreakStrategyName)}
+              >
+                {STRATEGIES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {t(s.key)}
+                  </option>
+                ))}
+              </TextField>
+            )}
 
             <fieldset className="space-y-2" data-testid="create-max-places">
               <legend className="text-label font-semibold text-ink-2">{t('room.create.maxPlaces')}</legend>

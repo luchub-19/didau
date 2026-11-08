@@ -304,14 +304,14 @@ describe('T-69: TieBlock', () => {
     for (const phase of ['gather', 'vote', 'lock', 'send'] as const) {
       expect(renderToStaticMarkup(<TieBlock phase={phase} hints={hints} places={tied} onDecide={() => {}} />)).toBe('');
     }
-    expect(renderToStaticMarkup(<TieBlock phase="tie" hints={hints} places={tied} onDecide={() => {}} />)).toContain('tie-cta');
+    // T-89: chưa có đề xuất thì hiện skeleton, không tự có nút chốt
+    expect(renderToStaticMarkup(<TieBlock phase="tie" hints={hints} places={tied} onDecide={() => {}} />)).toContain('tie-loading');
   });
 
   it('đủ chữ VI và EN', () => {
     const vi = renderToStaticMarkup(<TieBlock phase="tie" hints={hints} places={tied} onDecide={() => {}} />);
     expect(vi).toContain('Hoà rồi: 2 quán cùng 2 phiếu');
-    expect(vi).toContain('Để trọng tài chọn');
-    expect(vi).toContain('Đổi cách chọn');
+    expect(vi).toContain('Đang tính quán thuận đường');
     expect(viLocale.decide.tie.cta).toBe('Để trọng tài chọn');
     expect(enLocale.decide.tie.cta).toBe('Let the referee pick');
     expect(enLocale.decide.tie.change).toBe('Pick another way');

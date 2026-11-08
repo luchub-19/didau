@@ -18,6 +18,9 @@ import { describeApiError } from '../../i18n/serverText';
 import { identityMenuItems, splitViewers, viewerIds } from './identity';
 import { useWorkspaceLayout } from './workspace';
 
+// CR-12 (T-89): nút "Chốt kết quả (TieBreak)" mở 6 quy tắc hoà cũ → ẩn; hoà phiếu đi qua thẻ ALGO-02 + "Cách khác".
+const SHOW_LEGACY_TIEBREAK = false;
+
 /* ---------- Khung chung: popover (desktop) hoặc Sheet (mobile) ---------- */
 
 interface TriggerProps {
@@ -350,7 +353,7 @@ export const IdentityMenu: React.FC<IdentityMenuProps> = ({
               </p>
             </div>
           )}
-          {items.tieBreak && onOpenTieBreakModal && (
+          {SHOW_LEGACY_TIEBREAK && items.tieBreak && onOpenTieBreakModal && (
             <div className="pt-3">
               <Button
                 variant="secondary"

@@ -2,8 +2,10 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDecisionStore } from '../../store/useDecisionStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
-import { Button, Shuffle, Sparkle } from '../ui';
-import { TIE_CHOOSE_INTENT, TIE_RUN_INTENT, tieInfo } from '../../room/placeView';
+import { Shuffle } from '../ui';
+import { CATEGORY_METADATA } from '../common/categoryMetadata';
+import { TieSuggestionCard, type TieSuggestionCardProps } from '../algo/TieSuggestion';
+import { TIE_CHOOSE_INTENT, placeThumb, tieInfo } from '../../room/placeView';
 import type { RoomPhase } from '../../room/phase';
 import type { DeciderHint, Place } from '../../types';
 import type { DecideIntent } from './DecideModal';
@@ -15,16 +17,38 @@ export interface TieBlockProps {
   phase: RoomPhase;
   hints?: DeciderHint[];
   places?: Place[];
-  /** Mở bảng chọn hộ: mặc định chạy luôn kiểu mặc định; "Đổi cách chọn" mở ở bước chọn kiểu. */
+  /** Host bấm "Cách khác" → mở bảng chọn hộ ở bước chọn kiểu (không bao giờ tự mở). */
   onDecide: (intent: DecideIntent) => void;
+  /** Ghi đè nguồn đề xuất (test, vì SSR đọc store ở trạng thái đầu). */
+  suggestionSource?: TieSuggestionCardProps['source'];
 }
 
-/** Khối hoà phiếu đầu danh sách: một nút "Để trọng tài chọn" ra kết quả ngay, không bắt chọn kiểu trước. */
-export const TieBlock: React.FC<TieBlockProps> = ({ phase, hints: propHints, places: propPlaces, onDecide }) => {
+/** Ảnh nhỏ của quán đề xuất: ảnh thật khi có, thiếu thì biểu tượng danh mục. */
+const Thumb: React.FC<{ place: Place }> = ({ place }) => {
+  const thumb = placeThumb(place);
+  const meta = CATEGORY_METADATA[thumb.category] ?? CATEGORY_METADATA.OTHER;
+  const Icon = meta.IconComponent;
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="tie-thumb"
+      className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-field ${meta.bg} ${meta.text}`}
+    >
+      {thumb.src ? <img src={thumb.src} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Icon size={24} weight="duotone" />}
+    </span>
+  );
+};
+
+/**
+ * Khối hoà phiếu đầu danh sách (ALGO-02, DESIGN gđ6 §8): tiêu đề + đề xuất quán đi chung kèm số, host chốt bằng một nút,
+ * "Cách khác" mở các kiểu chọn hộ cũ, "Vì sao?" cho bảng ma trận.
+ */
+export const TieBlock: React.FC<TieBlockProps> = ({ phase, hints: propHints, places: propPlaces, onDecide, suggestionSource }) => {
   const { t } = useTranslation();
   const storeHints = useDecisionStore((s) => s.hints);
   const storePlaces = usePlaceStore((s) => s.places);
-  const info = phase === 'tie' ? tieInfo(propHints ?? storeHints, propPlaces ?? storePlaces) : null;
+  const places = propPlaces ?? storePlaces;
+  const info = phase === 'tie' ? tieInfo(propHints ?? storeHints, places) : null;
   if (!info) return null;
 
   const shown = info.names.slice(0, MAX_NAMES);
@@ -34,7 +58,7 @@ export const TieBlock: React.FC<TieBlockProps> = ({ phase, hints: propHints, pla
     <section
       data-testid="tie-block"
       aria-label={t('decide.tie.title', { count: info.count, votes: info.votes })}
-      className="rounded-card border border-accent/30 bg-accent-soft/40 p-4"
+      className="relative rounded-card border border-accent/30 bg-accent-soft/40 p-4"
     >
       <div className="flex items-start gap-3">
         <span
@@ -54,26 +78,14 @@ export const TieBlock: React.FC<TieBlockProps> = ({ phase, hints: propHints, pla
         </div>
       </div>
 
-      <Button
-        variant="primary"
-        size="lg"
-        className="mt-3 w-full"
-        leftIcon={<Sparkle size={18} weight="fill" />}
-        onClick={() => onDecide(TIE_RUN_INTENT)}
-        data-testid="tie-cta"
-      >
-        {t('decide.tie.cta')}
-      </Button>
-      <div className="mt-1 flex justify-center">
-        <button
-          type="button"
-          onClick={() => onDecide(TIE_CHOOSE_INTENT)}
-          data-testid="tie-change"
-          className="min-h-11 px-3 text-label font-semibold text-accent-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-        >
-          {t('decide.tie.change')}
-        </button>
-      </div>
+      <TieSuggestionCard
+        source={suggestionSource}
+        onOther={() => onDecide(TIE_CHOOSE_INTENT)}
+        thumbFor={(id) => {
+          const p = places.find((x) => x.id === id);
+          return p ? <Thumb place={p} /> : null;
+        }}
+      />
     </section>
   );
 };

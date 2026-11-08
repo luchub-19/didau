@@ -83,15 +83,15 @@ describe('T-32: Frontend "🎲 Chọn hộ" (Banner, Gợi ý 1 chạm & Vòng q
       }
     });
 
-    it('giai đoạn tie: "Hoà rồi: N quán cùng K phiếu", tên quán, nút Để trọng tài chọn và liên kết Đổi cách chọn', () => {
+    it('giai đoạn tie: "Hoà rồi: N quán cùng K phiếu", tên quán, và đề xuất đang tải (T-89: không còn nút trọng tài SMART)', () => {
       const html = renderToStaticMarkup(
         <TieBlock phase="tie" hints={sampleHints} places={tiedPlaces} onDecide={() => {}} />,
       );
       expect(html).toContain('Hoà rồi: 2 quán cùng 4 phiếu');
       expect(html).toContain(mockPlaces[0].name);
       expect(html).toContain(mockPlaces[1].name);
-      expect(html).toContain('Để trọng tài chọn');
-      expect(html).toContain('Đổi cách chọn');
+      expect(html).toContain('data-testid="tie-loading"');
+      expect(html).not.toContain('Để trọng tài chọn');
       expect(html).not.toContain('TIE_AT_TOP');
     });
 

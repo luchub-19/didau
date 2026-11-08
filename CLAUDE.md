@@ -3,7 +3,7 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — T-76 XONG, G1 QUA 2026-11-04; làm T-77…
+## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — T-76 XONG, G1 QUA 2026-11-04; T-77…T-89 XONG; làm T-90…
 Mạch A (FE): lịch kéo thả kiểu Google Calendar ở cột Kế hoạch, popup xem/sửa giờ + ghi chú, xuất kế hoạch (PNG, văn bản
 emoji, `.ics`, link), form tạo phòng bỏ ngân sách + điểm hẹn, chip khung giờ, quả địa cầu khi bản đồ 3D đang tải.
 Mạch B (backend + FE): Algorithm Engine theo tài liệu đồ án `docs/proposal/` — ALGO-01 tâm nhóm, ALGO-02 hoà phiếu theo
