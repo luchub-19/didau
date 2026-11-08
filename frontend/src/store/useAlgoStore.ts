@@ -2,7 +2,7 @@
 // Toạ độ của chính mình nằm ở `useRoomStore.currentMember`; store này KHÔNG giữ toạ độ ai.
 import { create } from 'zustand';
 import { algoApi } from '../services/api/algoApi';
-import type { GroupCenterResponse, GroupCenterUpdatedPayload, TieSuggestion } from '../types';
+import type { GroupCenterResponse, GroupCenterUpdatedPayload, ScheduleFeasibility, TieSuggestion } from '../types';
 
 interface AlgoState {
   groupCenter: GroupCenterResponse | null;
@@ -14,11 +14,14 @@ interface AlgoState {
   tieSuggestion: TieSuggestion | null;
   tieLoading: boolean;
   tieError: boolean;
+  /** ALGO-03: khả thi lịch do backend tính (nguồn thật, có thể là Google). Lỗi → giữ bản cũ, lịch dùng ước lượng. */
+  feasibility: ScheduleFeasibility | null;
 
   fetchGroupCenter: (roomId: string) => Promise<void>;
   /** WS `GROUP_CENTER_UPDATED`: áp phần tóm tắt ngay, rồi tải lại để có danh sách quán gần tâm. */
   applyGroupCenterUpdate: (roomId: string, payload: GroupCenterUpdatedPayload) => void;
   fetchTieSuggestion: (roomId: string) => Promise<void>;
+  fetchFeasibility: (roomId: string) => Promise<void>;
   setShowRadius: (show: boolean) => void;
   setOriginLabel: (label: string | null) => void;
   reset: () => void;
@@ -27,6 +30,7 @@ interface AlgoState {
 // Chỉ nhận phản hồi của lần gọi mới nhất (gói trễ không đè dữ liệu mới)
 let fetchSeq = 0;
 let tieSeq = 0;
+let feasSeq = 0;
 
 export const useAlgoStore = create<AlgoState>((set, get) => ({
   groupCenter: null,
@@ -35,6 +39,7 @@ export const useAlgoStore = create<AlgoState>((set, get) => ({
   tieSuggestion: null,
   tieLoading: false,
   tieError: false,
+  feasibility: null,
 
   fetchGroupCenter: async (roomId) => {
     const seq = ++fetchSeq;
@@ -83,11 +88,31 @@ export const useAlgoStore = create<AlgoState>((set, get) => ({
     }
   },
 
+  fetchFeasibility: async (roomId) => {
+    const seq = ++feasSeq;
+    try {
+      const data = await algoApi.getScheduleFeasibility(roomId);
+      if (seq !== feasSeq) return;
+      set({ feasibility: data });
+    } catch {
+      // Dải di chuyển vẫn có số ước lượng tại chỗ; không chen thông báo lỗi vào lịch
+    }
+  },
+
   setShowRadius: (showRadius) => set({ showRadius }),
   setOriginLabel: (originLabel) => set({ originLabel }),
   reset: () => {
     fetchSeq++;
     tieSeq++;
-    set({ groupCenter: null, showRadius: false, originLabel: null, tieSuggestion: null, tieLoading: false, tieError: false });
+    feasSeq++;
+    set({
+      groupCenter: null,
+      showRadius: false,
+      originLabel: null,
+      tieSuggestion: null,
+      tieLoading: false,
+      tieError: false,
+      feasibility: null,
+    });
   },
 }));

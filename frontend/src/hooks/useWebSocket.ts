@@ -23,6 +23,7 @@ import type {
   MemberLeftPayload,
   PlaceAddedPayload,
   PresenceUpdatedPayload,
+  PriorityUpdatedPayload,
   PlaceDeletedPayload,
   PlaceUpdatedPayload,
   RoomStateSyncPayload,
@@ -164,6 +165,11 @@ export function useWebSocket(roomId?: string) {
       }
     });
 
+    // ALGO-04 (T-90): thứ tự + nhãn ưu tiên của server; FE không tự sắp lại
+    const unsubPriority = client.on<PriorityUpdatedPayload>('PRIORITY_UPDATED', (payload) => {
+      if (Array.isArray(payload.items)) usePlaceStore.getState().applyPriorities(payload.items);
+    });
+
     const unsubVotingResolved = client.on<VotingResolvedPayload>('VOTING_RESOLVED', (payload) => {
       if (payload.accepted_place_ids) {
         const acceptedSet = new Set(payload.accepted_place_ids);
@@ -234,6 +240,7 @@ export function useWebSocket(roomId?: string) {
       unsubPlaceDeleted();
       unsubVoteUpdated();
       unsubVotingResolved();
+      unsubPriority();
       unsubScheduleUpdated();
       unsubConflictsUpdated();
       unsubTyping();

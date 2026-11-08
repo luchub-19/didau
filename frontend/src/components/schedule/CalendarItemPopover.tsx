@@ -38,6 +38,8 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Sheet } from '../ui/Sheet';
 import { TextField } from '../ui/TextField';
+import { formatMinutes } from '../algo/tieSuggestionLogic';
+import { TravelWhy, type TravelNote } from './TravelStrip';
 import { toast } from '../ui/toastStore';
 import { ArrowLeft, Heart, MapPin, PencilSimple, Trash, WarningCircle, X } from '../ui/Icon';
 
@@ -173,6 +175,7 @@ export interface ItemViewProps {
   item: ScheduleItem;
   info: ItemInfo;
   conflictMessages?: string[];
+  travelNotes?: TravelNote[];
   titleId?: string;
   /** `false` khi tiêu đề do `Sheet` vẽ. */
   showTitle?: boolean;
@@ -187,6 +190,7 @@ export const ItemView: React.FC<ItemViewProps> = ({
   item,
   info,
   conflictMessages = [],
+  travelNotes = [],
   titleId,
   showTitle = true,
   onClose,
@@ -331,6 +335,14 @@ export const ItemView: React.FC<ItemViewProps> = ({
               <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-danger" aria-hidden="true" />
               <span>{m}</span>
             </li>
+          ))}
+        </ul>
+      )}
+
+      {travelNotes.length > 0 && (
+        <ul data-testid="popover-travel" className="space-y-1.5">
+          {travelNotes.map((n) => (
+            <TravelNoteRow key={`${n.leg.from_item_id}>${n.leg.to_item_id}`} note={n} />
           ))}
         </ul>
       )}
@@ -530,6 +542,8 @@ export interface CalendarItemPopoverProps {
   items: readonly ScheduleItem[];
   members?: readonly Member[];
   conflictMessages?: string[];
+  /** Đoạn thiếu giờ chạm ô này (ALGO-03, T-90): dòng pastel + "Vì sao?". */
+  travelNotes?: TravelNote[];
   /** Hộp của ô lúc này (đọc lại khi cuộn/đổi cỡ); `null` thì dùng `fallbackRect`. */
   getAnchor: () => DOMRect | null;
   fallbackRect?: DOMRect | null;
@@ -550,6 +564,7 @@ export const CalendarItemPopover: React.FC<CalendarItemPopoverProps> = ({
   items,
   members = [],
   conflictMessages = [],
+  travelNotes = [],
   getAnchor,
   fallbackRect = null,
   onClose,
@@ -697,6 +712,7 @@ export const CalendarItemPopover: React.FC<CalendarItemPopoverProps> = ({
         item={item}
         info={info}
         conflictMessages={conflictMessages}
+        travelNotes={travelNotes}
         titleId={titleId}
         showTitle={showTitle}
         onClose={asSheet ? undefined : onClose}
@@ -818,6 +834,45 @@ export const UndoRemoveBar: React.FC<UndoRemoveBarProps> = ({ name, onUndo, onDo
 
 /* ---------- Lớp nối store: mở popup, lưu, bỏ khỏi lịch + hoàn tác ---------- */
 
+/** Dòng cảnh báo di chuyển trong popup ô: pastel (không đỏ), "Vì sao?" mở công thức ngay bên dưới (không lồng popup). */
+const TravelNoteRow: React.FC<{ note: TravelNote }> = ({ note }) => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const minutes = formatMinutes(Math.max(0, -note.leg.slack_min), lang);
+  return (
+    <li className="rounded-field bg-warning-soft px-3 py-2 text-label text-ink" data-testid="popover-travel-line">
+      <div className="flex items-start gap-1.5">
+        <WarningCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
+        <span className="min-w-0 flex-1 tabular-nums">
+          {note.direction === 'out'
+            ? t('algo.travel.popoverLine', { to: note.toName, minutes })
+            : t('algo.travel.popoverLineIn', { from: note.fromName, minutes })}
+        </span>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setOpen((v) => !v)}
+          data-testid="popover-travel-why"
+          className="-my-2.5 inline-flex min-h-[44px] shrink-0 items-center rounded-field px-1 text-label font-semibold text-accent-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+        >
+          {t('algo.why.link')}
+        </button>
+      </div>
+      {open && (
+        <div id={id} className="mt-2 border-t border-warning/30 pt-2">
+          <TravelWhy leg={note.leg} fromName={note.fromName} toName={note.toName} />
+          <p className="mt-2 text-caption text-ink-2">
+            {note.leg.source === 'GOOGLE' ? t('algo.why.sourceGoogle') : t('algo.why.sourceEstimate')}
+          </p>
+        </div>
+      )}
+    </li>
+  );
+};
+
 export interface CalendarItemLayerProps {
   roomId: string;
   room?: Room | null;
@@ -826,6 +881,8 @@ export interface CalendarItemLayerProps {
   members?: Member[];
   /** Câu xung đột theo mục (đã dịch). */
   itemConflicts: Map<string, { messages: string[] }>;
+  /** Đoạn thiếu giờ theo mục (T-90). */
+  travelNotes?: Map<string, TravelNote[]>;
   /** Popup đang mở, hoặc `null` khi đóng (lớp vẫn sống để thanh Hoàn tác chạy hết 5 s). */
   popup: { id: string; rect: DOMRect | null } | null;
   getAnchor: (id: string) => DOMRect | null;
@@ -840,6 +897,7 @@ export const CalendarItemLayer: React.FC<CalendarItemLayerProps> = ({
   places,
   members = [],
   itemConflicts,
+  travelNotes,
   popup,
   getAnchor,
   onClose,
@@ -933,6 +991,7 @@ export const CalendarItemLayer: React.FC<CalendarItemLayerProps> = ({
           items={items}
           members={members}
           conflictMessages={itemConflicts.get(item.id)?.messages ?? []}
+          travelNotes={travelNotes?.get(item.id)}
           getAnchor={getPopupAnchor}
           fallbackRect={popup.rect}
           onClose={close}

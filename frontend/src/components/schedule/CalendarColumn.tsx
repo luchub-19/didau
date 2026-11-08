@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import type { ConflictAlert, Member, Place, Room, ScheduleItem } from '../../types';
+import type { ConflictAlert, FeasibilityLeg, Member, Place, Room, ScheduleItem } from '../../types';
 import {
   DEFAULT_WINDOW,
   MAX_COLUMNS,
@@ -26,6 +26,20 @@ import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { planBudget } from '../../room/budget';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { useConflictStore } from '../../store/useConflictStore';
+import { useAlgoStore } from '../../store/useAlgoStore';
+import {
+  dismissKey,
+  estimateFeasibility,
+  isShortLeg,
+  loadDismissed,
+  pickLeg,
+  planSummary,
+  saveDismissed,
+  stripVisible,
+  toExportPlan,
+  type LatLng,
+} from '../../room/travel';
+import { formatMinutes } from '../algo/tieSuggestionLogic';
 import { useWorkspaceLayout } from '../shell/workspace';
 import { useLanguage, type Language } from '../../i18n/useLanguage';
 import { formatTime, formatTimeWindow } from '../../i18n/format';
@@ -35,11 +49,12 @@ import { buildScheduleIcs, downloadIcs, icsFileName } from '../../stage/reveal/a
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
 import { toast } from '../ui/toastStore';
-import { CalendarBlank, ImageSquare, Plus, ShareNetwork, Sparkle, WarningCircle } from '../ui/Icon';
+import { CalendarBlank, Clock, ImageSquare, Plus, ShareNetwork, Sparkle, WarningCircle } from '../ui/Icon';
 import { BudgetMeter } from './BudgetMeter';
 import { AutoPlanButton } from './AutoPlanButton';
 import { AutoPlanPreview } from './AutoPlanPreview';
 import { CalendarEvent } from './CalendarEvent';
+import { TravelStrip, type TravelNote } from './TravelStrip';
 
 /** Popup ô (T-81): chunk riêng, chỉ tải khi bấm ô đầu tiên. KHÔNG re-export ở `schedule/index.ts` (sẽ gộp lại vào bundle chính). */
 const CalendarItemLayer = lazy(() =>
@@ -56,6 +71,10 @@ const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLay
 const KEYBOARD_SAVE_MS = 600;
 /** Khe 2px giữa hai ô liền nhau. */
 const EVENT_GAP_PX = 2;
+/** Gộp các thay đổi lịch liên tiếp trước khi hỏi lại `GET /schedule/feasibility`. */
+const FEASIBILITY_DEBOUNCE_MS = 300;
+/** Luật xung đột có dải di chuyển riêng (pastel, không đỏ) → không viền đỏ/đếm ở chip xung đột. */
+const TRAVEL_RULE = 'TRAVEL_TIME';
 
 /**
  * Quán đang được kéo từ ngoài lịch. Thường đến từ `calendarChannel` (nguồn kéo T-80); prop `externalDrag` (test,
@@ -195,7 +214,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   const itemConflicts = useMemo(() => {
     const map = new Map<string, { messages: string[] }>();
     for (const c of conflicts) {
-      if (c.entity_type !== 'SCHEDULE' || !Array.isArray(c.entity_ids)) continue;
+      if (c.entity_type !== 'SCHEDULE' || !Array.isArray(c.entity_ids) || c.rule_code === TRAVEL_RULE) continue;
       const text = describeConflict(c, { scheduleItems: items, places }, t);
       for (const id of c.entity_ids) {
         const e = map.get(id) ?? { messages: [] };
@@ -208,7 +227,9 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   // Chỉ đếm xung đột còn chạm mục đang có (xung đột cũ của mục đã xoá chờ đánh giá lại thì bỏ qua)
   const scheduleConflictCount = useMemo(() => {
     const ids = new Set(items.map((i) => i.id));
-    return conflicts.filter((c) => c.entity_type === 'SCHEDULE' && c.entity_ids?.some((id) => ids.has(id))).length;
+    return conflicts.filter(
+      (c) => c.entity_type === 'SCHEDULE' && c.rule_code !== TRAVEL_RULE && c.entity_ids?.some((id) => ids.has(id)),
+    ).length;
   }, [conflicts, items]);
 
   const commit = useCallback(
@@ -296,6 +317,89 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
   );
   const columns = useMemo(() => layoutColumns(layoutItems), [layoutItems]);
   const itemById = useMemo(() => new Map(layoutItems.map((i) => [i.id, i])), [layoutItems]);
+
+  // ── Dải di chuyển (ALGO-03, T-90) ──
+  // Giờ "đang thấy": bản nháp kéo/bàn phím thay giờ thật → dải tính lại tức thì bằng ước lượng (`room/travel.ts`)
+  const liveItems = useMemo(
+    () =>
+      firstDay.map((i) =>
+        dragging && i.id === dragging.id ? { ...i, ...dragging.preview } : kbDraft?.id === i.id ? { ...i, ...kbDraft.slot } : i,
+      ),
+    [firstDay, dragging, kbDraft],
+  );
+  const serverFeasibility = useAlgoStore((s) => s.feasibility);
+  const fetchFeasibility = useAlgoStore((s) => s.fetchFeasibility);
+  const travel = useMemo(() => {
+    const coordOf = (it: { id: string }): LatLng | null => {
+      const placeId = liveItems.find((x) => x.id === it.id)?.place_id;
+      const p = placeId ? placeMap.get(placeId) : undefined;
+      return p && p.latitude != null && p.longitude != null ? { lat: p.latitude, lng: p.longitude } : null;
+    };
+    const local = estimateFeasibility({
+      items: liveItems,
+      coordOf,
+      eventDate: room?.event_date,
+      window: roomWindow,
+    });
+    // Số backend (có thể Google) cho cặp đã lưu đúng khe hiện tại; còn lại là ước lượng tức thì
+    const legs = local.legs.map((l) => pickLeg(l, serverFeasibility));
+    const durations = local.required_total_min - local.legs.reduce((a, l) => a + l.eta_min + l.margin_min + l.buffer_min, 0);
+    const required = durations + legs.reduce((a, l) => a + l.eta_min + l.margin_min + l.buffer_min, 0);
+    return { legs, bufferTotal: local.window_min - required, estimated: legs.some((l) => l.source === 'ESTIMATE') };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveItems, placeMap, room?.event_date, roomWindow.start_minute, roomWindow.end_minute, serverFeasibility]);
+
+  // Hỏi lại backend khi giờ/quán/khung/ngày đổi (sau PUT, tin SCHEDULE_UPDATED/ROOM_UPDATED làm `items`/`room` đổi)
+  const feasKey = useMemo(() => {
+    const sig = firstDay
+      .map((i) => `${i.id}@${i.place_id}:${i.start_minute}-${i.end_minute}:${i.order_index}`)
+      .sort()
+      .join('|');
+    const coords = firstDay
+      .map((i) => {
+        const p = placeMap.get(i.place_id);
+        return `${i.place_id}:${p?.latitude ?? ''},${p?.longitude ?? ''}`;
+      })
+      .sort()
+      .join('|');
+    return `${sig}#${coords}#${roomWindow.start_minute}-${roomWindow.end_minute}#${room?.event_date ?? ''}`;
+  }, [firstDay, placeMap, roomWindow.start_minute, roomWindow.end_minute, room?.event_date]);
+  const pairCount = Math.max(0, firstDay.length - 1);
+  useEffect(() => {
+    if (pairCount === 0) return;
+    const id = setTimeout(() => void fetchFeasibility(roomId), FEASIBILITY_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [feasKey, pairCount, roomId, fetchFeasibility]);
+
+  // "Bỏ qua" theo người xem (localStorage); khoá có slack nên số liệu đổi thì cảnh báo tự hiện lại
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed(roomId));
+  useEffect(() => setDismissed(loadDismissed(roomId)), [roomId]);
+  const dismissLeg = (leg: FeasibilityLeg) => {
+    setDismissed((cur) => saveDismissed(roomId, cur, dismissKey(leg)));
+    setAnnounce(t('algo.travel.dismissed'));
+    // Popover/Sheet "Vì sao?" gỡ cùng dải: trả focus về ô đích để bàn phím không rơi về đầu trang
+    requestAnimationFrame(() =>
+      gridRef.current?.querySelector<HTMLElement>(`[data-event-id="${leg.to_item_id}"]`)?.focus({ preventScroll: true }),
+    );
+  };
+  const summary = planSummary({ buffer_total_min: travel.bufferTotal }, travel.legs, dismissed);
+  const nameOfItem = (id: string) => liveItems.find((i) => i.id === id)?.place_name ?? '';
+  const travelNotes = useMemo(() => {
+    const map = new Map<string, TravelNote[]>();
+    for (const leg of travel.legs) {
+      if (!isShortLeg(leg) || dismissed.has(dismissKey(leg))) continue;
+      const fromName = liveItems.find((i) => i.id === leg.from_item_id)?.place_name ?? '';
+      const toName = liveItems.find((i) => i.id === leg.to_item_id)?.place_name ?? '';
+      map.set(leg.from_item_id, [...(map.get(leg.from_item_id) ?? []), { leg, fromName, toName, direction: 'out' }]);
+      map.set(leg.to_item_id, [...(map.get(leg.to_item_id) ?? []), { leg, fromName, toName, direction: 'in' }]);
+    }
+    return map;
+  }, [travel.legs, dismissed, liveItems]);
+  // Xuất kế hoạch (T-82): dòng 🛵 + 💡/⚠️ lấy cùng số với lịch
+  const exportPlan = useMemo(
+    () => toExportPlan(travel.legs, { buffer_total_min: travel.bufferTotal }),
+    [travel.legs, travel.bufferTotal],
+  );
 
   // Bàn phím đổi thứ tự DOM (sắp theo giờ) → trình duyệt có thể rơi focus khi ô bị dời chỗ: trả về đúng ô
   useClientLayoutEffect(() => {
@@ -457,6 +561,29 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
             </button>
           )}
         </div>
+        {summary && (
+          <p
+            data-testid="calendar-feasibility"
+            data-kind={summary.kind}
+            className={`inline-flex min-h-[28px] items-center gap-1.5 rounded-field px-2 text-caption font-semibold tabular-nums ${
+              summary.kind === 'spare' ? 'text-ink-2' : 'bg-warning-soft text-ink'
+            }`}
+          >
+            {summary.kind === 'spare' ? (
+              <Clock size={14} aria-hidden="true" className="shrink-0 text-ink-3" />
+            ) : (
+              <WarningCircle size={14} weight="fill" aria-hidden="true" className="shrink-0 text-warning" />
+            )}
+            <span>
+              {summary.kind === 'short'
+                ? t('algo.travel.sumShort', { count: summary.count })
+                : summary.kind === 'over'
+                  ? t('algo.travel.sumOver', { minutes: formatMinutes(summary.minutes, lang) })
+                  : t('algo.travel.sumSpare', { minutes: formatMinutes(summary.minutes, lang) })}
+              {travel.estimated && <span className="font-normal text-ink-2"> {t('algo.travel.estimated')}</span>}
+            </span>
+          </p>
+        )}
         {(hasItems || budget.limit !== null) && <BudgetMeter budget={budget} />}
         {tray}
       </div>
@@ -477,7 +604,8 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
             role="group"
             aria-label={t('calendar.gridLabel')}
             aria-describedby="calendar-kbd-hint"
-            className="relative isolate"
+            // "Vì sao?" của dải di chuyển mở trong lưới: nâng lưới lên trên đầu/chân cột dính khi đang mở
+            className="relative isolate has-[[role=dialog]]:z-sheet"
             style={{ height: heightPx }}
             onPointerDown={(e) => {
               if (selectedId && !(e.target as HTMLElement).closest('[data-event-id]')) clearSelection();
@@ -629,6 +757,27 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
                       </ul>
                     )}
                   </div>
+                );
+              })}
+
+              {/* Dải di chuyển giữa hai ô liên tiếp (khe ≥ 0, khác chỗ); thiếu giờ → pastel + "Vì sao?" */}
+              {travel.legs.map((leg) => {
+                if (!stripVisible(leg)) return null;
+                const from = liveItems.find((i) => i.id === leg.from_item_id);
+                if (!from) return null;
+                const top = y(from.end_minute);
+                return (
+                  <TravelStrip
+                    key={`${leg.from_item_id}>${leg.to_item_id}`}
+                    leg={leg}
+                    fromName={nameOfItem(leg.from_item_id)}
+                    toName={nameOfItem(leg.to_item_id)}
+                    top={top}
+                    pxPerMin={PX_PER_MIN}
+                    dismissed={dismissed.has(dismissKey(leg))}
+                    onDismiss={() => dismissLeg(leg)}
+                    openUp={top > heightPx / 2}
+                  />
                 );
               })}
 
@@ -814,6 +963,7 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
             places={places}
             members={members}
             itemConflicts={itemConflicts}
+            travelNotes={travelNotes}
             popup={popup}
             getAnchor={getAnchor}
             onClose={closePopup}
@@ -830,6 +980,8 @@ export const CalendarColumn: React.FC<CalendarColumnProps> = ({
             items={items}
             places={places}
             members={members}
+            legs={exportPlan.legs}
+            feasibility={exportPlan.feasibility}
           />
         </Suspense>
       )}

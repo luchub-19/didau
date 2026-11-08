@@ -1,6 +1,6 @@
 // Logic thuần cho thẻ quán ngang (PlaceRow), thanh "x/y đã chọn" và khối hoà phiếu (DESIGN gđ5 §5, §8).
 // Không đụng store/React để test được bằng dữ liệu giả.
-import type { DeciderHint, Member, Place, PlaceCategory, Room } from '../types';
+import type { DeciderHint, Member, Place, PlaceCategory, PriorityLabel, Room } from '../types';
 import { curatedLoaded, curatedPhotos, findCurated, type CuratedData, type CuratedEntry } from './curated';
 
 /** Quán ACCEPTED/REJECTED không còn trong cuộc đua phiếu. */
@@ -49,6 +49,53 @@ export function badgeFor(
     leading: leading.has(place.id),
     overBudget: isOverBudget(place, budgetLimit, otherSpent),
   });
+}
+
+// ── Nhãn ưu tiên ALGO-04 (T-90, DESIGN gđ6 §8 "Danh sách bình chọn") ──────────────────────────────────
+
+/** Nhãn chính của thẻ: nhãn gđ5 (Đã chốt/Đang dẫn/Vượt ngân sách) hoặc nhãn ưu tiên của server. */
+export type PrimaryLabel = { kind: 'badge'; badge: PlaceBadge } | { kind: 'priority'; label: PriorityLabel };
+
+/**
+ * Một nhãn chính mỗi thẻ: "Đã chốt" luôn thắng; quán có nhãn ưu tiên thì nhãn đó thay chỗ nhãn gđ5 (Đang dẫn trùng
+ * nghĩa Nhiều phiếu nhất); không có thì giữ nhãn gđ5. Quán bị loại không có nhãn.
+ */
+export function primaryLabel(
+  place: Pick<Place, 'status' | 'priority'>,
+  badge: PlaceBadge | null,
+): PrimaryLabel | null {
+  if (place.status === 'REJECTED') return null;
+  if (place.status === 'ACCEPTED' || badge === 'accepted') return { kind: 'badge', badge: 'accepted' };
+  const label = place.priority?.labels?.[0];
+  if (label) return { kind: 'priority', label };
+  return badge ? { kind: 'badge', badge } : null;
+}
+
+/** Cách sắp danh sách bình chọn: mặc định "Ưu tiên" (thứ tự server). */
+export type PlaceSortMode = 'PRIORITY' | 'SCORE' | 'NEWEST';
+
+/**
+ * Thứ tự "Ưu tiên": theo `priority.rank` của server (FE KHÔNG tự tính khoá). Quán chưa có `priority` (vừa thêm, đợi
+ * `PRIORITY_UPDATED`) đứng sau các quán đã xếp, quán bị loại xuống cuối; trong mỗi nhóm giữ thứ tự thêm.
+ * Sắp ổn định: phiếu đổi mà server không đổi hạng thì danh sách không nhảy.
+ */
+export function sortByPriority<T extends Pick<Place, 'status' | 'priority' | 'created_at'>>(places: readonly T[]): T[] {
+  const group = (p: T) => (p.status === 'REJECTED' ? 2 : p.priority ? 0 : 1);
+  return [...places].sort(
+    (a, b) =>
+      group(a) - group(b) ||
+      (a.priority?.rank ?? 0) - (b.priority?.rank ?? 0) ||
+      (a.created_at || '').localeCompare(b.created_at || ''),
+  );
+}
+
+/** Có ít nhất một quán mang `priority` (server mới) → menu sắp xếp có "Ưu tiên" và là mặc định. */
+export const hasPriority = (places: readonly Pick<Place, 'priority'>[]) => places.some((p) => p.priority != null);
+
+/** "người xa nhất ~25'" chỉ khi server biết thời gian đi (có nơi xuất phát + toạ độ quán). */
+export function maxEtaOf(place: Pick<Place, 'priority'>): number | null {
+  const p = place.priority;
+  return p && !p.eta_unknown && p.max_eta_min > 0 ? p.max_eta_min : null;
 }
 
 // ── Khoảng cách tới điểm hẹn ──────────────────────────────────────────────────────────────────────

@@ -17,8 +17,12 @@ export interface WhyPanelProps {
   /** Hướng mở của popover desktop (widget ở đáy bản đồ mở lên trên). */
   placement?: 'top' | 'bottom';
   align?: 'left' | 'right';
-  /** Nhãn liên kết; mặc định "Vì sao?". */
-  label?: string;
+  /** Nhãn liên kết; mặc định "Vì sao?". T-90: có thể là nút dạng chip (nhãn ưu tiên, dải di chuyển). */
+  label?: React.ReactNode;
+  /** T-90: thay kiểu mặc định (liên kết chữ) của nút mở — vd. chip nhãn ưu tiên, dải di chuyển trên lịch. */
+  triggerClassName?: string;
+  /** Tên đọc màn hình của nút mở khi `label` không phải chữ thuần. */
+  triggerAriaLabel?: string;
   className?: string;
   'data-testid'?: string;
 }
@@ -30,6 +34,8 @@ export const WhyPanel: React.FC<WhyPanelProps> = ({
   placement = 'bottom',
   align = 'left',
   label,
+  triggerClassName,
+  triggerAriaLabel,
   className = '',
   'data-testid': testId = 'why-panel',
 }) => {
@@ -77,8 +83,12 @@ export const WhyPanel: React.FC<WhyPanelProps> = ({
       aria-expanded={open}
       aria-haspopup="dialog"
       aria-controls={open && !asSheet ? panelId : undefined}
+      aria-label={triggerAriaLabel}
       data-testid={`${testId}-link`}
-      className="inline-flex min-h-[44px] items-center rounded-field px-2 text-label font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+      className={
+        triggerClassName ??
+        'inline-flex min-h-[44px] items-center rounded-field px-2 text-label font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text'
+      }
     >
       {label ?? t('algo.why.link')}
     </button>

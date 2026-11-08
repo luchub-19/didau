@@ -48,6 +48,9 @@ export {
   Info,
   Sparkle,
 
+  // Dải di chuyển trên lịch (T-90)
+  Moped,
+
   // Công cụ chọn hộ
   DiceFive,
   HandSwipeLeft,

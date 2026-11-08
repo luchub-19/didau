@@ -5,6 +5,7 @@ import type {
   CreatePlaceRequest,
   Place,
   PlaceCategory,
+  PlacePriority,
   Poi,
   ResolveVotingRequest,
   ResolveVotingResponse,
@@ -41,6 +42,8 @@ interface PlaceState {
 
   // Realtime updates & local state
   setPlaces: (places: Place[]) => void;
+  /** WS `PRIORITY_UPDATED` (ALGO-04): toàn danh sách; quán không có trong tin (bị loại) → `priority = null`. */
+  applyPriorities: (items: readonly (PlacePriority & { place_id: string })[]) => void;
   upsertPlace: (place: Partial<Place> & { id: string }) => void;
   removePlace: (placeId: string) => void;
   updatePlaceVote: (
@@ -63,7 +66,8 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
   fetchPlaces: async (roomId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const places = await placeApi.listPlaces(roomId);
+      // CR-12: thứ tự ưu tiên của server (ALGO-04) kèm `priority` trên từng quán
+      const places = await placeApi.listPlaces(roomId, 'priority');
       set({ places, isLoading: false });
     } catch (err: unknown) {
       const errorMsg =
@@ -281,6 +285,11 @@ export const usePlaceStore = create<PlaceState>((set, get) => ({
   },
 
   setPlaces: (places) => set({ places }),
+  applyPriorities: (items) =>
+    set((state) => {
+      const byId = new Map(items.map(({ place_id, ...priority }) => [place_id, priority as PlacePriority]));
+      return { places: state.places.map((p) => ({ ...p, priority: byId.get(p.id) ?? null })) };
+    }),
   upsertPlace: (place) =>
     set((state) => {
       const exists = state.places.some((p) => p.id === place.id);

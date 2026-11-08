@@ -9,7 +9,9 @@ import { otherScheduleSpent } from '../../room/budget';
 import { usePresenceStore } from '../../store/usePresenceStore';
 import { CharacterAvatar } from '../ui/CharacterAvatar';
 import { ConfirmSheet } from '../ui/ConfirmSheet';
-import { Check, DotsThree, Trash, X } from '../ui/Icon';
+import { Check, DotsThree, Trash, WarningCircle, X } from '../ui/Icon';
+import { WhyPanel } from '../algo/WhyPanel';
+import { formatMinutes } from '../algo/tieSuggestionLogic';
 import { toast } from '../ui/toastStore';
 import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import { VoteButtons } from '../voting/VoteButtons';
@@ -24,11 +26,13 @@ import {
   formatDistance,
   formatPriceShort,
   likersOf,
+  maxEtaOf,
   placeThumb,
+  primaryLabel,
   type PlaceBadge,
 } from '../../room/placeView';
 import { curatedLoaded, loadCurated } from '../../room/curated';
-import type { Place, Room } from '../../types';
+import type { Place, PlacePriority, PriorityLabel, Room } from '../../types';
 
 const ACCEPTED_TOAST_DELAY_MS = 800;
 const MAX_LIKER_AVATARS = 3;
@@ -85,6 +89,81 @@ const BADGE_STYLE: Record<PlaceBadge, string> = {
   accepted: 'bg-success-soft text-success border-success/20',
   leading: 'bg-accent-soft text-accent-text border-accent/20',
   overBudget: 'bg-warning-soft text-warning border-warning/20',
+};
+
+/** Kiểu nhãn ưu tiên (DESIGN gđ6 §8): Đề xuất = accent; Nhiều phiếu nhưng khó kịp = pastel cảnh báo (không đỏ). */
+const PRIORITY_STYLE: Record<PriorityLabel, string> = {
+  RECOMMENDED: 'border-accent bg-accent text-ink',
+  MOST_VOTED: 'border-line bg-surface-2 text-ink',
+  SCHEDULE_SAFE: 'border-success/20 bg-success-soft text-success',
+  MOST_VOTED_RISKY: 'border-warning/30 bg-warning-soft text-ink',
+};
+
+/** Nội dung "Vì sao?" của nhãn ưu tiên: các khoá đã dùng (rủi ro, phiếu, dư/thiếu giờ, người đi xa nhất). */
+export const PriorityWhy: React.FC<{ label: PriorityLabel; priority: PlacePriority; upvotes: number }> = ({
+  label,
+  priority,
+  upvotes,
+}) => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  const slack = priority.slack_min;
+  return (
+    <div className="space-y-2 text-label leading-normal" data-testid="priority-why">
+      <p>{t(`algo.priority.reason.${label}`)}</p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 tabular-nums">
+        <dt className="text-ink-2">{t('algo.priority.keyRisk')}</dt>
+        <dd>{t(`algo.priority.risk.${priority.risk}`)}</dd>
+        <dt className="text-ink-2">{t('algo.priority.keyVotes')}</dt>
+        <dd>{t('algo.priority.votes', { count: upvotes })}</dd>
+        <dt className="text-ink-2">{t('algo.priority.keySlack')}</dt>
+        <dd>
+          {slack >= 0
+            ? t('algo.priority.spare', { minutes: formatMinutes(slack, lang) })
+            : t('algo.priority.short', { minutes: formatMinutes(-slack, lang) })}
+        </dd>
+        <dt className="text-ink-2">{t('algo.priority.keyMaxEta')}</dt>
+        <dd>
+          {priority.eta_unknown ? t('algo.priority.etaUnknown') : formatMinutes(priority.max_eta_min, lang)}
+        </dd>
+      </dl>
+      {priority.hours_unknown && <p className="text-ink-2">{t('algo.priority.hoursUnknown')}</p>}
+      <p className="text-caption text-ink-2">{t('algo.priority.rule')}</p>
+    </div>
+  );
+};
+
+/** Nhãn ưu tiên bấm được → "Vì sao?". Vùng chạm 44px nhưng không làm thẻ cao thêm (lề âm). */
+const PriorityChip: React.FC<{ label: PriorityLabel; priority: PlacePriority; upvotes: number; name: string }> = ({
+  label,
+  priority,
+  upvotes,
+  name,
+}) => {
+  const { t } = useTranslation();
+  const text = t(`algo.priority.label.${label}`);
+  return (
+    <WhyPanel
+      className="!static"
+      title={t('algo.priority.whyTitle', { label: text })}
+      source={priority.eta_unknown ? null : priority.estimated ? 'ESTIMATE' : 'GOOGLE'}
+      triggerAriaLabel={t('algo.priority.chipAria', { label: text, name })}
+      triggerClassName="group/chip -my-[11px] inline-flex min-h-[44px] items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+      data-testid={`priority-${label}`}
+      label={
+        <span
+          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-caption font-semibold group-hover/chip:underline ${PRIORITY_STYLE[label]}`}
+        >
+          {label === 'MOST_VOTED_RISKY' && (
+            <WarningCircle size={14} weight="fill" aria-hidden="true" className="shrink-0 text-warning" />
+          )}
+          {text}
+        </span>
+      }
+    >
+      <PriorityWhy label={label} priority={priority} upvotes={upvotes} />
+    </WhyPanel>
+  );
 };
 
 /** Menu ⋯ của thẻ: "Không" (bình chọn −1) và "Xoá" cho người có quyền. Esc/bấm ngoài thì đóng. */
@@ -236,6 +315,10 @@ export const PlaceRow: React.FC<PlaceRowProps> = ({
   );
   const badgeText =
     badge === 'accepted' ? t('place.accepted') : badge === 'leading' ? t('place.row.leading') : badge === 'overBudget' ? t('place.row.overBudget') : null;
+  // ALGO-04 (T-90): một nhãn chính — "Đã chốt" thắng, nhãn ưu tiên thay chỗ nhãn gđ5
+  const primary = primaryLabel(place, badge);
+  const shownBadge = primary?.kind === 'badge' ? primary.badge : null;
+  const maxEta = maxEtaOf(place);
 
   const meta = CATEGORY_METADATA[place.category] ?? CATEGORY_METADATA.OTHER;
   const distance = distanceToOrigin(place, room);
@@ -244,6 +327,7 @@ export const PlaceRow: React.FC<PlaceRowProps> = ({
     t(meta.labelKey),
     distance != null ? formatDistance(distance, lang) : null,
     price ?? t('place.row.priceUnknown'),
+    maxEta != null ? t('algo.priority.maxEtaMeta', { minutes: formatMinutes(maxEta, lang) }) : null,
   ].filter((x): x is string => Boolean(x));
 
   const likerIds = useMemo(() => likersOf(place, pulses, currentMemberId), [place, pulses, currentMemberId]);
@@ -261,7 +345,7 @@ export const PlaceRow: React.FC<PlaceRowProps> = ({
   let frame = 'border-line bg-surface';
   if (place.status === 'ACCEPTED') {
     frame = isJustAccepted ? 'place-card-lock-in bg-surface' : 'border-success ring-1 ring-success/20 bg-surface';
-  } else if (badge === 'leading') {
+  } else if (shownBadge === 'leading') {
     frame = 'border-accent/40 bg-accent-soft/30';
   } else if (isRejected) {
     frame = 'border-line opacity-60 bg-surface-2';
@@ -311,57 +395,69 @@ export const PlaceRow: React.FC<PlaceRowProps> = ({
       <article
         data-testid="place-row"
         data-place-id={place.id}
-        className={`flex items-center gap-3 rounded-card border p-3 transition-colors ${frame} ${className}`}
+        className={`relative flex items-center gap-3 rounded-card border p-3 transition-colors ${frame} ${className}`}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
-        {/* Vùng bấm: ảnh + chữ = mở quán trên bản đồ */}
+        {/* Vùng bấm phủ cả thẻ = mở quán trên bản đồ. Nội dung nằm trên nhưng không nhận con trỏ, trừ nhãn ưu
+            tiên ("Vì sao?") và cột phải — tránh lồng nút trong nút (T-90). */}
         <button
           type="button"
           onClick={handleOpen}
           aria-label={t('place.row.open', { name: place.name })}
           data-testid="place-row-open"
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-field text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-        >
+          className="absolute inset-0 rounded-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+        />
+        <span className="pointer-events-none relative flex min-w-0 flex-1 items-center gap-3 text-left">
           <PlaceThumbBox place={place} />
           <span className="min-w-0 flex-1">
             <span className="block text-body font-bold leading-snug text-ink line-clamp-2">{place.name || ''}</span>
             <span className="mt-0.5 block line-clamp-2 text-label font-normal text-ink-2">{metaParts.join(' · ')}</span>
-            {(badge || likers.length > 0 || viewerIds.length > 0) && (
+            {(primary || likers.length > 0 || viewerIds.length > 0) && (
               <span className="mt-1 flex items-center gap-2">
-            {badge && badgeText && (
-              <span
-                data-testid={`badge-${badge}`}
-                className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-caption font-semibold ${BADGE_STYLE[badge]}`}
-              >
-                {badge === 'accepted' && (
-                  <Check size={14} weight="bold" className={`shrink-0 ${isJustAccepted ? 'checkmark-draw' : ''}`} />
+                {shownBadge && badgeText && (
+                  <span
+                    data-testid={`badge-${shownBadge}`}
+                    className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-caption font-semibold ${BADGE_STYLE[shownBadge]}`}
+                  >
+                    {shownBadge === 'accepted' && (
+                      <Check size={14} weight="bold" className={`shrink-0 ${isJustAccepted ? 'checkmark-draw' : ''}`} />
+                    )}
+                    {shownBadge === 'accepted' ? t('place.accepted') : badgeText}
+                  </span>
                 )}
-                {badgeText}
-              </span>
-            )}
-            {likers.length > 0 && (
-            <span
-              className="flex -space-x-1.5"
-              data-testid="row-likers"
-              role="img"
-              aria-label={t('place.row.wantCount', { count: place.upvotes ?? 0 })}
-            >
-              {likers.map((m) => (
-                <span key={m.id} className="inline-flex rounded-field ring-2 ring-surface">
-                  <CharacterAvatar avatarUrl={m.avatar_url} fallbackSeed={m.id} name={m.nickname} size={24} />
-                </span>
-              ))}
-            </span>
-          )}
+                {primary?.kind === 'priority' && place.priority && (
+                  <span className="pointer-events-auto">
+                    <PriorityChip
+                      label={primary.label}
+                      priority={place.priority}
+                      upvotes={place.upvotes ?? 0}
+                      name={place.name}
+                    />
+                  </span>
+                )}
+                {likers.length > 0 && (
+                  <span
+                    className="flex -space-x-1.5"
+                    data-testid="row-likers"
+                    role="img"
+                    aria-label={t('place.row.wantCount', { count: place.upvotes ?? 0 })}
+                  >
+                    {likers.map((m) => (
+                      <span key={m.id} className="inline-flex rounded-field ring-2 ring-surface">
+                        <CharacterAvatar avatarUrl={m.avatar_url} fallbackSeed={m.id} name={m.nickname} size={24} />
+                      </span>
+                    ))}
+                  </span>
+                )}
                 <PresenceAvatars placeId={place.id} />
               </span>
             )}
           </span>
-        </button>
+        </span>
 
         {/* Cột phải: avatar người thích/đang xem, ♥ + số, menu ⋯ */}
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="relative flex shrink-0 flex-col items-end gap-1">
           <div className="flex items-center gap-1">
             <VoteButtons
               variant="heart"

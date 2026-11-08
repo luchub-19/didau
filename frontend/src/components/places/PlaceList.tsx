@@ -9,7 +9,15 @@ import { EmptyState } from '../ui/EmptyState';
 import { Plus, MagnifyingGlass, BowlFood, MapTrifold, SlidersHorizontal } from '../ui/Icon';
 import { useRoomStore } from '../../store/useRoomStore';
 import { usePresenceStore } from '../../store/usePresenceStore';
-import { hasListTools, leadingPlaceIds, pickProgress, type PulseMap } from '../../room/placeView';
+import {
+  hasListTools,
+  hasPriority,
+  leadingPlaceIds,
+  pickProgress,
+  sortByPriority,
+  type PlaceSortMode,
+  type PulseMap,
+} from '../../room/placeView';
 import type { RoomPhase } from '../../room/phase';
 import { placeQuota, quotaLabel } from '../../room/placeLimit';
 import { GroupCenterWidget } from '../algo/GroupCenterWidget';
@@ -43,7 +51,8 @@ export interface PlaceListProps {
   className?: string;
 }
 
-type SortOption = 'SCORE' | 'NEWEST';
+/** Mặc định "Ưu tiên" (thứ tự ALGO-04 của server, T-90); server cũ không có `priority` → "Theo phiếu". */
+type SortOption = PlaceSortMode;
 
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -70,14 +79,18 @@ export const PlaceList: React.FC<PlaceListProps> = ({
 }) => {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('SCORE');
+  const [sortBy, setSortBy] = useState<SortOption>('PRIORITY');
   const [toolsOpen, setToolsOpen] = useState(false);
 
-  // Lọc/sắp xếp/tìm chỉ có khi >8 quán (G1 câu e); ít hơn thì bỏ mọi bộ lọc đang đặt để không kẹt vô hình
+  // Lọc/tìm chỉ có khi >8 quán (G1 câu e); ít hơn thì bỏ mọi bộ lọc đang đặt để không kẹt vô hình.
+  // Sắp xếp (T-90): có từ 2 quán khi server trả `priority` — menu ⋯ "Ưu tiên · Theo phiếu · Mới thêm".
   const toolsAvailable = hasListTools(places.length);
+  const priorityOn = hasPriority(places);
+  const defaultSort: SortOption = priorityOn ? 'PRIORITY' : 'SCORE';
+  const sortAvailable = toolsAvailable || (priorityOn && places.length >= 2);
   const activeCategory = toolsAvailable ? selectedCategory : 'ALL';
   const activeSearch = toolsAvailable ? search : '';
-  const activeSort: SortOption = toolsAvailable ? sortBy : 'SCORE';
+  const activeSort: SortOption = !sortAvailable || (sortBy === 'PRIORITY' && !priorityOn) ? defaultSort : sortBy;
 
   const storeMembers = useRoomStore((s) => s.members);
   const storeMeId = useRoomStore((s) => s.currentMember?.id);
@@ -165,6 +178,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
 
   // Sắp xếp
   const sorted = useMemo(() => {
+    if (activeSort === 'PRIORITY') return sortByPriority(searchFiltered);
     return [...searchFiltered].sort((a, b) => {
       if (activeSort === 'SCORE') {
         const scoreB = b.score ?? 0;
@@ -183,6 +197,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   const leading = useMemo(() => leadingPlaceIds(places), [places]);
 
   const sortOptions: SegmentedOption<SortOption>[] = [
+    ...(priorityOn ? [{ value: 'PRIORITY' as const, label: t('place.sortPriority') }] : []),
     { value: 'SCORE', label: t('place.sortScore') },
     { value: 'NEWEST', label: t('place.sortNewest') },
   ];
@@ -192,7 +207,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
       {/* Mobile, giai đoạn bình chọn/hoà: chip tâm nhóm trên đỉnh tab Khám phá (giai đoạn ① có sẵn trong GatherPanel) */}
       {!hideAddButton && layout === 'mobile' && <GroupCenterWidget variant="inline" onShowOnMap={onSwitchToMap} />}
       {/* Thanh "x/y đã chọn" (giai đoạn bình chọn) + nút ⋯ lọc/sắp xếp/tìm khi >8 quán */}
-      {(showProgress || toolsAvailable) && (
+      {(showProgress || sortAvailable) && (
         <div className="flex items-center gap-3">
           {showProgress ? (
             <div className="min-w-0 flex-1" data-testid="pick-progress">
@@ -216,7 +231,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
           ) : (
             <div className="flex-1" />
           )}
-          {toolsAvailable && (
+          {sortAvailable && (
             <button
               type="button"
               aria-expanded={toolsOpen}
@@ -225,7 +240,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
               onClick={() => setToolsOpen((v) => !v)}
               data-testid="list-tools-trigger"
               className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-field border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text ${
-                toolsOpen || activeCategory !== 'ALL' || activeSearch || activeSort !== 'SCORE'
+                toolsOpen || activeCategory !== 'ALL' || activeSearch || activeSort !== defaultSort
                   ? 'border-accent/40 bg-accent-soft text-accent-text'
                   : 'border-line bg-surface text-ink-2 hover:bg-surface-2'
               }`}
@@ -236,24 +251,31 @@ export const PlaceList: React.FC<PlaceListProps> = ({
         </div>
       )}
 
-      {toolsAvailable && toolsOpen && (
+      {sortAvailable && toolsOpen && (
         <div className="space-y-3 rounded-card border border-line bg-surface p-3" data-testid="list-tools">
-          <TextField
-            label={t('place.list.filterInList')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('place.searchPlaceholder')}
-          />
-          {onSelectCategory && (
+          {toolsAvailable && (
+            <TextField
+              label={t('place.list.filterInList')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('place.searchPlaceholder')}
+            />
+          )}
+          {toolsAvailable && onSelectCategory && (
             <CategoryFilter places={places} selectedCategory={selectedCategory} onSelectCategory={onSelectCategory} />
           )}
-          <Segmented
-            size="sm"
-            options={sortOptions}
-            value={sortBy}
-            onChange={setSortBy}
-            aria-label={t('place.sortBy')}
-          />
+          <div>
+            <p className="mb-1.5 text-label font-semibold text-ink-2" id="place-sort-label">
+              {t('place.sortBy')}
+            </p>
+            <Segmented
+              size="sm"
+              options={sortOptions}
+              value={activeSort}
+              onChange={setSortBy}
+              aria-label={t('place.sortBy')}
+            />
+          </div>
         </div>
       )}
 

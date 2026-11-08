@@ -1,9 +1,10 @@
 import apiClient from './client';
-import type { CreatePlaceRequest, Place } from '../../types';
+import type { CreatePlaceRequest, Place, PlaceSort } from '../../types';
 
 export const placeApi = {
-  async listPlaces(roomId: string): Promise<Place[]> {
-    const res = await apiClient.get<Place[]>(`/rooms/${roomId}/places`);
+  /** CR-12: `sort = 'priority'` → theo `priority.rank` (ALGO-04); bỏ trống = thứ tự thêm. */
+  async listPlaces(roomId: string, sort?: PlaceSort): Promise<Place[]> {
+    const res = await apiClient.get<Place[]>(`/rooms/${roomId}/places`, sort ? { params: { sort } } : undefined);
     return res.data;
   },
 
