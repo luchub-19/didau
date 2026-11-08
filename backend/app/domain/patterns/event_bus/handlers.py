@@ -81,6 +81,7 @@ def register_websocket_broadcast_handlers(
         DecisionResolvedEvent,
         DecisionStartedEvent,
         DomainEvent,
+        GroupCenterUpdatedEvent,
         MemberJoinedEvent,
         MemberLeftEvent,
         MemberUpdatedEvent,
@@ -97,6 +98,7 @@ def register_websocket_broadcast_handlers(
     event_bus.register(MemberJoinedEvent, handler)
     event_bus.register(MemberLeftEvent, handler)
     event_bus.register(MemberUpdatedEvent, handler)
+    event_bus.register(GroupCenterUpdatedEvent, handler)
     event_bus.register(PlaceAddedEvent, handler)
     event_bus.register(PlaceDeletedEvent, handler)
     event_bus.register(VoteCastEvent, handler)

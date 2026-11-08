@@ -5,6 +5,7 @@ from app.domain.patterns.tie_break.implementations import (
     MostUpvotesTieBreakStrategy,
     RandomTieBreakStrategy,
     TieBreakStrategyFactory,
+    TravelTimeTieBreakStrategy,
     resolve_voting_with_tie_break,
 )
 from app.domain.patterns.tie_break.strategy import (
@@ -23,5 +24,6 @@ __all__ = [
     "RandomTieBreakStrategy",
     "TieBreakContext",
     "TieBreakStrategyFactory",
+    "TravelTimeTieBreakStrategy",
     "resolve_voting_with_tie_break",
 ]

@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from app.core.exceptions import (
@@ -28,10 +28,14 @@ from app.domain.patterns.tie_break import (
     PlaceVoteSummary,
     TieBreakContext,
     TieBreakStrategyFactory,
+    TravelTimeTieBreakStrategy,
     resolve_voting_with_tie_break,
 )
 from app.repositories import IMemberRepository, IPlaceRepository, IRoomRepository, IVoteRepository
 from app.services.state_version import publish_versioned
+
+if TYPE_CHECKING:
+    from app.services.algorithm_service import AlgorithmService
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,7 @@ class VotingService:
         member_repo: IMemberRepository,
         event_bus: IEventBus,
         tie_break_factory: TieBreakStrategyFactory | None = None,
+        algorithm_service: "AlgorithmService | None" = None,
     ) -> None:
         self.vote_repo = vote_repo
         self.place_repo = place_repo
@@ -54,6 +59,7 @@ class VotingService:
         self.member_repo = member_repo
         self.event_bus = event_bus
         self.tie_break_factory = tie_break_factory or TieBreakStrategyFactory()
+        self.algorithm_service = algorithm_service
 
     async def _get_vote_summary_for_place(
         self,
@@ -317,6 +323,10 @@ class VotingService:
         else:
             # Lấy strategy từ factory (sẽ raise InvalidStrategyError nếu không hợp lệ)
             strategy = self.tie_break_factory.get_strategy(strategy_name)
+            if isinstance(strategy, TravelTimeTieBreakStrategy) and self.algorithm_service:
+                # CR-12: luôn tính lại thứ hạng ở server (không nhận số nào từ client)
+                ranking = await self.algorithm_service.travel_ranking(room_id)
+                strategy = TravelTimeTieBreakStrategy(ranking)
             strategy_key = strategy.strategy_name
 
             # Xây dựng danh sách PlaceVoteSummary cho hàm resolve

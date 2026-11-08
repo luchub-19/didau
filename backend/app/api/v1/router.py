@@ -2,6 +2,7 @@ from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.api.v1.algorithms import router as algorithms_router
 from app.api.v1.conflicts import router as conflicts_router
 from app.api.v1.decisions import router as decisions_router
 from app.api.v1.members import room_members_router
@@ -25,6 +26,7 @@ api_router.include_router(conflicts_router)
 api_router.include_router(pois_router)
 api_router.include_router(decisions_router)
 api_router.include_router(reviews_router)
+api_router.include_router(algorithms_router)
 
 
 def register_exception_handlers(app: FastAPI) -> None:

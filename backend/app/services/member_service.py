@@ -2,9 +2,12 @@ import logging
 from uuid import UUID
 
 from app.core.exceptions import MemberNotFoundError, UnauthorizedError, ValidationError
+from app.domain.algorithms import compute_group_center
+from app.domain.algorithms.group_center import MIN_MEMBERS
 from app.domain.models.member import Member
-from app.domain.patterns.event_bus import IEventBus, MemberUpdatedEvent
+from app.domain.patterns.event_bus import GroupCenterUpdatedEvent, IEventBus, MemberUpdatedEvent
 from app.repositories import IMemberRepository, IRoomRepository
+from app.services.algorithm_service import shared_origins
 from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
@@ -83,6 +86,7 @@ class MemberService:
                 details={"fields": ["origin_lat", "origin_lng"]},
             )
 
+        had_center = await self._center_available(member.room_id)
         updated = await self.member_repo.set_origin(member.id, origin_lat, origin_lng)
         if updated is None:
             raise MemberNotFoundError(details={"member_id": str(member.id)})
@@ -97,4 +101,33 @@ class MemberService:
                     has_origin=updated.has_origin,
                 ),
             )
+            await self._publish_group_center(updated.room_id, had_center)
         return updated
+
+    async def _center_available(self, room_id: UUID) -> bool:
+        """Hiện đã có tâm nhóm (≥2 người chia sẻ) chưa — để chỉ phát khi widget có gì để đổi."""
+        members = await self.member_repo.list_by_room(room_id)
+        return len(shared_origins(members)) >= MIN_MEMBERS
+
+    async def _publish_group_center(self, room_id: UUID, had_center: bool) -> None:
+        """Phát GROUP_CENTER_UPDATED (tâm đã làm tròn, không toạ độ cá nhân) khi tâm vừa có / đổi / mất.
+
+        Dưới 2 người chia sẻ cả trước lẫn sau thì không có gì để vẽ → không phát (không tốn `state_version`).
+        """
+        assert self.room_repo is not None and self.event_bus is not None
+        room = await self.room_repo.get_by_id(room_id)
+        members = await self.member_repo.list_by_room(room_id)
+        result = compute_group_center(shared_origins(members), room.city if room else "HCM")
+        if not had_center and not result.available:
+            return
+        await publish_versioned(
+            self.room_repo,
+            self.event_bus,
+            GroupCenterUpdatedEvent(
+                room_id=room_id,
+                available=result.available,
+                center={"lat": result.center[0], "lng": result.center[1]} if result.center else None,
+                area_label=result.area_label,
+                member_count=result.member_count,
+            ),
+        )

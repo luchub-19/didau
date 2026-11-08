@@ -64,9 +64,8 @@ class RoomService:
                     f"Mã phòng '{room_code}' đã tồn tại.", details={"code": room_code}
                 )
 
-        tie_break_strategy = data.get(
-            "tie_break_strategy", TieBreakStrategyName.EARLIEST_SUBMISSION
-        )
+        # CR-12: phòng mới mặc định hòa phiếu theo thời gian di chuyển
+        tie_break_strategy = data.get("tie_break_strategy", TieBreakStrategyName.TRAVEL_TIME)
         if isinstance(tie_break_strategy, TieBreakStrategyName):
             tie_break_strategy_val = tie_break_strategy.value
         else:

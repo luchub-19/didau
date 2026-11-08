@@ -1,5 +1,7 @@
 import hashlib
 from collections import defaultdict
+from collections.abc import Callable, Sequence
+from uuid import UUID
 
 from app.core.exceptions import InvalidStrategyError
 from app.domain.enums import PlaceCategory, PlaceStatus, TieBreakStrategyName
@@ -144,6 +146,46 @@ class CategoryDiversityTieBreakStrategy(ITieBreakStrategy):
         return chosen
 
 
+class TravelTimeTieBreakStrategy(ITieBreakStrategy):
+    """ALGO-02 (CR-12): hòa phiếu theo thời gian di chuyển của cả nhóm.
+
+    Chiến lược KHÔNG tự tính thời gian đi (cần DB/mạng): `VotingService` chạy `AlgorithmService` ở server rồi
+    đưa thứ hạng vào đây (`ranking` = place_id từ tốt → kém). Thiếu thứ hạng (vd. không ai có vị trí) thì lùi
+    về "nhiều Muốn đi hơn → thêm sớm hơn". Khác các chiến lược cũ: hòa tính theo `upvotes`, không theo `score`
+    (ALGORITHMS §0 câu 8), nên `group_key` trả `upvotes`.
+    """
+
+    def __init__(self, ranking: Sequence[UUID] | None = None) -> None:
+        self._rank = {pid: i for i, pid in enumerate(ranking or ())}
+
+    @property
+    def strategy_name(self) -> str:
+        return TieBreakStrategyName.TRAVEL_TIME.value
+
+    @staticmethod
+    def group_key(candidate: PlaceVoteSummary) -> int:
+        return candidate.upvotes
+
+    def break_ties(
+        self,
+        candidates: list[PlaceVoteSummary],
+        context: TieBreakContext,
+    ) -> list[PlaceVoteSummary]:
+        if len(candidates) <= 1:
+            return list(candidates)
+
+        unranked = len(self._rank)
+        return sorted(
+            candidates,
+            key=lambda c: (
+                self._rank.get(c.place_id, unranked),
+                -c.upvotes,
+                c.created_at,
+                str(c.place_id),
+            ),
+        )
+
+
 class TieBreakStrategyFactory:
     """Factory để lấy hoặc đăng ký chiến lược phân định hòa phiếu."""
 
@@ -157,6 +199,7 @@ class TieBreakStrategyFactory:
         self.register(CreatorPriorityTieBreakStrategy())
         self.register(RandomTieBreakStrategy())
         self.register(CategoryDiversityTieBreakStrategy())
+        self.register(TravelTimeTieBreakStrategy())
 
     def register(self, strategy: ITieBreakStrategy) -> None:
         self._strategies[strategy.strategy_name.upper()] = strategy
@@ -211,10 +254,14 @@ def resolve_voting_with_tie_break(
         rejected = [c.model_copy(update={"status": PlaceStatus.REJECTED}) for c in candidates]
         return rejected, False
 
-    # Gom nhóm theo score từ cao xuống thấp
+    # Gom nhóm theo điểm từ cao xuống thấp (mặc định `score`; chiến lược có thể đổi qua `group_key`,
+    # vd. TRAVEL_TIME tính hòa theo số "Muốn đi")
+    group_key: Callable[[PlaceVoteSummary], int] = getattr(
+        strategy, "group_key", lambda c: c.score
+    )
     groups_by_score: dict[int, list[PlaceVoteSummary]] = defaultdict(list)
     for c in candidates:
-        groups_by_score[c.score].append(c)
+        groups_by_score[group_key(c)].append(c)
 
     sorted_scores = sorted(groups_by_score.keys(), reverse=True)
 

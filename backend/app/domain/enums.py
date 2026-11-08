@@ -66,6 +66,7 @@ class TieBreakStrategyName(str, Enum):
     RANDOM = "RANDOM"
     CATEGORY_DIVERSITY = "CATEGORY_DIVERSITY"
     GROUP_DECISION = "GROUP_DECISION"
+    TRAVEL_TIME = "TRAVEL_TIME"
 
 
 class PlaceSource(str, Enum):

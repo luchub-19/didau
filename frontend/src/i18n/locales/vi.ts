@@ -775,6 +775,7 @@ export const vi = {
       RANDOM: 'Ngẫu nhiên',
       CATEGORY_DIVERSITY: 'Đa dạng loại hình',
       GROUP_DECISION: 'Cả nhóm quyết định',
+      TRAVEL_TIME: 'Gần nhất với cả nhóm',
     },
   },
   invite: {

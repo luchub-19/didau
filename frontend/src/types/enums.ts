@@ -23,7 +23,9 @@ export type TieBreakStrategyName =
   | 'CREATOR_PRIORITY'
   | 'RANDOM'
   | 'CATEGORY_DIVERSITY'
-  | 'GROUP_DECISION';
+  | 'GROUP_DECISION'
+  /** CR-12: hoà phiếu theo thời gian di chuyển của cả nhóm (mặc định của phòng mới). */
+  | 'TRAVEL_TIME';
 
 export type PlaceSource = 'MANUAL' | 'OSM' | 'GOOGLE';
 

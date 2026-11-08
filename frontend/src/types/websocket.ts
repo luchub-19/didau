@@ -58,6 +58,17 @@ export interface MemberUpdatedPayload {
   has_origin: boolean;
 }
 
+/**
+ * CR-11/CR-12: tâm nhóm vừa có / đổi / mất. Chỉ phát khi có ≥2 người chia sẻ trước hoặc sau thay đổi.
+ * `center` đã làm tròn 3 chữ số; khi `available:false` chỉ có `member_count`.
+ */
+export interface GroupCenterUpdatedPayload {
+  available: boolean;
+  center?: { lat: number; lng: number };
+  area_label?: string;
+  member_count: number;
+}
+
 export interface MemberLeftPayload {
   member_id: string;
   nickname: string;

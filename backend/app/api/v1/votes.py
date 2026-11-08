@@ -13,6 +13,7 @@ from app.api.deps import (
     get_room_repository,
     get_vote_repository,
 )
+from app.api.v1.algorithms import get_algorithm_service
 from app.domain.models.member import Member
 from app.domain.patterns.event_bus import IEventBus
 from app.repositories import (
@@ -27,6 +28,7 @@ from app.schemas.vote import (
     ResolveVotingResponse,
     VoteResponse,
 )
+from app.services.algorithm_service import AlgorithmService
 from app.services.voting_service import VotingService
 
 router = APIRouter(tags=["Votes"])
@@ -38,6 +40,7 @@ def get_voting_service(
     room_repo: Annotated[IRoomRepository, Depends(get_room_repository)],
     member_repo: Annotated[IMemberRepository, Depends(get_member_repository)],
     event_bus: Annotated[IEventBus, Depends(get_event_bus)],
+    algorithm_service: Annotated[AlgorithmService, Depends(get_algorithm_service)],
 ) -> VotingService:
     """Dependency cung cấp VotingService."""
     return VotingService(
@@ -46,6 +49,7 @@ def get_voting_service(
         room_repo=room_repo,
         member_repo=member_repo,
         event_bus=event_bus,
+        algorithm_service=algorithm_service,
     )
 
 

@@ -118,6 +118,30 @@ class MemberUpdatedEvent(DomainEvent):
         return {"member_id": str(self.member_id), "has_origin": self.has_origin}
 
 
+class GroupCenterUpdatedEvent(DomainEvent):
+    """Tâm nhóm đổi vì có người đặt/xoá vị trí xuất phát (GROUP_CENTER_UPDATED, CR-11/CR-12).
+
+    Mang tâm đã làm tròn 3 chữ số + nhãn khu vực + số người; không bao giờ có toạ độ từng người.
+    """
+
+    available: bool
+    center: dict[str, float] | None = None
+    area_label: str | None = None
+    member_count: int = 0
+
+    @property
+    def event_type(self) -> str:
+        return "GROUP_CENTER_UPDATED"
+
+    def to_envelope_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {"available": self.available, "member_count": self.member_count}
+        if self.available and self.center is not None:
+            payload["center"] = self.center
+            if self.area_label:
+                payload["area_label"] = self.area_label
+        return payload
+
+
 class MemberLeftEvent(DomainEvent):
     """Sự kiện thành viên rời phòng hoặc ngắt kết nối (MEMBER_LEFT)."""
 

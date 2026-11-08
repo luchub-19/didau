@@ -406,7 +406,7 @@ bằng xoá + tạo lại mục (`DELETE` + `POST`), đổi id mục và phát 2
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo tài liệu đồ án ALGO-01/02 (`docs/proposal/`) và quyết định người dùng
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — ĐÃ ÁP phần vị trí/riêng tư/`MEMBER_UPDATED` ở T-85 (2026-11-08, CONTRACTS §2, §3.3 mục 28 + 33, §4); còn `GET /group-center` + `GROUP_CENTER_UPDATED` ở T-86
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — ĐÃ ÁP phần vị trí/riêng tư/`MEMBER_UPDATED` ở T-85 (2026-11-08, CONTRACTS §2, §3.3 mục 28 + 33, §4); `GET /group-center` + `GROUP_CENTER_UPDATED` ĐÃ ÁP ở T-86 (2026-11-08, CONTRACTS §3.3 mục 34, §4.2)
 - **Task đã DONE bị ảnh hưởng**: không. Thay BACKEND-NOTES gđ5 #5.
 
 ### 1. Vấn đề
@@ -428,7 +428,7 @@ Chỉ dùng điểm hẹn của host cho mọi người: ALGO-02 thành "quán g
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo `docs/phase6/ALGORITHMS.md` §4–§6
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6; phần 1 áp ở T-86, phần 2 ở T-87)
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — PHẦN 1 ĐÃ ÁP ở T-86 (2026-11-08: `TRAVEL_TIME`, `tie-break/suggestion`, resolve; CONTRACTS §1.12, §3.3 mục 8 + 35); phần 2 áp ở T-87
 - **Task đã DONE bị ảnh hưởng**: T-05/T-12 + CR-07 (`TravelTimeConflictRule`: đổi params, giữ hành vi chồng giờ), T-73 (timeline hiện xung đột), CR-06 §1.13 A.
 
 ### 2. Đề xuất

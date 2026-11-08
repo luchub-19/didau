@@ -266,3 +266,79 @@ export interface AutoPlanApplyRequest {
   slots: PlannedSlot[];
 }
 
+
+// ── Algorithm Engine (CR-11 / CR-12 phần 1, T-86) ────────────────────────────────────────────────
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+/**
+ * `GET /rooms/{room_id}/group-center` (ALGO-01). `available:false` khi <2 người chia sẻ vị trí (widget ẩn).
+ * `center` đã làm tròn 3 chữ số; KHÔNG bao giờ có toạ độ từng thành viên. Điểm hẹn của host không tính vào tâm.
+ */
+export interface GroupCenterResponse {
+  available: boolean;
+  center: LatLng | null;
+  /** Vd. "Q3" hoặc "Q3 – Phú Nhuận" (tên quận, không qua i18n). */
+  area_label: string | null;
+  member_count: number;
+  /** Tối đa 10 quán trong 2 km, gần → xa (`distance_km` có giá trị). */
+  nearby_pois: Poi[];
+}
+
+export type TravelSource = 'ESTIMATE' | 'GOOGLE';
+
+export type TieUnavailableReason = 'NO_TIE' | 'NO_ORIGINS' | 'NO_PLACE_COORDS';
+
+export interface TieCandidate {
+  place_id: string;
+  name: string;
+  upvotes: number;
+}
+
+/** Thành viên trong ma trận. `MEETING_POINT` = chưa chia sẻ nên lấy điểm hẹn của host ("(điểm hẹn)" ở UI). */
+export interface TieMemberInfo {
+  member_id: string;
+  nickname: string;
+  origin_source: 'MEMBER' | 'MEETING_POINT';
+}
+
+export interface TieLeg {
+  minutes: number;
+  distance_km: number;
+  source: TravelSource;
+}
+
+/** S = `total_min` (tổng), M = `max_min` (người đi xa nhất), D = `total_km`. `rank` bắt đầu từ 1. */
+export interface TieRanking {
+  place_id: string;
+  rank: number;
+  total_min: number;
+  max_min: number;
+  total_km: number;
+}
+
+/**
+ * `GET /rooms/{room_id}/tie-break/suggestion` (ALGO-02). `matrix[i][j]` = `members[i]` → `candidates[j]`
+ * (null ở quán thiếu toạ độ — các quán đó nằm ở `unranked_place_ids`, không bao giờ được đề xuất).
+ * `margin_vs_second_min` = S(hạng 2) − S(hạng 1), có thể ≤ 0 khi hạng 1 thắng nhờ người đi xa nhất đỡ vất vả hơn.
+ * Không có toạ độ của ai.
+ */
+export interface TieSuggestion {
+  available: boolean;
+  reason: TieUnavailableReason | null;
+  candidates: TieCandidate[];
+  members: TieMemberInfo[];
+  matrix: (TieLeg | null)[][];
+  ranking: TieRanking[];
+  unranked_place_ids: string[];
+  recommended_place_id: string | null;
+  margin_vs_second_min: number | null;
+  threshold_min: number;
+  travel_mode: 'TWO_WHEELER';
+  excluded_member_count: number;
+  /** true nếu có chặng nào là ước lượng (UI ghi "ước lượng" thay vì "Google Maps"). */
+  estimated: boolean;
+}

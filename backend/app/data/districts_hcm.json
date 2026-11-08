@@ -1,0 +1,209 @@
+{
+ "metadata": {
+  "source": "OpenStreetMap via Overpass API",
+  "license": "ODbL 1.0",
+  "attribution": "© OpenStreetMap contributors",
+  "retrieved": "2026-11-08",
+  "note": "Tâm = tâm hộp bao (Overpass out center) của quan hệ ranh giới quận/huyện cũ của TP.HCM; Thủ Đức = các phường (sau sáp nhập 2025 OSM không còn quận Thủ Đức/2/9)."
+ },
+ "districts": [
+  {
+   "name": "Huyện Bình Chánh",
+   "short": "Bình Chánh",
+   "lat": 10.7495,
+   "lng": 106.5793
+  },
+  {
+   "name": "Huyện Cần Giờ",
+   "short": "Cần Giờ",
+   "lat": 10.5162,
+   "lng": 106.8831
+  },
+  {
+   "name": "Huyện Củ Chi",
+   "short": "Củ Chi",
+   "lat": 11.0374,
+   "lng": 106.507
+  },
+  {
+   "name": "Huyện Hóc Môn",
+   "short": "Hóc Môn",
+   "lat": 10.8777,
+   "lng": 106.5942
+  },
+  {
+   "name": "Huyện Nhà Bè",
+   "short": "Nhà Bè",
+   "lat": 10.651,
+   "lng": 106.7285
+  },
+  {
+   "name": "Quận 1",
+   "short": "Q1",
+   "lat": 10.7752,
+   "lng": 106.6984
+  },
+  {
+   "name": "Quận 10",
+   "short": "Q10",
+   "lat": 10.7727,
+   "lng": 106.6695
+  },
+  {
+   "name": "Quận 11",
+   "short": "Q11",
+   "lat": 10.7659,
+   "lng": 106.6479
+  },
+  {
+   "name": "Quận 12",
+   "short": "Q12",
+   "lat": 10.8614,
+   "lng": 106.6607
+  },
+  {
+   "name": "Quận 3",
+   "short": "Q3",
+   "lat": 10.779,
+   "lng": 106.6812
+  },
+  {
+   "name": "Quận 4",
+   "short": "Q4",
+   "lat": 10.7607,
+   "lng": 106.7044
+  },
+  {
+   "name": "Quận 5",
+   "short": "Q5",
+   "lat": 10.7558,
+   "lng": 106.6689
+  },
+  {
+   "name": "Quận 6",
+   "short": "Q6",
+   "lat": 10.7459,
+   "lng": 106.6381
+  },
+  {
+   "name": "Quận 7",
+   "short": "Q7",
+   "lat": 10.7378,
+   "lng": 106.7294
+  },
+  {
+   "name": "Quận 8",
+   "short": "Q8",
+   "lat": 10.721,
+   "lng": 106.6437
+  },
+  {
+   "name": "Quận Bình Thạnh",
+   "short": "Bình Thạnh",
+   "lat": 10.8123,
+   "lng": 106.7176
+  },
+  {
+   "name": "Quận Bình Tân",
+   "short": "Bình Tân",
+   "lat": 10.7704,
+   "lng": 106.5918
+  },
+  {
+   "name": "Quận Gò Vấp",
+   "short": "Gò Vấp",
+   "lat": 10.8354,
+   "lng": 106.6665
+  },
+  {
+   "name": "Quận Phú Nhuận",
+   "short": "Phú Nhuận",
+   "lat": 10.801,
+   "lng": 106.6792
+  },
+  {
+   "name": "Quận Tân Bình",
+   "short": "Tân Bình",
+   "lat": 10.8031,
+   "lng": 106.6532
+  },
+  {
+   "name": "Quận Tân Phú",
+   "short": "Tân Phú",
+   "lat": 10.7914,
+   "lng": 106.6275
+  },
+  {
+   "name": "TP Thủ Đức (Phường An Khánh)",
+   "short": "TP Thủ Đức",
+   "lat": 10.7894,
+   "lng": 106.7325
+  },
+  {
+   "name": "TP Thủ Đức (Phường Bình Trưng)",
+   "short": "TP Thủ Đức",
+   "lat": 10.7941,
+   "lng": 106.7614
+  },
+  {
+   "name": "TP Thủ Đức (Phường Cát Lái)",
+   "short": "TP Thủ Đức",
+   "lat": 10.7628,
+   "lng": 106.7771
+  },
+  {
+   "name": "TP Thủ Đức (Phường Hiệp Bình)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8466,
+   "lng": 106.7247
+  },
+  {
+   "name": "TP Thủ Đức (Phường Linh Xuân)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8714,
+   "lng": 106.7792
+  },
+  {
+   "name": "TP Thủ Đức (Phường Long Bình)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8624,
+   "lng": 106.8326
+  },
+  {
+   "name": "TP Thủ Đức (Phường Long Phước)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8032,
+   "lng": 106.8441
+  },
+  {
+   "name": "TP Thủ Đức (Phường Long Trường)",
+   "short": "TP Thủ Đức",
+   "lat": 10.7933,
+   "lng": 106.8132
+  },
+  {
+   "name": "TP Thủ Đức (Phường Phước Long)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8178,
+   "lng": 106.7752
+  },
+  {
+   "name": "TP Thủ Đức (Phường Tam Bình)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8708,
+   "lng": 106.7322
+  },
+  {
+   "name": "TP Thủ Đức (Phường Thủ Đức)",
+   "short": "TP Thủ Đức",
+   "lat": 10.837,
+   "lng": 106.7567
+  },
+  {
+   "name": "TP Thủ Đức (Phường Tăng Nhơn Phú)",
+   "short": "TP Thủ Đức",
+   "lat": 10.8433,
+   "lng": 106.7976
+  }
+ ]
+}

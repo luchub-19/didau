@@ -21,6 +21,8 @@ import type {
   ScheduleItem,
   SelfMember,
   SubmitSwipeRequest,
+  TieLeg,
+  TieSuggestion,
   TriggerHint,
   UpdateMyOriginRequest,
   VoteRequest,
@@ -79,6 +81,114 @@ function toSelfMember(member: Member): SelfMember {
     has_origin: origin !== undefined,
     origin_lat: origin?.lat ?? null,
     origin_lng: origin?.lng ?? null,
+  };
+}
+
+function unauthorized() {
+  return HttpResponse.json(
+    { error: { code: 'UNAUTHORIZED', message: 'Thiếu header xác thực X-Member-Token.' } },
+    { status: 401 },
+  );
+}
+
+type LatLngPoint = { lat: number; lng: number };
+
+function mockKm(a: LatLngPoint, b: LatLngPoint): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const h =
+    Math.sin(rad(b.lat - a.lat) / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lng - a.lng) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Trung bình vector trên mặt cầu (ALGORITHMS §3), làm tròn 3 chữ số. */
+function mockGroupCenter(points: LatLngPoint[]): LatLngPoint {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (const p of points) {
+    const phi = (p.lat * Math.PI) / 180;
+    const lam = (p.lng * Math.PI) / 180;
+    x += Math.cos(phi) * Math.cos(lam);
+    y += Math.cos(phi) * Math.sin(lam);
+    z += Math.sin(phi);
+  }
+  const round3 = (n: number) => Math.round(n * 1000) / 1000;
+  return {
+    lat: round3((Math.atan2(z, Math.hypot(x, y)) * 180) / Math.PI),
+    lng: round3((Math.atan2(y, x) * 180) / Math.PI),
+  };
+}
+
+/** `TieSuggestion` từ dữ liệu mock: hoà ở hạng đầu theo số "Muốn đi", ma trận Haversine × 1,3 / 25 km/h. */
+function mockTieSuggestion(): TieSuggestion {
+  const base = { threshold_min: 2, travel_mode: 'TWO_WHEELER' as const };
+  const alive = placesList.filter((p) => p.status !== 'REJECTED' && p.status !== 'VISITED');
+  const top = Math.max(0, ...alive.map((p) => p.upvotes));
+  const tied = alive
+    .filter((p) => p.upvotes === top)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const candidates = tied.map((p) => ({ place_id: p.id, name: p.name, upvotes: p.upvotes }));
+  const empty = { members: [], matrix: [], ranking: [], unranked_place_ids: [], recommended_place_id: null, margin_vs_second_min: null };
+  if (top <= 0 || tied.length < 2 || alive.some((p) => p.status === 'ACCEPTED')) {
+    return { available: false, reason: 'NO_TIE', candidates: [], excluded_member_count: 0, estimated: true, ...empty, ...base };
+  }
+  const meeting =
+    currentRoom.origin_lat != null && currentRoom.origin_lng != null
+      ? { lat: currentRoom.origin_lat, lng: currentRoom.origin_lng }
+      : null;
+  const people = membersList
+    .map((m) => ({ m, own: memberOrigins.get(m.id) ?? null }))
+    .map(({ m, own }) => ({ m, origin: own ?? meeting, source: own ? ('MEMBER' as const) : ('MEETING_POINT' as const) }));
+  const used = people.filter((x) => x.origin !== null);
+  const excluded = people.length - used.length;
+  if (used.length === 0) {
+    return { available: false, reason: 'NO_ORIGINS', candidates, excluded_member_count: excluded, estimated: true, ...empty, ...base };
+  }
+  const matrix: (TieLeg | null)[][] = used.map(({ origin }) =>
+    tied.map((p) => {
+      if (p.latitude == null || p.longitude == null || !origin) return null;
+      const km = mockKm(origin, { lat: p.latitude, lng: p.longitude }) * 1.3;
+      return { minutes: Math.ceil(Math.round((km / 25) * 60 * 1e6) / 1e6), distance_km: Math.round(km * 1000) / 1000, source: 'ESTIMATE' as const };
+    }),
+  );
+  const rows = tied.flatMap((p, j) => {
+    const legs = matrix.map((row) => row[j]);
+    if (legs.some((l) => l === null)) return [];
+    const ls = legs as TieLeg[];
+    return [{
+      id: p.id,
+      created: p.created_at,
+      S: ls.reduce((a, l) => a + l.minutes, 0),
+      M: Math.max(...ls.map((l) => l.minutes)),
+      D: ls.reduce((a, l) => a + l.distance_km, 0),
+    }];
+  });
+  // Chọn theo tập với ngưỡng (không dùng sort có ngưỡng vì không bắc cầu), lặp trên phần còn lại
+  const ordered: typeof rows = [];
+  let rest = rows;
+  while (rest.length) {
+    const low = Math.min(...rest.map((r) => r.S));
+    const best = rest
+      .filter((r) => r.S <= low + base.threshold_min)
+      .sort((a, b) => a.M - b.M || a.D - b.D || a.created.localeCompare(b.created))[0];
+    ordered.push(best);
+    rest = rest.filter((r) => r !== best);
+  }
+  const rankedIds = new Set(ordered.map((r) => r.id));
+  return {
+    available: ordered.length > 0,
+    reason: ordered.length > 0 ? null : 'NO_PLACE_COORDS',
+    candidates,
+    members: used.map(({ m, source }) => ({ member_id: m.id, nickname: m.nickname, origin_source: source })),
+    matrix,
+    ranking: ordered.map((r, i) => ({ place_id: r.id, rank: i + 1, total_min: r.S, max_min: r.M, total_km: Math.round(r.D * 1000) / 1000 })),
+    unranked_place_ids: tied.filter((p) => !rankedIds.has(p.id)).map((p) => p.id),
+    recommended_place_id: ordered[0]?.id ?? null,
+    margin_vs_second_min: ordered.length >= 2 ? ordered[1].S - ordered[0].S : null,
+    excluded_member_count: excluded,
+    estimated: true,
+    ...base,
   };
 }
 
@@ -582,7 +692,15 @@ export const handlers = [
       const body = (await request.json()) as ResolveVotingRequest;
       const count = body.max_accepted_places ?? 3;
 
-      const sorted = [...placesList].sort((a, b) => b.score - a.score);
+      // CR-12: TRAVEL_TIME → quán đứng đầu thứ hạng đi lại của server (không nhận số từ client)
+      const travelOrder =
+        body.strategy === 'TRAVEL_TIME'
+          ? mockTieSuggestion().ranking.map((r) => placesList.find((p) => p.id === r.place_id))
+          : [];
+      const sorted = [
+        ...travelOrder.filter((p): p is Place => p !== undefined),
+        ...[...placesList].sort((a, b) => b.score - a.score),
+      ].filter((p, i, all) => all.indexOf(p) === i);
       const accepted = sorted.slice(0, count);
 
       accepted.forEach((p) => {
@@ -602,6 +720,34 @@ export const handlers = [
       });
     },
   ),
+
+  // 11b. Tâm nhóm (ALGO-01, CR-11): chỉ tính người đã chia sẻ vị trí, làm tròn 3 chữ số, không lộ toạ độ ai
+  http.get('*/api/v1/rooms/:roomId/group-center', ({ request }) => {
+    if (!request.headers.get('X-Member-Token')) return unauthorized();
+    const points = [...memberOrigins.values()];
+    if (points.length < 2) {
+      return HttpResponse.json(
+        { available: false, center: null, area_label: null, member_count: points.length, nearby_pois: [] },
+        { headers: versionHeaders() },
+      );
+    }
+    const center = mockGroupCenter(points);
+    const nearby = mockPois
+      .map((poi) => ({ ...poi, distance_km: Math.round(mockKm(center, poi) * 1000) / 1000 }))
+      .filter((poi) => poi.distance_km <= 2)
+      .sort((a, b) => a.distance_km - b.distance_km)
+      .slice(0, 10);
+    return HttpResponse.json(
+      { available: true, center, area_label: 'Q1', member_count: points.length, nearby_pois: nearby },
+      { headers: versionHeaders() },
+    );
+  }),
+
+  // 11c. Gợi ý hoà phiếu theo thời gian di chuyển (ALGO-02, CR-12): cùng luật với backend, ước lượng 25 km/h
+  http.get('*/api/v1/rooms/:roomId/tie-break/suggestion', ({ request }) => {
+    if (!request.headers.get('X-Member-Token')) return unauthorized();
+    return HttpResponse.json(mockTieSuggestion(), { headers: versionHeaders() });
+  }),
 
   // 12. Lấy danh sách lịch trình
   http.get('*/api/v1/rooms/:roomId/schedule', () => {

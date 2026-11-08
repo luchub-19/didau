@@ -487,6 +487,7 @@ class TestTieBreakStrategyFactory:
             "CREATOR_PRIORITY",
             "RANDOM",
             "CATEGORY_DIVERSITY",
+            "TRAVEL_TIME",  # CR-12 (T-86)
         }
 
     def test_register_custom_strategy(self) -> None:

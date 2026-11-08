@@ -777,6 +777,7 @@ export const en: Messages = {
       RANDOM: 'Random',
       CATEGORY_DIVERSITY: 'Variety of types',
       GROUP_DECISION: 'Group decides',
+      TRAVEL_TIME: 'Closest for the group',
     },
   },
   invite: {

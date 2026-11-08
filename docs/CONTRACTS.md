@@ -85,6 +85,7 @@ Gợi ý kích hoạt tính năng Chọn hộ:
 
 ### 1.12. `TieBreakStrategyName` bổ sung (CR-02)
 - `GROUP_DECISION`: Phân định theo kết quả phiên Chọn hộ nhóm (Vòng quay / Swipe / Thang / Gợi ý 1 chạm).
+- `TRAVEL_TIME` (CR-12): Hoà phiếu theo thời gian di chuyển của cả nhóm (ALGO-02, `docs/phase6/ALGORITHMS.md` §4). **Mặc định của phòng mới** (`POST /rooms` bỏ trống `tie_break_strategy`); phòng cũ và cột DB giữ mặc định `EARLIEST_SUBMISSION`. Hoà tính theo số `upvotes` ở hạng đầu (không theo `score`); sáu chiến lược cũ vẫn hợp lệ.
 
 ### 1.13. Mã lý do và tham số phục vụ song ngữ (Reason Codes & Conflict Params) (CR-06)
 Các mã chuẩn hoá và tham số cấu trúc để frontend hiển thị song ngữ VI/EN mà không phụ thuộc vào chuỗi tự do do backend sinh ra.
@@ -371,6 +372,7 @@ Khi có lỗi (status $\ge 400$):
 }
 ```
 - `max_places_per_member` (CR-14, tuỳ chọn, 1–10): bỏ trống = **2**; `null` = không giới hạn.
+- `tie_break_strategy` (tuỳ chọn): bỏ trống = **`TRAVEL_TIME`** (CR-12; ví dụ trên ghi tường minh `EARLIEST_SUBMISSION`).
 - **Response 201 Created**: (`creator_member` là `SelfMemberResponse`, CR-11; `room` có thêm `max_places_per_member`, `state_version`)
 ```json
 {
@@ -594,6 +596,7 @@ Khi có lỗi (status $\ge 400$):
   "tie_break_strategy": "MOST_UPVOTES"
 }
 ```
+- **`strategy: "TRAVEL_TIME"` (CR-12)**: server **tính lại** thứ hạng đi lại (mục 35) rồi chốt quán đứng đầu; mọi trường ngoài `strategy` và `max_accepted_places` đều bị bỏ qua, nên client không ép được kết quả. Hoà tính theo `upvotes` ở hạng đầu; quán không thuộc tập hoà xếp sau theo `upvotes` giảm dần rồi `created_at`. Không tính được thứ hạng (không ai có vị trí và phòng không có điểm hẹn, quán thiếu toạ độ) → lùi về "nhiều Muốn đi hơn → thêm sớm hơn". Google Routes (nếu bật) chỉ được gọi ở bước tính này.
 - **Error Codes**: `FORBIDDEN_HOST_ONLY` (403), `INVALID_STRATEGY` (400).
 
 #### 9. Lấy danh sách lịch trình
@@ -811,6 +814,52 @@ Khi có lỗi (status $\ge 400$):
 - **Riêng tư (bất biến)**: toạ độ xuất phát của một thành viên chỉ xuất hiện ở `GET /members/me`, phản hồi endpoint này, phản hồi tạo/vào phòng của chính người đó và mục *của chính người nhận* trong `ROOM_STATE_SYNC`. Mọi chỗ trả thành viên khác (`GET /rooms/{id}`, `ROOM_STATE_SYNC`, `MEMBER_JOINED`, `MEMBER_UPDATED`) chỉ có `has_origin: bool`.
 - **Error Codes**: `UNAUTHORIZED` (401, kể cả khi `room_id` không phải phòng của token), `VALIDATION_ERROR` (422).
 
+#### 34. Tâm nhóm (CR-11, ALGO-01)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/group-center`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Response 200 OK** (`GroupCenterResponse`):
+```json
+{
+  "available": true,
+  "center": { "lat": 10.786, "lng": 106.674 },
+  "area_label": "Q3 – Phú Nhuận",
+  "member_count": 3,
+  "nearby_pois": [ { "external_id": "osm:node/1", "name": "…", "category": "FOOD", "lat": 10.79, "lng": 106.67, "distance_km": 0.412 } ]
+}
+```
+- Chỉ tính thành viên đã chia sẻ vị trí (`members.origin_*`); **không** tính điểm hẹn của host. Dưới 2 người → `{ "available": false, "center": null, "area_label": null, "member_count": n, "nearby_pois": [] }`.
+- `center` = trung bình vector trên mặt cầu, **làm tròn 3 chữ số** (~100 m). `area_label` = tên khu vực gần nhất theo bảng đóng gói `backend/app/data/districts_{hcm,hn}.json` (OSM, ODbL); hai khu vực chênh ≤ 1,5 km thì gộp "A – B"; tâm quá xa mọi khu vực → `null`. `nearby_pois`: tối đa 10 quán OSM trong 2 km, gần → xa (`distance_km` luôn có).
+- **Riêng tư**: phản hồi không bao giờ chứa toạ độ của từng thành viên.
+- **Error Codes**: `UNAUTHORIZED` (401, kể cả khi `room_id` không phải phòng của token), `ROOM_NOT_FOUND` (404).
+
+#### 35. Gợi ý hoà phiếu theo thời gian di chuyển (CR-12, ALGO-02)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/tie-break/suggestion`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Response 200 OK** (`TieSuggestion`):
+```json
+{
+  "available": true,
+  "reason": null,
+  "candidates": [ { "place_id": "…", "name": "Vạn Hạnh Mall", "upvotes": 7 } ],
+  "members": [ { "member_id": "…", "nickname": "Bảo", "origin_source": "MEMBER" } ],
+  "matrix": [ [ { "minutes": 12, "distance_km": 3.2, "source": "ESTIMATE" } ] ],
+  "ranking": [ { "place_id": "…", "rank": 1, "total_min": 57, "max_min": 25, "total_km": 9.6 } ],
+  "unranked_place_ids": [],
+  "recommended_place_id": "…",
+  "margin_vs_second_min": 3,
+  "threshold_min": 2,
+  "travel_mode": "TWO_WHEELER",
+  "excluded_member_count": 0,
+  "estimated": true
+}
+```
+- **Kích hoạt**: ≥ 2 quán chưa `REJECTED`/`VISITED` cùng có `upvotes` lớn nhất (> 0) và chưa có quán `ACCEPTED`; mọi quán bằng số đó là ứng viên (có thể > 3). Ngược lại `available:false`, `reason: "NO_TIE"` (không gọi estimator/Google).
+- **Xuất phát**: `origin(member) = member.origin ?? điểm hẹn host ?? loại`; `origin_source` = `MEMBER` | `MEETING_POINT`; thành viên bị loại được đếm ở `excluded_member_count`. Không ai có xuất phát → `available:false`, `reason: "NO_ORIGINS"` (vẫn có `candidates`). Mọi ứng viên thiếu toạ độ → `reason: "NO_PLACE_COORDS"`.
+- **Ma trận**: `matrix[i][j]` = `members[i]` → `candidates[j]`, xe máy, khởi hành lúc `room.start_minute` của `event_date`; `null` ở cột quán thiếu toạ độ (các quán đó nằm ở `unranked_place_ids`, không bao giờ được đề xuất, không có dòng ở `ranking`). `source` = `ESTIMATE` (Haversine) | `GOOGLE` (chỉ khi `PLACES_PROVIDER=google` + key; lỗi → `ESTIMATE` từng ô). `estimated` = true nếu còn chặng nào không phải `GOOGLE`.
+- **Xếp hạng**: S = `total_min` (tổng phút), M = `max_min` (người đi xa nhất), D = `total_km`. Tập `C = {S ≤ min S + 2}`; trong `C` chọn M nhỏ nhất → D nhỏ nhất → thêm sớm hơn; lặp trên phần còn lại để ra thứ hạng (không dùng sort có ngưỡng vì không bắc cầu). `margin_vs_second_min` = S(hạng 2) − S(hạng 1), **có thể ≤ 0** khi hạng 1 thắng nhờ M nhỏ hơn; `null` nếu chỉ có một quán xếp hạng được.
+- **Riêng tư**: không có toạ độ của ai. (`members[]` chỉ có id, biệt danh, nguồn xuất phát.)
+- **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
+
 #### 29. Chi tiết một địa điểm trong phòng (CR-05)
 - **Method & Path**: `GET /api/v1/rooms/{room_id}/places/{place_id}`
 - **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
@@ -852,7 +901,7 @@ Khi có lỗi (status $\ge 400$):
 ```
 
 **`state_version` (CR-13)** — có ở **mọi** tin server → client sau khi xác thực (riêng `ERROR` do xác thực thất bại không có vì chưa biết phòng):
-- Tin **đổi trạng thái** (`MEMBER_JOINED`, `MEMBER_UPDATED`, `PLACE_*`, `VOTE_UPDATED`, `VOTING_RESOLVED`, `SCHEDULE_UPDATED`, `ROOM_UPDATED`, `DECISION_*`, `CONFLICTS_UPDATED` do API gọi trực tiếp) mang số **mới**, tăng đúng +1 so với tin đổi trạng thái liền trước của phòng (bump trong cùng transaction với thay đổi). Một thao tác phát hai tin (vd. `VOTE_UPDATED` + `PLACE_UPDATED`) thì tăng +2.
+- Tin **đổi trạng thái** (`MEMBER_JOINED`, `MEMBER_UPDATED`, `GROUP_CENTER_UPDATED`, `PLACE_*`, `VOTE_UPDATED`, `VOTING_RESOLVED`, `SCHEDULE_UPDATED`, `ROOM_UPDATED`, `DECISION_*`, `CONFLICTS_UPDATED` do API gọi trực tiếp) mang số **mới**, tăng đúng +1 so với tin đổi trạng thái liền trước của phòng (bump trong cùng transaction với thay đổi). Một thao tác phát hai tin (vd. `VOTE_UPDATED` + `PLACE_UPDATED`) thì tăng +2.
 - Tin **tạm thời** (`CHAT_MESSAGE`, `TYPING_PLACE`, `PRESENCE_UPDATED`, `PING`, `PONG`, `ERROR` sau xác thực) mang số **hiện tại**, không làm số tăng.
 - `CONFLICTS_UPDATED` do **đánh giá ngầm** sau `SCHEDULE_UPDATED`/`PLACE_ADDED` mang lại **chính số của tin gây ra nó** (bằng, không +1): handler chạy ở session riêng, tăng số ở đó sẽ chờ khoá hàng phòng mà request gốc đang giữ.
 - `ROOM_STATE_SYNC` mang số hiện tại ở khung ngoài, ở `payload.state_version` và ở `payload.room.state_version`.
@@ -877,6 +926,7 @@ Khi có lỗi (status $\ge 400$):
 | `ROOM_STATE_SYNC` | Đồng bộ toàn bộ dữ liệu khi vừa connect (CR-11: mục `members` của chính người nhận có `origin_lat/lng`, của người khác chỉ có `has_origin`; CR-13: có `state_version`) | `{ "room": {...}, "members": [...], "places": [...], "schedule": [...], "conflicts": [...], "state_version": 42 }` |
 | `MEMBER_JOINED` | Có thành viên mới tham gia (CR-11: có `has_origin`, luôn `false` lúc mới vào) | `{ "member": { "id": "...", "nickname": "ThuTrang", "role": "MEMBER", "has_origin": false } }` |
 | `MEMBER_UPDATED` | Thành viên đặt/xoá vị trí xuất phát (CR-11); chỉ có cờ, **không bao giờ** có toạ độ | `{ "member_id": "...", "has_origin": true }` |
+| `GROUP_CENTER_UPDATED` | Tâm nhóm vừa có / đổi / mất vì có người đặt/xoá vị trí (CR-11/CR-12). Phát ngay sau `MEMBER_UPDATED` (+1 `state_version`), chỉ khi trước hoặc sau thay đổi có ≥ 2 người chia sẻ. Tâm đã làm tròn 3 chữ số, không có toạ độ cá nhân | `{ "available": true, "center": { "lat": 10.786, "lng": 106.674 }, "area_label": "Q3", "member_count": 3 }` · khi mất tâm: `{ "available": false, "member_count": 1 }` |
 | `MEMBER_LEFT` | Thành viên ngắt kết nối / rời phòng | `{ "member_id": "...", "nickname": "ThuTrang" }` |
 | `PLACE_ADDED` | Có địa điểm mới được thêm | `{ "place": { "id": "...", "name": "Cà phê 3T", "category": "DRINK", ... } }` |
 | `PLACE_UPDATED` | Thông tin địa điểm cập nhật | `{ "place": { "id": "...", "status": "ACCEPTED", ... } }` |
@@ -1212,7 +1262,8 @@ export type TieBreakStrategyName =
   | 'CREATOR_PRIORITY'
   | 'RANDOM'
   | 'CATEGORY_DIVERSITY'
-  | 'GROUP_DECISION'; // CR-02
+  | 'GROUP_DECISION' // CR-02
+  | 'TRAVEL_TIME'; // CR-12
 
 export type PlaceSource = 'MANUAL' | 'OSM' | 'GOOGLE'; // CR-02
 export type CityCode = 'HCM' | 'HN'; // CR-02
@@ -1637,6 +1688,40 @@ export interface AutoPlanApplyRequest {
   slots: PlannedSlot[];
 }
 
+// Algorithm Engine (CR-11 / CR-12 phần 1) — thêm vào frontend/src/types/api.ts (mục 34, 35)
+export interface LatLng { lat: number; lng: number }
+
+export interface GroupCenterResponse {
+  available: boolean;
+  center: LatLng | null; // làm tròn 3 chữ số
+  area_label: string | null; // "Q3" | "Q3 – Phú Nhuận"
+  member_count: number;
+  nearby_pois: Poi[]; // ≤ 10, trong 2 km, gần → xa
+}
+
+export type TravelSource = 'ESTIMATE' | 'GOOGLE';
+export type TieUnavailableReason = 'NO_TIE' | 'NO_ORIGINS' | 'NO_PLACE_COORDS';
+export interface TieCandidate { place_id: string; name: string; upvotes: number }
+export interface TieMemberInfo { member_id: string; nickname: string; origin_source: 'MEMBER' | 'MEETING_POINT' }
+export interface TieLeg { minutes: number; distance_km: number; source: TravelSource }
+export interface TieRanking { place_id: string; rank: number; total_min: number; max_min: number; total_km: number }
+
+export interface TieSuggestion {
+  available: boolean;
+  reason: TieUnavailableReason | null;
+  candidates: TieCandidate[];
+  members: TieMemberInfo[];
+  matrix: (TieLeg | null)[][]; // [thành viên][ứng viên]
+  ranking: TieRanking[]; // S = total_min, M = max_min, D = total_km
+  unranked_place_ids: string[];
+  recommended_place_id: string | null;
+  margin_vs_second_min: number | null; // S(hạng 2) − S(hạng 1), có thể ≤ 0
+  threshold_min: number;
+  travel_mode: 'TWO_WHEELER';
+  excluded_member_count: number;
+  estimated: boolean;
+}
+
 // frontend/src/types/websocket.ts
 
 export interface WebSocketEnvelope<T = unknown> {
@@ -1677,6 +1762,14 @@ export interface RoomUpdatedPayload {
 
 export interface MemberJoinedPayload {
   member: Member;
+}
+
+// GROUP_CENTER_UPDATED (CR-11/12): thêm vào frontend/src/types/websocket.ts
+export interface GroupCenterUpdatedPayload {
+  available: boolean;
+  center?: { lat: number; lng: number };
+  area_label?: string;
+  member_count: number;
 }
 
 export interface MemberLeftPayload {

@@ -19,8 +19,8 @@ class CreateRoomRequest(BaseModel):
     creator_avatar_url: str | None = Field(default=None, description="URL avatar người tạo")
     budget_limit: int | None = Field(default=None, ge=0, description="Hạn mức ngân sách (VNĐ)")
     tie_break_strategy: TieBreakStrategyName | str = Field(
-        default=TieBreakStrategyName.EARLIEST_SUBMISSION,
-        description="Chiến lược phân định hòa phiếu",
+        default=TieBreakStrategyName.TRAVEL_TIME,
+        description="Chiến lược phân định hòa phiếu (mặc định TRAVEL_TIME — CR-12)",
     )
     city: CityCode | str = Field(
         default=CityCode.HCM,
