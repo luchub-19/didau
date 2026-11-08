@@ -150,3 +150,56 @@ TC-01 3 vị trí → có tâm · TC-02 thêm thành viên → tâm tính lại 
 chọn theo tổng (fixture §4) · TC-05 khe 30' cần 60' → SOFT/HIGH · TC-06 khe 70' cần 60' → SAFE dư 10' · TC-07 cùng phiếu
 cùng slack → giữ thứ tự · TC-08 nhiều phiếu nhưng xung đột nặng → không lên trước quán an toàn. Thêm: ngưỡng 2 phút
 không bắc cầu, thiếu origin, Google lỗi một phần tử → lùi ước lượng, riêng tư (phản hồi không chứa toạ độ thành viên).
+
+## 11. Số liệu cho báo cáo (T-92, 2026-11-08)
+Máy dev (Arch Linux, Python 3.14), thuần Python, không DB/mạng. Backend: **676 test xanh** với Postgres docker; `ruff` xanh.
+
+### 11.1 Bảng TC → test → kết quả
+| Mã | Đầu vào | Test (tên) | Kết quả |
+| :-: | :--- | :--- | :--- |
+| TC-01 | 3 thành viên có vị trí | `unit/test_algo_t86.py::test_tc01_three_positions_give_center` · `integration/test_phase6_t86.py::test_tc01_group_center_three_members` | PASS — có tâm + nhãn khu vực |
+| TC-02 | thêm thành viên thứ 4 | `test_tc02_adding_member_moves_center` · `test_tc02_adding_member_changes_center_and_ws_event` | PASS — tâm tính lại, phát `GROUP_CENTER_UPDATED` |
+| TC-03 | 2 quán hoà phiếu | `test_tc03_two_places_tied_candidates_and_trigger_rules` · `test_tc03_two_tied_places_only` | PASS — so tổng thời gian di chuyển |
+| TC-04 | 3 quán hoà (fixture §4, `algo-fixtures.json`) | `test_tc04_fixture_van_hanh_mall_wins_by_3` · `test_tc03_tc04_three_way_tie_suggests_van_hanh_mall` | PASS — Vạn Hạnh Mall thắng cách 3′; S/M khớp fixture |
+| TC-05 | khe 30′ cần 60′ | `unit/test_algo_t87.py::test_tc05_gap_30_needing_60_is_not_safe` (+ `test_doc_tc05_tc06_risk_levels`) | PASS — không SAFE (SOFT/HIGH) |
+| TC-06 | khe 70′ cần 60′ | `test_tc06_gap_70_needing_60_is_safe_with_10_spare` | PASS — SAFE, dư 10′ |
+| TC-07 | cùng phiếu, cùng slack | `test_tc07_input_order_does_not_matter_and_result_is_stable` | PASS — giữ thứ tự, không phụ thuộc thứ tự nhập |
+| TC-08 | nhiều phiếu nhưng xung đột nặng | `integration/test_phase6_t87.py::test_tc08_sort_priority_and_labels` | PASS — không lên trước quán an toàn |
+
+Test thêm (cũng xanh): ngưỡng 2′ không bắc cầu (`test_threshold_is_not_transitive`), thứ tự ứng viên không đổi kết quả
+(hoán vị), hoà → khoảng cách → thời điểm tạo, thiếu origin, riêng tư (không phản hồi nào chứa toạ độ người khác).
+Frontend chạy chung `algo-fixtures.json` (`algo_t90.test.tsx`: 52 test; `algo_t88.test.tsx`: 45 test).
+
+### 11.2 Độ phức tạp theo code thật
+n = số quán, m = số thành viên, k = số mục lịch trong ngày. (`app/domain/algorithms/`)
+| Thuật toán | Hàm | Độ phức tạp | Ghi chú |
+| :--- | :--- | :--- | :--- |
+| ALGO-01 tâm nhóm | `spherical_mean` + `area_label` | O(m) + O(D log D), D = số quận (hằng) | trung bình toạ độ cầu, sau đó gắn nhãn quận gần nhất |
+| ALGO-02 hoà phiếu | `tied_candidates` → ma trận `leg` → `decide` | O(n) + O(m·n) tính ma trận + O(n) chọn (`_select`) + O(n log n) xếp hạng | hạng chỉ lặp khi `rank_by_travel` loại dần: tối đa O(n²) với n ≤ 30 |
+| ALGO-03 khả thi lịch | `consecutive_pairs` + `assess_leg` | O(k log k) sắp xếp + O(k) cặp liền kề | mỗi cặp 1 lần `leg` |
+| ALGO-04 ưu tiên | `rank_places` | O(n·m) ước lượng ETA + O(n log n) `sorted` ổn định | khoá `(rủi ro, −phiếu, −slack, ETA xa nhất, thời điểm tạo)` |
+
+### 11.3 Thời gian chạy (10 thành viên × 30 quán, ước lượng Haversine)
+Trung vị / lớn nhất của 50 lượt:
+| Phép | Trung vị | Lớn nhất |
+| :--- | :-: | :-: |
+| Ma trận 300 ô `leg` | 0,29 ms | 0,56 ms |
+| `decide` (ALGO-02) | 0,15 ms | 0,22 ms |
+| Ma trận + `decide` | 0,44 ms | 0,84 ms |
+| `compute_group_center` (10 điểm) | 0,04 ms | 0,34 ms |
+| ALGO-04 `place_priorities` (test T-87, gồm repo giả) | ≈ 0,5 ms (T-87 đo) | ngưỡng test 150 ms |
+Request đầy đủ `GET /places?sort=priority` (qua API + Postgres) < 150 ms (ngưỡng test `test_phase6_t87.py`, không có cảnh báo
+"CHẬM"). Với Google Routes thật, chi phí nằm ở mạng (timeout 4 s) chứ không ở thuật toán.
+
+### 11.4 Tham số cuối cùng (`app/core/algo_config.py`)
+`DETOUR_FACTOR = 1,3` · **`MOTORBIKE_KMH = 25`** (**chưa chỉnh** theo 5 tuyến Google Maps: cần mạng/key, ghi là việc còn lại) ·
+`BUFFER_MIN = 5` · `TIE_THRESHOLD_MIN = 2` · cao điểm `[16:30, 19:30)` (T-87 chốt nửa mở) với tỉ lệ biên 0,5 (cao điểm) /
+0,25 (thường), sàn `MARGIN_MIN = 5` · `CENTER_RADIUS_KM = 2,0` · giới hạn đề xuất quán mặc định 2/người.
+
+### 11.5 Giới hạn (nêu thẳng trong báo cáo)
+1. Thời gian di chuyển là **ước lượng** (đường chim bay × 1,3 ÷ 25 km/h), có nhãn "ước lượng"; không có P90 thật, biên dự phòng
+   theo giờ cao điểm là quy tắc cố định chứ không học từ dữ liệu.
+2. Chưa kiểm với Google Routes thật; `MOTORBIKE_KMH` chưa hiệu chỉnh.
+3. Chỉ một phương tiện (xe máy); không có lịch rảnh/heatmap từng người (quyết định #2).
+4. ALGO-03 chỉ tính ngày đầu của phòng (`day_offset = 0`).
+5. Hoà phiếu là **gợi ý**, host xác nhận (quyết định #5).

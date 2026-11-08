@@ -341,8 +341,6 @@ export const vi = {
     sendLink: 'Gửi link',
     calendarShort: 'Vào lịch',
     reoptimizeShort: 'Xếp lại',
-    send: 'Gửi kế hoạch cho nhóm',
-    addToCalendar: 'Thêm vào lịch',
     locked: {
       title: 'Quán đã chốt',
       companions: 'Đi kèm',
@@ -1089,9 +1087,7 @@ export const vi = {
   },
   ui: {
     close: 'Đóng',
-    loading: 'Đang tải...',
     clear: 'Xoá',
-    dragHandle: 'Tay nắm kéo',
     dismiss: 'Bỏ qua',
     actions: 'Hành động',
     selectOption: 'Chọn một mục',

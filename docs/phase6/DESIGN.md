@@ -200,3 +200,23 @@ Thứ tự một màn: avatar + "Đổi nhân vật" + biệt danh · tên buổ
 - [ ] Số bundle ghi PROGRESS.
 - [ ] (Mạch B) Không phản hồi API/WS nào chứa toạ độ thành viên khác; "Vì sao?" có số khớp kết quả; cảnh báo không đỏ,
   có chữ + icon, "Bỏ qua" chạy; không popup tự mở.
+
+## 11. Số đo cuối (T-92, 2026-11-08)
+| Hạng mục | Ngân sách | Số đo | Kết luận |
+| :--- | :--- | :--- | :--- |
+| Entry chính `index-*.js` gzip | không tăng so T-75 | 71,49 kB / **28,17 kB gz** (không đổi từ T-82) | đạt |
+| Bundle `index` (phòng) gzip | – | 758,21 kB / **233,37 kB gz** (T-75 201,99 → +31,4, chủ yếu i18n + logic thuật toán + lịch) | ghi nhận |
+| Chunk thẻ chuyến đi + `html-to-image` | ≤ 15 kB gz | 6,79 + 5,42 = **12,2 kB gz** | đạt |
+| `MapView` / `CalendarItemPopover` gzip | – | 15,65 / 6,96 kB | – |
+| Thuật toán 10 thành viên × 30 quán | < 150 ms | ALGO-02 ≈ 0,44 ms (gồm ma trận); ALGO-04 ≈ 0,5 ms; request `GET /places?sort=priority` < 150 ms | đạt (xem ALGORITHMS §11.3) |
+| Kéo thả: long task > 50 ms, ≥ 55 fps | 0 / ≥ 55 | **chưa đo** (cần trace trên máy có GPU; T-90 chỉ kiểm bằng tay là dải đổi ngay khi kéo) | để lại |
+| CLS khi thả / khi cập nhật từ xa | ≤ 0,05 | **chưa đo** (gđ5 §13 đã ghi CLS do dữ liệu từ xa không đạt, chưa chữa) | để lại |
+| LCP trang chủ có quả địa cầu | ≤ 2,5 s | **chưa đo** | để lại |
+| Kiểm tự động | xanh | backend 676 xanh (Postgres docker) + ruff; FE 844/845 (đỏ duy nhất `decide_wheel` SWIPE có sẵn từ T-82), lint/tsc/build xanh | đạt, có ghi chú |
+
+Dọn: gỡ 4 khoá i18n mồ côi (`plan.send`, `plan.addToCalendar`, `ui.loading`, `ui.dragHandle`; cả VI và EN). Giữ `decide.tie.cta`,
+`decide.tie.change` (chỉ test dùng), `common.*` (bộ chung), `osm.*` (tra động qua `i18n/osm`), các khoá số nhiều `_one/_other`.
+
+**Checklist §10** — pass (đã có test/kiểm ở T-77 → T-91): ghi chú còn nguyên sau kéo (`toBulkPayload`), i18n parity, không toạ độ
+người khác, cảnh báo không đỏ + "Bỏ qua", không cuộn ngang 375/390/1440 (T-88, T-90). **Chưa kiểm** (cần người/máy thật): Esc/Tab/↑↓
+trên lịch trên trình duyệt thật, hai trình duyệt cùng phòng (WS thật), kéo bằng chạm.

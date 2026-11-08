@@ -343,8 +343,6 @@ export const en: Messages = {
     sendLink: 'Send link',
     calendarShort: 'Calendar',
     reoptimizeShort: 'Re-plan',
-    send: 'Send plan to the group',
-    addToCalendar: 'Add to calendar',
     locked: {
       title: 'Locked-in place',
       companions: 'Also on the plan',
@@ -1091,9 +1089,7 @@ export const en: Messages = {
   },
   ui: {
     close: 'Close',
-    loading: 'Loading...',
     clear: 'Clear',
-    dragHandle: 'Drag handle',
     dismiss: 'Dismiss',
     actions: 'Actions',
     selectOption: 'Select an option',
