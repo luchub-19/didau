@@ -19,6 +19,8 @@ export interface DiscoveryCardProps {
   onOpen: () => void;
   /** Thiếu thì không có nút ＋ (quán đã trong danh sách ở dải "Nhóm đang để ý"). */
   onAdd?: () => void;
+  /** Đã đủ số quán được đề xuất (CR-14): nút ＋ khoá, `title` nêu lý do. */
+  addLockedReason?: string;
   /** Dải "Nhóm đang để ý": người đang xem (tối đa 3 + "+N"). */
   viewers?: Member[];
   extraViewers?: number;
@@ -34,6 +36,7 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
   adding = false,
   onOpen,
   onAdd,
+  addLockedReason,
   viewers,
   extraViewers = 0,
 }) => {
@@ -101,9 +104,10 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
           <button
             type="button"
             onClick={onAdd}
-            disabled={adding}
+            disabled={adding || Boolean(addLockedReason)}
             aria-label={t('discovery.addAria', { name })}
-            title={t('discovery.add')}
+            title={addLockedReason ?? t('discovery.add')}
+            data-locked={addLockedReason ? 'true' : undefined}
             data-testid="discovery-add"
             className="absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent text-ink shadow-float [@media(hover:hover)]:hover:bg-accent-hover transition-transform active:scale-95 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text"
           >

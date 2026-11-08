@@ -21,6 +21,12 @@ import { useTheme } from '../../theme/useTheme';
 import { registerMapFlyer } from './flyToPlace';
 import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
+import { GroupCenterWidget } from '../algo/GroupCenterWidget';
+import { syncCenterRadius } from '../algo/CenterRadiusLayer';
+import { useAlgoStore } from '../../store/useAlgoStore';
+import { CENTER_RADIUS_KM, centerVisible } from '../../room/groupCenter';
+import { formatDistance } from '../../i18n/format';
+import { useLanguage } from '../../i18n/useLanguage';
 import { PlaceDetail } from '../places/PlaceDetail';
 import { useWorkspaceLayout } from '../shell/workspace';
 import { usePlaceUrlSync } from '../shell/useRoomTab';
@@ -72,6 +78,10 @@ export function MapView({
   const selectPlace = useMapStore((s) => s.selectPlace);
   const placesLoading = usePlaceStore((s) => s.isLoading);
   const layout = useWorkspaceLayout();
+  const { lang } = useLanguage();
+  const groupCenter = useAlgoStore((s) => s.groupCenter);
+  const showRadius = useAlgoStore((s) => s.showRadius);
+  const radiusCenter = showRadius && centerVisible(groupCenter) ? groupCenter.center : null;
 
   // ?place=<id> ↔ quán đang mở; Back đóng trang chi tiết trước (T-71)
   usePlaceUrlSync();
@@ -222,6 +232,18 @@ export function MapView({
       console.warn('[MapView] loi cap nhat mau theme cho lop', err);
     }
   }, [map, mapReady, resolvedTheme]);
+
+  // Vòng tròn bán kính quanh tâm nhóm (chỉ khi người dùng bấm "Xem quán gần đây")
+  const radiusLat = radiusCenter?.lat;
+  const radiusLng = radiusCenter?.lng;
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    try {
+      syncCenterRadius(map, radiusLat != null && radiusLng != null ? { lat: radiusLat, lng: radiusLng } : null);
+    } catch (err) {
+      console.warn('[MapView] loi ve vong tron tam nhom', err);
+    }
+  }, [map, mapReady, radiusLat, radiusLng, resolvedTheme]);
 
   const scheduleItems = useScheduleStore((s) => s.items);
   const autoPlanPreview = useScheduleStore((s) => s.autoPlanPreview);
@@ -376,6 +398,14 @@ export function MapView({
         onChange={onOriginChange}
         onPermissionError={() => toast.error(t('map.onlyHostCanChangeOrigin'))}
       />
+
+      {/* Widget tam nhom (desktop); tren mobile chip nam o dinh tab Kham pha (GatherPanel) */}
+      {layout !== 'mobile' && <GroupCenterWidget variant="map" aboveHostButton={isHost} />}
+      {radiusCenter && (
+        <span className="sr-only" role="status">
+          {t('algo.center.radiusAria', { radius: formatDistance(CENTER_RADIUS_KM, lang) })}
+        </span>
+      )}
 
       {/* Nut dat diem hen tai giua ban do */}
       {isHost && (

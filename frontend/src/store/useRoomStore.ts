@@ -8,6 +8,7 @@ import type {
   JoinRoomResponse,
   Member,
   Room,
+  SelfMember,
   UpdateRoomRequest,
 } from '../types';
 import { errorKey } from '../i18n/serverText';
@@ -15,7 +16,7 @@ import { errorKey } from '../i18n/serverText';
 interface RoomState {
   room: Room | null;
   members: Member[];
-  currentMember: Member | null;
+  currentMember: SelfMember | null;
   totalPlaces: number;
   isLoading: boolean;
   error: string | null;
@@ -30,6 +31,10 @@ interface RoomState {
   addMember: (member: Member) => void;
   removeMember: (memberId: string) => void;
   setCurrentMember: (member: Member | null) => void;
+  /** CR-11: đặt (lat/lng) hoặc xoá (null) vị trí xuất phát của MÌNH; trả thành viên đã cập nhật. */
+  updateMyOrigin: (roomId: string, origin: { lat: number; lng: number } | null) => Promise<SelfMember>;
+  /** WS `MEMBER_UPDATED`: cờ "đã chia sẻ" của một thành viên (không bao giờ có toạ độ). */
+  applyMemberUpdated: (memberId: string, hasOrigin: boolean) => void;
   reset: () => void;
 }
 
@@ -133,6 +138,30 @@ export const useRoomStore = create<RoomState>((set) => ({
       members: state.members.filter((m) => m.id !== memberId),
     })),
   setCurrentMember: (currentMember) => set({ currentMember }),
+  updateMyOrigin: async (roomId, origin) => {
+    const me = await roomApi.updateMyOrigin(roomId, {
+      origin_lat: origin ? origin.lat : null,
+      origin_lng: origin ? origin.lng : null,
+    });
+    set((state) => ({
+      currentMember: state.currentMember ? { ...state.currentMember, ...me } : me,
+      members: state.members.map((m) => (m.id === me.id ? { ...m, has_origin: Boolean(me.has_origin) } : m)),
+    }));
+    return me;
+  },
+  applyMemberUpdated: (memberId, hasOrigin) =>
+    set((state) => ({
+      members: state.members.map((m) => (m.id === memberId ? { ...m, has_origin: hasOrigin } : m)),
+      currentMember:
+        state.currentMember && state.currentMember.id === memberId
+          ? {
+              ...state.currentMember,
+              has_origin: hasOrigin,
+              // Xoá ở máy khác (cùng người) thì bỏ luôn toạ độ đang giữ
+              ...(hasOrigin ? {} : { origin_lat: null, origin_lng: null }),
+            }
+          : state.currentMember,
+    })),
   reset: () =>
     set({
       room: null,

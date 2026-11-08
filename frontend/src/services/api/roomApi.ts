@@ -7,6 +7,8 @@ import type {
   Member,
   Room,
   RoomDetailResponse,
+  SelfMember,
+  UpdateMyOriginRequest,
   UpdateRoomRequest,
 } from '../../types';
 
@@ -33,6 +35,12 @@ export const roomApi = {
 
   async getCurrentMember(): Promise<Member> {
     const res = await apiClient.get<Member>('/members/me');
+    return res.data;
+  },
+
+  /** CR-11: đặt/xoá vị trí xuất phát riêng của mình (cả hai `null` = xoá). Phản hồi có toạ độ CHỈ của chính mình. */
+  async updateMyOrigin(roomId: string, data: UpdateMyOriginRequest): Promise<SelfMember> {
+    const res = await apiClient.patch<SelfMember>(`/rooms/${roomId}/members/me`, data);
     return res.data;
   },
 };

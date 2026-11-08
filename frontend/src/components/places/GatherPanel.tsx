@@ -10,6 +10,9 @@ import { toast } from '../ui';
 import { getMotionTier } from '../../motion/useMotionTier';
 import { duration } from '../../motion/tokens';
 import { railOrigin, type DiscoveryItem } from '../../room/discovery';
+import { parseLimitError, placeQuota } from '../../room/placeLimit';
+import { GroupCenterWidget } from '../algo/GroupCenterWidget';
+import { useWorkspaceLayout } from '../shell/workspace';
 import { DiscoveryRails } from './DiscoveryRails';
 
 export interface GatherPanelProps {
@@ -30,6 +33,8 @@ export interface GatherPanelProps {
   variant?: 'column' | 'sheet';
   /** Gọi sau khi bấm thẻ/kết quả để mở trang chi tiết (sheet tự đóng cho thấy bản đồ). */
   onNavigate?: () => void;
+  /** Mobile: chuyển sang tab Bản đồ (widget tâm nhóm "Xem quán gần đây"). */
+  onSwitchToMap?: () => void;
 }
 
 /** Mở xem trước một quán chưa có trong danh sách: nạp POI vào cache bản đồ rồi chọn + bay tới. */
@@ -67,11 +72,15 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
   tray,
   variant = 'column',
   onNavigate,
+  onSwitchToMap,
 }) => {
   const { t } = useTranslation();
   const searchRef = useRef<HTMLInputElement>(null);
   const [addingKeys, setAddingKeys] = useState<ReadonlySet<string>>(new Set());
   const { origin } = railOrigin(room);
+  const layout = useWorkspaceLayout();
+  // CR-14: hạn mức đề xuất của mình
+  const quota = placeQuota(room, places, currentMemberId);
 
   const getCenter = useCallback(() => currentMapCenter() ?? origin, [origin]);
 
@@ -82,6 +91,10 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
 
   const addItem = async (item: DiscoveryItem) => {
     if (addingKeys.has(item.key)) return;
+    if (quota.reached) {
+      toast.error(t('algo.limit.reached', { limit: quota.limit }));
+      return;
+    }
     setAddingKeys((s) => new Set(s).add(item.key));
     try {
       const { addPlace, addPlaceFromPoi } = usePlaceStore.getState();
@@ -111,6 +124,8 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
         await addPlaceFromPoi(room.id, item.poi);
       }
     } catch (err: unknown) {
+      // 409 PLACE_LIMIT_REACHED: danh sách ở máy này đã cũ → tải lại để nút khoá đúng
+      if (parseLimitError(err)) void usePlaceStore.getState().fetchPlaces(room.id).catch(() => undefined);
       toast.error(describeApiError(err, t, 'ADD_PLACE_FAILED'));
     } finally {
       setAddingKeys((s) => {
@@ -146,6 +161,22 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
           onPick={openPoi}
           className={isColumn ? 'mt-4' : ''}
         />
+        {quota.limit !== null && (
+          <p
+            className={`mt-2 text-caption ${quota.reached ? 'text-ink' : 'text-ink-2'}`}
+            data-testid="quota-line"
+            data-reached={quota.reached}
+            role="status"
+          >
+            {quota.reached
+              ? t('algo.limit.reached', { limit: quota.limit })
+              : t('algo.limit.status', { used: quota.used, limit: quota.limit })}
+          </p>
+        )}
+        {/* Mobile: chip tâm nhóm trên đỉnh tab Khám phá, mở rộng thành Sheet */}
+        {layout === 'mobile' && (
+          <GroupCenterWidget variant="inline" className="mt-3" onShowOnMap={onSwitchToMap} />
+        )}
       </header>
 
       <DiscoveryRails
@@ -162,6 +193,7 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
           onNavigate?.();
         }}
         onSetOrigin={onOriginChange ? setOriginHere : undefined}
+        quota={quota}
       />
 
       {isColumn && (
@@ -185,7 +217,8 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
         <button
           type="button"
           onClick={onOpenAddModal}
-          className="min-h-[44px] rounded-field px-3 text-label font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+          disabled={quota.reached}
+          className="min-h-[44px] rounded-field px-3 text-label font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text disabled:cursor-not-allowed disabled:text-ink-3 disabled:no-underline"
         >
           {t('discovery.manual')}
         </button>

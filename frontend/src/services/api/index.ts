@@ -8,3 +8,4 @@ export * from './poiApi';
 export * from './reviewApi';
 export * from './decisionApi';
 
+export * from './algoApi';

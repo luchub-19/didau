@@ -11,18 +11,23 @@ import { useMapStore } from '../../store/useMapStore';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import { planBudget } from '../../room/budget';
 import { usePresenceStore } from '../../store/usePresenceStore';
+import { useAlgoStore } from '../../store/useAlgoStore';
+import { centerVisible } from '../../room/groupCenter';
+import type { PlaceQuota } from '../../room/placeLimit';
 import { useNearbyPois, type NearbyPois } from '../map/NearbySuggestions';
 import type { PeerMap } from '../../stage/presence/rules';
-import type { Poi } from '../../types';
+import type { GroupCenterResponse, Poi } from '../../types';
 import { COLLECTION_CODES, type CollectionCode } from '../../room/curated';
 import { useCuratedData } from '../../room/useCuratedData';
 import {
   collectionItems,
   fitsRoomAndBudget,
   findAddedPlace,
+  groupNearbyItems,
   groupWatching,
   itemFromCurated,
   itemFromPoi,
+  nearbyRailMode,
   nonEmptyCollections,
   remainingBudget,
   type DiscoveryItem,
@@ -95,8 +100,15 @@ export interface DiscoveryRailsProps {
   addingKeys: ReadonlySet<string>;
   /** Host: đặt điểm hẹn ở giữa bản đồ. */
   onSetOrigin?: () => void;
+  /** Hạn mức đề xuất của mình (CR-14): đủ thì khoá nút ＋ trên mọi thẻ. */
+  quota?: PlaceQuota;
   /** Ghi đè nguồn dữ liệu (test, vì SSR đọc store ở trạng thái đầu); thiếu thì đọc từ store như thường. */
-  source?: { nearby?: NearbyPois; poisById?: Record<string, Poi>; peers?: PeerMap };
+  source?: {
+    nearby?: NearbyPois;
+    poisById?: Record<string, Poi>;
+    peers?: PeerMap;
+    groupCenter?: GroupCenterResponse | null;
+  };
 }
 
 export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
@@ -110,6 +122,7 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
   onAddItem,
   addingKeys,
   onSetOrigin,
+  quota,
   source,
 }) => {
   const { t } = useTranslation();
@@ -121,6 +134,12 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
   const poisById = source?.poisById ?? storePois;
   const peers = source?.peers ?? storePeers;
   const nearby = source?.nearby ?? storeNearby;
+  const storeCenter = useAlgoStore((s) => s.groupCenter);
+  const groupCenter = source && 'groupCenter' in source ? source.groupCenter : storeCenter;
+  // ≥2 người chia sẻ vị trí → dải 1 đổi thành "Gần cả nhóm" và mọi khoảng cách tính từ tâm nhóm
+  const centerPoint = centerVisible(groupCenter) ? groupCenter.center : null;
+  const mode = nearbyRailMode(centerPoint !== null, nearby.hasOrigin);
+  const refOrigin = centerPoint ?? nearby.origin;
   const [collection, setCollection] = useState<CollectionCode | null>(null);
   // Phần ngân sách đã dùng cho các quán trong lịch (0 khi chưa có lịch, vd. giai đoạn ①)
   const scheduleItems = useScheduleStore((s) => s.items);
@@ -128,7 +147,7 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
 
   const metaFor = (it: DiscoveryItem): string => {
     const parts: string[] = [];
-    if (it.distanceKm != null && nearby.hasOrigin) parts.push(formatDistance(it.distanceKm, lang));
+    if (it.distanceKm != null && mode !== 'city') parts.push(formatDistance(it.distanceKm, lang));
     if (it.priceVnd) parts.push(formatMoney(it.priceVnd, lang));
     const cuisine = cuisineLabel(it.poi.cuisine, lang);
     if (cuisine) parts.push(cuisine);
@@ -146,21 +165,25 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
       adding={addingKeys.has(it.key)}
       onOpen={() => onOpenItem(it)}
       onAdd={() => onAddItem(it)}
+      addLockedReason={quota?.reached ? t('algo.limit.reached', { limit: quota.limit }) : undefined}
     />
   );
 
   // Dải 1 — gần điểm hẹn
   const nearbyItems = useMemo(
-    () => nearby.pois.map((p) => itemFromPoi(p, nearby.origin, data)),
-    [nearby.pois, nearby.origin, data],
+    () =>
+      centerPoint && groupCenter
+        ? groupNearbyItems(groupCenter.nearby_pois, centerPoint, data)
+        : nearby.pois.map((p) => itemFromPoi(p, nearby.origin, data)),
+    [centerPoint, groupCenter, nearby.pois, nearby.origin, data],
   );
 
   // Dải 2 — bộ sưu tập (chip chủ đề)
   const collections = useMemo(() => nonEmptyCollections(COLLECTION_CODES, data), [data]);
   const activeCollection = collection && collections.includes(collection) ? collection : (collections[0] ?? null);
   const collectionList = useMemo(
-    () => (activeCollection ? collectionItems(activeCollection, nearby.origin, data, poisById) : []),
-    [activeCollection, nearby.origin, data, poisById],
+    () => (activeCollection ? collectionItems(activeCollection, refOrigin, data, poisById) : []),
+    [activeCollection, refOrigin, data, poisById],
   );
 
   // Dải 3 — hợp giờ và ngân sách (quán tuyển chọn + quán đã tải từ bản đồ)
@@ -168,12 +191,12 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
     if (!data) return [];
     const byKey = new Map<string, DiscoveryItem>();
     for (const e of data.places) {
-      const it = itemFromCurated(e, nearby.origin, data, poisById);
+      const it = itemFromCurated(e, refOrigin, data, poisById);
       byKey.set(it.key, it);
     }
     for (const it of nearbyItems) if (!byKey.has(it.key)) byKey.set(it.key, it);
     return fitsRoomAndBudget([...byKey.values()], room, undefined, spentOnPlan);
-  }, [data, nearby.origin, poisById, nearbyItems, room, spentOnPlan]);
+  }, [data, refOrigin, poisById, nearbyItems, room, spentOnPlan]);
 
   // Dải 4 — nhóm đang để ý
   const watching = useMemo(
@@ -187,14 +210,20 @@ export const DiscoveryRails: React.FC<DiscoveryRailsProps> = ({
   return (
     <div className="space-y-6" data-testid="discovery-rails">
       {/* 1. Gần điểm hẹn */}
-      {nearby.status === 'pending' ? (
+      {mode !== 'group' && nearby.status === 'pending' ? (
         <SkeletonRail testId="rail-nearby" title={t('discovery.rail.nearby')} />
       ) : nearbyItems.length > 0 ? (
         <Rail
           testId="rail-nearby"
-          title={nearby.hasOrigin ? t('discovery.rail.nearby') : t('discovery.rail.nearbyCity')}
+          title={
+            mode === 'group'
+              ? t('discovery.rail.nearbyGroup')
+              : mode === 'meeting'
+                ? t('discovery.rail.nearby')
+                : t('discovery.rail.nearbyCity')
+          }
           header={
-            !nearby.hasOrigin && (
+            mode === 'city' && (
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="origin-hint">
                 <p className="text-[14px] text-ink-2">
                   {isHost ? t('discovery.originHint') : t('discovery.originHintGuest')}

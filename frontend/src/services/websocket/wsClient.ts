@@ -15,6 +15,8 @@ export class WebSocketClient {
   private statusListeners = new Set<(status: WsConnectionStatus) => void>();
   private eventListeners = new Map<string, Set<WsEventHandler<unknown>>>();
   private isIntentionallyClosed = false;
+  /** Cổng chạy TRƯỚC khi chuyển tin tới handler; trả false = bỏ tin (luật `state_version`, T-88). */
+  private gate: ((envelope: WebSocketEnvelope) => boolean) | null = null;
 
   constructor(url: string, options: WsClientOptions = {}) {
     this.url = url;
@@ -113,6 +115,10 @@ export class WebSocketClient {
     };
   }
 
+  public setGate(gate: ((envelope: WebSocketEnvelope) => boolean) | null): void {
+    this.gate = gate;
+  }
+
   public onStatusChange(callback: (status: WsConnectionStatus) => void): () => void {
     this.statusListeners.add(callback);
     callback(this.status);
@@ -147,6 +153,7 @@ export class WebSocketClient {
           if (envelope.type === 'PING') {
             this.send('PONG', {});
           }
+          if (this.gate && !this.gate(envelope)) return;
           this.dispatchEvent(envelope.type, envelope.payload, envelope);
           this.dispatchEvent('*', envelope.payload, envelope);
         }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, Card } from '../ui';
+import { MapPin } from '../ui/Icon';
 import type { Member } from '../../types';
 
 export interface MemberListProps {
@@ -73,6 +74,18 @@ export const MemberList: React.FC<MemberListProps> = ({
                   <span>{presenceLabel}</span>
                 </div>
               </div>
+
+              {/* CR-11: chỉ hiện cờ "đã chia sẻ nơi xuất phát", không bao giờ hiện nơi nào */}
+              {member.has_origin && (
+                <span
+                  data-testid="origin-dot"
+                  title={t('algo.origin.sharedDot')}
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-text"
+                >
+                  <MapPin size={14} weight="fill" aria-hidden="true" />
+                  <span className="sr-only">{t('algo.origin.sharedDot')}</span>
+                </span>
+              )}
 
               {member.role === 'HOST' && (
                 <span className="text-caption font-medium text-ink bg-surface-2 border border-line rounded-full px-2.5 py-0.5 flex-shrink-0">

@@ -44,6 +44,8 @@ export interface CreateFormValues {
   customBudget: string;
   strategy: TieBreakStrategyName;
   description: string;
+  /** CR-14: số quán mỗi người được đề xuất; `null` = không giới hạn; thiếu = để server dùng mặc định. */
+  maxPlaces?: number | null;
 }
 
 export function buildCreatePayload(v: CreateFormValues): CreateRoomRequest {
@@ -59,5 +61,6 @@ export function buildCreatePayload(v: CreateFormValues): CreateRoomRequest {
     city: v.city,
     start_minute: v.startMinute,
     end_minute: v.endMinute,
+    ...(v.maxPlaces !== undefined ? { max_places_per_member: v.maxPlaces } : {}),
   };
 }

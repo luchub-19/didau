@@ -11,6 +11,9 @@ import { useRoomStore } from '../../store/useRoomStore';
 import { usePresenceStore } from '../../store/usePresenceStore';
 import { hasListTools, leadingPlaceIds, pickProgress, type PulseMap } from '../../room/placeView';
 import type { RoomPhase } from '../../room/phase';
+import { placeQuota, quotaLabel } from '../../room/placeLimit';
+import { GroupCenterWidget } from '../algo/GroupCenterWidget';
+import { useWorkspaceLayout } from '../shell/workspace';
 import { CATEGORY_METADATA } from '../common/categoryMetadata';
 import type { Member, Place, PlaceCategory, Room } from '../../types';
 
@@ -29,7 +32,7 @@ export interface PlaceListProps {
   /** Đổi bộ lọc danh mục (nằm trong nút ⋯ khi >8 quán). Thiếu thì không có bộ lọc danh mục. */
   onSelectCategory?: (cat: PlaceCategory | 'ALL') => void;
   /** Điểm hẹn + ngân sách phòng, cho khoảng cách và nhãn "Vượt ngân sách". */
-  room?: Pick<Room, 'origin_lat' | 'origin_lng' | 'budget_limit'> | null;
+  room?: Pick<Room, 'origin_lat' | 'origin_lng' | 'budget_limit' | 'max_places_per_member'> | null;
   /** Giai đoạn phòng: `vote`/`tie` hiện thanh "x/y đã chọn"; `tie` thu nút Thêm quán còn icon. */
   phase?: RoomPhase;
   /** Thành viên / phiếu thấy được cho thanh "x/y đã chọn"; thiếu thì đọc từ store. */
@@ -82,6 +85,13 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   const members = propMembers ?? storeMembers;
   const meId = currentMemberId ?? storeMeId;
   const pulses = propPulses ?? storePulses;
+  // CR-14: hạn mức đề xuất của mình; nhãn nút "Thêm quán 1/2", khoá khi đủ
+  const layout = useWorkspaceLayout();
+  const quota = placeQuota(room, places, meId);
+  const qLabel = quotaLabel(quota);
+  const addLabel = qLabel
+    ? t('algo.limit.addWithQuota', { used: Math.min(quota.used, quota.limit ?? 0), limit: quota.limit })
+    : t('place.addPlace');
   const progress = useMemo(() => pickProgress(places, members, pulses, meId), [places, members, pulses, meId]);
   const showProgress = (phase === 'vote' || phase === 'tie') && progress.total > 0;
 
@@ -179,6 +189,8 @@ export const PlaceList: React.FC<PlaceListProps> = ({
 
   return (
     <div className={`relative flex flex-col gap-4 pb-4 ${className}`}>
+      {/* Mobile, giai đoạn bình chọn/hoà: chip tâm nhóm trên đỉnh tab Khám phá (giai đoạn ① có sẵn trong GatherPanel) */}
+      {!hideAddButton && layout === 'mobile' && <GroupCenterWidget variant="inline" onShowOnMap={onSwitchToMap} />}
       {/* Thanh "x/y đã chọn" (giai đoạn bình chọn) + nút ⋯ lọc/sắp xếp/tìm khi >8 quán */}
       {(showProgress || toolsAvailable) && (
         <div className="flex items-center gap-3">
@@ -330,17 +342,29 @@ export const PlaceList: React.FC<PlaceListProps> = ({
 
       {/* Nút Thêm quán dính đáy cột/sheet (trong vùng cuộn, không còn `fixed`); giai đoạn hoà thu còn icon */}
       {!hideAddButton && (
-        <div className="pointer-events-none sticky bottom-4 z-20 mt-auto flex justify-end">
+        <div className="pointer-events-none sticky bottom-4 z-20 mt-auto flex flex-col items-end gap-2">
+          {quota.reached && (
+            <p
+              id="add-limit-note"
+              className="pointer-events-auto max-w-xs rounded-field border border-line bg-surface px-3 py-2 text-caption text-ink shadow-float"
+              data-testid="add-limit-note"
+              role="status"
+            >
+              {t('algo.limit.reached', { limit: quota.limit })}
+            </p>
+          )}
           <Button
             variant="primary"
             size="lg"
             onClick={onOpenAddModal}
             leftIcon={<Plus size={20} weight="bold" />}
             className="pointer-events-auto shadow-float"
-            aria-label={t('place.addPlace')}
+            aria-label={addLabel}
+            aria-describedby={quota.reached ? 'add-limit-note' : undefined}
+            disabled={quota.reached}
             data-testid="btn-add-place"
           >
-            {phase !== 'tie' && <span>{t('place.addPlace')}</span>}
+            {phase !== 'tie' && <span>{addLabel}</span>}
           </Button>
         </div>
       )}

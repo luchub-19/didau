@@ -44,6 +44,26 @@ export const RAIL_LIMIT = 10;
 /** Số quán gần điểm hẹn tối đa trong dải 1. */
 export const NEARBY_LIMIT = 10;
 
+/** Dải 1 đang theo mốc nào: tâm nhóm (≥2 người chia sẻ vị trí) > điểm hẹn của host > tâm thành phố. */
+export type NearbyRailMode = 'group' | 'meeting' | 'city';
+
+export function nearbyRailMode(hasGroupCenter: boolean, hasMeetingPoint: boolean): NearbyRailMode {
+  return hasGroupCenter ? 'group' : hasMeetingPoint ? 'meeting' : 'city';
+}
+
+/**
+ * Dải "Gần cả nhóm" (ALGO-01): quán trong bán kính quanh tâm nhóm, đã do server sắp gần → xa.
+ * Giữ thứ tự server (không sắp lại theo danh mục như dải điểm hẹn) và tối đa `limit` quán.
+ */
+export function groupNearbyItems(
+  pois: readonly Poi[],
+  center: LatLng,
+  data: CuratedData | null,
+  limit = NEARBY_LIMIT,
+): DiscoveryItem[] {
+  return pois.slice(0, limit).map((p) => itemFromPoi(p, center, data));
+}
+
 /** Điểm hẹn của phòng; chưa đặt thì tâm thành phố (kèm cờ để hiện dòng nhắc). */
 export function railOrigin(room: Pick<Room, 'origin_lat' | 'origin_lng' | 'city'>): { origin: LatLng; hasOrigin: boolean } {
   if (room.origin_lat != null && room.origin_lng != null) {

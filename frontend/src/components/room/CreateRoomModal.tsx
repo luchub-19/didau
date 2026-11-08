@@ -6,6 +6,7 @@ import { describeRoomError } from './roomErrors';
 import { BudgetChips } from './BudgetChips';
 import { minuteToTimeString, timeStringToMinute } from '../../i18n/format';
 import { SHOW_BUDGET_IN_CREATE, buildCreatePayload, localIsoDate, type BudgetChoice } from '../../room/createRoom';
+import { DEFAULT_PLACE_LIMIT, PLACE_LIMIT_CHOICES } from '../../room/placeLimit';
 import type { TieBreakStrategyName } from '../../types';
 
 export interface CreateRoomModalProps {
@@ -52,6 +53,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   const [customBudget, setCustomBudget] = useState('');
   const [strategy, setStrategy] = useState<TieBreakStrategyName>('EARLIEST_SUBMISSION');
   const [description, setDescription] = useState('');
+  const [maxPlaces, setMaxPlaces] = useState<number | null>(DEFAULT_PLACE_LIMIT);
   const [errors, setErrors] = useState<FieldErrors>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +89,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
           customBudget,
           strategy,
           description,
+          maxPlaces,
         }),
       );
 
@@ -249,6 +252,18 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                 </option>
               ))}
             </TextField>
+
+            <fieldset className="space-y-2" data-testid="create-max-places">
+              <legend className="text-label font-semibold text-ink-2">{t('room.create.maxPlaces')}</legend>
+              <div className="flex flex-wrap gap-2">
+                {PLACE_LIMIT_CHOICES.map((v) => (
+                  <Chip key={v ?? 'none'} selected={maxPlaces === v} onClick={() => setMaxPlaces(v)}>
+                    {v === null ? t('algo.limit.unlimited') : String(v)}
+                  </Chip>
+                ))}
+              </div>
+              <p className="text-caption text-ink-3">{t('room.create.maxPlacesHint')}</p>
+            </fieldset>
 
             <TextField
               as="textarea"

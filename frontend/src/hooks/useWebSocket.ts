@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { tokenStorage } from '../services/storage/tokenStorage';
 import { WebSocketClient } from '../services/websocket/wsClient';
+import { createStateVersionGate } from '../services/websocket/stateVersion';
 import type { WsConnectionStatus } from '../services/websocket/wsTypes';
 import { useConflictStore } from '../store/useConflictStore';
 import { usePlaceStore } from '../store/usePlaceStore';
@@ -8,12 +9,16 @@ import { useRoomStore } from '../store/useRoomStore';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useDecisionStore } from '../store/useDecisionStore';
 import { usePresenceStore } from '../store/usePresenceStore';
+import { useAlgoStore } from '../store/useAlgoStore';
 import { attachPresenceTransport, receivePresence, receiveVote, startPresence } from '../stage/presence/channel';
 import type {
   ConflictsUpdatedPayload,
   DecisionProgressPayload,
   DecisionResolvedPayload,
   DecisionStartedPayload,
+  GroupCenterUpdatedPayload,
+  MemberUpdatedPayload,
+  SelfMember,
   MemberJoinedPayload,
   MemberLeftPayload,
   PlaceAddedPayload,
@@ -61,6 +66,10 @@ export function useWebSocket(roomId?: string) {
     const client = new WebSocketClient(wsUrl);
     clientRef.current = client;
     const stopPresence = startPresence();
+
+    // Luật state_version (CR-13): bỏ tin cũ, nhảy cóc thì xin đồng bộ lại. Số gốc đặt lại ở mỗi lần mở socket.
+    const versionGate = createStateVersionGate(() => client.send('SUBSCRIBE_ROOM', { room_id: roomId }));
+    client.setGate(versionGate.gate);
     let detachPresence: (() => void) | null = null;
 
     // Listen to status changes
@@ -68,6 +77,7 @@ export function useWebSocket(roomId?: string) {
       setConnectionStatus(status);
       // Server chỉ gửi ROOM_STATE_SYNC khi nhận SUBSCRIBE_ROOM: xin đồng bộ mỗi lần (re)connect
       if (status === 'OPEN') {
+        versionGate.reset();
         client.send('SUBSCRIBE_ROOM', { room_id: roomId });
         // Hiện diện (CR-08): gắn bộ gửi theo từng lần mở socket, gửi lại tiêu điểm sau khi kết nối lại
         detachPresence?.();
@@ -85,6 +95,11 @@ export function useWebSocket(roomId?: string) {
       if (payload.places) setPlaces(payload.places);
       if (payload.schedule) setScheduleItems(payload.schedule);
       if (payload.conflicts) setConflicts(payload.conflicts);
+      // CR-11: mục của chính mình trong đồng bộ có toạ độ xuất phát riêng (người khác chỉ có `has_origin`)
+      const me = useRoomStore.getState().currentMember;
+      const mine = me ? (payload.members?.find((m) => m.id === me.id) as SelfMember | undefined) : undefined;
+      if (me && mine) useRoomStore.getState().setCurrentMember({ ...me, ...mine });
+      void useAlgoStore.getState().fetchGroupCenter(roomId);
     });
 
     const unsubRoomUpdated = client.on<RoomUpdatedPayload>('ROOM_UPDATED', (payload) => {
@@ -93,6 +108,14 @@ export function useWebSocket(roomId?: string) {
 
     const unsubMemberJoined = client.on<MemberJoinedPayload>('MEMBER_JOINED', (payload) => {
       if (payload.member) addMember(payload.member);
+    });
+
+    const unsubMemberUpdated = client.on<MemberUpdatedPayload>('MEMBER_UPDATED', (payload) => {
+      if (payload.member_id) useRoomStore.getState().applyMemberUpdated(payload.member_id, payload.has_origin);
+    });
+
+    const unsubGroupCenter = client.on<GroupCenterUpdatedPayload>('GROUP_CENTER_UPDATED', (payload) => {
+      useAlgoStore.getState().applyGroupCenterUpdate(roomId, payload);
     });
 
     const unsubMemberLeft = client.on<MemberLeftPayload>('MEMBER_LEFT', (payload) => {
@@ -202,6 +225,8 @@ export function useWebSocket(roomId?: string) {
       unsubRoomSync();
       unsubRoomUpdated();
       unsubMemberJoined();
+      unsubMemberUpdated();
+      unsubGroupCenter();
       unsubMemberLeft();
       unsubPresence();
       unsubPlaceAdded();
@@ -219,6 +244,7 @@ export function useWebSocket(roomId?: string) {
       stopPresence();
       client.disconnect();
       clientRef.current = null;
+      useAlgoStore.getState().reset();
     };
   }, [
     roomId,

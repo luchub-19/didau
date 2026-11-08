@@ -3,7 +3,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Member, Room } from '../../types';
-import { Avatar, Button, Card, CaretDown, LanguageSwitcher, Segmented, Sheet } from '../ui';
+import { Avatar, Button, Card, CaretDown, LanguageSwitcher, Segmented, Sheet, toast } from '../ui';
 import { InviteCard } from '../room/InviteCard';
 import { formatMoney, formatTimeRange } from '../../i18n/format';
 import { useLanguage } from '../../i18n/useLanguage';
@@ -11,6 +11,10 @@ import { useTheme, type Theme } from '../../theme/useTheme';
 import { SoundToggle } from '../../sound';
 import { usePresenceStore } from '../../store/usePresenceStore';
 import { MemberList } from '../room/MemberList';
+import { OriginRow, OriginSetting } from '../algo/OriginSetting';
+import { useRoomStore } from '../../store/useRoomStore';
+import { PLACE_LIMIT_CHOICES } from '../../room/placeLimit';
+import { describeApiError } from '../../i18n/serverText';
 import { identityMenuItems, splitViewers, viewerIds } from './identity';
 import { useWorkspaceLayout } from './workspace';
 
@@ -226,6 +230,8 @@ export const IdentityMenu: React.FC<IdentityMenuProps> = ({
   const { lang } = useLanguage();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(defaultOpen);
+  const [originOpen, setOriginOpen] = useState(false);
+  const updateRoom = useRoomStore((s) => s.updateRoom);
   const items = identityMenuItems(isHost, room.status);
 
   const name = currentMember?.nickname ?? t('place.defaultMember');
@@ -251,104 +257,153 @@ export const IdentityMenu: React.FC<IdentityMenuProps> = ({
     [t('room.summary.tieBreakStrategy'), t(`group.strategy.${room.tie_break_strategy}`)],
   );
   if (room.budget_limit) rows.push([t('room.summary.budgetPerPerson'), formatMoney(room.budget_limit, lang)]);
+  // CR-14: `undefined`/`null` đều là "không giới hạn" (phòng cũ)
+  const placeLimit = room.max_places_per_member ?? null;
+  rows.push([
+    t('room.summary.maxPlaces'),
+    placeLimit === null ? t('algo.limit.unlimited') : placeLimit,
+  ]);
+
+  // Chủ phòng đổi giới hạn đề xuất ngay trong menu (PATCH /rooms; null = bỏ giới hạn)
+  const changeLimit = async (next: number | null) => {
+    if (next === placeLimit) return;
+    try {
+      await updateRoom(room.id, { max_places_per_member: next });
+      toast.success(t('algo.limit.updated'));
+    } catch (err: unknown) {
+      toast.error(describeApiError(err, t, 'UPDATE_LIMIT_FAILED'));
+    }
+  };
+  const limitKey = (v: number | null) => (v === null ? 'none' : String(v));
 
   return (
-    <PanelHost
-      title={t('identity.menuTitle')}
-      open={open}
-      onOpenChange={setOpen}
-      renderTrigger={(p) => (
-        <button
-          type="button"
-          {...p}
-          aria-label={t('identity.menuLabel', { name, role, status: conn })}
-          className="inline-flex items-center gap-2 min-h-[44px] pl-1 pr-2 rounded-field hover:bg-surface-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
-        >
-          {/* Viền avatar = trạng thái kết nối: xanh khi trực tiếp, vàng khi mất kết nối */}
-          <span
-            data-testid="identity-ring"
-            data-connected={isConnected}
-            title={conn}
-            className={`inline-flex rounded-field ring-2 ring-offset-2 ring-offset-surface ${
-              isConnected ? 'ring-success' : 'ring-warning'
-            }`}
+    <>
+    <OriginSetting room={room} isOpen={originOpen} onClose={() => setOriginOpen(false)} />
+      <PanelHost
+        title={t('identity.menuTitle')}
+        open={open}
+        onOpenChange={setOpen}
+        renderTrigger={(p) => (
+          <button
+            type="button"
+            {...p}
+            aria-label={t('identity.menuLabel', { name, role, status: conn })}
+            className="inline-flex items-center gap-2 min-h-[44px] pl-1 pr-2 rounded-field hover:bg-surface-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
           >
-            <Avatar
-              name={name}
-              avatarUrl={currentMember?.avatar_url}
-              seed={currentMember?.id}
-              size="sm"
-              showTitle={false}
-            />
-          </span>
-          <span className="hidden md:flex flex-col items-start text-left min-w-0 max-w-[9rem]" aria-hidden="true">
-            <span className="text-label font-semibold text-ink truncate max-w-full">{name}</span>
-            <span className="text-caption text-ink-2 leading-tight">{role}</span>
-          </span>
-          <CaretDown size={14} className="hidden md:block text-ink-2" aria-hidden="true" />
-        </button>
-      )}
-    >
-      <InviteCard roomId={room.id} code={room.code} title={room.title} alone={members.length <= 1} />
-      <MemberList members={members} currentMemberId={currentMember?.id} isConnected={isConnected} />
-
-      <Card as="section" aria-labelledby="trip-heading">
-        <h2 id="trip-heading" className="text-heading text-ink">
-          {t('room.summary.title')}
-        </h2>
-        <dl className="mt-2 text-body">
-          {rows.map(([label, value]) => (
-            <div key={label} className="flex justify-between gap-4 py-2 border-b border-line last:border-b-0">
-              <dt className="text-ink-2">{label}</dt>
-              <dd className="font-medium text-ink text-right tabular-nums">{value}</dd>
-            </div>
-          ))}
-        </dl>
-        {items.tieBreak && onOpenTieBreakModal && (
-          <div className="pt-3">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => {
-                setOpen(false);
-                onOpenTieBreakModal();
-              }}
+            {/* Viền avatar = trạng thái kết nối: xanh khi trực tiếp, vàng khi mất kết nối */}
+            <span
+              data-testid="identity-ring"
+              data-connected={isConnected}
+              title={conn}
+              className={`inline-flex rounded-field ring-2 ring-offset-2 ring-offset-surface ${
+                isConnected ? 'ring-success' : 'ring-warning'
+              }`}
             >
-              {t('room.summary.tieBreakAction')}
-            </Button>
-          </div>
+              <Avatar
+                name={name}
+                avatarUrl={currentMember?.avatar_url}
+                seed={currentMember?.id}
+                size="sm"
+                showTitle={false}
+              />
+            </span>
+            <span className="hidden md:flex flex-col items-start text-left min-w-0 max-w-[9rem]" aria-hidden="true">
+              <span className="text-label font-semibold text-ink truncate max-w-full">{name}</span>
+              <span className="text-caption text-ink-2 leading-tight">{role}</span>
+            </span>
+            <CaretDown size={14} className="hidden md:block text-ink-2" aria-hidden="true" />
+          </button>
         )}
-      </Card>
+      >
+        <InviteCard roomId={room.id} code={room.code} title={room.title} alone={members.length <= 1} />
+        <MemberList members={members} currentMemberId={currentMember?.id} isConnected={isConnected} />
 
-      <Card as="section" aria-labelledby="settings-heading">
-        <h2 id="settings-heading" className="text-heading text-ink">
-          {t('group.settings')}
-        </h2>
-        <div className="mt-2 flex items-center justify-between gap-4 min-h-[44px]">
-          <span className="text-body text-ink">{t('group.language')}</span>
-          <LanguageSwitcher />
-        </div>
-        <div className="pt-2 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-h-[44px]">
-          <span className="text-body text-ink">{t('group.theme')}</span>
-          <Segmented<Theme>
-            value={theme}
-            onChange={setTheme}
-            aria-label={t('theme.ariaLabel')}
-            options={[
-              { value: 'system', label: t('theme.system') },
-              { value: 'light', label: t('theme.light') },
-              { value: 'dark', label: t('theme.dark') },
-            ]}
-          />
-        </div>
-        <div className="pt-2 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-h-[44px]">
-          <div className="min-w-0">
-            <span className="text-body text-ink">{t('group.sound')}</span>
-            <p className="text-caption text-ink-2">{t('sound.hint')}</p>
+        <Card as="section" aria-labelledby="trip-heading">
+          <h2 id="trip-heading" className="text-heading text-ink">
+            {t('room.summary.title')}
+          </h2>
+          <dl className="mt-2 text-body">
+            {rows.map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-4 py-2 border-b border-line last:border-b-0">
+                <dt className="text-ink-2">{label}</dt>
+                <dd className="font-medium text-ink text-right tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          {isHost && (
+            <div className="pt-3 border-t border-line mt-1" data-testid="limit-setting">
+              <p className="text-label font-semibold text-ink-2" id="limit-label">
+                {t('algo.limit.label')}
+              </p>
+              <Segmented<string>
+                value={limitKey(placeLimit)}
+                onChange={(v) => void changeLimit(v === 'none' ? null : Number(v))}
+                aria-label={t('algo.limit.label')}
+                className="mt-1.5"
+                options={PLACE_LIMIT_CHOICES.map((v) => ({
+                  value: limitKey(v),
+                  label: v === null ? t('algo.limit.unlimited') : String(v),
+                }))}
+              />
+              <p className="mt-1 text-caption text-ink-3">
+                {t('algo.limit.hint')}
+              </p>
+            </div>
+          )}
+          {items.tieBreak && onOpenTieBreakModal && (
+            <div className="pt-3">
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => {
+                  setOpen(false);
+                  onOpenTieBreakModal();
+                }}
+              >
+                {t('room.summary.tieBreakAction')}
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        <OriginRow
+          onOpen={() => {
+            // Sheet nằm ngoài popover (portal) nên đóng menu trước, rồi mở Sheet
+            setOpen(false);
+            setOriginOpen(true);
+          }}
+        />
+
+        <Card as="section" aria-labelledby="settings-heading">
+          <h2 id="settings-heading" className="text-heading text-ink">
+            {t('group.settings')}
+          </h2>
+          <div className="mt-2 flex items-center justify-between gap-4 min-h-[44px]">
+            <span className="text-body text-ink">{t('group.language')}</span>
+            <LanguageSwitcher />
           </div>
-          <SoundToggle variant="label" className="self-start sm:self-auto flex-shrink-0" />
-        </div>
-      </Card>
-    </PanelHost>
+          <div className="pt-2 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-h-[44px]">
+            <span className="text-body text-ink">{t('group.theme')}</span>
+            <Segmented<Theme>
+              value={theme}
+              onChange={setTheme}
+              aria-label={t('theme.ariaLabel')}
+              options={[
+                { value: 'system', label: t('theme.system') },
+                { value: 'light', label: t('theme.light') },
+                { value: 'dark', label: t('theme.dark') },
+              ]}
+            />
+          </div>
+          <div className="pt-2 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-h-[44px]">
+            <div className="min-w-0">
+              <span className="text-body text-ink">{t('group.sound')}</span>
+              <p className="text-caption text-ink-2">{t('sound.hint')}</p>
+            </div>
+            <SoundToggle variant="label" className="self-start sm:self-auto flex-shrink-0" />
+          </div>
+        </Card>
+      </PanelHost>
+    </>
   );
 };
