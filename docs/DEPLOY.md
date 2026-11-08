@@ -107,6 +107,11 @@ flowchart TD
    - Database trên Neon tự động suspend khi không có truy vấn trong 5 phút. Khi Uvicorn gửi query, Neon khôi phục lại chỉ trong vòng vài trăm mili-giây.
 3. **Giới hạn số worker:**
    - Gói Free của Render cấp 0.1 vCPU và 512MB RAM, do đó container backend được cấu hình chạy `--workers 1` với kết nối connection pool `pool_size=5, max_overflow=5` để tối ưu hóa bộ nhớ và độ ổn định.
+4. **Backend treo sau khi auto-deploy (đã gặp 2026-11-08):**
+   - Triệu chứng: sau khi push lên `main`, `/healthz` không trả lời gì (quá 2 phút, khác với cold start ~1 phút); tạo phòng trên web thất bại liên tục. TLS vẫn bắt tay được với Render nhưng không có phản hồi HTTP.
+   - Cách xử lý đầu tiên: Render Dashboard → `didau-backend` → **Manual Deploy → Clear build cache & deploy**. Lần 2026-11-08 chỉ cần bước này là chạy lại, không phải sửa code hay DB.
+   - Nếu vẫn treo: xem **Logs** — nếu dừng ở `=== Running Database Migrations ===` (`start.sh` chạy `alembic upgrade head` trước uvicorn) thì kiểm tra Neon (project bị tạm dừng, hết quota compute, `DATABASE_URL` sai).
+   - Kiểm tra nhanh: `curl -s -m 90 https://didau-backend.onrender.com/healthz` phải trả `{"status":"ok"}`.
 
 ---
 
