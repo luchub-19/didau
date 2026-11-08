@@ -1,4 +1,4 @@
-# Đi Đâu (Di Dau) - Ứng Dụng Lập Kế Hoạch Đi Chơi Nhóm Realtime
+# HookupFPT (repo: Di Dau) - Ứng Dụng Lập Kế Hoạch Đi Chơi Nhóm Realtime
 
 > **"Cuối tuần này đi đâu?"** — Ứng dụng giải quyết bài toán muôn thuở của các nhóm bạn khi lên kế hoạch đi chơi, ăn uống. Hỗ trợ xác thực không mật khẩu (Anonymous-first), tự động phân loại quán thông minh, bỏ phiếu realtime, phân định hòa phiếu đa chiến lược, sắp xếp lịch trình kéo thả và phát hiện xung đột thời gian thực.
 

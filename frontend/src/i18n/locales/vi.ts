@@ -27,7 +27,7 @@ export const vi = {
     },
   },
   app: {
-    name: 'Đi Đâu',
+    name: 'HookupFPT',
     tagline: 'Chọn chỗ đi chơi cùng nhóm',
     coldStart: {
       wakingTitle: 'Đang đánh thức máy chủ, chờ khoảng 1 phút nhé…',

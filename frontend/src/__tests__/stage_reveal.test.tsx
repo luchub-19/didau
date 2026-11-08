@@ -278,6 +278,13 @@ describe('T-61: nút thật sau màn công bố (actions)', () => {
     expect(fallback).toContain('DTSTART:20261030T170000');
   });
 
+  it('T-91: PRODID HookupFPT và UID @hookupfpt', () => {
+    const ics = buildIcs({ room, place, url: 'u' });
+    expect(ics).toContain('PRODID:-//HookupFPT//VN');
+    expect(ics).toMatch(/UID:r1-p1@hookupfpt/);
+    expect(ics).not.toMatch(/Di Dau|@didau/);
+  });
+
   it('khung giờ qua nửa đêm: giờ kết thúc sang ngày sau', () => {
     expect(icsLocalTime('2026-12-31', 1500)).toBe('20270101T010000');
     const ics = buildIcs({ room: { ...room, start_minute: 1320, end_minute: 60 }, place, url: 'u' });
@@ -294,8 +301,8 @@ describe('T-61: nút thật sau màn công bố (actions)', () => {
   });
 
   it('tên tệp lịch không dấu', () => {
-    expect(icsFileName('Đông Phương Quán')).toBe('di-dau-dong-phuong-quan.ics');
-    expect(icsFileName('!!!')).toBe('di-dau-plan.ics');
+    expect(icsFileName('Đông Phương Quán')).toBe('hookupfpt-dong-phuong-quan.ics');
+    expect(icsFileName('!!!')).toBe('hookupfpt-plan.ics');
   });
 });
 

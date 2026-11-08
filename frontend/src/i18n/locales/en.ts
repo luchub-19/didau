@@ -29,7 +29,7 @@ export const en: Messages = {
     },
   },
   app: {
-    name: 'Đi Đâu',
+    name: 'HookupFPT',
     tagline: 'Pick hangout spots with friends',
     coldStart: {
       wakingTitle: 'Waking up the server, please wait about a minute…',

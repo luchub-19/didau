@@ -179,7 +179,7 @@ describe('T-73: .ics cả lịch', () => {
 
   it('mỗi mục một VEVENT, đúng thứ tự (ngày, order_index)', () => {
     expect(events).toHaveLength(4);
-    expect(events.map((e) => /UID:r1-(\w+)@didau/.exec(e)?.[1])).toEqual(['i1', 'i2', 'i3', 'i4']);
+    expect(events.map((e) => /UID:r1-(\w+)@hookupfpt/.exec(e)?.[1])).toEqual(['i1', 'i2', 'i3', 'i4']);
     expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });

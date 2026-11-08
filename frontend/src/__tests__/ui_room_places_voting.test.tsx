@@ -62,7 +62,7 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     expect(inputHtml).toContain('HoangNam');
 
     const headerHtml = renderToStaticMarkup(<Header />);
-    expect(headerHtml).toContain('Đi Đâu');
+    expect(headerHtml).toContain('HookupFPT');
     expect(headerHtml).toContain('VI');
 
     const sheetHtml = renderToStaticMarkup(

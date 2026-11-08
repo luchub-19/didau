@@ -297,7 +297,7 @@ const StageSection: React.FC = () => {
         {STAGE_FONT_CANDIDATES.map((f) => (
           <div key={f.family} data-font={f.family} className="border-t border-line pt-3">
             <p className="text-caption mb-1" style={{ color: 'rgb(var(--stage-ink-2))' }}>{f.family}</p>
-            <p style={{ fontFamily: `"${f.family}"`, fontSize: 96, lineHeight: 1.25, fontWeight: 800 }}>Ở Ữ Ặ Đi Đâu</p>
+            <p style={{ fontFamily: `"${f.family}"`, fontSize: 96, lineHeight: 1.25, fontWeight: 800 }}>Ở Ữ Ặ HookupFPT</p>
             <p style={{ fontFamily: `"${f.family}"`, fontSize: 64, lineHeight: 1.2, fontWeight: 700 }}>{tVi('stage.tagline')}</p>
             <p style={{ fontFamily: `"${f.family}"`, fontSize: 64, lineHeight: 1.2, fontWeight: 700 }}>{tEn('stage.tagline')}</p>
             <p className="text-body mt-1">{tVi('stage.subline')} · {tEn('stage.subline')}</p>
@@ -446,7 +446,7 @@ export const StyleGuide: React.FC = () => {
           <LanguageSwitcher />
         </div>
         <h1 className="text-display font-bold text-ink mb-2">
-          Đi Đâu — Bảng phong cách mẫu & Bộ khung UI Kit
+          HookupFPT — Bảng phong cách mẫu & Bộ khung UI Kit
         </h1>
         <p className="text-body text-ink-2 max-w-2xl">
           Trang mẫu tích hợp toàn bộ component UI Kit chuẩn hoá (`src/components/ui/`), token màu, font Be Vietnam Pro,
