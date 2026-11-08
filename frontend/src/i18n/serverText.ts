@@ -127,7 +127,8 @@ export function describeConflict(conflict: ConflictAlert, ctx: ConflictContext, 
       const from = names?.[0] ?? placeNameOfItem(byId(str(p.from_item_id) ?? ids[0]), ctx.places);
       const to = names?.[1] ?? placeNameOfItem(byId(str(p.to_item_id) ?? ids[1]), ctx.places);
       const gap = num(p.gap_min);
-      const travel = num(p.travel_min);
+      // CR-12 (T-87): thời gian đi là `eta_min`; `travel_min` chỉ còn ở cảnh báo lưu trước T-87
+      const travel = num(p.eta_min) ?? num(p.travel_min);
       if (from && to && gap !== undefined && travel !== undefined) {
         return t('conflict.TRAVEL_TIME', { from, to, gap, travel });
       }

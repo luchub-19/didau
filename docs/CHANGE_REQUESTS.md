@@ -428,7 +428,7 @@ Chỉ dùng điểm hẹn của host cho mọi người: ALGO-02 thành "quán g
 
 - **Người đề xuất**: Session T-76 (2026-11-04), theo `docs/phase6/ALGORITHMS.md` §4–§6
 - **Ngày tạo**: 2026-11-04
-- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — PHẦN 1 ĐÃ ÁP ở T-86 (2026-11-08: `TRAVEL_TIME`, `tie-break/suggestion`, resolve; CONTRACTS §1.12, §3.3 mục 8 + 35); phần 2 áp ở T-87
+- **Trạng thái**: APPROVED 2026-11-04 (duyệt ở G1 gđ6) — PHẦN 1 ĐÃ ÁP ở T-86 (2026-11-08: `TRAVEL_TIME`, `tie-break/suggestion`, resolve; CONTRACTS §1.12, §3.3 mục 8 + 35); PHẦN 2 ĐÃ ÁP ở T-87 (2026-11-08: CONTRACTS §1.13 A, §3.3 mục 5 + 36, §4.2 `PRIORITY_UPDATED`, §6)
 - **Task đã DONE bị ảnh hưởng**: T-05/T-12 + CR-07 (`TravelTimeConflictRule`: đổi params, giữ hành vi chồng giờ), T-73 (timeline hiện xung đột), CR-06 §1.13 A.
 
 ### 2. Đề xuất
@@ -440,6 +440,9 @@ Chỉ dùng điểm hẹn của host cho mọi người: ALGO-02 thành "quán g
 - `TRAVEL_TIME` conflict: điều kiện theo ALGORITHMS §5 (biên giờ cao điểm + gửi xe), `level = WARNING`, `params = {eta_min, margin_min, buffer_min, gap_min, slack_min, distance_km, risk: SAFE|SOFT_CONFLICT|HIGH_RISK, peak, source, estimated}` (thay params cũ ở §1.13 A). Cặp chồng giờ vẫn chỉ `TIME_OVERLAP` (CR-07).
 - `GET /api/v1/rooms/{room_id}/schedule/feasibility` → `{window_min, required_total_min, buffer_total_min, is_feasible, legs[]}`.
 - Place summary thêm `priority {rank, risk, slack_min, max_eta_min, labels[], estimated, hours_unknown, eta_unknown}`; `GET /places?sort=priority` trả theo `rank` (mặc định giữ thứ tự cũ). Cách phát cập nhật (kèm sự kiện cũ hay `PRIORITY_UPDATED`) do T-87 chọn và ghi lại tại đây trước khi áp.
+  - **T-87 chọn: sự kiện mới `PRIORITY_UPDATED {items: [{place_id, …priority}]}`** (toàn bộ danh sách, rank 1 trước) thay vì nhét vào `PLACE_ADDED`/`VOTE_UPDATED`: một phiếu đổi hạng của *mọi* quán nên payload theo từng quán không đủ. Tính lại **trong cùng request** (cùng session, thấy thay đổi chưa commit) rồi phát ngay sau tin gây ra nó, +1 `state_version` — không dùng handler ngầm vì session riêng đọc dữ liệu cũ. Phát sau: phiếu, thêm/sửa (trạng thái/toạ độ/giờ)/xoá quán, chốt, đổi vị trí thành viên, thành viên mới (khi có điểm hẹn), đổi khung giờ/ngày/điểm hẹn.
+  - Khả thi lịch trả ở `GET /schedule/feasibility` (không kèm `CONFLICTS_UPDATED`): client gọi lại khi nhận `SCHEDULE_UPDATED`/`CONFLICTS_UPDATED`/`ROOM_UPDATED`.
+  - Giờ cao điểm là nửa mở `[16:30, 19:30)`.
 - Google `computeRouteMatrix` chỉ khi `PLACES_PROVIDER=google` + key; lỗi/timeout lùi về ước lượng; mọi số mang `source`.
 
 ### 3. Phương án nếu không duyệt

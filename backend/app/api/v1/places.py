@@ -1,7 +1,7 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import (
     ensure_room_access,
@@ -79,12 +79,17 @@ async def list_places(
     room_id: UUID,
     current_member: Annotated[Member, Depends(get_current_member)],
     place_service: Annotated[PlaceService, Depends(get_place_service)],
+    sort: Annotated[
+        Literal["priority"] | None,
+        Query(description="`priority` = theo `priority.rank` (ALGO-04, CR-12); bỏ trống = thứ tự thêm"),
+    ] = None,
 ) -> list[PlaceResponse]:
-    """Lấy danh sách các địa điểm kèm điểm vote và vote của thành viên hiện tại."""
+    """Lấy danh sách các địa điểm kèm điểm vote, vote của thành viên hiện tại và `priority` (CR-12)."""
     _ensure_room_access(current_member, room_id)
     results = await place_service.list_places(
         room_id=room_id,
         current_member_id=current_member.id,
+        sort=sort,
     )
     return [PlaceResponse.model_validate(item) for item in results]
 

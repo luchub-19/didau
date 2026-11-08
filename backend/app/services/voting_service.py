@@ -32,6 +32,7 @@ from app.domain.patterns.tie_break import (
     resolve_voting_with_tie_break,
 )
 from app.repositories import IMemberRepository, IPlaceRepository, IRoomRepository, IVoteRepository
+from app.services.algorithm_service import publish_priority_update
 from app.services.state_version import publish_versioned
 
 if TYPE_CHECKING:
@@ -146,6 +147,7 @@ class VotingService:
             score=vote_summary["score"],
         )
         await publish_versioned(self.room_repo, self.event_bus, event)
+        await publish_priority_update(self.room_repo, self.event_bus, room_id)  # ALGO-04 (CR-12)
 
         logger.info(
             "Thành viên %s đã bỏ phiếu %d cho địa điểm %s trong phòng %s",
@@ -226,6 +228,7 @@ class VotingService:
             score=vote_summary["score"],
         )
         await publish_versioned(self.room_repo, self.event_bus, event)
+        await publish_priority_update(self.room_repo, self.event_bus, room_id)  # ALGO-04 (CR-12)
 
         logger.info(
             "Thành viên %s đã rút phiếu bầu cho địa điểm %s trong phòng %s",
@@ -431,6 +434,7 @@ class VotingService:
             accepted_place_ids=accepted_place_ids,
         )
         await publish_versioned(self.room_repo, self.event_bus, resolved_event)
+        await publish_priority_update(self.room_repo, self.event_bus, room_id)  # quán bị loại rời danh sách
 
         # 10. Cập nhật trạng thái phòng sang FINALIZED và lưu tie_break_strategy
         await self.room_repo.update(

@@ -13,11 +13,15 @@ import type {
   GoogleMatchRequest,
   JoinRoomRequest,
   Member,
+  FeasibilityLeg,
+  FeasibilityRisk,
   Place,
   PlaceCategory,
+  PlacePriority,
   PlaceReview,
   ResolveVotingRequest,
   Room,
+  ScheduleFeasibility,
   ScheduleItem,
   SelfMember,
   SubmitSwipeRequest,
@@ -189,6 +193,153 @@ function mockTieSuggestion(): TieSuggestion {
     excluded_member_count: excluded,
     estimated: true,
     ...base,
+  };
+}
+
+// ── CR-12 phần 2 (T-87): ALGO-03 khả thi lịch + ALGO-04 ưu tiên — cùng luật với backend (ước lượng 25 km/h) ──
+function mockLeg(a: LatLngPoint, b: LatLngPoint): { minutes: number; distance_km: number } {
+  const km = mockKm(a, b) * 1.3;
+  return { minutes: Math.ceil(Math.round((km / 25) * 60 * 1e6) / 1e6), distance_km: km };
+}
+
+/** Thứ Hai–Sáu và rời đi trong [16:30, 19:30) → biên 50%, còn lại 25%; sàn 5′. */
+function mockMargin(eta: number, departMinute: number, eventDate: string, dayOffset = 0): number {
+  const [y, m, d] = eventDate.split('-').map(Number);
+  const wd = new Date(y, m - 1, d + dayOffset).getDay();
+  const peak = wd >= 1 && wd <= 5 && departMinute % 1440 >= 990 && departMinute % 1440 < 1170;
+  return Math.max(5, Math.ceil(Math.round(eta * (peak ? 0.5 : 0.25) * 1e6) / 1e6));
+}
+
+function mockAvailable(open: number | null | undefined, close: number | null | undefined, start: number, end: number): number | null {
+  if (open == null || close == null) return null;
+  const e = end > start ? end : end + 1440;
+  if (open === close) return e - start;
+  const c = close > open ? close : close + 1440;
+  return [-1440, 0, 1440].reduce((acc, sh) => acc + Math.max(0, Math.min(c + sh, e) - Math.max(open + sh, start)), 0);
+}
+
+function mockOrigins(): LatLngPoint[] {
+  const meeting =
+    currentRoom.origin_lat != null && currentRoom.origin_lng != null
+      ? { lat: currentRoom.origin_lat, lng: currentRoom.origin_lng }
+      : null;
+  return membersList.flatMap((m) => {
+    const o = memberOrigins.get(m.id) ?? meeting;
+    return o ? [o] : [];
+  });
+}
+
+/** ALGO-04: khoá (rủi ro, −phiếu, −dư, người đi xa nhất, thời điểm thêm); nhãn tối đa 1/quán. */
+function mockPriorities(): Map<string, PlacePriority> {
+  const start = currentRoom.start_minute ?? 1020;
+  const end = currentRoom.end_minute ?? 1380;
+  const origins = mockOrigins();
+  const rows = placesList
+    .filter((p) => p.status !== 'REJECTED')
+    .map((p) => {
+      const coord = p.latitude != null && p.longitude != null ? { lat: p.latitude, lng: p.longitude } : null;
+      const etaUnknown = !coord || origins.length === 0;
+      const maxEta = etaUnknown ? 0 : Math.max(...origins.map((o) => mockLeg(o, coord!).minutes));
+      const avail0 = mockAvailable(p.open_minute, p.close_minute, start, end);
+      const avail = avail0 ?? (end > start ? end - start : end + 1440 - start);
+      const slack = avail - (60 + maxEta + mockMargin(maxEta, start, currentRoom.event_date) + 5);
+      const risk: FeasibilityRisk = avail === 0 || slack < -30 ? 'HIGH_RISK' : slack < 0 ? 'SOFT_CONFLICT' : 'SAFE';
+      return { p, risk, slack, maxEta, etaUnknown, hoursUnknown: avail0 === null };
+    });
+  const rr = { SAFE: 0, SOFT_CONFLICT: 1, HIGH_RISK: 2 } as const;
+  rows.sort(
+    (a, b) =>
+      rr[a.risk] - rr[b.risk] ||
+      b.p.upvotes - a.p.upvotes ||
+      b.slack - a.slack ||
+      a.maxEta - b.maxEta ||
+      a.p.created_at.localeCompare(b.p.created_at),
+  );
+  const top = Math.max(0, ...rows.map((r) => r.p.upvotes));
+  return new Map(
+    rows.map((r, i) => {
+      const label =
+        i === 0 && r.risk === 'SAFE'
+          ? 'RECOMMENDED'
+          : top > 0 && r.p.upvotes === top
+            ? r.risk === 'SAFE'
+              ? 'MOST_VOTED'
+              : 'MOST_VOTED_RISKY'
+            : r.risk === 'SAFE' && r.slack >= 30
+              ? 'SCHEDULE_SAFE'
+              : null;
+      return [
+        r.p.id,
+        {
+          rank: i + 1,
+          risk: r.risk,
+          slack_min: r.slack,
+          max_eta_min: r.maxEta,
+          labels: label ? [label] : [],
+          estimated: !r.etaUnknown,
+          hours_unknown: r.hoursUnknown,
+          eta_unknown: r.etaUnknown,
+        } satisfies PlacePriority,
+      ];
+    }),
+  );
+}
+
+/** ALGO-03: tổng kế hoạch của ngày phòng (`day_offset = 0`). */
+function mockFeasibility(): ScheduleFeasibility {
+  const start = currentRoom.start_minute ?? 1020;
+  const end = currentRoom.end_minute ?? 1380;
+  const items = scheduleList
+    .filter((s) => (s.day_offset ?? 0) === 0)
+    .sort((a, b) => a.start_minute - b.start_minute || a.order_index - b.order_index);
+  const coordOf = (s: ScheduleItem) => {
+    const p = placesList.find((x) => x.id === s.place_id);
+    return p && p.latitude != null && p.longitude != null ? { lat: p.latitude, lng: p.longitude } : null;
+  };
+  const legs: FeasibilityLeg[] = [];
+  let unknown = 0;
+  for (let i = 0; i + 1 < items.length; i++) {
+    const a = coordOf(items[i]);
+    const b = coordOf(items[i + 1]);
+    if (!a || !b) {
+      unknown++;
+      continue;
+    }
+    const leg = mockLeg(a, b);
+    const gap = items[i + 1].start_minute - items[i].end_minute;
+    const still = leg.minutes <= 0 && leg.distance_km <= 0;
+    const margin = still ? 0 : mockMargin(leg.minutes, items[i].end_minute, currentRoom.event_date);
+    const buffer = still ? 0 : 5;
+    const slack = gap - (leg.minutes + margin + buffer);
+    const [y, m, d] = currentRoom.event_date.split('-').map(Number);
+    const wd = new Date(y, m - 1, d).getDay();
+    legs.push({
+      from_item_id: items[i].id,
+      to_item_id: items[i + 1].id,
+      eta_min: leg.minutes,
+      margin_min: margin,
+      buffer_min: buffer,
+      gap_min: gap,
+      slack_min: slack,
+      distance_km: Math.round(leg.distance_km * 1000) / 1000,
+      risk: slack >= 0 ? 'SAFE' : gap >= leg.minutes ? 'SOFT_CONFLICT' : 'HIGH_RISK',
+      peak: wd >= 1 && wd <= 5 && items[i].end_minute >= 990 && items[i].end_minute < 1170,
+      source: 'ESTIMATE',
+    });
+  }
+  const window = end > start ? end - start : end + 1440 - start;
+  const required =
+    items.reduce((acc, s) => acc + Math.max(0, s.end_minute - s.start_minute), 0) +
+    legs.reduce((acc, l) => acc + l.eta_min + l.margin_min + l.buffer_min, 0);
+  return {
+    window_min: window,
+    required_total_min: required,
+    buffer_total_min: window - required,
+    is_feasible: window - required >= 0 && legs.every((l) => l.risk !== 'HIGH_RISK'),
+    legs,
+    estimated: legs.length > 0,
+    item_count: items.length,
+    unknown_leg_count: unknown,
   };
 }
 
@@ -486,9 +637,15 @@ export const handlers = [
     return HttpResponse.json(toSelfMember(member), { headers: versionHeaders() });
   }),
 
-  // 5. Lấy danh sách địa điểm
-  http.get('*/api/v1/rooms/:roomId/places', () => {
-    return HttpResponse.json(placesList);
+  // 5. Lấy danh sách địa điểm (CR-12: kèm `priority`; `?sort=priority` theo rank, quán bị loại xuống cuối)
+  http.get('*/api/v1/rooms/:roomId/places', ({ request }) => {
+    const pri = mockPriorities();
+    const list = placesList.map((p) => ({ ...p, priority: pri.get(p.id) ?? null }));
+    if (new URL(request.url).searchParams.get('sort') === 'priority') {
+      const last = list.length + 1;
+      list.sort((a, b) => (a.priority?.rank ?? last) - (b.priority?.rank ?? last));
+    }
+    return HttpResponse.json(list);
   }),
 
   // 6. Thêm địa điểm mới
@@ -747,6 +904,12 @@ export const handlers = [
   http.get('*/api/v1/rooms/:roomId/tie-break/suggestion', ({ request }) => {
     if (!request.headers.get('X-Member-Token')) return unauthorized();
     return HttpResponse.json(mockTieSuggestion(), { headers: versionHeaders() });
+  }),
+
+  // 11d. Tổng khả thi của lịch (ALGO-03, CR-12 phần 2)
+  http.get('*/api/v1/rooms/:roomId/schedule/feasibility', ({ request }) => {
+    if (!request.headers.get('X-Member-Token')) return unauthorized();
+    return HttpResponse.json(mockFeasibility(), { headers: versionHeaders() });
   }),
 
   // 12. Lấy danh sách lịch trình

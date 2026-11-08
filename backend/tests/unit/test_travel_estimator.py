@@ -131,19 +131,24 @@ def _context(gap: int) -> ConflictContext:
 
 
 def test_rule_uses_shared_estimator_by_default():
-    # BEN_THANH → NHA_THO = 3 phút (25 km/h, không gồm gửi xe): gap 2 → cảnh báo, gap 3 → ổn
+    # BEN_THANH → NHA_THO = 3 phút (25 km/h, không gồm gửi xe). T-87 (ALGO-03): cần 3 + biên 5 + gửi xe 5 = 13'
+    # → gap 2 HIGH_RISK, gap 3 SOFT_CONFLICT (vẫn cảnh báo), gap 13 ổn
     results = TravelTimeConflictRule().evaluate(_context(gap=2))
     assert len(results) == 1
     assert results[0].rule_code == "TRAVEL_TIME"
-    assert results[0].params["travel_min"] == 3
+    assert results[0].params["eta_min"] == 3
+    assert results[0].params["risk"] == "HIGH_RISK"
     assert results[0].params["distance_km"] == 1.07
-    assert TravelTimeConflictRule().evaluate(_context(gap=3)) == []
+    soft = TravelTimeConflictRule().evaluate(_context(gap=3))
+    assert len(soft) == 1 and soft[0].params["risk"] == "SOFT_CONFLICT"
+    assert TravelTimeConflictRule().evaluate(_context(gap=12))[0].params["slack_min"] == -1
+    assert TravelTimeConflictRule().evaluate(_context(gap=13)) == []
 
 
 def test_rule_with_custom_estimator_is_used():
     est = HaversineTravelEstimator(parking_minutes=10)
     results = TravelTimeConflictRule(estimator=est).evaluate(_context(gap=10))
-    assert len(results) == 1 and results[0].params["travel_min"] == 13
+    assert len(results) == 1 and results[0].params["eta_min"] == 13
 
 
 def test_rule_passes_with_enough_gap():
@@ -279,11 +284,13 @@ def test_google_sync_leg_never_calls_network():
 async def test_cache_hit_avoids_second_call_and_sync_leg_sees_it():
     fake = FakeRoutes([element(0, 0, 300, 4000)])
     est = CachedEstimator(google(fake))
-    first = await est.amatrix([A], [B], FUTURE)
-    second = await est.amatrix([A], [B], FUTURE + timedelta(minutes=3))  # cùng khung 15'
+    # T-87: neo đầu khung 15' — trước đây FUTURE + 3' có lúc vượt sang khung sau tuỳ giờ chạy test (đỏ chập chờn)
+    start = FUTURE.replace(minute=0, second=0, microsecond=0) + timedelta(hours=24)
+    first = await est.amatrix([A], [B], start)
+    second = await est.amatrix([A], [B], start + timedelta(minutes=3))  # cùng khung 15'
     assert first == second and first[0][0].source is TravelSource.GOOGLE
     assert len(fake.requests) == 1
-    assert est.leg(A, B, FUTURE).source is TravelSource.GOOGLE  # phần đồng bộ thấy số đã ấm
+    assert est.leg(A, B, start).source is TravelSource.GOOGLE  # phần đồng bộ thấy số đã ấm
 
 
 async def test_cache_key_rounds_coords_and_splits_buckets_and_expires():

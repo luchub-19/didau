@@ -76,3 +76,33 @@ class TieSuggestion(BaseModel):
     travel_mode: str
     excluded_member_count: int = 0
     estimated: bool = True
+
+
+# ── CR-12 phần 2 (T-87) ──────────────────────────────────────────────────────────────────────────
+class FeasibilityLeg(BaseModel):
+    """Một cặp mục liên tiếp trên lịch (ALGO-03 §5). `slack_min < 0` = thiếu giờ."""
+
+    from_item_id: UUID
+    to_item_id: UUID
+    eta_min: int
+    margin_min: int
+    buffer_min: int
+    gap_min: int
+    slack_min: int
+    distance_km: float
+    risk: str = Field(description="SAFE | SOFT_CONFLICT | HIGH_RISK")
+    peak: bool
+    source: str = Field(description="ESTIMATE | GOOGLE")
+
+
+class ScheduleFeasibility(BaseModel):
+    """`GET /rooms/{id}/schedule/feasibility` — tổng kế hoạch ngày của phòng (`day_offset = 0`)."""
+
+    window_min: int
+    required_total_min: int
+    buffer_total_min: int
+    is_feasible: bool
+    legs: list[FeasibilityLeg] = Field(default_factory=list)
+    estimated: bool = Field(description="Có chặng nào là ước lượng (không phải Google)")
+    item_count: int = Field(description="Số mục lịch đã tính (chỉ ngày của phòng)")
+    unknown_leg_count: int = Field(description="Số cặp liên tiếp không tính được vì quán thiếu toạ độ")

@@ -273,20 +273,25 @@ def test_state_version_increments_by_one_and_is_on_every_ws_message(client: Test
 
         versions: list[int] = [1]
 
-        def step(res: Any) -> None:
+        def step(res: Any, n: int = 1) -> None:
+            # Mỗi tin WS thay đổi trạng thái +1; T-87: thao tác đổi ưu tiên quán phát thêm PRIORITY_UPDATED (+1)
             assert res.status_code < 300, res.text
             v = int(res.headers["X-State-Version"])
-            assert v == versions[-1] + 1, "mỗi thay đổi phải tăng đúng 1"
+            assert v == versions[-1] + n, f"thao tác phát {n} tin phải tăng đúng {n}"
             versions.append(v)
 
         r = client.patch(f"/api/v1/rooms/{rid}", headers=host_h, json={"title": "Đổi tên"})
         step(r)
         assert r.json()["state_version"] == versions[-1]  # body khớp header
         p = _place(client, room, guest_h, "Quán A")
-        step(p)
+        step(p, 2)  # PLACE_ADDED + PRIORITY_UPDATED
         place_id = p.json()["id"]
-        step(client.post(f"/api/v1/rooms/{rid}/places/{place_id}/votes", headers=host_h, json={"vote_value": 1}))
-        step(client.patch(f"/api/v1/rooms/{rid}/members/me", headers=guest_h, json={"origin_lat": 10.7, "origin_lng": 106.7}))
+        step(client.post(f"/api/v1/rooms/{rid}/places/{place_id}/votes", headers=host_h, json={"vote_value": 1}), 2)
+        step(
+            client.patch(f"/api/v1/rooms/{rid}/members/me", headers=guest_h, json={"origin_lat": 10.7, "origin_lng": 106.7}),
+            2,
+        )
+        # Xoá quán cuối cùng: không còn gì để xếp → không có PRIORITY_UPDATED
         step(client.delete(f"/api/v1/rooms/{rid}/places/{place_id}", headers=guest_h))
 
         # Đọc thuần không đổi số, nhưng vẫn mang header

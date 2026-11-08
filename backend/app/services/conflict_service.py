@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +35,7 @@ from app.repositories import (
     ScheduleRepository,
     VoteRepository,
 )
+from app.services.algorithm_service import warm_schedule_legs
 from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
@@ -123,12 +125,16 @@ class ConflictService:
             for s in all_schedule
         ]
 
-        return ConflictContext(
+        context = ConflictContext(
             room_id=room_id,
             budget_limit=room.budget_limit,
             places=places_summaries,
             schedule_items=schedule_dicts,
+            event_date=room.event_date if isinstance(room.event_date, date) else None,
         )
+        # ALGO-03: số Google (nếu bật) phải có trong cache trước khi luật TRAVEL_TIME (đồng bộ) chạy
+        await warm_schedule_legs(context)
+        return context
 
     async def list_conflicts(self, room_id: UUID) -> list[Conflict]:
         """Lấy danh sách các cảnh báo xung đột hiện tại của phòng từ database."""
@@ -208,6 +214,10 @@ class ConflictEvaluationHandler(IEventHandler[DomainEvent]):
         room_id = getattr(event, "room_id", None)
         if room_id is None:
             return
+        if isinstance(event, ScheduleUpdatedEvent):
+            # T-87: ScheduleService đã đánh giá + lưu + phát CONFLICTS_UPDATED trong chính request. Chạy lại ở
+            # session riêng vừa đọc lịch CŨ (chưa commit) vừa chờ khoá hàng `conflicts` request đang giữ → bế tắc.
+            return
 
         try:
             async with self.session_factory() as session:
@@ -252,7 +262,10 @@ def register_conflict_evaluation_handlers(
     session_factory: Callable[[], AsyncSession] | None = None,
     engine: ConflictDetectionEngine | None = None,
 ) -> ConflictEvaluationHandler:
-    """Đăng ký ConflictEvaluationHandler vào EventBus lắng nghe ScheduleUpdatedEvent và PlaceAddedEvent."""
+    """Đăng ký ConflictEvaluationHandler vào EventBus lắng nghe ScheduleUpdatedEvent và PlaceAddedEvent.
+
+    (T-87) SCHEDULE_UPDATED vẫn đăng ký để giữ giao diện, nhưng handler bỏ qua — xem `handle`.
+    """
     handler = ConflictEvaluationHandler(
         session_factory=session_factory,
         event_bus=event_bus,

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -26,6 +27,8 @@ class ConflictContext(BaseModel):
     budget_limit: int | None = None
     places: list[PlaceVoteSummary] = Field(default_factory=list)
     schedule_items: list[dict[str, Any]] = Field(default_factory=list)
+    # T-87 (ALGO-03): ngày phòng để biết ngày thường/cuối tuần cho biên giờ cao điểm; None = coi như ngoài cao điểm
+    event_date: date | None = None
 
 
 class IConflictRule(ABC):

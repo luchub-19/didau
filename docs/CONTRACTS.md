@@ -94,12 +94,14 @@ Các mã chuẩn hoá và tham số cấu trúc để frontend hiển thị song
 | `rule_code` | Cấu trúc `params` |
 | :--- | :--- |
 | `TIME_OVERLAP` | `item_ids: [str, str]`, `place_names: [str, str]`, `ranges: [{start_minute, end_minute, day_offset}, {start_minute, end_minute, day_offset}]` |
-| `TRAVEL_TIME` | `from_item_id: str`, `to_item_id: str`, `place_names: [str, str]`, `gap_min: int`, `travel_min: int`, `distance_km: float` |
+| `TRAVEL_TIME` | (CR-12 phần 2, ALGO-03) `from_item_id: str`, `to_item_id: str`, `place_names: [str, str]`, `eta_min: int`, `margin_min: int`, `buffer_min: int`, `gap_min: int`, `slack_min: int`, `distance_km: float`, `risk: "SOFT_CONFLICT" \| "HIGH_RISK"`, `peak: bool`, `source: "ESTIMATE" \| "GOOGLE"`, `estimated: bool` (trước T-87: `travel_min` thay `eta_min`, không có các trường còn lại) |
 | `OPENING_HOURS` | `item_id: str`, `place_name: str`, `start_minute: int`, `end_minute: int`, `open_minute: int`, `close_minute: int` |
 | `DUPLICATE_PLACE` | `place_ids: [str, str]`, `place_names: [str, str]`, `similarity: float`, `distance_m: float` |
 | `BUDGET_THRESHOLD` | `total_cost: int`, `budget_limit: int` |
 
 (CR-07) `TRAVEL_TIME` chỉ sinh khi `gap_min >= 0`; cặp mục lịch đã chồng giờ chỉ có `TIME_OVERLAP` báo.
+
+(CR-12 phần 2) Luật `TRAVEL_TIME` theo `docs/phase6/ALGORITHMS.md` §5: xét từng cặp mục liên tiếp **cùng ngày** (sắp theo `start_minute`, rồi `order_index`), không có chặng từ nhà tới điểm đầu. `eta_min` = chặng xe máy của estimator chung, khởi hành lúc `end_minute` của mục trước; `margin_min = max(5, ceil(eta × 50%))` nếu giờ rời quán thuộc **`[16:30, 19:30)`** (gồm 16:30, không gồm 19:30) của một ngày thứ Hai–Sáu (`event_date + day_offset`), ngược lại `max(5, ceil(eta × 25%))`; `buffer_min = 5` (gửi xe). `slack_min = gap_min − (eta + margin + buffer)`. Mức: `SAFE` (slack ≥ 0, **không sinh cảnh báo**) · `SOFT_CONFLICT` (slack < 0 nhưng gap ≥ eta) · `HIGH_RISK` (gap < eta). Cả hai mức có cảnh báo đều là `level = WARNING`. Hai mục cùng một toạ độ (eta 0, quãng đường 0) không có chặng: margin = buffer = 0. Cặp có quán thiếu toạ độ: bỏ qua.
 
 #### B. Mã lý do Chọn hộ thông minh (`reason_codes` trong `ScoredPick` / SMART `result_payload`)
 | `code` | Tham số `params` | Mô tả hiển thị |
@@ -531,10 +533,22 @@ Khi có lỗi (status $\ge 400$):
     "score": 3,
     "current_user_vote": 1,
     "submitted_by_id": "e4a2d815-1a3b-4c22-b5f7-920478bf1144",
-    "created_at": "2026-10-17T07:40:00Z"
+    "created_at": "2026-10-17T07:40:00Z",
+    "priority": {
+      "rank": 1,
+      "risk": "SAFE",
+      "slack_min": 85,
+      "max_eta_min": 20,
+      "labels": ["RECOMMENDED"],
+      "estimated": true,
+      "hours_unknown": false,
+      "eta_unknown": false
+    }
   }
 ]
 ```
+- **Query `sort` (CR-12 phần 2)**: bỏ trống = thứ tự cũ (thời điểm thêm, tăng dần) để client cũ không vỡ; `sort=priority` = theo `priority.rank` (quán bị loại xuống cuối, giữ thứ tự thêm). Giá trị khác → 422.
+- **`priority` (CR-12 phần 2, ALGO-04, `ALGORITHMS.md` §6)**: có trên mọi quán chưa `REJECTED` (các quán `REJECTED` có `priority: null`); cũng có ở mục 29 (chi tiết một quán). Phản hồi tạo/sửa quán (mục 4, 30) **không** có (đợi `PRIORITY_UPDATED`). Tính ở server, mỗi lần đọc: `available` = số phút giao giữa giờ mở cửa và khung phòng (không rõ giờ → cả khung, `hours_unknown: true`; quán qua đêm tính cả phần của hôm trước; mở = đóng → cả ngày); `max_eta_min` = chặng lâu nhất từ xuất phát của mọi thành viên đang hoạt động (`vị trí riêng ?? điểm hẹn`) tới quán, khởi hành lúc `start_minute` (không ai có xuất phát hoặc quán thiếu toạ độ → 0, `eta_unknown: true`); `slack_min = available − (60 + max_eta + margin(max_eta, start_minute) + 5)`; `risk` = `HIGH_RISK` nếu `available = 0` hoặc `slack < −30`, `SOFT_CONFLICT` nếu `slack < 0`, còn lại `SAFE`. Thứ tự: `(risk SAFE<SOFT<HIGH, −upvotes, −slack, max_eta, created_at)` tăng dần, sắp ổn định. `labels` tối đa 1, ưu tiên: `RECOMMENDED` (hạng 1 và SAFE) · `MOST_VOTED_RISKY` (bằng số `upvotes` lớn nhất > 0 nhưng không SAFE) · `MOST_VOTED` · `SCHEDULE_SAFE` (SAFE và slack ≥ 30). Chỉ dùng phần đồng bộ của estimator (ước lượng, hoặc số Google đã có trong cache) — **không bao giờ gọi Google**; `estimated` = có chặng ước lượng. Không chứa toạ độ hay số phút của từng thành viên.
 
 #### 6. Bỏ phiếu cho địa điểm
 - **Method & Path**: `POST /api/v1/rooms/{room_id}/places/{place_id}/votes`
@@ -860,6 +874,34 @@ Khi có lỗi (status $\ge 400$):
 - **Riêng tư**: không có toạ độ của ai. (`members[]` chỉ có id, biệt danh, nguồn xuất phát.)
 - **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
 
+#### 36. Tổng khả thi của lịch (CR-12 phần 2, ALGO-03)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/schedule/feasibility`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Response 200 OK** (`ScheduleFeasibility`):
+```json
+{
+  "window_min": 360,
+  "required_total_min": 193,
+  "buffer_total_min": 167,
+  "is_feasible": true,
+  "legs": [
+    {
+      "from_item_id": "…", "to_item_id": "…",
+      "eta_min": 3, "margin_min": 5, "buffer_min": 5, "gap_min": 10, "slack_min": -3,
+      "distance_km": 1.069, "risk": "SOFT_CONFLICT", "peak": true, "source": "ESTIMATE"
+    }
+  ],
+  "estimated": true,
+  "item_count": 3,
+  "unknown_leg_count": 1
+}
+```
+- **Phạm vi**: chỉ mục của ngày phòng (`day_offset = 0`), vì khung giờ là của một ngày. `window_min = end_minute − start_minute` (khung qua nửa đêm +24h).
+- **Chặng**: mọi cặp mục liên tiếp (sắp như luật `TRAVEL_TIME`, §1.13 A), **kể cả cặp chồng giờ** (`gap_min < 0`, luôn `HIGH_RISK`; cảnh báo của cặp này vẫn chỉ là `TIME_OVERLAP`). Số liệu và mức giống hệt `params` của `TRAVEL_TIME` (cùng hàm); `SAFE` cũng có mặt. Cặp có quán thiếu toạ độ không vào `legs`, đếm ở `unknown_leg_count`. Chặng gọi Google nếu `PLACES_PROVIDER=google` + key (lỗi → `ESTIMATE`).
+- **Tổng**: `required_total_min = Σ (end − start) + Σ (eta + margin + buffer)`; `buffer_total_min = window − required_total`; `is_feasible = buffer_total ≥ 0 và không chặng nào HIGH_RISK`. `estimated` = có chặng ước lượng.
+- **Cập nhật**: không có sự kiện WS riêng — client gọi lại khi nhận `SCHEDULE_UPDATED`, `CONFLICTS_UPDATED`, `ROOM_UPDATED`.
+- **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
+
 #### 29. Chi tiết một địa điểm trong phòng (CR-05)
 - **Method & Path**: `GET /api/v1/rooms/{room_id}/places/{place_id}`
 - **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
@@ -935,7 +977,8 @@ Khi có lỗi (status $\ge 400$):
 | `PRESENCE_UPDATED` | Tiêu điểm của một member (CR-08); phát cho cả phòng trừ người gửi; kết nối cuối của member đóng → `focus: null`. Client xoá tiêu điểm sau 15 s không cập nhật | `{ "member_id": "...", "focus": { "kind": "place", "place_id": "..." } }` |
 | `VOTING_RESOLVED` | Chủ phòng đã chốt kết quả vote | `{ "strategy": "MOST_UPVOTES", "accepted_place_ids": ["..."] }` |
 | `SCHEDULE_UPDATED` | Lịch trình thời gian thay đổi | `{ "items": [ {...}, {...} ] }` |
-| `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới (CR-06: mỗi conflict chứa `params`) | `{ "conflicts": [ { "id": "...", "rule_code": "TIME_OVERLAP", "params": { "place_names": [...], "ranges": [...] }, ... } ] }` |
+| `PRIORITY_UPDATED` | (CR-12 phần 2) Thứ tự ưu tiên danh sách bình chọn đổi (ALGO-04). Mang **toàn bộ** danh sách, `rank` 1 trước, quán `REJECTED` không có mặt; mỗi mục = `priority` của mục 5 + `place_id`. Phát **ngay sau** tin gây ra nó, trong cùng request (+1 `state_version`): `VOTE_UPDATED`, `PLACE_ADDED`, `PLACE_DELETED`, sửa quán (trạng thái/toạ độ/giờ mở cửa), `VOTING_RESOLVED`, `MEMBER_UPDATED` (sau `GROUP_CENTER_UPDATED` nếu có), `MEMBER_JOINED` (chỉ khi phòng có điểm hẹn), `ROOM_UPDATED` (chỉ khi đổi `start_minute`/`end_minute`/`event_date`/`origin_lat`/`origin_lng`). Phòng chưa có quán chưa bị loại → không phát | `{ "items": [ { "place_id": "...", "rank": 1, "risk": "SAFE", "slack_min": 85, "max_eta_min": 20, "labels": ["RECOMMENDED"], "estimated": true, "hours_unknown": false, "eta_unknown": false } ] }` |
+| `CONFLICTS_UPDATED`| Danh sách cảnh báo xung đột được làm mới (CR-06: mỗi conflict chứa `params`). (T-87) Mọi thao tác lịch (thêm/sửa hàng loạt/xoá mục) tự phát tin này **trong request**, ngay sau `SCHEDULE_UPDATED` (+1 `state_version`); đánh giá ngầm chỉ còn chạy sau `PLACE_ADDED` (dùng lại số của tin đó) | `{ "conflicts": [ { "id": "...", "rule_code": "TIME_OVERLAP", "params": { "place_names": [...], "ranges": [...] }, ... } ] }` |
 | `ROOM_UPDATED` | Cấu hình phòng thay đổi (CR-03) | `{ "room": {...} }` |
 | `DECISION_STARTED` | Phiên chọn hộ bắt đầu (CR-02, CR-06) | `{ "session_id": "...", "mode": "WHEEL", "candidate_place_ids": [...], "seed": 812734, "result_place_id": "...", "result_payload": {"stop_angle_deg": 1532.5}, "closes_at": null }` (ở chế độ SMART, `result_payload` gồm `score`, `reasons`, và `reason_codes`) |
 | `DECISION_PROGRESS`| Cập nhật tiến độ người đã swipe (CR-02) | `{ "session_id": "...", "done_member_ids": ["..."], "total_members": 5 }` |
@@ -1721,6 +1764,31 @@ export interface TieSuggestion {
   excluded_member_count: number;
   estimated: boolean;
 }
+
+// Algorithm Engine (CR-12 phần 2, T-87) — frontend/src/types/models.ts + api.ts (mục 5, 36, §1.13 A)
+export type FeasibilityRisk = 'SAFE' | 'SOFT_CONFLICT' | 'HIGH_RISK';
+export type PriorityLabel = 'RECOMMENDED' | 'MOST_VOTED_RISKY' | 'MOST_VOTED' | 'SCHEDULE_SAFE';
+export interface PlacePriority {
+  rank: number; risk: FeasibilityRisk; slack_min: number; max_eta_min: number;
+  labels: PriorityLabel[]; estimated: boolean; hours_unknown: boolean; eta_unknown: boolean;
+}
+// Place thêm: priority?: PlacePriority | null
+export interface TravelTimeConflictParams {
+  from_item_id: string; to_item_id: string; place_names: [string, string];
+  eta_min: number; margin_min: number; buffer_min: number; gap_min: number; slack_min: number;
+  distance_km: number; risk: 'SOFT_CONFLICT' | 'HIGH_RISK'; peak: boolean; source: TravelSource; estimated: boolean;
+}
+export interface FeasibilityLeg {
+  from_item_id: string; to_item_id: string; eta_min: number; margin_min: number; buffer_min: number;
+  gap_min: number; slack_min: number; distance_km: number; risk: FeasibilityRisk; peak: boolean; source: TravelSource;
+}
+export interface ScheduleFeasibility {
+  window_min: number; required_total_min: number; buffer_total_min: number; is_feasible: boolean;
+  legs: FeasibilityLeg[]; estimated: boolean; item_count: number; unknown_leg_count: number;
+}
+export type PlaceSort = 'priority';
+// websocket.ts
+export interface PriorityUpdatedPayload { items: (PlacePriority & { place_id: string })[] }
 
 // frontend/src/types/websocket.ts
 

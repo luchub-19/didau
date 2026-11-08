@@ -58,6 +58,30 @@ export interface SelfMember extends Member {
   origin_lng?: number | null;
 }
 
+/** ALGO-03/04 (CR-12): mức khả thi dùng chung cho cảnh báo lịch và ưu tiên quán. */
+export type FeasibilityRisk = 'SAFE' | 'SOFT_CONFLICT' | 'HIGH_RISK';
+
+/** Nhãn ưu tiên (tối đa 1/quán, theo thứ tự ưu tiên này). */
+export type PriorityLabel = 'RECOMMENDED' | 'MOST_VOTED_RISKY' | 'MOST_VOTED' | 'SCHEDULE_SAFE';
+
+/**
+ * ALGO-04 (CR-12 phần 2): vị trí quán trong danh sách bình chọn, do server tính (cần vị trí thành viên).
+ * FE chỉ hiển thị thứ tự server trả (`GET /places?sort=priority` hoặc `PRIORITY_UPDATED`), không tự sắp lại.
+ * `max_eta_min` là của người đi xa nhất cả nhóm (không có số của từng người).
+ */
+export interface PlacePriority {
+  rank: number;
+  risk: FeasibilityRisk;
+  slack_min: number;
+  max_eta_min: number;
+  labels: PriorityLabel[];
+  estimated: boolean;
+  /** Quán không có giờ mở cửa → coi như mở cả khung phòng. */
+  hours_unknown: boolean;
+  /** Không ai có xuất phát (kể cả điểm hẹn) hoặc quán thiếu toạ độ → `max_eta_min` = 0. */
+  eta_unknown: boolean;
+}
+
 export interface Place {
   id: string;
   room_id: string;
@@ -87,6 +111,8 @@ export interface Place {
   current_user_vote: VoteValue;
   created_at: string;
   updated_at?: string;
+  /** CR-12: null với quán bị loại (REJECTED); thiếu ở server cũ / phản hồi tạo-sửa (đợi `PRIORITY_UPDATED`). */
+  priority?: PlacePriority | null;
 }
 
 export interface ScheduleItem {
@@ -102,6 +128,27 @@ export interface ScheduleItem {
   note?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * `params` của `TRAVEL_TIME` (CR-12 phần 2, ALGORITHMS §5). `required = eta + margin + buffer`,
+ * `slack = gap − required`. Chỉ sinh khi `risk` ≠ SAFE và `gap_min ≥ 0` (CR-07). Dữ liệu cũ có `travel_min`.
+ */
+export interface TravelTimeConflictParams {
+  from_item_id: string;
+  to_item_id: string;
+  place_names: [string, string];
+  eta_min: number;
+  margin_min: number;
+  buffer_min: number;
+  gap_min: number;
+  slack_min: number;
+  distance_km: number;
+  risk: Exclude<FeasibilityRisk, 'SAFE'>;
+  /** Rời quán trước trong 16:30–19:30 (nửa mở) của ngày thứ Hai–Sáu → biên 50%. */
+  peak: boolean;
+  source: 'ESTIMATE' | 'GOOGLE';
+  estimated: boolean;
 }
 
 export interface ConflictAlert {

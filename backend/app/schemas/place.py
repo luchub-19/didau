@@ -72,6 +72,22 @@ class UpdatePlaceRequest(BaseModel):
     opening_hours_raw: str | None = Field(default=None, max_length=255)
 
 
+class PlacePriority(BaseModel):
+    """ALGO-04 (CR-12 phần 2): vị trí của quán trong danh sách bình chọn. `None` trên quán bị loại (REJECTED)."""
+
+    rank: int = Field(description="1 = đầu danh sách")
+    risk: str = Field(description="SAFE | SOFT_CONFLICT | HIGH_RISK")
+    slack_min: int
+    max_eta_min: int
+    labels: list[str] = Field(
+        default_factory=list,
+        description="Tối đa 1: RECOMMENDED | MOST_VOTED_RISKY | MOST_VOTED | SCHEDULE_SAFE",
+    )
+    estimated: bool
+    hours_unknown: bool
+    eta_unknown: bool
+
+
 class PlaceResponse(BaseModel):
     """Dữ liệu phản hồi chuẩn cho địa điểm theo CONTRACTS.md."""
 
@@ -106,6 +122,7 @@ class PlaceResponse(BaseModel):
     submitted_by_nickname: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
+    priority: PlacePriority | None = None
 
 
 class DeletePlaceResponse(BaseModel):

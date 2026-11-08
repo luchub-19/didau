@@ -652,7 +652,12 @@ def test_cr06_all_rules_generate_valid_params(base_context):
     assert p_travel["to_item_id"] == str(sched2["id"])
     assert p_travel["place_names"] == ["Điểm A", "Điểm B"]
     assert p_travel["gap_min"] == 5
-    assert p_travel["travel_min"] > 5
+    assert p_travel["eta_min"] > 5
+    # T-87 (CR-12): params mới của ALGO-03
+    assert p_travel["risk"] == "HIGH_RISK"
+    assert p_travel["slack_min"] == 5 - (p_travel["eta_min"] + p_travel["margin_min"] + p_travel["buffer_min"])
+    assert p_travel["buffer_min"] == 5 and p_travel["margin_min"] >= 5
+    assert p_travel["peak"] is False and p_travel["source"] == "ESTIMATE" and p_travel["estimated"] is True
     assert p_travel["distance_km"] > 0
 
     # 3. OPENING_HOURS

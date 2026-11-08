@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.core import algo_config as cfg
 from app.domain.enums import PlaceCategory, PlaceStatus
 from app.domain.patterns.itinerary.opening_hours import parse_opening_hours
 from app.domain.patterns.itinerary.travel import HaversineTravelEstimator, ITravelTimeEstimator
@@ -98,7 +99,8 @@ class _DayState:
         self.day_start = constraints.start_minute
         self.day_end = min(constraints.end_minute, DAY_LAST_MINUTE)
         self.meeting = constraints.meeting_point
-        weekday = (constraints.event_date + timedelta(days=day_offset)).weekday()
+        self.on = constraints.event_date + timedelta(days=day_offset)
+        weekday = self.on.weekday()
         n = len(places)
         self.duration = [
             constraints.duration_overrides.get(p.place_id) or DEFAULT_DURATIONS[p.category]
@@ -134,6 +136,16 @@ class _DayState:
         if self.day_start <= LUNCH_WINDOW[0] and self.day_end >= LUNCH_WINDOW[1]:
             self.meal_windows.append(LUNCH_WINDOW)
         self.has_food = any(p.category == PlaceCategory.FOOD for p in places)
+
+    def leg_slack(self, travel: int, depart: int, between_places: bool) -> int:
+        """T-87: chặng giữa hai quán chừa thêm biên giờ cao điểm + gửi xe đúng như TRAVEL_TIME (ALGO-03 §5),
+        để lịch tự xếp không tự sinh cảnh báo. Chặng từ điểm hẹn và chặng cùng chỗ (0') không cộng."""
+        if not between_places or travel <= 0:
+            return 0
+        # import muộn: app.domain.algorithms → itinerary.travel → gói itinerary → planner (vòng)
+        from app.domain.algorithms.feasibility import margin_for
+
+        return margin_for(travel, depart, self.on) + cfg.BUFFER_MIN
 
     def fit(self, idx: int, arrive: int, limit: int | None = None) -> int | None:
         """Giờ bắt đầu sớm nhất >= arrive sao cho kịp trong giờ mở cửa và khung buổi."""
@@ -186,7 +198,7 @@ class _DayState:
                 travel = self.from_meeting[idx]
             else:
                 travel = self.travel[prev][idx] if self.coords[prev] and self.coords[idx] else 0
-            arrive = t + travel
+            arrive = t + travel + self.leg_slack(travel, t, prev is not None)
             start = self.schedule_start(idx, arrive)
             if start is None:
                 dropped.append(idx)
@@ -304,7 +316,7 @@ class HeuristicItineraryPlanner(IRouteOptimizationService):
             best: tuple[float, int] | None = None
             for idx in left:
                 travel = state.from_meeting[idx] if prev is None else state.travel[prev][idx]
-                start = state.schedule_start(idx, t + travel)
+                start = state.schedule_start(idx, t + travel + state.leg_slack(travel, t, prev is not None))
                 if start is None:
                     continue
                 key = (travel + WAIT_WEIGHT * (start - t - travel), idx)
@@ -315,7 +327,10 @@ class HeuristicItineraryPlanner(IRouteOptimizationService):
                 break
             chosen = best[1]
             travel = state.from_meeting[chosen] if prev is None else state.travel[prev][chosen]
-            start = state.schedule_start(chosen, t + travel) or t
+            start = (
+                state.schedule_start(chosen, t + travel + state.leg_slack(travel, t, prev is not None))
+                or t
+            )
             t, prev = start + state.duration[chosen], chosen
             order.append(chosen)
             left.remove(chosen)

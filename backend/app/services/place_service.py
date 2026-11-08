@@ -25,9 +25,17 @@ from app.domain.patterns.event_bus import (
     PlaceStatusChangedEvent,
 )
 from app.repositories import IPlaceRepository, IRoomRepository, IVoteRepository
+from app.services.algorithm_service import (
+    algorithm_service_for,
+    priority_payload,
+    publish_priority_update,
+)
 from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
+
+PRIORITY_FIELDS = {"status", "latitude", "longitude", "open_minute", "close_minute"}
+"""Trường của quán mà ALGO-04 dùng — sửa một trong số này thì phát lại PRIORITY_UPDATED (CR-12)."""
 
 
 class PlaceService:
@@ -227,6 +235,7 @@ class PlaceService:
             place=place,
         )
         await publish_versioned(self.room_repo, self.event_bus, event)
+        await publish_priority_update(self.room_repo, self.event_bus, room_id)
 
         logger.info(
             "Đã thêm địa điểm mới '%s' (category: %s) vào phòng %s",
@@ -240,8 +249,13 @@ class PlaceService:
         self,
         room_id: UUID,
         current_member_id: UUID,
+        sort: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Lấy danh sách toàn bộ địa điểm trong phòng kèm tổng điểm vote và vote của thành viên."""
+        """Danh sách địa điểm kèm tổng phiếu, phiếu của thành viên và `priority` (ALGO-04, CR-12).
+
+        `sort="priority"` → theo `priority.rank` (quán bị loại xuống cuối, giữ thứ tự thêm); mặc định giữ thứ tự cũ
+        (thời điểm thêm) để client cũ không vỡ.
+        """
         # 1. Kiểm tra phòng tồn tại
         room = await self.room_repo.get_by_id(room_id)
         if room is None:
@@ -253,6 +267,7 @@ class PlaceService:
         # 2. Lấy danh sách địa điểm và tóm tắt điểm bình chọn
         places = await self.place_repo.list_by_room(room_id)
         vote_summary = await self.vote_repo.get_vote_summary_by_room(room_id)
+        priorities = await self._priorities(room_id, places, vote_summary)
 
         # 3. Lấy lá phiếu của thành viên hiện tại cho từng địa điểm
         result: list[dict[str, Any]] = []
@@ -261,17 +276,32 @@ class PlaceService:
             vote_obj = await self.vote_repo.get_vote(p.id, current_member_id)
             current_user_vote = vote_obj.vote_value if vote_obj else 0
 
-            result.append(
-                self._format_place_dict(
-                    p,
-                    upvotes=summary["upvotes"],
-                    downvotes=summary["downvotes"],
-                    score=summary["score"],
-                    current_user_vote=current_user_vote,
-                )
+            item = self._format_place_dict(
+                p,
+                upvotes=summary["upvotes"],
+                downvotes=summary["downvotes"],
+                score=summary["score"],
+                current_user_vote=current_user_vote,
             )
+            pri = priorities.get(p.id)
+            item["priority"] = priority_payload(pri) if pri else None
+            result.append(item)
 
+        if sort == "priority":
+            # sort ổn định: quán không có hạng (bị loại) xuống cuối theo thứ tự thêm. `last` tính TRƯỚC khi sort
+            # (trong lúc list.sort chạy, len(result) == 0)
+            last = len(result) + 1
+            result.sort(key=lambda x: x["priority"]["rank"] if x["priority"] else last)
         return result
+
+    async def _priorities(
+        self, room_id: UUID, places: list[Place], votes: dict[UUID, dict[str, int]]
+    ) -> dict[UUID, Any]:
+        """ALGO-04 cho mọi quán; repo giả (unit test) → {} và `priority` để null."""
+        service = algorithm_service_for(self.room_repo)
+        if service is None:
+            return {}
+        return await service.place_priorities(room_id, places=places, votes=votes)
 
     async def get_place(
         self,
@@ -292,13 +322,20 @@ class PlaceService:
         vote_obj = await self.vote_repo.get_vote(place.id, current_member_id)
         current_user_vote = vote_obj.vote_value if vote_obj else 0
 
-        return self._format_place_dict(
+        item = self._format_place_dict(
             place,
             upvotes=summary["upvotes"],
             downvotes=summary["downvotes"],
             score=summary["score"],
             current_user_vote=current_user_vote,
         )
+        # Hạng phụ thuộc mọi quán trong phòng nên phải tính cả danh sách
+        priorities = await self._priorities(
+            room_id, await self.place_repo.list_by_room(room_id), vote_summary
+        )
+        pri = priorities.get(place.id)
+        item["priority"] = priority_payload(pri) if pri else None
+        return item
 
     async def update_place(
         self,
@@ -382,6 +419,10 @@ class PlaceService:
             )
             await publish_versioned(self.room_repo, self.event_bus, status_event)
 
+        # ALGO-04 phụ thuộc trạng thái (REJECTED bị loại), toạ độ và giờ mở cửa
+        if PRIORITY_FIELDS & update_dict.keys():
+            await publish_priority_update(self.room_repo, self.event_bus, room_id)
+
         vote_summary = await self.vote_repo.get_vote_summary_by_room(room_id)
         summary = vote_summary.get(final_place.id, {"upvotes": 0, "downvotes": 0, "score": 0})
         vote_obj = await self.vote_repo.get_vote(final_place.id, member.id)
@@ -431,6 +472,7 @@ class PlaceService:
         # Phát sự kiện PlaceDeletedEvent qua EventBus
         event = PlaceDeletedEvent(room_id=room_id, place_id=place_id)
         await publish_versioned(self.room_repo, self.event_bus, event)
+        await publish_priority_update(self.room_repo, self.event_bus, room_id)
 
         logger.info("Đã xóa địa điểm %s khỏi phòng %s", place_id, room_id)
         return True

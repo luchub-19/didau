@@ -10,6 +10,7 @@ import type {
 import type {
   ConflictAlert,
   DecisionSession,
+  FeasibilityRisk,
   Member,
   Place,
   PlannedSlot,
@@ -342,3 +343,40 @@ export interface TieSuggestion {
   /** true nếu có chặng nào là ước lượng (UI ghi "ước lượng" thay vì "Google Maps"). */
   estimated: boolean;
 }
+
+// ── CR-12 phần 2 (T-87) ─────────────────────────────────────────────────────────────────────────
+
+/** Một cặp mục liên tiếp trên lịch (ALGO-03). `slack_min < 0` = thiếu giờ; `gap_min < 0` = chồng giờ. */
+export interface FeasibilityLeg {
+  from_item_id: string;
+  to_item_id: string;
+  eta_min: number;
+  margin_min: number;
+  buffer_min: number;
+  gap_min: number;
+  slack_min: number;
+  distance_km: number;
+  risk: FeasibilityRisk;
+  peak: boolean;
+  source: TravelSource;
+}
+
+/**
+ * `GET /rooms/{room_id}/schedule/feasibility` — tổng kế hoạch NGÀY CỦA PHÒNG (chỉ mục `day_offset = 0`).
+ * `required_total_min = Σ thời lượng + Σ (eta + margin + buffer)`, `buffer_total_min = window − required`;
+ * `is_feasible` = dư ≥ 0 và không có chặng HIGH_RISK. Cặp có quán thiếu toạ độ không vào `legs` mà đếm ở
+ * `unknown_leg_count`. Gọi lại khi nhận `SCHEDULE_UPDATED`/`CONFLICTS_UPDATED`/`ROOM_UPDATED`.
+ */
+export interface ScheduleFeasibility {
+  window_min: number;
+  required_total_min: number;
+  buffer_total_min: number;
+  is_feasible: boolean;
+  legs: FeasibilityLeg[];
+  estimated: boolean;
+  item_count: number;
+  unknown_leg_count: number;
+}
+
+/** Query của `GET /rooms/{room_id}/places` (CR-12): `priority` = theo `priority.rank`, bỏ trống = thứ tự thêm. */
+export type PlaceSort = 'priority';

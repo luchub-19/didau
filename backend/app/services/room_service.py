@@ -7,7 +7,11 @@ from app.core.id_generator import generate_room_code
 from app.domain.enums import MemberRole, RoomStatus, TieBreakStrategyName
 from app.domain.patterns.event_bus import IEventBus, MemberJoinedEvent, RoomUpdatedEvent
 from app.repositories import IMemberRepository, IPlaceRepository, IRoomRepository
+from app.services.algorithm_service import publish_priority_update
 from app.services.state_version import publish_versioned
+
+PRIORITY_ROOM_FIELDS = {"start_minute", "end_minute", "event_date", "origin_lat", "origin_lng"}
+"""Cấu hình phòng mà ALGO-04 dùng (khung giờ, ngày → cao điểm, điểm hẹn) — đổi thì phát PRIORITY_UPDATED."""
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +159,9 @@ class RoomService:
             avatar_url=member.avatar_url,
         )
         await publish_versioned(self.room_repo, self.event_bus, event)
+        if room.origin_lat is not None and room.origin_lng is not None:
+            # Người mới chưa chia sẻ vị trí → xuất phát từ điểm hẹn → ALGO-04 có thể đổi (CR-12)
+            await publish_priority_update(self.room_repo, self.event_bus, room.id)
 
         logger.info(
             "Thành viên '%s' đã tham gia phòng '%s' (code: %s)",
@@ -250,4 +257,6 @@ class RoomService:
             await publish_versioned(
                 self.room_repo, self.event_bus, RoomUpdatedEvent(room_id=room_id, room=room_payload)
             )
+            if PRIORITY_ROOM_FIELDS & changes.keys():
+                await publish_priority_update(self.room_repo, self.event_bus, room_id)
         return updated

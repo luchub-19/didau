@@ -82,6 +82,11 @@ describe('describeConflict', () => {
     ['OPENING_HOURS', { place_name: names[0], start_minute: 360, end_minute: 420, open_minute: 480, close_minute: 1320 }],
     ['DUPLICATE_PLACE', { place_names: names, similarity: 0.9, distance_m: 30 }],
     ['BUDGET_THRESHOLD', { total_cost: 250000, budget_limit: 100000 }],
+    // (cuối mảng: test khác dùng chỉ số cases[0..4]) CR-12 (T-87): params mới của ALGO-03
+    ['TRAVEL_TIME', {
+      place_names: names, eta_min: 12, margin_min: 6, buffer_min: 5, gap_min: 15, slack_min: -8,
+      distance_km: 4.2, risk: 'SOFT_CONFLICT', peak: true, source: 'ESTIMATE', estimated: true,
+    }],
   ];
 
   it.each(cases)('%s có params: câu đúng ở vi và en', (rule, params) => {
@@ -117,6 +122,15 @@ describe('describeConflict', () => {
     const en = describeConflict(c, ctx, tEn);
     expect(en).toContain('Quán A');
     expect(en).toContain('10:00 AM');
+  });
+
+  it('TRAVEL_TIME (CR-12): số phút đi lấy từ eta_min, không lẫn sang slack/margin', () => {
+    const c = conflict('TRAVEL_TIME', {
+      place_names: names, eta_min: 12, margin_min: 6, buffer_min: 5, gap_min: 15, slack_min: -8,
+      distance_km: 4.2, risk: 'SOFT_CONFLICT', peak: true, source: 'ESTIMATE', estimated: true,
+    });
+    expect(describeConflict(c, {}, tVi)).toBe(tVi('conflict.TRAVEL_TIME', { from: names[0], to: names[1], gap: 15, travel: 12 }));
+    expect(describeConflict(c, {}, tEn)).toBe(tEn('conflict.TRAVEL_TIME', { from: names[0], to: names[1], gap: 15, travel: 12 }));
   });
 
   it('không đủ dữ liệu: câu chung theo rule_code, mã lạ: câu chung nhất, EN không có dấu', () => {

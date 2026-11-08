@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -28,6 +29,7 @@ from app.repositories import (
     IScheduleRepository,
     IVoteRepository,
 )
+from app.services.algorithm_service import warm_schedule_legs
 from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
@@ -87,6 +89,9 @@ class ScheduleService:
         """Chuẩn bị ConflictContext phục vụ đánh giá quy tắc xung đột."""
         room = await self.room_repo.get_by_id(room_id)
         budget_limit = room.budget_limit if room is not None else None
+        event_date = getattr(room, "event_date", None)
+        if not isinstance(event_date, date):  # repo giả trong test
+            event_date = None
 
         all_places = await self.place_repo.list_by_room(room_id)
         places_summaries: list[PlaceVoteSummary] = []
@@ -144,11 +149,63 @@ class ScheduleService:
             for s in schedule_items
         ]
 
-        return ConflictContext(
+        context = ConflictContext(
             room_id=room_id,
             budget_limit=budget_limit,
             places=places_summaries,
             schedule_items=schedule_dicts,
+            event_date=event_date,
+        )
+        # ALGO-03: số Google (nếu bật) phải có trong cache trước khi luật TRAVEL_TIME (đồng bộ) chạy
+        await warm_schedule_legs(context)
+        return context
+
+    async def _publish_conflicts(
+        self, room_id: UUID, saved_conflicts: list[Any], detected_conflicts: list[ConflictResult]
+    ) -> None:
+        """Phát CONFLICTS_UPDATED NGAY TRONG request (cùng transaction, +1 `state_version`).
+
+        T-87: add/update/delete trước đây để handler ngầm (session riêng) phát tin này — handler đó chờ khoá các
+        hàng `conflicts` mà request vừa xoá/ghi (chưa commit) trong khi request chờ handler → bế tắc thật
+        (`DELETE FROM conflicts` treo, lỗi T-79 ghi lại). Nay mọi thao tác lịch tự phát, handler bỏ qua
+        SCHEDULE_UPDATED.
+        """
+        if self.conflict_repo is not None:
+            conflicts_payload = [
+                {
+                    "id": str(c.id),
+                    "room_id": str(c.room_id),
+                    "rule_code": c.rule_code,
+                    "level": c.level,
+                    "message": c.message,
+                    "entity_type": c.entity_type,
+                    "entity_ids": c.entity_ids,
+                    "params": c.params or {},
+                    "resolved": c.resolved,
+                    "created_at": (
+                        c.created_at.isoformat()
+                        if hasattr(c.created_at, "isoformat")
+                        else str(c.created_at)
+                    ),
+                }
+                for c in saved_conflicts
+            ]
+        else:
+            conflicts_payload = [
+                {
+                    "rule_code": cr.rule_code,
+                    "level": (
+                        cr.level.value if hasattr(cr.level, "value") else str(cr.level)
+                    ),
+                    "message": cr.message,
+                    "entity_type": cr.entity_type,
+                    "entity_ids": [str(eid) for eid in cr.entity_ids],
+                    "params": cr.params or {},
+                }
+                for cr in detected_conflicts
+            ]
+        await publish_versioned(
+            self.room_repo, self.event_bus, ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
         )
 
     async def get_schedule(self, room_id: UUID) -> list[dict[str, Any]]:
@@ -235,8 +292,9 @@ class ScheduleService:
         )
 
         # Lưu xung đột vào DB nếu có conflict_repo
+        saved_conflicts: list[Any] = []
         if self.conflict_repo is not None:
-            await self.conflict_repo.replace_conflicts(room_id, detected_conflicts)
+            saved_conflicts = await self.conflict_repo.replace_conflicts(room_id, detected_conflicts)
 
         # Phát sự kiện ScheduleUpdatedEvent qua EventBus
         schedule_dicts = [
@@ -255,6 +313,8 @@ class ScheduleService:
         await publish_versioned(
             self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
         )
+        if self.conflict_repo is not None:
+            await self._publish_conflicts(room_id, saved_conflicts, detected_conflicts)
 
         conflicts_payload = [
             {
@@ -303,8 +363,9 @@ class ScheduleService:
             conflict_context
         )
 
+        saved_conflicts: list[Any] = []
         if self.conflict_repo is not None:
-            await self.conflict_repo.replace_conflicts(room_id, detected_conflicts)
+            saved_conflicts = await self.conflict_repo.replace_conflicts(room_id, detected_conflicts)
 
         # Phát sự kiện ScheduleUpdatedEvent
         schedule_dicts = [
@@ -323,6 +384,8 @@ class ScheduleService:
         await publish_versioned(
             self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
         )
+        if self.conflict_repo is not None:
+            await self._publish_conflicts(room_id, saved_conflicts, detected_conflicts)
 
         return [self._format_schedule_item(item) for item in updated_items]
 
@@ -357,8 +420,9 @@ class ScheduleService:
             conflict_context
         )
 
+        saved_conflicts: list[Any] = []
         if self.conflict_repo is not None:
-            await self.conflict_repo.replace_conflicts(room_id, detected_conflicts)
+            saved_conflicts = await self.conflict_repo.replace_conflicts(room_id, detected_conflicts)
 
         schedule_dicts = [
             {
@@ -376,6 +440,8 @@ class ScheduleService:
         await publish_versioned(
             self.room_repo, self.event_bus, ScheduleUpdatedEvent(room_id=room_id, items=schedule_dicts)
         )
+        if self.conflict_repo is not None:
+            await self._publish_conflicts(room_id, saved_conflicts, detected_conflicts)
 
         return True
 
@@ -499,43 +565,7 @@ class ScheduleService:
         )
 
         # 6. Phát sự kiện ConflictDetectedEvent (CONFLICTS_UPDATED)
-        if self.conflict_repo is not None:
-            conflicts_payload = [
-                {
-                    "id": str(c.id),
-                    "room_id": str(c.room_id),
-                    "rule_code": c.rule_code,
-                    "level": c.level,
-                    "message": c.message,
-                    "entity_type": c.entity_type,
-                    "entity_ids": c.entity_ids,
-                    "params": c.params or {},
-                    "resolved": c.resolved,
-                    "created_at": (
-                        c.created_at.isoformat()
-                        if hasattr(c.created_at, "isoformat")
-                        else str(c.created_at)
-                    ),
-                }
-                for c in saved_conflicts
-            ]
-        else:
-            conflicts_payload = [
-                {
-                    "rule_code": cr.rule_code,
-                    "level": (
-                        cr.level.value if hasattr(cr.level, "value") else str(cr.level)
-                    ),
-                    "message": cr.message,
-                    "entity_type": cr.entity_type,
-                    "entity_ids": [str(eid) for eid in cr.entity_ids],
-                    "params": cr.params or {},
-                }
-                for cr in detected_conflicts
-            ]
-        await publish_versioned(
-            self.room_repo, self.event_bus, ConflictDetectedEvent(room_id=room_id, conflicts=conflicts_payload)
-        )
+        await self._publish_conflicts(room_id, saved_conflicts, detected_conflicts)
 
         return [self._format_schedule_item(item) for item in all_items]
 

@@ -1,4 +1,4 @@
-import type { ConflictAlert, Member, Place, Room, ScheduleItem } from './models';
+import type { ConflictAlert, Member, Place, PlacePriority, Room, ScheduleItem } from './models';
 import type { DecisionMode, DecisionStatus, TieBreakStrategyName, VoteValue } from './enums';
 
 export interface WebSocketEnvelope<T = unknown> {
@@ -67,6 +67,16 @@ export interface GroupCenterUpdatedPayload {
   center?: { lat: number; lng: number };
   area_label?: string;
   member_count: number;
+}
+
+/**
+ * CR-12 phần 2: thứ tự ưu tiên danh sách bình chọn (ALGO-04) — TOÀN BỘ danh sách, rank 1 trước, quán bị loại
+ * không có mặt. Phát ngay sau tin gây ra nó (+1 `state_version`): VOTE_UPDATED, PLACE_ADDED/DELETED, sửa quán
+ * (trạng thái/toạ độ/giờ mở cửa), VOTING_RESOLVED, MEMBER_UPDATED, MEMBER_JOINED (khi phòng có điểm hẹn), ROOM_UPDATED
+ * (khung giờ/ngày/điểm hẹn). Phòng chưa có quán còn hiệu lực → không phát.
+ */
+export interface PriorityUpdatedPayload {
+  items: (PlacePriority & { place_id: string })[];
 }
 
 export interface MemberLeftPayload {

@@ -3,6 +3,14 @@ from difflib import SequenceMatcher
 from typing import Any
 from uuid import UUID
 
+from app.domain.algorithms.feasibility import (
+    PlanItem,
+    Risk,
+    assess_leg,
+    consecutive_pairs,
+    depart_datetime,
+    plan_items_from_dicts,
+)
 from app.domain.enums import ConflictLevel, PlaceStatus
 from app.domain.patterns.conflict_rule.rule import (
     ConflictContext,
@@ -128,17 +136,17 @@ class TimeOverlapConflictRule(IConflictRule):
 
 
 class TravelTimeConflictRule(IConflictRule):
-    """Quy tắc kiểm tra thời gian di chuyển giữa 2 địa điểm liên tiếp (TRAVEL_TIME).
+    """Quy tắc thời gian di chuyển giữa 2 mục liên tiếp (TRAVEL_TIME) — ALGO-03 (ALGORITHMS §5, CR-12).
 
-    Báo WARNING nếu khoảng thời gian giữa 2 địa điểm liên tiếp bé hơn thời gian di chuyển
-    ước tính của estimator chung (`Leg.minutes`, không gồm gửi xe).
+    `eta` = chặng của estimator chung (khởi hành lúc kết thúc mục trước), `required = eta + biên giờ cao điểm +
+    BUFFER_MIN`, `slack = gap − required`. Báo `WARNING` (giao diện pastel) cho SOFT_CONFLICT và HIGH_RISK, im lặng
+    khi SAFE. CR-07 giữ nguyên: cặp đã chồng giờ (`gap < 0`) chỉ để TIME_OVERLAP báo.
     """
 
     def __init__(self, estimator: ITravelTimeEstimator | None = None) -> None:
         """Dùng estimator chung của backend (`get_travel_estimator()`, xe máy 25 km/h) trừ khi truyền riêng.
 
-        Từ T-84 không còn tham số vận tốc riêng: một nguồn thời gian di chuyển duy nhất (ALGORITHMS §2).
-        Luật cảnh báo (gap < thời gian đi) giữ nguyên, T-87 sẽ đổi sang eta + biên + gửi xe.
+        Phần này đồng bộ nên chỉ thấy số Google nếu đã có trong cache (service làm ấm cache trước khi đánh giá).
         """
         self.estimator = estimator
 
@@ -151,103 +159,68 @@ class TravelTimeConflictRule(IConflictRule):
         if not context.schedule_items or len(context.schedule_items) < 2:
             return results
         estimator = self.estimator or get_travel_estimator()
+        coords = {
+            str(p.place_id): (float(p.latitude), float(p.longitude))
+            for p in context.places
+            if p.latitude is not None and p.longitude is not None
+        }
+        names = {str(p.place_id): p.name for p in context.places}
+        place_of = {str(it.get("id")): str(it.get("place_id")) for it in context.schedule_items}
+        items = plan_items_from_dicts(context.schedule_items, coords)
 
-        # Gom nhóm và sắp xếp các mục lịch trình theo ngày và thứ tự thời gian
-        items_by_day: dict[int, list[dict[str, Any]]] = defaultdict(list)
-        for item in context.schedule_items:
-            day = int(item.get("day_offset", 0))
-            items_by_day[day].append(item)
+        def name_of(it: PlanItem) -> str:
+            return it.name or names.get(place_of.get(str(it.item_id), ""), "") or f"Mục lịch {it.item_id}"
 
-        for day, items in items_by_day.items():
-            sorted_items = sorted(
-                items,
-                key=lambda x: (
-                    int(x.get("start_minute", 0)),
-                    int(x.get("order_index", 0)),
-                ),
+        for curr, nxt in consecutive_pairs(items):
+            # CR-07: cặp đã chồng giờ để TIME_OVERLAP báo, không báo trùng TRAVEL_TIME
+            if nxt.start_minute - curr.end_minute < 0:
+                continue
+            # Thiếu toạ độ một trong hai quán thì không đoán
+            if curr.coord is None or nxt.coord is None:
+                continue
+            leg = estimator.leg(
+                curr.coord,
+                nxt.coord,
+                depart_datetime(context.event_date, curr.day_offset, curr.end_minute),
             )
+            a = assess_leg(curr, nxt, leg, context.event_date)
+            if a.risk is Risk.SAFE:
+                continue
 
-            for i in range(len(sorted_items) - 1):
-                item_curr = sorted_items[i]
-                item_next = sorted_items[i + 1]
-
-                end_curr = int(item_curr.get("end_minute", 0))
-                start_next = int(item_next.get("start_minute", 0))
-                gap_minutes = start_next - end_curr
-
-                # CR-07: cặp đã chồng giờ để TIME_OVERLAP báo, không báo trùng TRAVEL_TIME
-                if gap_minutes < 0:
-                    continue
-
-                # Lấy tọa độ của 2 địa điểm
-                place_curr = find_place_by_id(item_curr.get("place_id"), context.places)
-                place_next = find_place_by_id(item_next.get("place_id"), context.places)
-
-                lat_curr = item_curr.get("latitude")
-                if lat_curr is None and place_curr:
-                    lat_curr = place_curr.latitude
-
-                lon_curr = item_curr.get("longitude")
-                if lon_curr is None and place_curr:
-                    lon_curr = place_curr.longitude
-
-                lat_next = item_next.get("latitude")
-                if lat_next is None and place_next:
-                    lat_next = place_next.latitude
-
-                lon_next = item_next.get("longitude")
-                if lon_next is None and place_next:
-                    lon_next = place_next.longitude
-
-                # Nếu thiếu tọa độ một trong hai địa điểm thì bỏ qua tính toán
-                if lat_curr is None or lon_curr is None or lat_next is None or lon_next is None:
-                    continue
-
-                leg = estimator.leg(
-                    (float(lat_curr), float(lon_curr)),
-                    (float(lat_next), float(lon_next)),
+            name_curr, name_next = name_of(curr), name_of(nxt)
+            margin_note = "giờ cao điểm, 50%" if a.peak else "ngoài cao điểm, 25%"
+            msg = (
+                f"Thời gian di chuyển không đủ: '{name_curr}' → '{name_next}' "
+                f"đi ~{a.eta_min} phút + dự phòng {a.margin_min} phút ({margin_note}) "
+                f"+ gửi xe {a.buffer_min} phút = {a.required_min} phút, "
+                f"khe giữa hai điểm {a.gap_min} phút → thiếu {-a.slack_min} phút "
+                f"(ngày {curr.day_offset + 1})"
+            )
+            params = {
+                "from_item_id": str(curr.item_id),
+                "to_item_id": str(nxt.item_id),
+                "place_names": [name_curr, name_next],
+                "eta_min": a.eta_min,
+                "margin_min": a.margin_min,
+                "buffer_min": a.buffer_min,
+                "gap_min": a.gap_min,
+                "slack_min": a.slack_min,
+                "distance_km": round(a.distance_km, 2),
+                "risk": a.risk.value,
+                "peak": a.peak,
+                "source": a.source.value,
+                "estimated": a.estimated,
+            }
+            results.append(
+                ConflictResult(
+                    rule_code=self.rule_code,
+                    level=ConflictLevel.WARNING,
+                    message=msg,
+                    entity_type="SCHEDULE",
+                    entity_ids=[curr.item_id, nxt.item_id],
+                    params=params,
                 )
-                distance_km = leg.distance_km
-                estimated_travel_minutes = leg.minutes
-
-                # Nếu khoảng cách > 0 và thời gian nghỉ giữa 2 chặng < thời gian di chuyển ước tính
-                if estimated_travel_minutes > 0 and gap_minutes < estimated_travel_minutes:
-                    name_curr = (
-                        item_curr.get("place_name")
-                        or (place_curr.name if place_curr else None)
-                        or f"Mục lịch {item_curr.get('id', 'A')}"
-                    )
-                    name_next = (
-                        item_next.get("place_name")
-                        or (place_next.name if place_next else None)
-                        or f"Mục lịch {item_next.get('id', 'B')}"
-                    )
-
-                    msg = (
-                        f"Thời gian di chuyển không đủ: Từ '{name_curr}' đến '{name_next}' "
-                        f"cách nhau {distance_km:.1f} km, ước tính cần {estimated_travel_minutes} phút di chuyển "
-                        f"nhưng chỉ có {gap_minutes} phút nghỉ (ngày {day + 1})"
-                    )
-
-                    params = {
-                        "from_item_id": str(item_curr["id"]),
-                        "to_item_id": str(item_next["id"]),
-                        "place_names": [name_curr, name_next],
-                        "gap_min": gap_minutes,
-                        "travel_min": estimated_travel_minutes,
-                        "distance_km": round(distance_km, 2),
-                    }
-
-                    results.append(
-                        ConflictResult(
-                            rule_code=self.rule_code,
-                            level=ConflictLevel.WARNING,
-                            message=msg,
-                            entity_type="SCHEDULE",
-                            entity_ids=[to_uuid(item_curr["id"]), to_uuid(item_next["id"])],
-                            params=params,
-                        )
-                    )
+            )
 
         return results
 
