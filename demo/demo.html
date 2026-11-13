@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111827" />
+  <title>HookupFPT | Global Adaptive Optimization Demo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    :root{--bg:#101827;--panel:#182235;--panel2:#202d42;--border:#344258;--text:#e5edf7;--muted:#9aa9bd;--blue:#3b82f6;--yellow:#fbbf24;--red:#ef4444;--green:#10b981;--cyan:#67e8f9}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+    .app{height:100vh;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(440px,.92fr)}
+    .map-wrap{position:relative;min-width:0;background:#dbeafe}
+    #map{position:absolute;inset:0;background:#dbeafe}
+    .map-title{position:absolute;z-index:500;top:14px;left:58px;padding:10px 14px;background:rgba(17,24,39,.94);border:1px solid #42516a;border-radius:9px;box-shadow:0 5px 18px #0004;pointer-events:none}
+    .map-title b{display:block;color:#34d399;font-size:14px}.map-title small{color:#aab7c8;font-size:10px}
+    .legend{position:absolute;z-index:500;left:14px;bottom:18px;background:rgba(17,24,39,.95);border:1px solid #43516a;border-radius:9px;padding:10px 12px;font-size:11px;line-height:1.9;pointer-events:none}
+    .legend-row{display:flex;align-items:center;gap:8px}.dot{width:10px;height:10px;border-radius:50%;display:inline-block}.blue{background:var(--blue)}.yellow{background:var(--yellow)}.red{background:var(--red)}
+    .map-actions{position:absolute;right:12px;bottom:36px;z-index:500;display:flex;flex-direction:column;gap:7px}
+    .side{min-width:0;display:flex;flex-direction:column;background:#121c2d;border-left:1px solid var(--border);overflow:hidden}
+    .header{padding:17px 18px 13px;background:#1b2940;border-bottom:1px solid var(--border)}
+    .header h1{margin:0 0 5px;color:#34d399;font-size:17px}.header p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+    .body{padding:14px;overflow:auto;flex:1}.body::-webkit-scrollbar{width:7px}.body::-webkit-scrollbar-thumb{background:#40516b;border-radius:8px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:12px}
+    .card-title{font-size:11px;font-weight:800;color:#34d399;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+    .hint{font-size:10px;line-height:1.55;color:var(--muted)}
+    .notice{padding:9px 10px;margin-bottom:10px;border-radius:7px;background:#302d22;border:1px solid #6b5726;color:#fcd34d;font-size:10px;line-height:1.55}
+    .error{display:none;margin-bottom:10px;padding:9px 10px;border-radius:7px;background:#3b1720;border:1px solid #9f3344;color:#fecdd3;font-size:11px;line-height:1.5}
+    button{border:0;border-radius:7px;padding:9px 11px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s}button:hover{filter:brightness(1.12)}
+    .primary{width:100%;padding:12px;background:var(--green);color:#052e24;font-size:13px}.secondary{background:#34445b;color:#eef5ff}
+    .row{display:flex;gap:7px}.row button{flex:1}
+    .winner{background:linear-gradient(120deg,#064e3b,#075b46);border:1px solid #15966e;border-radius:9px;padding:12px;margin-bottom:12px}
+    .winner small{color:#a7f3d0;font-size:9px;letter-spacing:1px}.winner strong{display:block;margin-top:4px;color:white;font-size:20px}.winner p{font-size:10px;color:#d1fae5;margin:5px 0 0}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.metric{background:#101827;border:1px solid #344258;border-radius:7px;padding:9px}.metric small{display:block;color:var(--muted);font-size:9px;margin-bottom:5px}.metric strong{font-size:18px;font-variant-numeric:tabular-nums;color:#fff}.metric.green strong{color:#6ee7b7}
+    .table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:10px;white-space:nowrap;font-variant-numeric:tabular-nums}th{color:#9aabc1;text-align:right;padding:8px 6px;background:#101827;border-bottom:1px solid var(--border)}td{padding:8px 6px;text-align:right;border-bottom:1px solid #303e52}th:first-child,td:first-child{text-align:left}.winner-row{background:#064e3b55;color:#6ee7b7;font-weight:800}.winner-label{display:block;font-size:8px;color:#34d399;margin-top:2px}
+    .formula{background:#101827;border-left:3px solid #06b6d4;padding:9px 10px;border-radius:6px;color:var(--cyan);font:10px/1.8 Consolas,monospace;overflow-wrap:anywhere}
+    .terminal{background:#070c14;border:1px solid #2b3a50;border-radius:8px;overflow:hidden}.terminal-head{height:31px;background:#1b2940;border-bottom:1px solid #344258;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#9aa9bd;font:9px Consolas,monospace}.lights{display:flex;gap:5px}.lights i{width:8px;height:8px;border-radius:50%;display:block}.terminal-body{max-height:430px;overflow:auto;padding:11px;font:10px/1.75 Consolas,monospace;overflow-wrap:anywhere}.terminal-body::-webkit-scrollbar{width:5px}.terminal-body::-webkit-scrollbar-thumb{background:#344258}
+    .log{margin:2px 0;color:#cbd5e1}.heading{color:#34d399;font-weight:800;margin-top:10px}.info{color:#93c5fd}.yellow-text{color:#fbbf24}.green-text{color:#34d399;font-weight:800}.number{color:#67e8f9}.muted{color:#64748b}.divider{border-top:1px dashed #28364a;margin:7px 0}
+    .footer{padding:9px;border-top:1px solid var(--border);text-align:center;color:#718096;font-size:9px}
+    .marker{width:32px;height:32px;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;box-shadow:0 3px 9px #0006;cursor:grab}.marker:active{cursor:grabbing}.marker.user{background:#3b82f6;color:white}.marker.venue{background:#fbbf24;color:#422006}.marker.route{background:#ef4444;color:white}.marker.winner{outline:4px solid #34d399;box-shadow:0 0 0 7px #10b98133,0 0 18px #10b981}
+    .leaflet-tooltip{background:#101827;color:#fff;border:1px solid #475569;border-radius:5px;font-size:10px}
+    @media(max-width:900px){body{overflow:auto}.app{height:auto;min-height:100vh;display:flex;flex-direction:column}.map-wrap{height:52vh;min-height:380px;flex:none}.side{border-left:0}.body{overflow:visible}}
+    @media(max-width:480px){.header h1{font-size:15px}.map-title{left:54px}.metric strong{font-size:16px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <section class="map-wrap">
+    <div id="map" aria-label="Bản đồ tương tác"></div>
+    <div class="map-title"><b>📍 HOOKUPFPT | Live Optimization</b><small>Conflict Resolution &amp; Starting Point Optimization</small></div>
+    <div class="legend">
+      <div class="legend-row"><i class="dot blue"></i> Thành viên A, B, C</div>
+      <div class="legend-row"><i class="dot yellow"></i> Quán a′, b′, c′</div>
+      <div class="legend-row"><i class="dot red"></i> Fixed Route r1, r2</div>
+      <div class="legend-row"><span style="width:20px;border-top:2px dashed #3b82f6"></span> Thành viên → quán thắng</div>
+      <div class="legend-row"><span style="width:20px;border-top:3px solid #ef4444"></span> Quán thắng → r1 → r2</div>
+    </div>
+    <div class="map-actions">
+      <button class="secondary" onclick="fitMarkers()">⛶ Fit markers</button>
+      <button class="secondary" onclick="resetMarkers()">↺ Reset</button>
+    </div>
+  </section>
+
+  <aside class="side">
+    <header class="header">
+      <h1>⚙ Global Adaptive Optimization</h1>
+      <p>Global Multi-Objective Evaluation · Relative-Range Adaptive Weighting · Fixed-Route Coupling</p>
+    </header>
+    <main class="body">
+      <div id="mapError" class="error"></div>
+      <section class="card">
+        <div class="card-title"><span>Interactive Map</span><span>DRAG ENABLED</span></div>
+        <div class="notice">💡 Kéo thả bất kỳ marker nào. Khi thả marker, hệ thống tính lại toàn bộ ứng viên, trọng số thích nghi và GlobalScore.</div>
+        <button class="primary" onclick="runAlgorithm()">🚀 Chạy thuật toán tối ưu toàn cục</button>
+      </section>
+
+      <div class="winner" id="winnerBox"><small>🏆 BEST STARTING POINT</small><strong id="winnerName">Đang khởi tạo...</strong><p id="winnerInfo">Ứng viên có GlobalScore thấp nhất.</p></div>
+
+      <section class="card">
+        <div class="card-title"><span>Adaptive Weights</span><span class="hint">Dynamic</span></div>
+        <div class="grid">
+          <div class="metric green"><small>W_total</small><strong id="wTotal">—</strong></div>
+          <div class="metric green"><small>W_max</small><strong id="wMax">—</strong></div>
+          <div class="metric"><small>Relative Range ΔT</small><strong id="deltaT">—</strong></div>
+          <div class="metric"><small>Relative Range ΔM</small><strong id="deltaM">—</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title"><span>Global Candidate Evaluation</span><span class="hint">All M candidates</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Quán</th><th>Sum</th><th>Max</th><th>Route</th><th>Total</th><th>Score</th></tr></thead>
+            <tbody id="resultTable"><tr><td colspan="6" style="text-align:center;color:#718096">Đang chờ...</td></tr></tbody>
+          </table>
+        </div>
+        <p class="hint">Đơn vị: km đường chim bay. Score càng thấp càng tốt.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-title">Mathematical Model</div>
+        <div class="formula">
+          Sum[j] = Σᵢ d(Member[i], Venue[j])<br>
+          Max[j] = maxᵢ d(Member[i], Venue[j])<br>
+          RouteCost[j] = d(Venue[j], r1) + d(r1, r2)<br>
+          TotalTravel[j] = Sum[j] + RouteCost[j]<br><br>
+          ΔT = (max(T) − min(T)) / mean(T)<br>
+          ΔM = (max(X) − min(X)) / mean(X)<br><br>
+          W_total = ΔT / (ΔT + ΔM)<br>
+          W_max = ΔM / (ΔT + ΔM)<br><br>
+          GlobalScore[j] = W_total × TotalTravel[j] + W_max × Max[j]<br>
+          Winner = arg min(GlobalScore)
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title"><span>Algorithm Execution Console</span><span class="hint">REAL-TIME LOG</span></div>
+        <div class="terminal">
+          <div class="terminal-head"><span class="lights"><i style="background:#ef4444"></i><i style="background:#fbbf24"></i><i style="background:#10b981"></i></span><span>hookupfpt_algorithm_engine.js</span><span>UTF-8</span></div>
+          <div class="terminal-body" id="console"><div class="green-text">&gt; HOOKUPFPT GLOBAL OPTIMIZATION ENGINE</div><div class="muted">Waiting for computation...</div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">Distance Model &amp; Map Source</div>
+        <p class="hint">Khoảng cách được tính bằng công thức Haversine trên tọa độ latitude/longitude, tức khoảng cách đường chim bay. OpenStreetMap cung cấp nền bản đồ; URL bản đồ bạn gửi chỉ xác định tâm bản đồ tại 15.7523, 108.2541, không phải API key. Tile layer công khai không cần API key. Trong sản phẩm thực tế, có thể thay hàm Distance() bằng khoảng cách đường bộ từ dịch vụ routing mà không đổi cấu trúc tối ưu hóa.</p>
+      </section>
+    </main>
+    <footer class="footer">HOOKUPFPT · ALGORITHM ENGINE · GLOBAL ADAPTIVE WEIGHTING</footer>
+  </aside>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+'use strict';
+
+/*
+ * OpenStreetMap link supplied by the user:
+ * https://www.openstreetmap.org/#map=12/15.7523/108.2541
+ * It specifies map center + zoom, NOT an API key.
+ * The standard OSM raster tile endpoint does not require a key.
+ */
+const OSM_VIEW = { lat: 15.7523, lng: 108.2541, zoom: 12 };
+
+const initial = {
+  users: {
+    A: { lat: 15.7568, lng: 108.2478 },
+    B: { lat: 15.7463, lng: 108.2570 },
+    C: { lat: 15.7534, lng: 108.2661 }
+  },
+  venues: {
+    "a′": { lat: 15.7550, lng: 108.2560 },
+    "b′": { lat: 15.7506, lng: 108.2514 },
+    "c′": { lat: 15.7484, lng: 108.2621 }
+  },
+  route: {
+    r1: { lat: 15.7595, lng: 108.2630 },
+    r2: { lat: 15.7642, lng: 108.2672 }
+  }
+};
+const state = JSON.parse(JSON.stringify(initial));
+const userNames = Object.keys(state.users);
+const venueNames = Object.keys(state.venues);
+const routeNames = Object.keys(state.route);
+const markers = { users: {}, venues: {}, route: {} };
+let map = null;
+let connectionLayer = null;
+let fixedRouteLayer = null;
+
+const $ = id => document.getElementById(id);
+const fmt = (n, digits = 4) => Number(n).toFixed(digits);
+const fmt3 = n => fmt(n, 3);
+const fmt4 = n => fmt(n, 4);
+const esc = (s) => {
+  const mapChar = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return String(s).replace(/[&<>"']/g, c => mapChar[c]);
+};
+
+function showMapError(message) {
+  const box = $('mapError');
+  box.style.display = 'block';
+  box.textContent = message;
+}
+
+function createIcon(label, kind, isWinner = false) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="marker ${kind}${isWinner ? ' winner' : ''}">${esc(label)}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+}
+
+function addDraggableMarker(group, label, kind, point) {
+  const marker = L.marker([point.lat, point.lng], {
+    draggable: true,
+    icon: createIcon(label, kind),
+    keyboard: true,
+    riseOnHover: true
+  }).addTo(map);
+  marker.bindTooltip(`${label} · ${kind === 'user' ? 'Thành viên' : kind === 'venue' ? 'Quán ứng viên' : 'Trạm cố định'}`);
+  marker.on('dragend', () => {
+    const p = marker.getLatLng();
+    state[group][label] = { lat: p.lat, lng: p.lng };
+    runAlgorithm();
+  });
+  markers[group][label] = marker;
+}
+
+function syncStateFromMarkers() {
+  for (const group of ['users', 'venues', 'route']) {
+    for (const name of Object.keys(markers[group])) {
+      const p = markers[group][name].getLatLng();
+      state[group][name] = { lat: p.lat, lng: p.lng };
+    }
+  }
+}
+
+function haversine(a, b) {
+  const R = 6371.0088;
+  const rad = deg => deg * Math.PI / 180;
+  const lat1 = rad(a.lat), lat2 = rad(b.lat);
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function mean(values) {
+  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+}
+
+function relativeRange(values) {
+  if (!values.length) return 0;
+  const avg = mean(values);
+  if (avg === 0) return 0;
+  return (Math.max(...values) - Math.min(...values)) / avg;
+}
+
+/* PHASE 1: Build Sum, Max, RouteCost and TotalTravel for ALL candidates. */
+function buildGlobalMetrics() {
+  const fixedTailCost = routeNames.length >= 2
+    ? haversine(state.route.r1, state.route.r2)
+    : 0;
+
+  const candidates = venueNames.map(name => {
+    const venue = state.venues[name];
+    const memberDistances = {};
+    let sum = 0;
+    let max = 0;
+    let maxMember = userNames[0];
+
+    for (const userName of userNames) {
+      const d = haversine(state.users[userName], venue);
+      memberDistances[userName] = d;
+      sum += d;
+      if (d > max) {
+        max = d;
+        maxMember = userName;
+      }
+    }
+
+    const connectionCost = routeNames.length
+      ? haversine(venue, state.route.r1)
+      : 0;
+    const routeCost = connectionCost + fixedTailCost;
+    const totalTravel = sum + routeCost;
+
+    return {
+      name, venue, memberDistances, sum, max, maxMember,
+      connectionCost, fixedTailCost, routeCost, totalTravel,
+      globalScore: 0
+    };
+  });
+
+  return { candidates, fixedTailCost };
+}
+
+/* PHASE 2: Derive global adaptive weights, then score ALL candidates. */
+function adaptiveGlobalScoring(candidates) {
+  const totalValues = candidates.map(c => c.totalTravel);
+  const maxValues = candidates.map(c => c.max);
+  const meanTotal = mean(totalValues);
+  const meanMax = mean(maxValues);
+  const deltaTotal = relativeRange(totalValues);
+  const deltaMax = relativeRange(maxValues);
+  const D = deltaTotal + deltaMax;
+
+  let wTotal, wMax;
+  if (D === 0) {
+    wTotal = 0.5;
+    wMax = 0.5;
+  } else {
+    wTotal = deltaTotal / D;
+    wMax = deltaMax / D;
+  }
+
+  for (const c of candidates) {
+    c.globalScore = wTotal * c.totalTravel + wMax * c.max;
+  }
+
+  let winner = candidates[0];
+  for (const c of candidates) {
+    if (c.globalScore < winner.globalScore) winner = c;
+  }
+
+  return { meanTotal, meanMax, deltaTotal, deltaMax, D, wTotal, wMax, winner };
+}
+
+function logLine(html, cls = 'log') { return `<div class="${cls}">${html}</div>`; }
+function divider() { return '<div class="divider"></div>'; }
+
+function renderConsole(metrics, adaptive) {
+  const { candidates, fixedTailCost } = metrics;
+  const { meanTotal, meanMax, deltaTotal, deltaMax, D, wTotal, wMax, winner } = adaptive;
+  const out = [];
+  out.push(logLine('&gt; HOOKUPFPT GLOBAL ADAPTIVE OPTIMIZATION ENGINE', 'green-text'));
+  out.push(logLine(`&gt; ${new Date().toLocaleTimeString('vi-VN')} | N=${userNames.length} | M=${venueNames.length} | K=${routeNames.length}`, 'muted'));
+  out.push(divider());
+
+  out.push(logLine('[BƯỚC 1] PHASE 1 — GLOBAL METRIC CONSTRUCTION', 'heading'));
+  out.push(logLine(`FixedTailCost = d(r1,r2) = ${fmt3(fixedTailCost)} km`, 'info'));
+  for (const c of candidates) {
+    const terms = userNames.map(n => fmt3(c.memberDistances[n]));
+    out.push(logLine(`--- Quán ${esc(c.name)} ---`, 'yellow-text'));
+    out.push(logLine(`Sum = ${terms.join(' + ')} = ${fmt3(c.sum)} km`, 'number'));
+    out.push(logLine(`Max = max(${terms.join(', ')}) = ${fmt3(c.max)} km (${esc(c.maxMember)})`, 'number'));
+    out.push(logLine(`Connection = d(${esc(c.name)}, r1) = ${fmt3(c.connectionCost)} km`));
+    out.push(logLine(`RouteCost = ${fmt3(c.connectionCost)} + ${fmt3(fixedTailCost)} = ${fmt3(c.routeCost)} km`, 'info'));
+    out.push(logLine(`TotalTravel = ${fmt3(c.sum)} + ${fmt3(c.routeCost)} = ${fmt3(c.totalTravel)} km`, 'green-text'));
+    out.push(divider());
+  }
+
+  out.push(logLine('[BƯỚC 2] PHASE 2 — RELATIVE-RANGE ADAPTIVE WEIGHTING', 'heading'));
+  const totalList = candidates.map(c => fmt3(c.totalTravel)).join(', ');
+  const maxList = candidates.map(c => fmt3(c.max)).join(', ');
+  out.push(logLine(`T = [${totalList}]`, 'info'));
+  out.push(logLine(`X = [${maxList}]`, 'info'));
+  out.push(logLine(`Mean(T) = ${fmt4(meanTotal)} km | ΔT = (max−min)/mean = ${fmt4(deltaTotal)} (${fmt(deltaTotal * 100, 2)}%)`, 'number'));
+  out.push(logLine(`Mean(X) = ${fmt4(meanMax)} km | ΔM = (max−min)/mean = ${fmt4(deltaMax)} (${fmt(deltaMax * 100, 2)}%)`, 'number'));
+  out.push(logLine(`D = ΔT + ΔM = ${fmt4(deltaTotal)} + ${fmt4(deltaMax)} = ${fmt4(D)}`, 'info'));
+  out.push(logLine(`W_total = ΔT / D = ${fmt4(wTotal)}`, 'green-text'));
+  out.push(logLine(`W_max = ΔM / D = ${fmt4(wMax)}`, 'green-text'));
+  out.push(logLine(`Check: W_total + W_max = ${fmt4(wTotal + wMax)}`, 'muted'));
+  out.push(divider());
+
+  out.push(logLine('[BƯỚC 3] GLOBAL WEIGHTED-SUM SCORING', 'heading'));
+  for (const c of candidates) {
+    const p1 = wTotal * c.totalTravel;
+    const p2 = wMax * c.max;
+    out.push(logLine(`GlobalScore(${esc(c.name)})`, 'yellow-text'));
+    out.push(logLine(`= (${fmt4(wTotal)} × ${fmt4(c.totalTravel)}) + (${fmt4(wMax)} × ${fmt4(c.max)})`));
+    out.push(logLine(`= ${fmt4(p1)} + ${fmt4(p2)} = ${fmt4(c.globalScore)}`, c.name === winner.name ? 'green-text' : 'number'));
+    out.push(divider());
+  }
+
+  out.push(logLine('[KẾT LUẬN] GLOBAL OPTIMIZATION RESULT', 'heading'));
+  out.push(logLine(`Winner = arg min(GlobalScore) = Quán ${esc(winner.name)}`, 'green-text'));
+  out.push(logLine(`Minimum GlobalScore = ${fmt4(winner.globalScore)}`, 'green-text'));
+  out.push(logLine(`TotalTravel = ${fmt3(winner.totalTravel)} km | Max = ${fmt3(winner.max)} km`, 'info'));
+  out.push(logLine('Toàn bộ ứng viên được chấm trên cùng một hàm mục tiêu toàn cục.', 'green-text'));
+  return out.join('');
+}
+
+function renderResults(candidates, adaptive) {
+  $('resultTable').innerHTML = candidates.map(c => `
+    <tr class="${c.name === adaptive.winner.name ? 'winner-row' : ''}">
+      <td>${esc(c.name)}${c.name === adaptive.winner.name ? '<span class="winner-label">★ SELECTED</span>' : ''}</td>
+      <td>${fmt3(c.sum)}</td><td>${fmt3(c.max)}</td><td>${fmt3(c.routeCost)}</td>
+      <td>${fmt3(c.totalTravel)}</td><td>${fmt4(c.globalScore)}</td>
+    </tr>`).join('');
+
+  $('wTotal').textContent = fmt4(adaptive.wTotal);
+  $('wMax').textContent = fmt4(adaptive.wMax);
+  $('deltaT').textContent = fmt(adaptive.deltaTotal * 100, 2) + '%';
+  $('deltaM').textContent = fmt(adaptive.deltaMax * 100, 2) + '%';
+  $('winnerName').textContent = `Quán ${adaptive.winner.name}`;
+  $('winnerInfo').textContent = `GlobalScore: ${fmt4(adaptive.winner.globalScore)} | TotalTravel: ${fmt3(adaptive.winner.totalTravel)} km | Max: ${fmt3(adaptive.winner.max)} km`;
+}
+
+function renderWinnerMap(winner) {
+  connectionLayer.clearLayers();
+  fixedRouteLayer.clearLayers();
+  for (const name of venueNames) {
+    markers.venues[name].setIcon(createIcon(name, 'venue', name === winner.name));
+  }
+
+  const target = [winner.venue.lat, winner.venue.lng];
+  for (const name of userNames) {
+    const p = state.users[name];
+    L.polyline([[p.lat, p.lng], target], {
+      color: '#3b82f6', weight: 2.5, opacity: .9, dashArray: '7,7'
+    }).addTo(connectionLayer);
+  }
+
+  const points = [target];
+  for (const name of routeNames) {
+    const p = state.route[name];
+    points.push([p.lat, p.lng]);
+  }
+  if (points.length > 1) {
+    L.polyline(points, { color: '#ef4444', weight: 4, opacity: .95 }).addTo(fixedRouteLayer);
+  }
+}
+
+function runAlgorithm() {
+  if (!map) return;
+  syncStateFromMarkers();
+  const metrics = buildGlobalMetrics();
+  const adaptive = adaptiveGlobalScoring(metrics.candidates);
+  renderResults(metrics.candidates, adaptive);
+  renderWinnerMap(adaptive.winner);
+  $('console').innerHTML = renderConsole(metrics, adaptive);
+}
+
+function fitMarkers() {
+  if (!map) return;
+  const all = [];
+  for (const group of ['users', 'venues', 'route']) {
+    for (const p of Object.values(state[group])) all.push([p.lat, p.lng]);
+  }
+  if (all.length) map.fitBounds(L.latLngBounds(all), { padding: [45, 45], maxZoom: 15 });
+}
+
+function resetMarkers() {
+  for (const group of ['users', 'venues', 'route']) {
+    for (const name of Object.keys(initial[group])) {
+      const p = initial[group][name];
+      state[group][name] = { ...p };
+      markers[group][name].setLatLng([p.lat, p.lng]);
+    }
+  }
+  runAlgorithm();
+  map.setView([OSM_VIEW.lat, OSM_VIEW.lng], OSM_VIEW.zoom);
+}
+
+function init() {
+  if (typeof L === 'undefined') {
+    showMapError('Không tải được thư viện Leaflet. Hãy kiểm tra kết nối Internet hoặc CDN unpkg.com, sau đó tải lại trang. Phần bản đồ cần Internet; API key không phải nguyên nhân.');
+    $('console').innerHTML = '<div class="log" style="color:#fca5a5">ERROR: Leaflet JS was not loaded. Check internet/CDN access.</div>';
+    return;
+  }
+
+  map = L.map('map', { zoomControl: true }).setView([OSM_VIEW.lat, OSM_VIEW.lng], OSM_VIEW.zoom);
+  const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+  const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    minZoom: 1, maxZoom: 19, attribution
+  });
+  const cartoLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', minZoom: 1, maxZoom: 19, attribution
+  });
+
+  // Thử OSM trước; nếu bị chặn (mở bằng file://, thiếu Referer...) thì tự chuyển sang CARTO
+  let usingFallback = false;
+  let tileErrors = 0;
+  osmLayer.addTo(map);
+  osmLayer.on('tileerror', () => {
+    tileErrors++;
+    if (!usingFallback && tileErrors >= 2) {
+      usingFallback = true;
+      map.removeLayer(osmLayer);
+      cartoLayer.addTo(map);
+    }
+  });
+  cartoLayer.on('tileerror', () => {
+    showMapError('Không tải được ô bản đồ. Hãy kiểm tra kết nối Internet hoặc extension chặn nội dung, rồi tải lại trang.');
+  });
+
+  for (const name of userNames) addDraggableMarker('users', name, 'user', state.users[name]);
+  for (const name of venueNames) addDraggableMarker('venues', name, 'venue', state.venues[name]);
+  for (const name of routeNames) addDraggableMarker('route', name, 'route', state.route[name]);
+
+  connectionLayer = L.layerGroup().addTo(map);
+  fixedRouteLayer = L.layerGroup().addTo(map);
+  runAlgorithm();
+  setTimeout(() => map.invalidateSize(), 200);
+  window.addEventListener('resize', () => map.invalidateSize());
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
