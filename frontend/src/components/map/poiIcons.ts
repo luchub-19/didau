@@ -4,7 +4,8 @@ import type { PlaceCategory, PoiKind } from '../../types';
 /**
  * Ảnh icon cho lớp quán trên bản đồ (T-101, MAP-POI §4): dựng lúc chạy từ path SVG Phosphor (bản `fill`,
  * khung 256×256, chép từ `@phosphor-icons/react` 2.1.10 — cùng bộ với `ui/Icon.tsx`) → canvas → `map.addImage`.
- * Vẽ bằng `Path2D` nên đồng bộ, không phải chờ ảnh tải. Đổi theme thì gọi lại `registerPoiImages` (updateImage).
+ * Vẽ bằng `Path2D` nên đồng bộ, không phải chờ ảnh tải. Màu do PoiLayer truyền vào (hiện cố định bảng sáng);
+ * gọi lại `registerPoiImages` với màu mới thì ảnh được `updateImage`.
  */
 
 /** Path Phosphor (weight fill, viewBox 0 0 256 256). */
@@ -119,7 +120,7 @@ export const PIN_H = 38;
 export interface PoiIconColors {
   /** Màu loại theo category (nền vòng/ghim). */
   category: Record<PlaceCategory, string>;
-  /** Màu icon + viền (surface: trắng ở theme sáng, nâu tối ở theme tối — luôn tương phản với màu loại). */
+  /** Màu glyph + viền (trắng). */
   surface: string;
 }
 

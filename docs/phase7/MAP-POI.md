@@ -164,8 +164,8 @@ RAM: ≈ 39k bản ghi (+ OSM bù) trong RAM ở bước A — dùng `@dataclass
 - **Lưới/N §3.3 giữ nguyên**: ảnh thật khung 650×740 (desktop) có z13 Q1 28 icon / Thủ Đức 20; z15 50 / 32 icon + ~320 / 420
   chấm; z17 32 / 18 icon (va chạm tự lọc). Không quá dày hay trống. Ảnh: `docs/phase7/screens/map-poi/` (24 ô
   {q1, thuduc} × {z13, z15, z17} × {light, dark} × {desktop, 390} + 2 ảnh ghim đang chọn z16).
-- **Lỗi dữ liệu thấy trên ảnh (chưa sửa, việc của script/T-102)**: một quán tên "Vincom Center Đồng Khởi" nằm ở Thủ Đức
-  (gần 10,85 / 106,78 — bản ghi Overture lệch chỗ hoặc sai tên); "Nông sản sạch Tây Nguyên", "Yến sào Khánh Hoà" ra kind
-  `supermarket` (từ `grocery_store`).
-- **Theme tối**: nền Liberty vẫn sáng, nên chữ màu loại sáng + viền chữ tối trông đậm/"dán nhãn". Đúng §4 (đổi theme thì dựng
-  lại màu) — người dùng xem ảnh `*-dark-*` ở G3 rồi chọn có giữ bảng màu sáng cho riêng lớp bản đồ hay không.
+- **Lỗi dữ liệu thấy trên ảnh** → task riêng **T-104** (`tasks/T-104.md`): "Vincom Center Đồng Khởi" (Overture, website lạ) nằm ở
+  Thủ Đức; 847/1 441 quán `supermarket` có tên không phải siêu thị (Circle K, cafe, đặc sản, công ty — từ `grocery_store`); mall trùng.
+- **Theme tối — người dùng chốt "giữ trắng" (2026-11-15)**: nền Liberty không đổi theo theme, nên lớp quán luôn dùng bảng màu sáng
+  (`MAP_COLORS` trong `PoiLayer.ts`: `CATEGORY_COLORS` đậm, glyph + viền chữ `#FFFFFF`) ở cả hai theme; không dựng lại ảnh khi đổi
+  theme (lệch §4 "đổi theme thì dựng lại"). Ảnh `*-dark-*` đã chụp lại.

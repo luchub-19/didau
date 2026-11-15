@@ -180,6 +180,22 @@ describe('installPoiLayer', () => {
     expect(Object.values(layers).every((l) => l.type === 'symbol')).toBe(true);
   });
 
+  it('màu cố định bảng sáng (chữ viền trắng) dù theme tối', () => {
+    // Theme tối: mọi CSS variable trả màu tối — lớp quán không được đọc theo
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('document', { documentElement: {} });
+    vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '31 29 26' }));
+    try {
+      const { map, layers } = fakeMap({});
+      installPoiLayer(map, vi.fn());
+      const icon = layers[POI_ICON_LAYER] as unknown as { paint: Record<string, unknown> };
+      expect(icon.paint['text-halo-color']).toBe('#FFFFFF');
+      expect(JSON.stringify(icon.paint['text-color'])).toContain('#C2410C');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('bấm: chấm sát điểm bấm thắng icon bên cạnh; icon thắng khi bấm trúng icon', () => {
     const { map, fire } = fakeMap({
       [POI_ICON_LAYER]: [{ id: 'icon', at: [100, 100] }],

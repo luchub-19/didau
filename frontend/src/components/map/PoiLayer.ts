@@ -203,8 +203,20 @@ export function poiLayerFilters(selectedId: string | null): Record<string, Filte
   };
 }
 
-function themeColors() {
-  return { category: getDynamicCategoryColors(), surface: getCssColor('--color-surface', '#FFFFFF') };
+/**
+ * Màu lớp quán trên bản đồ: LUÔN bảng màu sáng (màu loại đậm, glyph + viền chữ trắng) ở cả hai theme — nền Liberty
+ * không đổi theo theme nên chữ sáng viền tối ở theme tối trông nặng (người dùng chốt "giữ trắng" 2026-11-15).
+ */
+const MAP_COLORS = { category: CATEGORY_COLORS, surface: '#FFFFFF' };
+
+/** Màu chữ tên quán theo category (bảng sáng cố định). */
+function mapTextColor(): ExpressionSpecification {
+  return [
+    'match',
+    ['get', 'category'],
+    ...Object.entries(CATEGORY_COLORS).flat(),
+    CATEGORY_COLORS.OTHER,
+  ] as unknown as ExpressionSpecification;
 }
 
 export interface InstallPoiLayerOptions {
@@ -218,12 +230,12 @@ export function installPoiLayer(
   options: InstallPoiLayerOptions = {},
 ): void {
   hideBasemapPois(map);
-  const colors = themeColors();
+  const colors = MAP_COLORS;
   registerPoiImages(map, colors);
 
   map.addSource(POI_SOURCE, { type: 'geojson', data: poisToGeoJSON([]) });
   const filters = poiLayerFilters(null);
-  const textColor = buildColorExpression();
+  const textColor = mapTextColor();
 
   map.addLayer({
     id: POI_DOT_LAYER,
@@ -347,16 +359,9 @@ export function highlightPoi(map: MapLibreMap, externalId: string | null): void 
 }
 
 /**
- * Đổi giao diện sáng/tối: dựng lại ảnh icon theo CSS variables hiện tại + màu chữ/halo.
+ * Đổi giao diện sáng/tối: lớp quán giữ bảng màu sáng cố định (`MAP_COLORS`) nên không có gì để đổi. Giữ hàm để
+ * MapView gọi chung với các lớp khác; nếu sau này nền bản đồ có bản tối thì dựng lại ảnh + màu chữ ở đây.
  */
 export function updatePoiLayerTheme(map: MapLibreMap): void {
-  if (!map.isStyleLoaded()) return;
-  const colors = themeColors();
-  registerPoiImages(map, colors);
-  const textColor = buildColorExpression();
-  for (const layer of [POI_ICON_LAYER, POI_SELECTED_LAYER]) {
-    if (!map.getLayer(layer)) continue;
-    map.setPaintProperty(layer, 'text-color', textColor);
-    map.setPaintProperty(layer, 'text-halo-color', colors.surface);
-  }
+  void map;
 }

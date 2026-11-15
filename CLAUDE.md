@@ -12,6 +12,7 @@ giải bằng DP; km từ Valhalla tự host (xe máy) + cache DB, lùi về ư�
   quán. Không bao giờ trả đường/km xuất phát từ nhà người khác (CR-11). T-96 không tự chọn UI khi PLAN §5 chưa được trả lời.
 - Dữ liệu quán + bản đồ kiểu Google Maps (T-100 → T-103, CR-17 A APPROVED, B chờ duyệt): `docs/phase7/MAP-POI.md`. Chỉ ẩn POI nền nhóm mình
   thay thế; quán chưa tới `minzoom` hiện chấm nhỏ không chữ; Overture `confidence ≥ 0,7`; mall/siêu thị/rạp/công viên được bình chọn (chốt 2026-11-15).
+- Lớp quán trên bản đồ (T-101 xong): 3 lớp symbol trong `PoiLayer.ts`, luôn bảng màu sáng cả theme tối. Lỗi dữ liệu quán → T-104.
 - Tên hiển thị: **Hangoutplanner** (T-98 xong) — logo dùng `components/shell/Wordmark.tsx` (`<Wordmark />`, ô `variant="mark"`), không tự viết tên.
 
 ## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — XONG (T-92 đóng 2026-11-14), G2/G3 chưa có góp ý
