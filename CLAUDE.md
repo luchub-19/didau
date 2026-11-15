@@ -3,7 +3,7 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 7 "Thuật toán OMP của Sơn" (T-93 → T-97 MVP) — T-93 XONG, CHỜ G1; hạn MVP thứ Hai 2026-11-16
+## Giai đoạn 7 "Thuật toán OMP của Sơn" (T-93 → T-97 MVP) — T-93 XONG, G1 QUA 2026-11-15; hạn MVP thứ Hai 2026-11-16
 Thay ALGO-02 bằng Ordered Median (OMP) của Sơn (nhánh orphan `origin/feat/tie-breaker` — đọc bằng `git show`, KHÔNG merge),
 giải bằng DP; km từ Valhalla tự host (xe máy) + cache DB, lùi về ước lượng; vẽ đường của mình + đường giữa các quán.
 - Quyết định (18 mục), lệch có chủ ý ở MVP, câu hỏi UI: `docs/phase7/PLAN.md`. Tiến độ: `docs/phase7/PROGRESS.md`.

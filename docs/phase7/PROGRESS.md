@@ -6,7 +6,7 @@ Hạn MVP: buổi thuyết trình **thứ Hai 2026-11-16**.
 ## Cổng chờ người dùng
 | Cổng | Sau task | Nội dung | Trạng thái |
 | :--- | :--- | :--- | :--- |
-| G1 | T-93 | Duyệt `PLAN.md`, `ALGORITHMS.md`, CR-15; trả lời câu hỏi UI `PLAN.md` §5 (cần trước T-96) | CHỜ |
+| G1 | T-93 | Duyệt `PLAN.md`, `ALGORITHMS.md`, CR-15; trả lời câu hỏi UI `PLAN.md` §5 (cần trước T-96) | QUA 2026-11-15 (CR-15 APPROVED, §5 đã trả lời) |
 | G2 | T-97 | Tổng duyệt `DEMO.md` trên bản deploy trước buổi thuyết trình | CHỜ |
 
 ## Việc của người
