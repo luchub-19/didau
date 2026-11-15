@@ -19,6 +19,7 @@ import type {
   PlaceCategory,
   PlacePriority,
   PlaceReview,
+  Poi,
   ResolveVotingRequest,
   Room,
   ScheduleFeasibility,
@@ -1113,6 +1114,8 @@ export const handlers = [
       }
     }
 
+    // CR-17 A: bbox xếp score giảm dần để `limit` giữ quán nổi bật
+    results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     return HttpResponse.json(results.slice(0, limit));
   }),
 
@@ -1129,16 +1132,25 @@ export const handlers = [
       const normName = removeVietnameseTones(p.name);
       const normAddress = removeVietnameseTones(p.address || '');
       const normCuisine = removeVietnameseTones(p.cuisine || '');
-      return normName.includes(normQ) || normAddress.includes(normQ) || normCuisine.includes(normQ);
+      const normBrand = removeVietnameseTones(p.brand || '');
+      return [normName, normAddress, normCuisine, normBrand].some((text) => text.includes(normQ));
     });
 
+    // Cùng luật backend (MAP-POI §5): khớp tên → dải 3 km → score → khoảng cách
+    const tier = (p: Poi) => (removeVietnameseTones(p.name).includes(normQ) ? 0 : 1);
     if (lat !== null && lng !== null) {
       matched = matched.map((p) => ({
         ...p,
-        distance_km: haversineKm(lat, lng, p.lat, p.lng),
+        distance_km: Math.round(haversineKm(lat, lng, p.lat, p.lng) * 1000) / 1000,
       }));
-      matched.sort((a, b) => (a.distance_km ?? 0) - (b.distance_km ?? 0));
     }
+    matched.sort(
+      (a, b) =>
+        tier(a) - tier(b) ||
+        Math.floor((a.distance_km ?? 0) / 3) - Math.floor((b.distance_km ?? 0) / 3) ||
+        (b.score ?? 0) - (a.score ?? 0) ||
+        (a.distance_km ?? 0) - (b.distance_km ?? 0),
+    );
 
     return HttpResponse.json(matched.slice(0, limit));
   }),

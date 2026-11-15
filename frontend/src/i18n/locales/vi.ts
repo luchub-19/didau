@@ -496,7 +496,7 @@ export const vi = {
     originPinDrag: 'Điểm hẹn (kéo để đổi)',
     setOriginAtCenter: 'Đặt điểm hẹn tại giữa bản đồ',
     onlyHostCanChangeOrigin: 'Chỉ chủ phòng mới có thể đổi điểm hẹn.',
-    attribution: 'Dữ liệu bản đồ © OpenStreetMap contributors, OpenFreeMap',
+    attribution: 'Dữ liệu bản đồ © OpenStreetMap contributors, OpenFreeMap · Dữ liệu quán © Overture Maps Foundation',
     error: {
       title: 'Lỗi tải bản đồ',
       webgl: 'Trình duyệt không hỗ trợ WebGL nên không hiển thị được bản đồ.',

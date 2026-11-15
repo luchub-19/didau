@@ -134,24 +134,60 @@ async def test_get_poi_not_found(client: AsyncClient) -> None:
     assert resp.json()["error"]["code"] == "POI_NOT_FOUND"
 
 
-# --- Kiểm tra trên snapshot thật (sinh bởi scripts/build_osm_pois.py) ---
+async def test_response_has_cr17_fields(tmp_path: Path) -> None:
+    rec = {
+        "external_id": "ovt:abc",
+        "name": "Vincom Center",
+        "category": "SHOPPING",
+        "kind": "mall",
+        "lat": 10.778,
+        "lng": 106.702,
+        "address": "72 Lê Thánh Tôn, Quận 1",
+        "district": "Q1",
+        "brand": "Vincom",
+        "brand_key": "vincom",
+        "score": 90,
+        "minzoom": 12,
+    }
+    with gzip.open(tmp_path / "places_test.json.gz", "wt", encoding="utf-8") as fh:
+        json.dump({"pois": [rec]}, fh, ensure_ascii=False)
+    service = PoiService(data_dir=tmp_path, weekday=0)
+    app.dependency_overrides[get_poi_service] = lambda: service
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            body = (await ac.get("/api/v1/pois/search", params={"q": "vincom"})).json()[0]
+            one = (await ac.get("/api/v1/pois/ovt:abc")).json()
+    finally:
+        app.dependency_overrides.pop(get_poi_service, None)
+    for key in ("kind", "district", "brand", "brand_key", "score", "minzoom", "category", "address"):
+        assert body[key] == rec[key]
+    assert one["external_id"] == "ovt:abc"
+
+
+# --- Kiểm tra trên snapshot thật (sinh bởi scripts/build_places.py) ---
 
 real_snapshot = pytest.mark.skipif(
-    not list(DEFAULT_DATA_DIR.glob("pois_*.json.gz")),
-    reason="Chưa có snapshot: chạy scripts/build_osm_pois.py",
+    not list(DEFAULT_DATA_DIR.glob("places_*.json.gz")),
+    reason="Chưa có snapshot: chạy scripts/build_places.py",
 )
+HCM_Q1 = (10.7769, 106.7009)
+
+
+@pytest.fixture(scope="module")
+def real_service() -> PoiService:
+    return PoiService()
 
 
 @real_snapshot
-def test_real_snapshot_q1_has_over_500_points() -> None:
-    service = PoiService()
+def test_real_snapshot_q1_has_over_500_points(real_service: PoiService) -> None:
+    service = real_service
     # Lõi Q.1 ~3×3 km
     assert len(service.in_bbox((10.7600, 106.6800, 10.7900, 106.7150), None, 1000)) > 500
 
 
 @real_snapshot
-def test_real_snapshot_search_and_latency() -> None:
-    service = PoiService()
+def test_real_snapshot_search_and_latency(real_service: PoiService) -> None:
+    service = real_service
     assert any("Phở" in p.name for p in service.search("pho", (10.776, 106.70), 10))
     timings = []
     for _ in range(200):
@@ -161,3 +197,43 @@ def test_real_snapshot_search_and_latency() -> None:
         timings.append((time.perf_counter() - start) * 1000)
     timings.sort()
     assert timings[int(len(timings) * 0.95)] < 30
+
+
+@real_snapshot
+def test_real_snapshot_phuc_long_branches_have_address(real_service: PoiService) -> None:
+    """T-100: "phuc long" ra ≥ 10 chi nhánh, ≥ 80% có address hoặc district để phân biệt."""
+    found = real_service.search("phuc long", HCM_Q1, 50)
+    branches = [p for p in found if p.kind in ("cafe", "tea")]
+    assert len(branches) >= 10
+    assert sum(1 for p in branches if p.address or p.district) >= 0.8 * len(branches)
+
+
+@real_snapshot
+@pytest.mark.parametrize(
+    ("q", "kind"),
+    [("vincom", "mall"), ("cgv", "cinema"), ("bach hoa xanh", "supermarket"), ("karaoke", "karaoke")],
+)
+def test_real_snapshot_new_kinds_searchable(real_service: PoiService, q: str, kind: str) -> None:
+    found = real_service.search(q, HCM_Q1, 20)
+    assert any(p.kind == kind for p in found)
+    assert found[0].distance_km is not None and found[0].distance_km < 30  # không trả quán Hà Nội lên đầu
+
+
+@real_snapshot
+def test_real_snapshot_old_osm_ids_still_resolve(real_service: PoiService) -> None:
+    """Quán phòng cũ (`osm:*` của snapshot pois_* trước CR-17) vẫn mở được chi tiết."""
+    old_ids: list[str] = []
+    for path in DEFAULT_DATA_DIR.glob("pois_*.json.gz"):
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            old_ids += [p["external_id"] for p in json.load(fh)["pois"]]
+    if not old_ids:
+        pytest.skip("không có snapshot cũ để đối chiếu")
+    assert [i for i in old_ids if real_service.get(i) is None] == []
+
+
+@real_snapshot
+def test_real_snapshot_bbox_sorted_by_score(real_service: PoiService) -> None:
+    found = real_service.in_bbox((10.7600, 106.6800, 10.7900, 106.7150), None, 200)
+    scores = [p.score for p in found]
+    assert scores == sorted(scores, reverse=True)
+    assert {p.kind for p in found[:20]} & {"mall", "cinema", "museum", "park"}

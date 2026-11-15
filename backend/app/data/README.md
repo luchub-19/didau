@@ -14,4 +14,25 @@
 - **Cập nhật:** chạy lại các truy vấn Overpass (`rel["name"~"^(Quận|Huyện) "]["boundary"]` trong khu vực
   TP.HCM; `node["place"~"^(suburb|city_district)$"]` trong hộp Hà Nội) rồi ghi đè hai file; thứ tự dòng không quan trọng.
 
-## `pois_*.json.gz` — snapshot quán OSM (xem `scripts/build_osm_pois.py`), cùng giấy phép ODbL.
+## `places_hcm.json.gz`, `places_hn.json.gz` — snapshot quán (CR-17 A, T-100) — `PoiService` đọc file này
+- **Nguồn:** (1) **Overture Maps Places** release `2026-10-21.0` (Meta, Microsoft, Foursquare, AllThePlaces…),
+  lọc `confidence ≥ 0,7`, bỏ điểm `operating_status` khác `open`; (2) **OpenStreetMap** qua Overpass (ăn uống,
+  `shop=mall/supermarket/bakery/coffee/tea…`, `leisure=park/…`, `tourism=museum/…`, `amenity=cinema/karaoke_box`).
+  Dựng ngày 2026-11-15 bằng `scripts/build_places.py`; không gọi mạng lúc chạy.
+- **Giấy phép / ghi công:** Overture — CDLA-Permissive-2.0 (một phần nguồn CC0/Apache-2.0); OSM — ODbL 1.0.
+  Phải hiện "© OpenStreetMap contributors · Overture Maps Foundation" (bản đồ có sẵn: `MapView` `customAttribution`).
+- **Dạng:** `{"metadata": {...}, "pois": [...], "retired": [...]}`. Mỗi quán: `external_id` (`osm:{type}/{id}` nếu khớp
+  OSM, ngược lại `ovt:{gers_id}`), `name, category, kind, lat, lng, address, district, brand, brand_key, cuisine,
+  opening_hours, phone, website, score, minzoom, sources[], aliases[]` (trường rỗng bị bỏ). `aliases` = id OSM khác đã
+  gộp vào quán này; `retired` = quán của snapshot `pois_*` cũ đã mất khỏi nguồn (chỉ tra theo id cho quán phòng cũ).
+  Cách gộp, `score`, `minzoom`: `docs/phase7/MAP-POI.md` §3.
+- **Cập nhật** (~1 lần/tháng; script cần DuckDB, không vào runtime backend):
+  ```bash
+  python -m venv /tmp/places-venv && /tmp/places-venv/bin/pip install duckdb httpx
+  cd backend && /tmp/places-venv/bin/python ../scripts/build_places.py --release <bản Overture mới> --cache-dir ~/.cache/didau-places
+  ```
+  Release mới: <https://docs.overturemaps.org/release/latest/>. Bản cắt parquet theo vùng (~140 MB cả hai) nằm trong
+  `--cache-dir`; xoá để tải lại. Overpass hay trả 502/504 → script tự thử lại 3 lần.
+
+## `pois_*.json.gz` — snapshot quán OSM cũ (2026-10-17, `scripts/build_osm_pois.py`), ODbL
+Chỉ đọc khi thiếu `places_*` (dự phòng); `build_places.py` đọc nó để sinh mục `retired`.

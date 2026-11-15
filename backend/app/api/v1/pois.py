@@ -59,7 +59,7 @@ async def list_pois(
     category: PlaceCategory | None = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 500,
 ) -> list[PoiResponse]:
-    """POI OSM trong khung bản đồ."""
+    """POI trong khung bản đồ, `score` giảm dần (CR-17 A)."""
     return [_to_response(p) for p in service.in_bbox(_parse_bbox(bbox), category, limit)]
 
 
@@ -71,7 +71,7 @@ async def search_pois(
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> list[PoiResponse]:
-    """Tìm không dấu theo tên/ẩm thực; có lat+lng thì kèm `distance_km` và ưu tiên gần."""
+    """Tìm không dấu theo tên/ẩm thực/brand; xếp độ khớp → score → khoảng cách (MAP-POI §5)."""
     near = (lat, lng) if lat is not None and lng is not None else None
     return [_to_response(p) for p in service.search(q, near, limit)]
 
@@ -102,7 +102,7 @@ async def reject_google_match(
 
 @router.get("/{external_id:path}", response_model=PoiResponse)
 async def get_poi(external_id: str, service: PoiServiceDep) -> PoiResponse:
-    """Chi tiết một POI theo `osm:{type}/{id}`."""
+    """Chi tiết một POI theo `osm:{type}/{id}` hoặc `ovt:{gers_id}`; id OSM đã gộp (alias) vẫn tra được."""
     poi = service.get(external_id)
     if poi is None:
         raise AppException(

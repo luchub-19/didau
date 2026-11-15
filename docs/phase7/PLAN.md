@@ -49,6 +49,10 @@ Hướng dẫn tự host Valhalla (việc của người): `VALHALLA.md`. Tiến
 | T-96 | MVP | FE: thẻ đề xuất ngắn + "Vì sao?" OMP + vẽ đường (b) trên bản đồ | T-94, T-95, **câu hỏi UI §5** | Sonnet 5.5 · high |
 | T-97 | MVP | Seed phòng demo + làm ấm, `DEMO.md` mới, ALGORITHMS §11 cho báo cáo, kiểm deploy Render, tổng duyệt | T-94…T-96, Valhalla chạy | Sonnet 5.5 · medium |
 | T-98 | MVP | Đổi tên hiển thị sang Hangoutplanner + wordmark C (quyết định 19) | — (song song) | Sonnet 5.5 · medium |
+| T-100 | MVP | Dữ liệu quán Overture + OSM (mall, siêu thị, giải trí), trường POI mới, ô tìm có địa chỉ — `MAP-POI.md`, CR-17 A | CR-17 | Opus 5.5 · high |
+| T-101 | MVP nếu kịp | Lớp quán icon + tên theo zoom, ẩn POI nền nhóm thay thế | T-100 | Opus 5.5 · high |
+| T-102 | Đầy đủ | Tìm Postgres + "Xem N chi nhánh" (CR-17 B) | T-100 | Opus 5.5 · high |
+| T-103 | Đầy đủ | Nguồn bản đồ tĩnh cả TP | T-101 | Sonnet 5.5 · high |
 | T-99+ | Đầy đủ | Chặng theo loại + DP nhiều chặng trong app; chốt không loại; "Kết thúc bình chọn"; hỏi xác nhận tự xếp lịch; việc dời từ T-92 | buổi MVP | lên plan lại sau buổi MVP |
 
 Thời gian: T-94 + T-95 chạy song song (2 session) sáng Chủ nhật 15/11, T-96 chiều, T-97 tối; sáng thứ Hai chỉ tổng duyệt.

@@ -498,7 +498,7 @@ export const en: Messages = {
     originPinDrag: 'Meeting point (drag to move)',
     setOriginAtCenter: 'Set meeting point at map center',
     onlyHostCanChangeOrigin: 'Only the host can change the meeting point.',
-    attribution: 'Map data © OpenStreetMap contributors, OpenFreeMap',
+    attribution: 'Map data © OpenStreetMap contributors, OpenFreeMap · Place data © Overture Maps Foundation',
     error: {
       title: 'Map load error',
       webgl: 'Browser does not support WebGL, cannot display map.',

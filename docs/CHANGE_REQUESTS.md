@@ -549,3 +549,37 @@ MinMax 35,7%. Với k = 1 thì λ nào cũng không kéo được về MinMax.
 
 ### 3. Số liệu
 `docs/phase7/ALGORITHMS.md` §9.5 (9 cặp khớp báo cáo của Bảo, lưới quét, độ nhạy theo trọng số, hạn chế).
+
+## CR-17: Dữ liệu quán Overture + OSM, trường mới cho POI, tìm theo chuỗi cửa hàng
+
+- **Người đề xuất**: session 2026-11-15 (fa552239), theo góp ý người dùng về ô tìm kiếm + bản đồ; thiết kế `docs/phase7/MAP-POI.md`
+- **Ngày tạo**: 2026-11-15
+- **Trạng thái**: **Phần A APPROVED** (người dùng duyệt 2026-11-15) · **Phần A đã áp** ở T-100 (`CONTRACTS.md` mục 13–15,
+  §6 `Poi`); Phần B PROPOSED (duyệt trước T-102)
+- **Task áp**: Phần A → T-100; Phần B → T-102. **Task đã DONE bị ảnh hưởng**: CR-02 (snapshot OSM, mục 13–15), T-86
+  (`nearby_pois` lấy từ cùng PoiService — nay có cả mall/công viên), mock MSW `/pois*`.
+
+### 1. Vấn đề
+Snapshot chỉ 4 981 quán OSM 7 loại ăn uống, không có mall/siêu thị/giải trí, nửa số quán thiếu địa chỉ, không có brand →
+kết quả tìm không phân biệt được chi nhánh; icon của bản đồ nền là dữ liệu khác, không bấm được (chi tiết `MAP-POI.md` §1).
+
+### 2. Đề xuất
+**Phần A (T-100):**
+- Nguồn: Overture Maps Places (CDLA-Permissive-2.0, `confidence ≥ 0,7`) gộp OSM (ODbL). File mới `places_{hcm,hn}.json.gz`.
+- `external_id`: `osm:{type}/{id}` khi khớp OSM (giữ tương thích), ngược lại `ovt:{gers_id}`.
+- `PoiResponse` (mục 13–15, `nearby_pois` mục ALGO-01) **thêm** trường tuỳ chọn: `kind: string | null` (bảng `MAP-POI.md`
+  §3.1), `district: string | null`, `brand: string | null`, `brand_key: string | null`, `score: number` (0–100),
+  `minzoom: number` (12–17). Không đổi/xoá trường cũ. `category` nay có thể là `SHOPPING`, `ENTERTAINMENT`, `SIGHTSEEING`.
+- Mục 13 `GET /pois?bbox`: kết quả xếp theo `score` giảm dần (trước: theo tên) để `limit` giữ quán nổi bật.
+- Mục 14 `GET /pois/search`: xếp độ khớp tên → `score` → khoảng cách.
+- Ghi công bản đồ: thêm "Overture Maps Foundation".
+
+**Phần B (T-102):**
+- `GET /api/v1/pois/brands?q=&lat=&lng=&limit=5` (công khai) → `[{brand_key, name, count, nearest_km}]` — chuỗi có
+  ≥ 3 chi nhánh khớp `q`.
+- `GET /api/v1/pois/brands/{brand_key}?lat=&lng=&limit=300` (công khai) → `Poi[]` gần → xa.
+- Tìm kiếm chuyển sang Postgres (`pg_trgm` + `unaccent`); hình dạng phản hồi không đổi.
+
+### 3. Người dùng đã trả lời (2026-11-15)
+- Mall / siêu thị / rạp / công viên được thêm vào phòng và bình chọn như quán ăn: **có**.
+- Ngưỡng `confidence`: **≥ 0,7** (≈ 39k điểm HCM trước khi gộp OSM).

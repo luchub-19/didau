@@ -78,7 +78,8 @@ def test_category_and_address_mapping() -> None:
     assert osm_category({"amenity": "fast_food"}) == PlaceCategory.FOOD
     assert osm_category({"amenity": "cafe"}) == PlaceCategory.DRINK
     assert osm_category({"amenity": "ice_cream"}) == PlaceCategory.DRINK
-    assert osm_category({"amenity": "cinema"}) == PlaceCategory.OTHER
+    assert osm_category({"amenity": "cinema"}) == PlaceCategory.ENTERTAINMENT  # CR-17 A
+    assert osm_category({"amenity": "hospital"}) == PlaceCategory.OTHER
     assert osm_category({}) == PlaceCategory.OTHER
     assert osm_address({"addr:housenumber": "1", "addr:street": "Lê Lợi", "addr:city": "HCM"}) == (
         "1 Lê Lợi, HCM"

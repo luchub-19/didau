@@ -178,7 +178,34 @@ export interface Poi {
   close_minute?: number | null;
   distance_km?: number | null;
   tags?: Record<string, string>;
+  /** CR-17 A: loại chi tiết (restaurant | cafe | mall | cinema …, MAP-POI §3.1). */
+  kind?: PoiKind | null;
+  /** Khu vực gần nhất, dùng khi `address` trống. */
+  district?: string | null;
+  brand?: string | null;
+  brand_key?: string | null;
+  /** Điểm nổi bật 0–100. */
+  score?: number;
+  /** Zoom bắt đầu hiện icon + tên (12–17). */
+  minzoom?: number;
 }
+
+export type PoiKind =
+  | 'restaurant'
+  | 'eatery'
+  | 'fast_food'
+  | 'bakery'
+  | 'cafe'
+  | 'tea'
+  | 'dessert'
+  | 'bar'
+  | 'mall'
+  | 'supermarket'
+  | 'cinema'
+  | 'karaoke'
+  | 'play'
+  | 'park'
+  | 'museum';
 
 export interface PlaceReview {
   id: string;

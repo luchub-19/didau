@@ -708,17 +708,25 @@ Khi có lỗi (status $\ge 400$):
 ]
 ```
 
-#### 13. Danh sách POI theo Bounding Box (CR-02)
+#### 13. Danh sách POI theo Bounding Box (CR-02, CR-17 A)
 - **Method & Path**: `GET /api/v1/pois?bbox={min_lat,min_lng,max_lat,max_lng}&category={category}&limit={limit}`
 - **Auth**: Công khai.
+- **Nguồn** (CR-17 A): snapshot `places_{hcm,hn}.json.gz` = Overture Maps Places (`confidence ≥ 0,7`, CDLA-Permissive-2.0)
+  gộp OpenStreetMap (ODbL). `category` có thể là `FOOD`, `DRINK`, `SHOPPING`, `ENTERTAINMENT`, `SIGHTSEEING`.
+- **Thứ tự**: `score` giảm dần (trước CR-17: theo tên) để `limit` giữ quán nổi bật.
+- Mỗi phần tử là `Poi` (§6) với các trường CR-17 A: `kind`, `district`, `brand`, `brand_key`, `score` (0–100), `minzoom` (12–17).
 
-#### 14. Tìm kiếm POI không dấu (CR-02)
+#### 14. Tìm kiếm POI không dấu (CR-02, CR-17 A)
 - **Method & Path**: `GET /api/v1/pois/search?q={query}&lat={lat}&lng={lng}&limit={limit}`
 - **Auth**: Công khai.
+- Khớp không dấu trên tên + ẩm thực + brand. **Thứ tự** (CR-17 A): độ khớp tên (đầu tên/đủ từ → chứa chuỗi → chỉ khớp
+  ẩm thực/brand) → khi có `lat,lng`: dải khoảng cách 3 km → `score` giảm dần → khoảng cách.
 
-#### 15. Chi tiết một POI (CR-02)
+#### 15. Chi tiết một POI (CR-02, CR-17 A)
 - **Method & Path**: `GET /api/v1/pois/{external_id}`
 - **Auth**: Công khai.
+- `external_id`: `osm:{type}/{id}` khi quán khớp OSM (giữ tương thích quán đã thêm vào phòng), ngược lại `ovt:{gers_id}`.
+  Id OSM cũ đã gộp vào quán khác hoặc đã mất khỏi nguồn vẫn tra được (alias / mục `retired` của snapshot).
 
 #### 16. Khớp Google Place ID (CR-02)
 - **Method & Path**: `POST /api/v1/pois/google-match`
@@ -1291,7 +1299,7 @@ class IRouteOptimizationService(ABC):
     ) -> tuple[List[Any], List[Any]]: pass
 
 class IPoiProvider(ABC):
-    """Cung cấp dữ liệu POI từ snapshot OSM (CR-02)."""
+    """Cung cấp dữ liệu POI từ snapshot Overture + OSM (CR-02, CR-17 A); in_bbox xếp score giảm dần."""
     @abstractmethod
     def in_bbox(self, bbox: tuple[float, float, float, float], category: Optional[PlaceCategory], limit: int) -> List[Any]: pass
 
@@ -1465,6 +1473,13 @@ export interface Poi {
   close_minute?: number | null;
   distance_km?: number | null;
   tags?: Record<string, string>;
+  // CR-17 A
+  kind?: PoiKind | null; // restaurant | eatery | fast_food | bakery | cafe | tea | dessert | bar | mall | supermarket | cinema | karaoke | play | park | museum
+  district?: string | null; // khu vực gần nhất, dùng khi address trống
+  brand?: string | null;
+  brand_key?: string | null;
+  score?: number; // 0–100, điểm nổi bật
+  minzoom?: number; // 12–17, zoom bắt đầu hiện icon + tên
 }
 
 export interface PlaceReview {

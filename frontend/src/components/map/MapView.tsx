@@ -37,6 +37,9 @@ import { usePlaceUrlSync } from '../shell/useRoomTab';
 import { Button, EmptyState, IconButton, Skeleton, toast } from '../ui';
 import { MapPin, Moped, WarningCircle } from '../ui/Icon';
 
+/** Ghi công dữ liệu quán (Overture Maps Places, CDLA-Permissive-2.0) — tên riêng, không dịch. */
+const POI_ATTRIBUTION = '© <a href="https://overturemaps.org" target="_blank" rel="noopener">Overture Maps Foundation</a>';
+
 export interface MapViewProps {
   room: Room;
   places: Place[];
@@ -120,7 +123,8 @@ export function MapView({
         style: style as string,
         center: [initialCenter.current.lng, initialCenter.current.lat],
         zoom: 14,
-        attributionControl: { compact: true },
+        // Ghi công dữ liệu quán (CR-17 A): Overture, bên cạnh ghi công OSM/OpenFreeMap của style nền
+        attributionControl: { compact: true, customAttribution: POI_ATTRIBUTION },
       });
       instance = m;
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
