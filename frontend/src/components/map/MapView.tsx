@@ -8,7 +8,7 @@ import { useMapStore } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
 import { useScheduleStore } from '../../store/useScheduleStore';
 import type { Place, Poi, Room } from '../../types';
-import { highlightPoi, installPoiLayer, updatePoiLayerTheme, updatePoiSource } from './PoiLayer';
+import { highlightPoi, installPoiLayer, setRoomExcluded, updatePoiLayerTheme } from './PoiLayer';
 import {
   ROOM_PLACES_LAYER,
   installRoomPlacesLayer,
@@ -62,9 +62,6 @@ function hasWebGL(): boolean {
   }
 }
 
-/** Duoi muc zoom nay khong tai POI (khung nhin qua rong). */
-const MIN_FETCH_ZOOM = 12;
-
 export function MapView({
   room,
   places,
@@ -105,6 +102,9 @@ export function MapView({
       : (CITY_CENTER[room.city ?? 'HCM'] ?? CITY_CENTER.HCM),
   );
 
+  // Thành phố chốt lúc dựng bản đồ (chọn file GeoJSON quán); đổi thành phố = phòng khác = MapView mới
+  const initialCity = useRef(room.city);
+
   // Khoi tao map dung mot lan. Style vector loi/qua cham -> dung lai bang style raster OSM.
   useEffect(() => {
     const container = containerRef.current;
@@ -131,10 +131,11 @@ export function MapView({
       instance = m;
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
+      // Lớp quán đọc GeoJSON tĩnh (T-103) → pan/zoom KHÔNG gọi /pois?bbox. Chỉ tải MỘT lần quanh điểm mở bản đồ
+      // để dải "gần bạn" có quán kèm giờ mở cửa/địa chỉ.
       const refresh = () => {
         clearTimeout(debounce);
         debounce = setTimeout(() => {
-          if (m.getZoom() < MIN_FETCH_ZOOM) return;
           const b = m.getBounds();
           void useMapStore.getState().loadBounds({
             minLat: b.getSouth(),
@@ -156,7 +157,10 @@ export function MapView({
         clearTimeout(styleTimeout);
         try {
           // Ẩn POI nền nhóm mình thay thế + 3 lớp symbol quán (T-101); bấm trúng ghim quán của phòng thì nhường
-          installPoiLayer(m, (id) => useMapStore.getState().selectPoi(id), { yieldTo: [ROOM_PLACES_LAYER] });
+          installPoiLayer(m, (id) => useMapStore.getState().selectPoi(id), {
+            yieldTo: [ROOM_PLACES_LAYER],
+            city: initialCity.current,
+          });
           installRoomPlacesLayer(m, (id) => useMapStore.getState().selectPlace(id));
           installRouteLayer(m);
         } catch (err) {
@@ -167,7 +171,6 @@ export function MapView({
         setMapReady(true);
         refresh();
       });
-      m.on('moveend', refresh);
       m.on('error', (e) => {
         const err = e.error as (Error & { status?: number }) | undefined;
         console.warn('[MapView] map error', err);
@@ -345,8 +348,8 @@ export function MapView({
     [places],
   );
   useEffect(() => {
-    if (map && mapReady) updatePoiSource(map, Object.values(poisById), roomExternalIds);
-  }, [map, mapReady, poisById, roomExternalIds]);
+    if (map && mapReady) setRoomExcluded(map, roomExternalIds);
+  }, [map, mapReady, roomExternalIds]);
 
   // Quan cua phong, cap nhat realtime tu store
   useEffect(() => {

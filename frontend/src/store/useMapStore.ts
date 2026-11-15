@@ -215,8 +215,17 @@ export const useMapStore = create<MapState>((set, get) => ({
 
   clearBrand: () => set({ brandFocus: null, isLoadingBrand: false }),
 
-  selectPoi: (externalId) =>
-    set({ selection: externalId ? { kind: 'poi', id: externalId } : null }),
+  selectPoi: (externalId) => {
+    set({ selection: externalId ? { kind: 'poi', id: externalId } : null });
+    // Lớp quán đọc file GeoJSON tĩnh (T-103) nên bấm vào quán chưa có trong cache thì tải chi tiết theo id
+    if (!externalId || get().poisById[externalId]) return;
+    poiApi
+      .getPoi(externalId)
+      .then((poi) => set((s) => ({ poisById: mergePois(s.poisById, [poi]) })))
+      .catch((err: unknown) => {
+        if (get().selection?.id === externalId) set({ selection: null, error: errorKey(err, 'LOAD_POI_FAILED') });
+      });
+  },
   selectPlace: (placeId) =>
     set({ selection: placeId ? { kind: 'place', id: placeId } : null }),
   clearSearch: () =>

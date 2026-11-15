@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
+import { createExpression, featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import {
   BASEMAP_POI_KEEP_FILTER,
@@ -7,12 +7,13 @@ import {
   POI_DOT_LAYER,
   POI_ICON_LAYER,
   POI_SELECTED_LAYER,
+  POI_SOURCE,
   hideBasemapPois,
   highlightPoi,
   brandBounds,
   installPoiLayer,
   poiLayerFilters,
-  poisToGeoJSON,
+  poiDataUrl,
 } from '../components/map/PoiLayer';
 import { useMapStore } from '../store/useMapStore';
 import { KIND_CATEGORY, KIND_GLYPH, poiIconKey } from '../components/map/poiIcons';
@@ -32,30 +33,46 @@ const poi = (over: Partial<Poi> = {}): Poi => ({
   ...over,
 });
 
+/** Tính một biểu thức style trên thuộc tính feature. */
+function expressionEval(expr: unknown, properties: Record<string, unknown>): unknown {
+  const res = createExpression(expr as never);
+  if (res.result !== 'success') throw new Error('bieu thuc loi');
+  return res.value.evaluate({ zoom: 15 }, { type: 1, properties, geometry: [] } as never);
+}
+
 /** Chạy filter của style như MapLibre (zoom nguyên, thuộc tính feature). */
 function passes(filter: unknown, zoom: number, properties: Record<string, unknown>): boolean {
   return featureFilter(filter).filter({ zoom }, { type: 1, properties, geometry: [] } as never);
 }
 
-describe('poisToGeoJSON', () => {
-  it('gắn ảnh theo kind, minzoom/score mặc định khi thiếu', () => {
-    const fc = poisToGeoJSON([
-      poi(),
-      poi({ external_id: 'osm:node/1', kind: null, category: 'FOOD', score: undefined, minzoom: undefined }),
-      poi({ external_id: 'x', category: 'WEIRD' as never, kind: 'spaceship' as never }),
-    ]);
-    expect(fc.features[0].properties).toMatchObject({
-      id: 'ovt:1',
-      icon: 'poi-icon-cafe',
-      pin: 'poi-pin-cafe',
-      dot: 'poi-dot-DRINK',
-      minzoom: 15,
-      score: 80,
-    });
-    // Snapshot cũ không có kind/minzoom: icon theo category, chỉ hiện từ z17
-    expect(fc.features[1].properties).toMatchObject({ icon: 'poi-icon-c-FOOD', minzoom: 17, score: 0 });
-    // Giá trị lạ không làm thiếu ảnh
-    expect(fc.features[2].properties).toMatchObject({ category: 'OTHER', icon: 'poi-icon-c-OTHER' });
+describe('nguồn tĩnh (T-103)', () => {
+  it('poiDataUrl theo thành phố, lạ → HCM', () => {
+    expect(poiDataUrl('HN')).toMatch(/data\/places_hn\.geojson$/);
+    expect(poiDataUrl('HCM')).toMatch(/data\/places_hcm\.geojson$/);
+    expect(poiDataUrl(undefined)).toMatch(/places_hcm\.geojson$/);
+  });
+
+  it('nguồn là URL GeoJSON (không dữ liệu nhúng) và ảnh suy từ k/c bằng biểu thức', () => {
+    const { map, sources, layers } = fakeMap({});
+    installPoiLayer(map, vi.fn(), { city: 'HN' });
+    expect(sources[POI_SOURCE].data).toMatch(/places_hn\.geojson$/);
+    const layout = (layers[POI_ICON_LAYER] as unknown as { layout: Record<string, unknown> }).layout;
+    expect(JSON.stringify(layout['icon-image'])).toContain('poi-icon-');
+    const imageOf = (k: string | undefined, c: string) =>
+      expressionEval(layout['icon-image'], { k, c });
+    expect(imageOf('cafe', 'DRINK')).toBe('poi-icon-cafe');
+    expect(imageOf(undefined, 'FOOD')).toBe('poi-icon-c-FOOD');
+  });
+
+  it('quán trong phòng bị loại khỏi mọi lớp quán nền', () => {
+    const f = poiLayerFilters(null, [], ['room1']);
+    for (const layer of [POI_ICON_LAYER, POI_DOT_LAYER]) {
+      expect(passes(f[layer], 15, { id: 'room1', z: 15 })).toBe(false);
+    }
+    expect(passes(f[POI_ICON_LAYER], 15, { id: 'other', z: 15 })).toBe(true);
+    // Thiếu z → chỉ từ z17
+    expect(passes(f[POI_ICON_LAYER], 16, { id: 'other' })).toBe(false);
+    expect(passes(f[POI_ICON_LAYER], 17, { id: 'other' })).toBe(true);
   });
 
   it('mọi kind có icon và category khớp backend', () => {
@@ -67,7 +84,7 @@ describe('poisToGeoJSON', () => {
 
 describe('bộ lọc ba lớp theo zoom', () => {
   const f = poiLayerFilters(null);
-  const props = { id: 'a', minzoom: 15 };
+  const props = { id: 'a', z: 15 };
 
   it('icon từ minzoom, chấm nhỏ trong 2 mức trước đó', () => {
     expect(passes(f[POI_ICON_LAYER], 14, props)).toBe(false);
@@ -84,12 +101,12 @@ describe('bộ lọc ba lớp theo zoom', () => {
     expect(passes(sel[POI_SELECTED_LAYER], 12, props)).toBe(true);
     expect(passes(sel[POI_ICON_LAYER], 16, props)).toBe(false);
     expect(passes(sel[POI_DOT_LAYER], 14, props)).toBe(false);
-    expect(passes(sel[POI_SELECTED_LAYER], 16, { id: 'b', minzoom: 12 })).toBe(false);
+    expect(passes(sel[POI_SELECTED_LAYER], 16, { id: 'b', z: 12 })).toBe(false);
   });
 });
 
 describe('chi nhánh của chuỗi đang xem (T-102)', () => {
-  const props = { id: 'a', minzoom: 17 };
+  const props = { id: 'a', z: 17 };
 
   it('chi nhánh vẽ ở lớp chuỗi ở mọi zoom, không ở lớp icon/chấm', () => {
     const f = poiLayerFilters(null, ['a', 'b']);
@@ -97,15 +114,15 @@ describe('chi nhánh của chuỗi đang xem (T-102)', () => {
     expect(passes(f[POI_ICON_LAYER], 17, props)).toBe(false);
     expect(passes(f[POI_DOT_LAYER], 16, props)).toBe(false);
     // Quán khác giữ luật minzoom
-    expect(passes(f[POI_BRAND_LAYER], 17, { id: 'c', minzoom: 12 })).toBe(false);
-    expect(passes(f[POI_ICON_LAYER], 17, { id: 'c', minzoom: 12 })).toBe(true);
+    expect(passes(f[POI_BRAND_LAYER], 17, { id: 'c', z: 12 })).toBe(false);
+    expect(passes(f[POI_ICON_LAYER], 17, { id: 'c', z: 12 })).toBe(true);
   });
 
   it('chi nhánh đang chọn chỉ vẽ ở lớp ghim', () => {
     const f = poiLayerFilters('a', ['a', 'b']);
     expect(passes(f[POI_SELECTED_LAYER], 12, props)).toBe(true);
     expect(passes(f[POI_BRAND_LAYER], 12, props)).toBe(false);
-    expect(passes(f[POI_BRAND_LAYER], 12, { id: 'b', minzoom: 17 })).toBe(true);
+    expect(passes(f[POI_BRAND_LAYER], 12, { id: 'b', z: 17 })).toBe(true);
   });
 
   it('brandBounds bao trọn mọi chi nhánh', () => {
@@ -183,6 +200,7 @@ describe('ẩn POI nền', () => {
 /** Map giả đủ cho installPoiLayer: ghi lớp, handler và kết quả queryRenderedFeatures theo lớp. */
 function fakeMap(rendered: Record<string, { id: string; at: [number, number] }[]>) {
   const layers: Record<string, { type: string; filter?: unknown }> = {};
+  const sources: Record<string, { data?: unknown }> = {};
   const handlers: Record<string, ((e: unknown) => void)[]> = {};
   const canvas = { style: { cursor: '' } };
   const map = {
@@ -190,7 +208,7 @@ function fakeMap(rendered: Record<string, { id: string; at: [number, number] }[]
     hasImage: () => false,
     addImage: vi.fn(),
     updateImage: vi.fn(),
-    addSource: vi.fn(),
+    addSource: (id: string, src: { data?: unknown }) => (sources[id] = src),
     addLayer: (l: { id: string; type: string; filter?: unknown }) => (layers[l.id] = l),
     getLayer: (id: string) => layers[id] ?? (rendered[id] ? { id } : undefined),
     setFilter: (id: string, f: unknown) => (layers[id].filter = f),
@@ -208,7 +226,7 @@ function fakeMap(rendered: Record<string, { id: string; at: [number, number] }[]
   };
   const fire = (ev: string, x: number, y: number) => handlers[ev]?.forEach((h) => h({ point: { x, y } }));
   liveMaps.push(() => fire('remove', 0, 0));
-  return { map: map as unknown as MapLibreMap, layers, fire, canvas };
+  return { map: map as unknown as MapLibreMap, layers, sources, fire, canvas };
 }
 
 // installPoiLayer theo dõi store tới khi map 'remove' — gỡ map giả của test trước để không nhận thay đổi store

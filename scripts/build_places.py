@@ -43,6 +43,7 @@ OSM_ONLY_CONF = 0.6  # "độ tin cậy" giả định cho quán chỉ có ở O
 OVERTURE_S3 = "s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*"
 ATTRIBUTION = "© OpenStreetMap contributors (ODbL) · Overture Maps Foundation (CDLA-Permissive-2.0)"
 OUT_DIR = ROOT / "backend" / "app" / "data"
+GEOJSON_DIR = ROOT / "frontend" / "public" / "data"
 
 # bbox = (min_lat, min_lng, max_lat, max_lng); HCM gồm cả vùng ven (Biên Hoà, Thủ Dầu Một, Tân An)
 REGIONS: dict[str, dict] = {
@@ -532,6 +533,32 @@ def write_snapshot(
         json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
 
 
+def to_feature(rec: dict) -> dict:
+    """Điểm GeoJSON rút gọn cho lớp quán tĩnh của bản đồ (T-103): id, n(ame), k(ind), c(ategory), z(minzoom), s(core).
+    Nhận bản ghi dạng `to_json` để dựng được cả từ snapshot đã có (không cần mạng)."""
+    props = {
+        "id": rec["external_id"],
+        "n": rec["name"],
+        "k": rec.get("kind"),
+        "c": rec["category"],
+        "z": rec.get("minzoom"),
+        "s": rec.get("score", 0),
+    }
+    return {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [round(rec["lng"], 5), round(rec["lat"], 5)]},
+        "properties": {k: v for k, v in props.items() if v is not None},
+    }
+
+
+def write_geojson(path: Path, records: list[dict]) -> None:
+    """`frontend/public/data/places_{region}.geojson`: MapLibre cắt tile trong worker, bỏ tải theo bbox."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"type": "FeatureCollection", "features": [to_feature(r) for r in records]}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -542,6 +569,14 @@ def main() -> None:
     parser.add_argument(
         "--cache-dir", type=Path, help="giữ bản cắt Overture + Overpass để chạy lại"
     )
+    parser.add_argument(
+        "--geojson-dir", type=Path, default=GEOJSON_DIR, help="thư mục GeoJSON tĩnh cho frontend"
+    )
+    parser.add_argument(
+        "--geojson-only",
+        action="store_true",
+        help="chỉ dựng lại GeoJSON từ snapshot places_*.json.gz đang có (không gọi mạng)",
+    )
     parser.add_argument("--min-conf", type=float, default=OVERTURE_MIN_CONF)
     args = parser.parse_args()
 
@@ -550,12 +585,22 @@ def main() -> None:
         args.cache_dir.mkdir(parents=True, exist_ok=True)
     for region in [args.only] if args.only else list(REGIONS):
         print(f"Vùng {region}:")
+        if args.geojson_only:
+            with gzip.open(OUT_DIR / f"places_{region}.json.gz", "rt", encoding="utf-8") as fh:
+                records = json.load(fh)["pois"]
+            gj = args.geojson_dir / f"places_{region}.geojson"
+            write_geojson(gj, records)
+            print(f"  → {gj} ({gj.stat().st_size / 1024:.0f} KB, {len(records)} quán)")
+            continue
         ovt = overture_rows(region, args.release, args.cache_dir, args.min_conf)
         osm = osm_rows(region, args.cache_dir)
         recs, stats = build_region(ovt, osm, region)
         path = args.out / f"places_{region}.json.gz"
         retired = retired_records(region, recs)
         write_snapshot(path, region, args.release, recs, retired)
+        gj = args.geojson_dir / f"places_{region}.geojson"
+        write_geojson(gj, [to_json(r) for r in recs])
+        print(f"  → {gj} ({gj.stat().st_size / 1024:.0f} KB)")
         print_stats(region, recs, stats)
         print(f"    giữ {len(retired)} quán cũ đã mất khỏi nguồn (mục retired, chỉ tra theo id)")
         print(f"  → {path} ({path.stat().st_size / 1024:.0f} KB)")

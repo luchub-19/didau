@@ -1,7 +1,6 @@
 import type {
   ExpressionSpecification,
   FilterSpecification,
-  GeoJSONSource,
   Map as MapLibreMap,
   MapMouseEvent,
 } from 'maplibre-gl';
@@ -14,7 +13,6 @@ import {
   PIN_W,
   poiDotImage,
   poiIconImage,
-  poiIconKey,
   poiPinImage,
   registerPoiImages,
 } from './poiIcons';
@@ -35,7 +33,7 @@ export const POI_BRAND_LAYER = 'poi-brand';
 export const POI_SELECTED_LAYER = 'poi-selected';
 const POI_LAYERS = [POI_SELECTED_LAYER, POI_BRAND_LAYER, POI_ICON_LAYER, POI_DOT_LAYER];
 
-/** Quán thiếu `minzoom` (snapshot cũ) coi như chỉ hiện từ z17. */
+/** Quán thiếu `minzoom` coi như chỉ hiện từ z17. */
 const DEFAULT_MINZOOM = 17;
 /** Chấm nhỏ hiện trước `minzoom` tối đa bấy nhiêu mức zoom, và không hiện dưới mức này. */
 const DOT_LEAD_ZOOM = 2;
@@ -160,36 +158,28 @@ export function buildColorExpression(): ExpressionSpecification {
   const dynamicColors = getDynamicCategoryColors();
   return [
     'match',
-    ['get', 'category'],
+    ['get', 'c'],
     ...Object.entries(dynamicColors).flat(),
     dynamicColors.OTHER,
   ] as unknown as ExpressionSpecification;
 }
 
-const KNOWN_CATEGORIES = new Set<string>(Object.keys(CATEGORY_COLORS));
+/*
+ * Nguồn tĩnh cả TP (T-103): `public/data/places_{hcm,hn}.geojson`, mỗi điểm chỉ có `id, n(ame), k(ind), c(ategory),
+ * z(minzoom), s(core)` — MapLibre tải + cắt tile trong worker, pan/zoom không gọi API. Ảnh icon/ghim/chấm suy từ
+ * `k`/`c` bằng biểu thức (trùng khoá với `poiIconKey`: kind nếu có, không thì `c-<CATEGORY>`).
+ */
+const ICON_KEY: ExpressionSpecification = ['coalesce', ['get', 'k'], ['concat', 'c-', ['get', 'c']]];
+const ICON_EXPR: ExpressionSpecification = ['concat', poiIconImage(''), ICON_KEY];
+const PIN_EXPR: ExpressionSpecification = ['concat', poiPinImage(''), ICON_KEY];
+/** `z` thiếu → chỉ hiện từ z17. */
+const MINZOOM_EXPR: ExpressionSpecification = ['coalesce', ['get', 'z'], DEFAULT_MINZOOM];
+const DOT_EXPR: ExpressionSpecification = ['concat', poiDotImage('' as PlaceCategory), ['get', 'c']];
 
-export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
-  return {
-    type: 'FeatureCollection',
-    features: pois.map((p) => {
-      const category: PlaceCategory = KNOWN_CATEGORIES.has(p.category) ? p.category : 'OTHER';
-      const key = poiIconKey(p.kind, category);
-      return {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-        properties: {
-          id: p.external_id,
-          name: p.name,
-          category,
-          score: p.score ?? 0,
-          minzoom: p.minzoom ?? DEFAULT_MINZOOM,
-          icon: poiIconImage(key),
-          pin: poiPinImage(key),
-          dot: poiDotImage(category),
-        },
-      };
-    }),
-  };
+/** Địa chỉ file GeoJSON tĩnh của thành phố (`HCM` | `HN`; lạ → HCM). */
+export function poiDataUrl(city: string | null | undefined): string {
+  const code = (city ?? 'HCM').toLowerCase() === 'hn' ? 'hn' : 'hcm';
+  return `${import.meta.env.BASE_URL}data/places_${code}.geojson`;
 }
 
 /**
@@ -199,31 +189,35 @@ export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection<GeoJSON.Po
 export function poiLayerFilters(
   selectedId: string | null,
   brandIds: readonly string[] = [],
+  excludeIds: readonly string[] = [],
 ): Record<string, FilterSpecification> {
   const id = selectedId ?? '';
   const notSelected: ExpressionSpecification = ['!=', ['get', 'id'], id];
   const inBrand: ExpressionSpecification = ['in', ['get', 'id'], ['literal', [...brandIds]]];
   const notBrand: ExpressionSpecification = ['!', inBrand];
+  // Quán đã nằm trong phòng: lớp quán của phòng vẽ thay
+  const notInRoom: ExpressionSpecification = ['!', ['in', ['get', 'id'], ['literal', [...excludeIds]]]];
   return {
-    [POI_ICON_LAYER]: ['all', ['>=', ['zoom'], ['get', 'minzoom']], notSelected, notBrand],
+    [POI_ICON_LAYER]: ['all', ['>=', ['zoom'], MINZOOM_EXPR], notSelected, notBrand, notInRoom],
     [POI_DOT_LAYER]: [
       'all',
-      ['<', ['zoom'], ['get', 'minzoom']],
-      ['<=', ['get', 'minzoom'], ['+', ['zoom'], DOT_LEAD_ZOOM]],
+      ['<', ['zoom'], MINZOOM_EXPR],
+      ['<=', MINZOOM_EXPR, ['+', ['zoom'], DOT_LEAD_ZOOM]],
       notSelected,
       notBrand,
+      notInRoom,
     ],
-    [POI_BRAND_LAYER]: ['all', inBrand, notSelected],
+    [POI_BRAND_LAYER]: ['all', inBrand, notSelected, notInRoom],
     [POI_SELECTED_LAYER]: ['==', ['get', 'id'], id],
   };
 }
 
 /** Trạng thái lọc của từng map (quán chọn đến từ MapView, chuỗi đến từ store — hai nguồn ghép một bộ lọc). */
-const layerState = new WeakMap<MapLibreMap, { selected: string | null; brandIds: string[] }>();
+const layerState = new WeakMap<MapLibreMap, { selected: string | null; brandIds: string[]; excludeIds: string[] }>();
 
 function applyFilters(map: MapLibreMap): void {
-  const st = layerState.get(map) ?? { selected: null, brandIds: [] };
-  const filters = poiLayerFilters(st.selected, st.brandIds);
+  const st = layerState.get(map) ?? { selected: null, brandIds: [], excludeIds: [] };
+  const filters = poiLayerFilters(st.selected, st.brandIds, st.excludeIds);
   for (const layer of POI_LAYERS) {
     if (map.getLayer(layer)) map.setFilter(layer, filters[layer]);
   }
@@ -250,7 +244,7 @@ export function brandBounds(pois: readonly Pick<Poi, 'lat' | 'lng'>[]): [[number
 
 /** Đổi chuỗi đang xem: lọc lại các lớp và lia bản đồ bao trọn mọi chi nhánh (T-102). */
 export function showBrandOnMap(map: MapLibreMap, focus: BrandFocus | null): void {
-  const st = layerState.get(map) ?? { selected: null, brandIds: [] };
+  const st = layerState.get(map) ?? { selected: null, brandIds: [], excludeIds: [] };
   st.brandIds = focus ? focus.pois.map((p) => p.external_id) : [];
   layerState.set(map, st);
   applyFilters(map);
@@ -281,13 +275,15 @@ const MAP_COLORS = { category: CATEGORY_COLORS, surface: '#FFFFFF' };
 function mapTextColor(): ExpressionSpecification {
   return [
     'match',
-    ['get', 'category'],
+    ['get', 'c'],
     ...Object.entries(CATEGORY_COLORS).flat(),
     CATEGORY_COLORS.OTHER,
   ] as unknown as ExpressionSpecification;
 }
 
 export interface InstallPoiLayerOptions {
+  /** Thành phố của phòng → chọn file GeoJSON tĩnh (mặc định HCM). */
+  city?: string | null;
   /** Lớp nằm trên (quán của phòng): bấm trúng lớp này thì nhường, không mở thẻ POI. */
   yieldTo?: string[];
 }
@@ -301,7 +297,7 @@ export function installPoiLayer(
   const colors = MAP_COLORS;
   registerPoiImages(map, colors);
 
-  map.addSource(POI_SOURCE, { type: 'geojson', data: poisToGeoJSON([]) });
+  map.addSource(POI_SOURCE, { type: 'geojson', data: poiDataUrl(options.city) });
   const filters = poiLayerFilters(null);
   const textColor = mapTextColor();
 
@@ -312,7 +308,7 @@ export function installPoiLayer(
     minzoom: DOT_MIN_ZOOM,
     filter: filters[POI_DOT_LAYER],
     layout: {
-      'icon-image': ['get', 'dot'],
+      'icon-image': DOT_EXPR,
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
@@ -324,10 +320,10 @@ export function installPoiLayer(
     source: POI_SOURCE,
     filter: filters[POI_ICON_LAYER],
     layout: {
-      'symbol-sort-key': ['-', 0, ['get', 'score']],
-      'icon-image': ['get', 'icon'],
+      'symbol-sort-key': ['-', 0, ['get', 's']],
+      'icon-image': ICON_EXPR,
       'icon-padding': 1,
-      'text-field': ['get', 'name'],
+      'text-field': ['get', 'n'],
       'text-font': ['Noto Sans Bold'],
       'text-size': ['step', ['zoom'], 12, 16, 13],
       'text-max-width': 8,
@@ -350,10 +346,10 @@ export function installPoiLayer(
     source: POI_SOURCE,
     filter: filters[POI_BRAND_LAYER],
     layout: {
-      'symbol-sort-key': ['-', 0, ['get', 'score']],
-      'icon-image': ['get', 'icon'],
+      'symbol-sort-key': ['-', 0, ['get', 's']],
+      'icon-image': ICON_EXPR,
       'icon-allow-overlap': true,
-      'text-field': ['get', 'name'],
+      'text-field': ['get', 'n'],
       'text-font': ['Noto Sans Bold'],
       'text-size': 12,
       'text-max-width': 8,
@@ -376,10 +372,10 @@ export function installPoiLayer(
     source: POI_SOURCE,
     filter: filters[POI_SELECTED_LAYER],
     layout: {
-      'icon-image': ['get', 'pin'],
+      'icon-image': PIN_EXPR,
       'icon-anchor': 'bottom',
       'icon-allow-overlap': true,
-      'text-field': ['get', 'name'],
+      'text-field': ['get', 'n'],
       'text-font': ['Noto Sans Bold'],
       'text-size': 14,
       'text-max-width': 10,
@@ -427,7 +423,7 @@ export function installPoiLayer(
   });
 
   // Chuỗi đang xem nằm trong store (ô tìm bật/tắt); lớp tự theo dõi để không cần nối qua MapView
-  layerState.set(map, { selected: null, brandIds: [] });
+  layerState.set(map, { selected: null, brandIds: [], excludeIds: [] });
   let lastFocus = useMapStore.getState().brandFocus;
   if (lastFocus) showBrandOnMap(map, lastFocus);
   const unsubscribe = useMapStore.subscribe((state) => {
@@ -446,18 +442,16 @@ export function installPoiLayer(
   });
 }
 
-/** Cap nhat du lieu POI; bo cac POI da nam trong phong (lop quan cua phong ve thay). */
-export function updatePoiSource(
-  map: MapLibreMap,
-  pois: Poi[],
-  excludeExternalIds: ReadonlySet<string>,
-): void {
-  const source = map.getSource(POI_SOURCE) as GeoJSONSource | undefined;
-  source?.setData(poisToGeoJSON(pois.filter((p) => !excludeExternalIds.has(p.external_id))));
+/** Quán đã nằm trong phòng thì lớp quán nền bỏ qua (lớp quán của phòng vẽ thay); lọc phía GPU, không đụng nguồn. */
+export function setRoomExcluded(map: MapLibreMap, ids: ReadonlySet<string>): void {
+  const st = layerState.get(map) ?? { selected: null, brandIds: [], excludeIds: [] };
+  st.excludeIds = [...ids];
+  layerState.set(map, st);
+  applyFilters(map);
 }
 
 export function highlightPoi(map: MapLibreMap, externalId: string | null): void {
-  const st = layerState.get(map) ?? { selected: null, brandIds: [] };
+  const st = layerState.get(map) ?? { selected: null, brandIds: [], excludeIds: [] };
   st.selected = externalId;
   layerState.set(map, st);
   applyFilters(map);
