@@ -142,3 +142,30 @@ RAM: ≈ 39k bản ghi (+ OSM bù) trong RAM ở bước A — dùng `@dataclass
 - **Xếp hạng tìm** (§5): gộp "trùng khít / đầu tên / đủ từ" thành một tầng — nếu không, quán tên đúng "Highlands" ở Hà Nội
   đứng trên "Highlands Coffee" cách 400 m. Thứ tự: tầng khớp → dải 3 km (`floor(km/3)`) → `score` → km.
 - Chưa làm ở T-100: "Đang mở / Đã đóng" trong dòng kết quả; icon theo `kind` (cần thêm icon vào `Icon.tsx`, để T-101).
+
+## 9. Đã làm ở T-101 (2026-11-15) — lớp bản đồ §4
+- **Class POI nền đọc từ tile thật** (OpenFreeMap `planet/20261101`, 6 điểm × 9 tile z14: Q1, Q3, Thủ Đức, Q7, Tân Bình,
+  Hoàn Kiếm). Liberty có 4 lớp `source-layer = poi`: `poi_r1` (z15), `poi_r7` (z16), `poi_r20` (z17), `poi_transit`. Ẩn
+  (`BASEMAP_HIDDEN_POI_*` trong `PoiLayer.ts`): class `restaurant, fast_food, cafe, bar, beer, ice_cream, bakery, cinema, park,
+  museum, theme_park, water_park` + subclass `mall, department_store, supermarket, coffee, tea, beverages, pastry, gallery,
+  arts_centre, karaoke(_box), bowling_alley, amusement_arcade, escape_game`. **Giữ** `grocery/marketplace` (chợ), `theatre`
+  (Nhà hát TP — mình không có kind này, lệch §4), `attraction`, `playground`, `art_gallery/artwork` (tượng), cửa hàng tiện lợi,
+  bệnh viện, trường, tôn giáo, giao thông, khách sạn, ngân hàng. Nối vào filter gốc bằng `['all', gốc, giữ]`, mỗi lớp một lần
+  (`hideBasemapPois`); style raster dự phòng không có lớp nào để ẩn.
+- **Ba lớp symbol** (`poi-dot`, `poi-icon`, `poi-selected`) trên nguồn GeoJSON không gom cụm; lọc theo `["zoom"]` so với
+  `minzoom` của quán (MapLibre đánh giá filter ở zoom nguyên). Quán thiếu `minzoom`/`kind` (snapshot cũ) → z17 + icon theo
+  category. Chữ: Noto Sans **Bold** (Regular mảnh quá trên nền đường vàng), 12 → 13 từ z16.
+- **Ảnh icon**: path Phosphor bản `fill` chép vào `poiIcons.ts`, vẽ bằng `Path2D` (đồng bộ, không cần react-dom/server);
+  vòng màu loại + glyph/viền màu `surface` (trắng ở theme sáng, nâu tối ở theme tối — luôn tương phản với màu loại). 51 ảnh
+  (15 kind + 7 category × icon/ghim, 7 chấm); đổi theme → `updateImage`.
+- **Bấm**: một handler `click` cho cả map, `queryRenderedFeatures` với vùng đệm 8 px, chọn hình gần nhất tính tới **mép**
+  (icon r=11, chấm r=3,5, ghim tâm lệch lên) — bấm sát chấm cạnh icon vẫn ra chấm; bấm trúng ghim quán của phòng thì nhường
+  (`yieldTo`). Kiểm thật bằng chuột CDP: icon z16, chấm z15 desktop, chấm 390px — đều mở thẻ quán.
+- **Lưới/N §3.3 giữ nguyên**: ảnh thật khung 650×740 (desktop) có z13 Q1 28 icon / Thủ Đức 20; z15 50 / 32 icon + ~320 / 420
+  chấm; z17 32 / 18 icon (va chạm tự lọc). Không quá dày hay trống. Ảnh: `docs/phase7/screens/map-poi/` (24 ô
+  {q1, thuduc} × {z13, z15, z17} × {light, dark} × {desktop, 390} + 2 ảnh ghim đang chọn z16).
+- **Lỗi dữ liệu thấy trên ảnh (chưa sửa, việc của script/T-102)**: một quán tên "Vincom Center Đồng Khởi" nằm ở Thủ Đức
+  (gần 10,85 / 106,78 — bản ghi Overture lệch chỗ hoặc sai tên); "Nông sản sạch Tây Nguyên", "Yến sào Khánh Hoà" ra kind
+  `supermarket` (từ `grocery_store`).
+- **Theme tối**: nền Liberty vẫn sáng, nên chữ màu loại sáng + viền chữ tối trông đậm/"dán nhãn". Đúng §4 (đổi theme thì dựng
+  lại màu) — người dùng xem ảnh `*-dark-*` ở G3 rồi chọn có giữ bảng màu sáng cho riêng lớp bản đồ hay không.

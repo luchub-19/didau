@@ -153,7 +153,8 @@ export function MapView({
       m.on('load', () => {
         clearTimeout(styleTimeout);
         try {
-          installPoiLayer(m, (id) => useMapStore.getState().selectPoi(id));
+          // Ẩn POI nền nhóm mình thay thế + 3 lớp symbol quán (T-101); bấm trúng ghim quán của phòng thì nhường
+          installPoiLayer(m, (id) => useMapStore.getState().selectPoi(id), { yieldTo: [ROOM_PLACES_LAYER] });
           installRoomPlacesLayer(m, (id) => useMapStore.getState().selectPlace(id));
           installRouteLayer(m);
         } catch (err) {

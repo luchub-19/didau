@@ -60,6 +60,20 @@ export {
   // Âm thanh khoảnh khắc (T-61)
   SpeakerHigh,
   SpeakerSlash,
+
+  // Loại quán chi tiết (`kind`, MAP-POI §3.1). Lớp bản đồ vẽ cùng các icon này từ path SVG trong
+  // `components/map/poiIcons.ts` (canvas, không qua React); ở UI React dùng component dưới đây.
+  Hamburger,
+  Cake,
+  Drop,
+  IceCream,
+  BeerStein,
+  Storefront,
+  ShoppingCart,
+  FilmSlate,
+  Microphone,
+  Tree,
+  Bank,
 } from '@phosphor-icons/react';
 
 export type { IconProps } from '@phosphor-icons/react';
