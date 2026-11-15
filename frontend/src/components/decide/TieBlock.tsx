@@ -40,8 +40,8 @@ const Thumb: React.FC<{ place: Place }> = ({ place }) => {
 };
 
 /**
- * Khối hoà phiếu đầu danh sách (ALGO-02, DESIGN gđ6 §8): tiêu đề + đề xuất quán đi chung kèm số, host chốt bằng một nút,
- * "Cách khác" mở các kiểu chọn hộ cũ, "Vì sao?" cho bảng ma trận.
+ * Khối hoà phiếu đầu danh sách (OMP CR-15, DESIGN gđ6 §8): tiêu đề + mỗi loại hoà một thẻ đề xuất kèm số, host chốt bằng một nút,
+ * "Cách khác" mở các kiểu chọn hộ cũ, "Vì sao?" cho bảng từng người (T-96).
  */
 export const TieBlock: React.FC<TieBlockProps> = ({ phase, hints: propHints, places: propPlaces, onDecide, suggestionSource }) => {
   const { t } = useTranslation();

@@ -25,12 +25,16 @@ import type {
   ScheduleItem,
   SelfMember,
   SubmitSwipeRequest,
-  TieLeg,
+  CategoryTieSuggestion,
+  MyRoutes,
+  RouteLeg,
+  ScheduleRoutes,
   TieSuggestion,
   TriggerHint,
   UpdateMyOriginRequest,
   VoteRequest,
 } from '../types';
+import { encodePolyline } from '../components/algo/polyline';
 import {
   MOCK_HOST_TOKEN,
   MOCK_MEMBER_TOKEN,
@@ -124,76 +128,110 @@ function mockGroupCenter(points: LatLngPoint[]): LatLngPoint {
   };
 }
 
-/** `TieSuggestion` từ dữ liệu mock: hoà ở hạng đầu theo số "Muốn đi", ma trận Haversine × 1,3 / 25 km/h. */
-function mockTieSuggestion(): TieSuggestion {
-  const base = { threshold_min: 2, travel_mode: 'TWO_WHEELER' as const };
-  const alive = placesList.filter((p) => p.status !== 'REJECTED' && p.status !== 'VISITED');
-  const top = Math.max(0, ...alive.map((p) => p.upvotes));
-  const tied = alive
-    .filter((p) => p.upvotes === top)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const candidates = tied.map((p) => ({ place_id: p.id, name: p.name, upvotes: p.upvotes }));
-  const empty = { members: [], matrix: [], ranking: [], unranked_place_ids: [], recommended_place_id: null, margin_vs_second_min: null };
-  if (top <= 0 || tied.length < 2 || alive.some((p) => p.status === 'ACCEPTED')) {
-    return { available: false, reason: 'NO_TIE', candidates: [], excluded_member_count: 0, estimated: true, ...empty, ...base };
-  }
-  const meeting =
-    currentRoom.origin_lat != null && currentRoom.origin_lng != null
-      ? { lat: currentRoom.origin_lat, lng: currentRoom.origin_lng }
-      : null;
-  const people = membersList
-    .map((m) => ({ m, own: memberOrigins.get(m.id) ?? null }))
-    .map(({ m, own }) => ({ m, origin: own ?? meeting, source: own ? ('MEMBER' as const) : ('MEETING_POINT' as const) }));
-  const used = people.filter((x) => x.origin !== null);
-  const excluded = people.length - used.length;
-  if (used.length === 0) {
-    return { available: false, reason: 'NO_ORIGINS', candidates, excluded_member_count: excluded, estimated: true, ...empty, ...base };
-  }
-  const matrix: (TieLeg | null)[][] = used.map(({ origin }) =>
-    tied.map((p) => {
-      if (p.latitude == null || p.longitude == null || !origin) return null;
-      const km = mockKm(origin, { lat: p.latitude, lng: p.longitude }) * 1.3;
-      return { minutes: Math.ceil(Math.round((km / 25) * 60 * 1e6) / 1e6), distance_km: Math.round(km * 1000) / 1000, source: 'ESTIMATE' as const };
-    }),
-  );
-  const rows = tied.flatMap((p, j) => {
-    const legs = matrix.map((row) => row[j]);
-    if (legs.some((l) => l === null)) return [];
-    const ls = legs as TieLeg[];
-    return [{
-      id: p.id,
-      created: p.created_at,
-      S: ls.reduce((a, l) => a + l.minutes, 0),
-      M: Math.max(...ls.map((l) => l.minutes)),
-      D: ls.reduce((a, l) => a + l.distance_km, 0),
-    }];
-  });
-  // Chọn theo tập với ngưỡng (không dùng sort có ngưỡng vì không bắc cầu), lặp trên phần còn lại
-  const ordered: typeof rows = [];
-  let rest = rows;
-  while (rest.length) {
-    const low = Math.min(...rest.map((r) => r.S));
-    const best = rest
-      .filter((r) => r.S <= low + base.threshold_min)
-      .sort((a, b) => a.M - b.M || a.D - b.D || a.created.localeCompare(b.created))[0];
-    ordered.push(best);
-    rest = rest.filter((r) => r !== best);
-  }
-  const rankedIds = new Set(ordered.map((r) => r.id));
-  return {
-    available: ordered.length > 0,
-    reason: ordered.length > 0 ? null : 'NO_PLACE_COORDS',
-    candidates,
-    members: used.map(({ m, source }) => ({ member_id: m.id, nickname: m.nickname, origin_source: source })),
-    matrix,
-    ranking: ordered.map((r, i) => ({ place_id: r.id, rank: i + 1, total_min: r.S, max_min: r.M, total_km: Math.round(r.D * 1000) / 1000 })),
-    unranked_place_ids: tied.filter((p) => !rankedIds.has(p.id)).map((p) => p.id),
-    recommended_place_id: ordered[0]?.id ?? null,
-    margin_vs_second_min: ordered.length >= 2 ? ordered[1].S - ordered[0].S : null,
-    excluded_member_count: excluded,
-    estimated: true,
-    ...base,
+/* ---------- CR-15 (T-96): hoà phiếu OMP theo loại + đường đi — cùng luật với backend, ước lượng 25 km/h ---------- */
+
+const CATEGORY_ORDER: PlaceCategory[] = ['FOOD', 'DRINK', 'ENTERTAINMENT', 'SIGHTSEEING', 'ACCOMMODATION', 'SHOPPING', 'OTHER'];
+const OMP_LAMBDA = 0.5;
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+const mockKmEst = (a: LatLngPoint, b: LatLngPoint) => mockKm(a, b) * 1.3;
+const mockMin = (km: number) => Math.ceil(Math.round((km / 25) * 60 * 1e6) / 1e6);
+const coordOfPlace = (p: Place): LatLngPoint | null =>
+  p.latitude != null && p.longitude != null ? { lat: p.latitude, lng: p.longitude } : null;
+const placeScore = (p: Place) => p.score ?? (p.upvotes ?? 0) - (p.downvotes ?? 0);
+
+/** Đường giả dạng chữ L (đi dọc rồi ngang) để bản đồ có "đường thật" khi chạy mock; mã hoá polyline độ chính xác 6. */
+function mockShape(a: LatLngPoint, b: LatLngPoint, latFirst: boolean): string {
+  const corner = latFirst ? { lat: b.lat, lng: a.lng } : { lat: a.lat, lng: b.lng };
+  const pts: [number, number][] = [];
+  const seg = (p: LatLngPoint, q: LatLngPoint) => {
+    for (let i = 0; i < 6; i++) pts.push([p.lng + ((q.lng - p.lng) * i) / 6, p.lat + ((q.lat - p.lat) * i) / 6]);
   };
+  seg(a, corner);
+  seg(corner, b);
+  pts.push([b.lng, b.lat]);
+  return encodePolyline(pts);
+}
+
+function mockTieSuggestion(): TieSuggestion {
+  const alive = placesList.filter((p) => p.status !== 'REJECTED' && p.status !== 'VISITED');
+  const origins = membersList.flatMap((m) => {
+    const o = memberOrigins.get(m.id);
+    return o ? [{ m, o }] : [];
+  });
+  const excluded = membersList.length - origins.length;
+  const suggestions: CategoryTieSuggestion[] = [];
+  for (const category of CATEGORY_ORDER) {
+    const inCat = alive.filter((p) => (p.category ?? 'OTHER') === category);
+    if (inCat.length < 2 || inCat.some((p) => p.status === 'ACCEPTED')) continue;
+    const top = Math.max(...inCat.map(placeScore));
+    const tied = inCat.filter((p) => placeScore(p) === top).sort((x, y) => x.created_at.localeCompare(y.created_at));
+    const activity = inCat.some((p) => (p.upvotes ?? 0) + (p.downvotes ?? 0) > 0 || placeScore(p) !== 0);
+    if (tied.length < 2 || !activity) continue;
+    const candidates = tied.map((p) => ({
+      place_id: p.id,
+      name: p.name,
+      upvotes: p.upvotes ?? 0,
+      downvotes: p.downvotes ?? 0,
+      score: placeScore(p),
+    }));
+    const n = origins.length;
+    const w = (r: number) => (n > 1 ? 1 + (OMP_LAMBDA * (r - 1)) / (n - 1) : 1);
+    const evals = n === 0 ? [] : tied.flatMap((p) => {
+      const c = coordOfPlace(p);
+      if (!c) return [];
+      const people = origins
+        .map(({ m, o }) => {
+          const go = mockKmEst(o, c);
+          const back = mockKmEst(c, o);
+          return { m, km: go + back, minutes: mockMin(go) + mockMin(back) };
+        })
+        .sort((x, y) => x.km - y.km);
+      const psi = people.reduce((acc, x, i) => acc + w(i + 1) * x.km, 0);
+      return [{ p, people, psi, max_km: people[people.length - 1].km, total_km: people.reduce((a2, x) => a2 + x.km, 0) }];
+    });
+    evals.sort(
+      (x, y) =>
+        (Math.abs(x.psi - y.psi) > 1e-9 ? x.psi - y.psi : 0) ||
+        x.max_km - y.max_km ||
+        x.total_km - y.total_km ||
+        x.p.created_at.localeCompare(y.p.created_at) ||
+        x.p.id.localeCompare(y.p.id),
+    );
+    const best = evals[0];
+    suggestions.push({
+      category,
+      candidates,
+      recommended_place_id: best?.p.id ?? null,
+      ranking: evals.map((e, i) => ({
+        place_id: e.p.id,
+        rank: i + 1,
+        psi: round3(e.psi),
+        max_km: round3(e.max_km),
+        total_km: round3(e.total_km),
+        max_min: Math.max(...e.people.map((x) => x.minutes)),
+      })),
+      members: best
+        ? best.people.map((x, i) => ({ member_id: x.m.id, nickname: x.m.nickname, km: round3(x.km), minutes: x.minutes, rank: i + 1, weight: round3(w(i + 1)) }))
+        : [],
+      runner_up_psi: evals[1] ? round3(evals[1].psi) : null,
+      excluded_member_count: excluded,
+      estimated: true,
+      source: 'ESTIMATE',
+      params: { lambda: OMP_LAMBDA, k: 1 },
+    });
+  }
+  if (suggestions.length === 0) return { available: false, reason: 'NO_TIE', suggestions: [] };
+  if (origins.length === 0) return { available: false, reason: 'NO_ORIGINS', suggestions };
+  if (suggestions.every((x) => x.ranking.length === 0)) return { available: false, reason: 'NO_PLACE_COORDS', suggestions };
+  return { available: true, reason: null, suggestions };
+}
+
+/** Thứ hạng cho resolve TRAVEL_TIME: nối thứ hạng từng loại (như `travel_ranking` của backend). */
+function mockTravelRanking(): string[] {
+  return mockTieSuggestion().suggestions.flatMap((x) => [
+    ...x.ranking.map((r) => r.place_id),
+    ...x.candidates.filter((c) => !x.ranking.some((r) => r.place_id === c.place_id)).map((c) => c.place_id),
+  ]);
 }
 
 // ── CR-12 phần 2 (T-87): ALGO-03 khả thi lịch + ALGO-04 ưu tiên — cùng luật với backend (ước lượng 25 km/h) ──
@@ -849,15 +887,21 @@ export const handlers = [
       const body = (await request.json()) as ResolveVotingRequest;
       const count = body.max_accepted_places ?? 3;
 
-      // CR-12: TRAVEL_TIME → quán đứng đầu thứ hạng đi lại của server (không nhận số từ client)
-      const travelOrder =
-        body.strategy === 'TRAVEL_TIME'
-          ? mockTieSuggestion().ranking.map((r) => placesList.find((p) => p.id === r.place_id))
-          : [];
-      const sorted = [
-        ...travelOrder.filter((p): p is Place => p !== undefined),
-        ...[...placesList].sort((a, b) => b.score - a.score),
-      ].filter((p, i, all) => all.indexOf(p) === i);
+      // CR-15: TRAVEL_TIME → như backend: nhóm (điểm, loại) giảm dần, trong nhóm theo thứ hạng OMP của server
+      const rank = new Map(
+        (body.strategy === 'TRAVEL_TIME' ? mockTravelRanking() : []).map((id, i) => [id, i] as const),
+      );
+      const sorted = placesList
+        .filter((p) => p.status !== 'REJECTED' && p.status !== 'VISITED')
+        .map((p, i) => ({ p, i }))
+        .sort(
+          (x, y) =>
+            placeScore(y.p) - placeScore(x.p) ||
+            String(y.p.category ?? 'OTHER').localeCompare(String(x.p.category ?? 'OTHER')) ||
+            (rank.get(x.p.id) ?? 1e9) - (rank.get(y.p.id) ?? 1e9) ||
+            x.i - y.i,
+        )
+        .map((x) => x.p);
       const accepted = sorted.slice(0, count);
 
       accepted.forEach((p) => {
@@ -900,7 +944,7 @@ export const handlers = [
     );
   }),
 
-  // 11c. Gợi ý hoà phiếu theo thời gian di chuyển (ALGO-02, CR-12): cùng luật với backend, ước lượng 25 km/h
+  // 11c. Gợi ý hoà phiếu OMP theo loại (CR-15): cùng luật với backend, km khứ hồi ước lượng 25 km/h
   http.get('*/api/v1/rooms/:roomId/tie-break/suggestion', ({ request }) => {
     if (!request.headers.get('X-Member-Token')) return unauthorized();
     return HttpResponse.json(mockTieSuggestion(), { headers: versionHeaders() });
@@ -910,6 +954,62 @@ export const handlers = [
   http.get('*/api/v1/rooms/:roomId/schedule/feasibility', ({ request }) => {
     if (!request.headers.get('X-Member-Token')) return unauthorized();
     return HttpResponse.json(mockFeasibility(), { headers: versionHeaders() });
+  }),
+
+  // 11e. Đường của tôi tới một quán (CR-15 mục 37): CHỈ của người gọi, không toạ độ, không khoá cache
+  http.get('*/api/v1/rooms/:roomId/routes/me', ({ request }) => {
+    const token = request.headers.get('X-Member-Token');
+    if (!token) return unauthorized();
+    const placeId = new URL(request.url).searchParams.get('place_id');
+    const place = placesList.find((p) => p.id === placeId);
+    if (!place) {
+      return HttpResponse.json({ error: { code: 'PLACE_NOT_FOUND', message: 'Không tìm thấy quán.' } }, { status: 404 });
+    }
+    const origin = memberOrigins.get(memberForToken(token).id);
+    if (!origin) {
+      return HttpResponse.json({ error: { code: 'NO_ORIGIN', message: 'Bạn chưa chia sẻ vị trí.' } }, { status: 404 });
+    }
+    const c = coordOfPlace(place);
+    if (!c) {
+      return HttpResponse.json({ error: { code: 'NO_PLACE_COORDS', message: 'Quán chưa có toạ độ.' } }, { status: 404 });
+    }
+    const leg = (a: LatLngPoint, b: LatLngPoint, latFirst: boolean): RouteLeg => {
+      const km = mockKmEst(a, b);
+      return { km: round3(km), minutes: mockMin(km), shape: mockShape(a, b, latFirst), source: 'VALHALLA' };
+    };
+    const body: MyRoutes = { place_id: place.id, to_place: leg(origin, c, true), to_home: leg(c, origin, true) };
+    return HttpResponse.json(body, { headers: versionHeaders() });
+  }),
+
+  // 11f. Đường giữa các mục lịch (CR-15 mục 38): cặp liên tiếp của ngày phòng, như mục 36
+  http.get('*/api/v1/rooms/:roomId/schedule/routes', ({ request }) => {
+    if (!request.headers.get('X-Member-Token')) return unauthorized();
+    const items = scheduleList
+      .filter((x) => (x.day_offset ?? 0) === 0)
+      .sort((x, y) => x.start_minute - y.start_minute || x.order_index - y.order_index);
+    const legs: ScheduleRoutes['legs'] = [];
+    let unknown = 0;
+    for (let i = 0; i + 1 < items.length; i++) {
+      const pa = placesList.find((p) => p.id === items[i].place_id);
+      const pb = placesList.find((p) => p.id === items[i + 1].place_id);
+      const a = pa ? coordOfPlace(pa) : null;
+      const b = pb ? coordOfPlace(pb) : null;
+      if (!a || !b) {
+        unknown++;
+        continue;
+      }
+      const km = mockKmEst(a, b);
+      legs.push({
+        from_item_id: items[i].id,
+        to_item_id: items[i + 1].id,
+        km: round3(km),
+        minutes: mockMin(km),
+        shape: mockShape(a, b, false),
+        source: 'VALHALLA',
+      });
+    }
+    const body: ScheduleRoutes = { legs, unknown_leg_count: unknown };
+    return HttpResponse.json(body, { headers: versionHeaders() });
   }),
 
   // 12. Lấy danh sách lịch trình
@@ -1167,8 +1267,18 @@ export const handlers = [
     const roomPlaces = placesList.filter((p) => p.room_id === roomId);
     const candidateIds = roomPlaces.map((p) => p.id);
 
+    // CR-15: TIE_AT_TOP theo từng loại như backend (hoà điểm cao nhất trong loại); không có thì giữ gợi ý mẫu cũ
+    const perCategory = CATEGORY_ORDER.flatMap((category) => {
+      const inCat = roomPlaces.filter((p) => (p.category ?? 'OTHER') === category && p.status !== 'REJECTED' && p.status !== 'VISITED');
+      if (inCat.length < 2) return [];
+      const top = Math.max(...inCat.map(placeScore));
+      const tied = inCat.filter((p) => placeScore(p) === top);
+      return tied.length >= 2 ? [{ type: 'TIE_AT_TOP' as TriggerHint, category, candidate_place_ids: tied.map((p) => p.id) }] : [];
+    });
     const hints =
-      candidateIds.length >= 2
+      perCategory.length > 0
+        ? perCategory
+        : candidateIds.length >= 2
         ? [
             {
               type: 'TIE_AT_TOP' as TriggerHint,

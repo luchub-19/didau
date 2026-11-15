@@ -147,7 +147,7 @@ export interface TravelTimeConflictParams {
   risk: Exclude<FeasibilityRisk, 'SAFE'>;
   /** Rời quán trước trong 16:30–19:30 (nửa mở) của ngày thứ Hai–Sáu → biên 50%. */
   peak: boolean;
-  source: 'ESTIMATE' | 'GOOGLE';
+  source: 'ESTIMATE' | 'GOOGLE' | 'VALHALLA';
   estimated: boolean;
 }
 

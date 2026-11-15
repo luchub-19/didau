@@ -23,6 +23,10 @@ import { OriginPin } from './OriginPin';
 import { MapSearchBox } from './MapSearchBox';
 import { GroupCenterWidget } from '../algo/GroupCenterWidget';
 import { syncCenterRadius } from '../algo/CenterRadiusLayer';
+import { buildRouteFeatures, syncAlgoRoutes } from '../algo/RouteLayer';
+import { useAlgoRoutes } from '../algo/useAlgoRoutes';
+import { OriginSetting } from '../algo/OriginSetting';
+import { formatMinutes } from '../algo/tieSuggestionLogic';
 import { useAlgoStore } from '../../store/useAlgoStore';
 import { CENTER_RADIUS_KM, centerVisible } from '../../room/groupCenter';
 import { formatDistance } from '../../i18n/format';
@@ -31,7 +35,7 @@ import { PlaceDetail } from '../places/PlaceDetail';
 import { useWorkspaceLayout } from '../shell/workspace';
 import { usePlaceUrlSync } from '../shell/useRoomTab';
 import { Button, EmptyState, IconButton, Skeleton, toast } from '../ui';
-import { MapPin, WarningCircle } from '../ui/Icon';
+import { MapPin, Moped, WarningCircle } from '../ui/Icon';
 
 export interface MapViewProps {
   room: Room;
@@ -82,6 +86,9 @@ export function MapView({
   const groupCenter = useAlgoStore((s) => s.groupCenter);
   const showRadius = useAlgoStore((s) => s.showRadius);
   const radiusCenter = showRadius && centerVisible(groupCenter) ? groupCenter.center : null;
+  // T-96: đường của mình tới quán đề xuất + đường giữa các mục lịch (CR-15 mục 37/38)
+  const algoRoutes = useAlgoRoutes(room.id);
+  const [originOpen, setOriginOpen] = useState(false);
 
   // ?place=<id> ↔ quán đang mở; Back đóng trang chi tiết trước (T-71)
   usePlaceUrlSync();
@@ -248,14 +255,61 @@ export function MapView({
   const scheduleItems = useScheduleStore((s) => s.items);
   const autoPlanPreview = useScheduleStore((s) => s.autoPlanPreview);
 
-  // Tuyen duong theo lich trinh hoac ban xem truoc tu len lich
+  // Đường thật (Valhalla) hoặc nét đứt ước lượng: của mình + giữa các mục lịch
+  const algoFeatures = useMemo(
+    () => buildRouteFeatures(algoRoutes.mine, algoRoutes.schedule),
+    [algoRoutes.mine, algoRoutes.schedule],
+  );
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    try {
+      syncAlgoRoutes(map, algoFeatures);
+    } catch (err) {
+      console.warn('[MapView] loi ve duong di', err);
+    }
+  }, [map, mapReady, algoFeatures, resolvedTheme]);
+
+  // Đường của mình mới xuất hiện mà nằm ngoài khung nhìn → lia bản đồ một lần cho thấy trọn (§5.4 "luôn hiện").
+  // Mỗi quán chỉ lia một lần để không giật bản đồ mỗi khi tải lại đường.
+  const fittedRoutes = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!map || !mapReady) return;
+    for (const m of algoRoutes.mine) {
+      const id = m.routes.place_id;
+      if (fittedRoutes.current.has(id) || !m.origin || !m.place) continue;
+      fittedRoutes.current.add(id);
+      const pts = algoFeatures.features
+        .filter((f) => f.geometry.type === 'LineString' && String(f.properties?.kind).startsWith('mine'))
+        .flatMap((f) => (f.geometry as GeoJSON.LineString).coordinates as [number, number][]);
+      pts.push([m.origin.lng, m.origin.lat], [m.place.lng, m.place.lat]);
+      const view = map.getBounds();
+      if (pts.every(([lng, lat]) => view.contains([lng, lat]))) continue;
+      const bounds = pts.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
+      const h = map.getContainer().clientHeight;
+      const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      try {
+        map.fitBounds(bounds, {
+          // Mobile: sheet "Quán" che nửa dưới bản đồ
+          padding: { top: 120, left: 48, right: 48, bottom: layout === 'mobile' ? Math.round(h * 0.55) : 72 },
+          maxZoom: 15,
+          duration: reduce ? 0 : 900,
+        });
+      } catch (err) {
+        console.warn('[MapView] loi lia toi duong cua minh', err);
+      }
+    }
+  }, [map, mapReady, algoRoutes.mine, algoFeatures, layout]);
+
+  // Tuyen duong theo lich trinh hoac ban xem truoc tu len lich. Lich that da co lop duong o tren (T-96) thi lop
+  // thang nay chi con cho ban xem truoc tu xep lich, hoac khi chua tai duoc `schedule/routes`.
+  const hasScheduleRoutes = algoRoutes.schedule !== null;
   const routeCoordinates = useMemo<[number, number][]>(() => {
     const placeMap = new Map<string, Place>(places.map((p) => [p.id, p]));
     let orderedIds: string[] = [];
 
     if (autoPlanPreview?.slots && autoPlanPreview.slots.length > 0) {
       orderedIds = autoPlanPreview.slots.map((s) => s.place_id);
-    } else if (scheduleItems.length > 0) {
+    } else if (scheduleItems.length > 0 && !hasScheduleRoutes) {
       const sorted = [...scheduleItems].sort((a, b) => {
         if (a.day_offset !== b.day_offset) return a.day_offset - b.day_offset;
         return a.order_index - b.order_index;
@@ -271,7 +325,7 @@ export function MapView({
       }
     }
     return coords;
-  }, [places, scheduleItems, autoPlanPreview]);
+  }, [places, scheduleItems, autoPlanPreview, hasScheduleRoutes]);
 
   // Cap nhat duong tuyen (RouteLayer)
   useEffect(() => {
@@ -401,6 +455,52 @@ export function MapView({
 
       {/* Widget tam nhom (desktop); tren mobile chip nam o dinh tab Kham pha (GatherPanel) */}
       {layout !== 'mobile' && <GroupCenterWidget variant="map" aboveHostButton={isHost} />}
+      {/* Đường của mình (T-96): chú thích nhỏ, hoặc nhắc chia sẻ vị trí khi có đề xuất mà mình chưa chia sẻ */}
+      {(algoRoutes.needShare || algoRoutes.mine.length > 0) && (
+        <div
+          className={`absolute left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-1.5 ${showSearch ? 'top-16' : 'top-3'}`}
+          data-testid="map-route-chips"
+        >
+          {algoRoutes.needShare ? (
+            <button
+              type="button"
+              onClick={() => setOriginOpen(true)}
+              data-testid="map-route-share"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-3 text-label font-semibold text-ink shadow-float hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-text"
+            >
+              <MapPin size={16} weight="fill" className="text-accent-text" aria-hidden="true" />
+              {t('algo.route.share')}
+            </button>
+          ) : (
+            algoRoutes.mine.map((m) => {
+              const to = formatMinutes(m.routes.to_place.minutes, lang);
+              const back = formatMinutes(m.routes.to_home.minutes, lang);
+              const estimated = !m.routes.to_place.shape;
+              return (
+                <p
+                  key={m.routes.place_id}
+                  data-testid="map-route-mine"
+                  data-estimated={estimated}
+                  aria-label={t('algo.route.mineAria', { name: m.name, to, back })}
+                  className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full bg-surface/95 px-3 text-caption font-semibold text-ink shadow-float"
+                >
+                  <Moped size={16} weight="fill" className="shrink-0 text-accent-text" aria-hidden="true" />
+                  <span className="truncate">
+                    {t(estimated ? 'algo.route.mineEstimated' : 'algo.route.mine', { to, back })}
+                  </span>
+                </p>
+              );
+            })
+          )}
+        </div>
+      )}
+      {algoRoutes.schedule && algoRoutes.schedule.legs.length > 0 && (
+        <span className="sr-only" role="status">
+          {t('algo.route.scheduleAria', { count: algoRoutes.schedule.legs.length })}
+        </span>
+      )}
+      <OriginSetting room={room} isOpen={originOpen} onClose={() => setOriginOpen(false)} />
+
       {radiusCenter && (
         <span className="sr-only" role="status">
           {t('algo.center.radiusAria', { radius: formatDistance(CENTER_RADIUS_KM, lang) })}

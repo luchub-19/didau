@@ -7,12 +7,19 @@ import { Sheet } from '../ui';
 import { X } from '../ui/Icon';
 import { useWorkspaceLayout } from '../shell/workspace';
 
-export type WhySource = 'ESTIMATE' | 'GOOGLE';
+export type WhySource = 'ESTIMATE' | 'GOOGLE' | 'VALHALLA' | 'MIXED';
+
+const SOURCE_KEY = {
+  ESTIMATE: 'algo.why.sourceEstimate',
+  GOOGLE: 'algo.why.sourceGoogle',
+  VALHALLA: 'algo.why.sourceValhalla',
+  MIXED: 'algo.why.sourceMixed',
+} as const satisfies Record<WhySource, string>;
 
 export interface WhyPanelProps {
   title: string;
   children: React.ReactNode;
-  /** Nguồn thời gian di chuyển: ghi "Ước lượng · xe máy" hoặc "Google Maps". Bỏ qua khi số không liên quan di chuyển. */
+  /** Nguồn km/phút: "Ước lượng · xe máy", "Google Maps", "Valhalla · xe máy" (CR-15) hoặc lẫn. Bỏ qua khi số không liên quan di chuyển. */
   source?: WhySource | null;
   /** Hướng mở của popover desktop (widget ở đáy bản đồ mở lên trên). */
   placement?: 'top' | 'bottom';
@@ -70,8 +77,8 @@ export const WhyPanel: React.FC<WhyPanelProps> = ({
   }, [open, asSheet]);
 
   const sourceLine = source ? (
-    <p className="mt-3 border-t border-line pt-2 text-caption text-ink-2" data-testid="why-source">
-      {source === 'GOOGLE' ? t('algo.why.sourceGoogle') : t('algo.why.sourceEstimate')}
+    <p className="mt-3 border-t border-line pt-2 text-caption text-ink-2" data-testid="why-source" data-source={source}>
+      {t(SOURCE_KEY[source] ?? SOURCE_KEY.ESTIMATE)}
     </p>
   ) : null;
 

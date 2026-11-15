@@ -24,17 +24,16 @@ async function share(token: string, lat: number | null, lng: number | null) {
   expect(res.status).toBe(200);
 }
 
-async function makeTie() {
+/** Phá hoà FOOD (mock có Cơm Tấm Ba Ghiền = Cơm Tấm Cali = 3 điểm): chủ phòng bấm "Muốn đi" Cali → 4 điểm. */
+async function breakFoodTie() {
   const places = (await (await fetch(`${BASE}/places`)).json()) as Place[];
-  // Quán dẫn đầu (4 phiếu) mất phiếu của mình → hoà 3–3 với quán thứ hai
-  const leader = places.find((p) => p.upvotes === 4)!;
-  const vote = await fetch(`${BASE}/places/${leader.id}/votes`, {
+  const cali = places.find((p) => p.name.startsWith('Cơm Tấm Cali'))!;
+  const vote = await fetch(`${BASE}/places/${cali.id}/votes`, {
     method: 'POST',
     headers: auth(MOCK_HOST_TOKEN),
-    body: JSON.stringify({ vote_value: 0 }),
+    body: JSON.stringify({ vote_value: 1 }),
   });
   expect(vote.status).toBe(200);
-  return places;
 }
 
 describe('T-86: mock group-center + tie-break/suggestion (kiểu cho T-88/T-89)', () => {
@@ -58,35 +57,42 @@ describe('T-86: mock group-center + tie-break/suggestion (kiểu cho T-88/T-89)'
     expect(((await (await fetch(url, { headers: auth(MOCK_HOST_TOKEN) })).json()) as GroupCenterResponse).available).toBe(false);
   });
 
-  it('tie-break/suggestion: NO_TIE khi chưa hoà, NO_ORIGINS khi chưa ai chia sẻ, xếp hạng khi đủ dữ liệu', async () => {
+  it('tie-break/suggestion (CR-15): hoà theo điểm + loại; NO_ORIGINS khi chưa ai chia sẻ; xếp hạng Ψ khi đủ dữ liệu', async () => {
     const url = `${BASE}/tie-break/suggestion`;
     const get = async () => (await (await fetch(url, { headers: auth(MOCK_HOST_TOKEN) })).json()) as TieSuggestion;
 
-    expect(await get()).toMatchObject({ available: false, reason: 'NO_TIE', threshold_min: 2 });
-
-    await makeTie();
-    expect(await get()).toMatchObject({ available: false, reason: 'NO_ORIGINS' });
+    // Cà phê (DRINK) 3 điểm và Cơm Tấm (FOOD) 3 điểm KHÔNG hoà nhau vì khác loại; chỉ FOOD hoà
+    const none = await get();
+    expect(none).toMatchObject({ available: false, reason: 'NO_ORIGINS' });
+    expect(none.suggestions.map((x) => x.category)).toEqual(['FOOD']);
+    expect(none.suggestions[0].ranking).toEqual([]);
 
     await share(MOCK_HOST_TOKEN, 10.7626, 106.682);
     await share(MOCK_MEMBER_TOKEN, 10.795, 106.7218);
     const s = await get();
     expect(s.available).toBe(true);
-    expect(s.travel_mode).toBe('TWO_WHEELER');
-    expect(s.members).toHaveLength(2);
-    expect(s.matrix).toHaveLength(2);
-    expect(s.candidates).toHaveLength(2);
-    expect(s.ranking.map((r) => r.rank)).toEqual([1, 2]);
-    expect(s.recommended_place_id).toBe(s.ranking[0].place_id);
-    expect(s.margin_vs_second_min).toBe(s.ranking[1].total_min - s.ranking[0].total_min);
+    const food = s.suggestions[0];
+    expect(food.candidates).toHaveLength(2);
+    expect(food.ranking.map((r) => r.rank)).toEqual([1, 2]);
+    expect(food.ranking[0].psi).toBeLessThanOrEqual(food.ranking[1].psi);
+    expect(food.recommended_place_id).toBe(food.ranking[0].place_id);
+    expect(food.runner_up_psi).toBe(food.ranking[1].psi);
+    expect(food.members.map((m) => m.rank)).toEqual([1, 2]);
+    expect(food.members.map((m) => m.weight)).toEqual([1, 1.5]);
+    expect(food.params).toEqual({ lambda: 0.5, k: 1 });
     expect(JSON.stringify(s)).not.toContain('10.7626');
+    expect(JSON.stringify(s)).not.toContain('10.795');
+
+    await breakFoodTie();
+    expect(await get()).toEqual({ available: false, reason: 'NO_TIE', suggestions: [] });
   });
 
-  it('voting/resolve TRAVEL_TIME chốt quán đứng đầu thứ hạng, bỏ qua số client gửi', async () => {
-    await makeTie();
+  it('voting/resolve TRAVEL_TIME chốt quán đề xuất của loại đứng đầu (điểm, loại), bỏ qua số client gửi', async () => {
     await share(MOCK_HOST_TOKEN, 10.7626, 106.682);
     await share(MOCK_MEMBER_TOKEN, 10.795, 106.7218);
     const s = (await (await fetch(`${BASE}/tie-break/suggestion`, { headers: auth(MOCK_HOST_TOKEN) })).json()) as TieSuggestion;
-    const loser = s.ranking[1].place_id;
+    const food = s.suggestions[0];
+    const loser = food.ranking[1].place_id;
     const res = await fetch(`${BASE}/voting/resolve`, {
       method: 'POST',
       headers: auth(MOCK_HOST_TOKEN),
@@ -94,6 +100,7 @@ describe('T-86: mock group-center + tie-break/suggestion (kiểu cho T-88/T-89)'
     });
     const body = (await res.json()) as { resolved_places: { id: string }[]; tie_break_strategy: string };
     expect(body.tie_break_strategy).toBe('TRAVEL_TIME');
-    expect(body.resolved_places.map((p) => p.id)).toEqual([s.recommended_place_id]);
+    // (3, FOOD) > (3, DRINK) theo tên loại giảm dần, như backend
+    expect(body.resolved_places.map((p) => p.id)).toEqual([food.recommended_place_id]);
   });
 });

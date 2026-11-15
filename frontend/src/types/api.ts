@@ -289,7 +289,8 @@ export interface GroupCenterResponse {
   nearby_pois: Poi[];
 }
 
-export type TravelSource = 'ESTIMATE' | 'GOOGLE';
+/** VALHALLA: km của Valhalla tự host (CR-15 phần B, T-95). */
+export type TravelSource = 'ESTIMATE' | 'GOOGLE' | 'VALHALLA';
 
 export type TieUnavailableReason = 'NO_TIE' | 'NO_ORIGINS' | 'NO_PLACE_COORDS';
 
@@ -297,51 +298,80 @@ export interface TieCandidate {
   place_id: string;
   name: string;
   upvotes: number;
+  downvotes: number;
+  score: number;
 }
 
-/** Thành viên trong ma trận. `MEETING_POINT` = chưa chia sẻ nên lấy điểm hẹn của host ("(điểm hẹn)" ở UI). */
-export interface TieMemberInfo {
-  member_id: string;
-  nickname: string;
-  origin_source: 'MEMBER' | 'MEETING_POINT';
-}
-
-export interface TieLeg {
-  minutes: number;
-  distance_km: number;
-  source: TravelSource;
-}
-
-/** S = `total_min` (tổng), M = `max_min` (người đi xa nhất), D = `total_km`. `rank` bắt đầu từ 1. */
+/** Một quán đã xếp hạng (CR-15): `psi` chỉ để so, UI không hiện chữ Ψ (PLAN gđ7 §5.3). km là khứ hồi. */
 export interface TieRanking {
   place_id: string;
   rank: number;
-  total_min: number;
-  max_min: number;
+  psi: number;
+  max_km: number;
   total_km: number;
+  max_min: number;
+}
+
+/** Một người với quán đề xuất: km/phút đi + về, `rank` 1 = gần nhất, `weight` = trọng số của hạng đó. */
+export interface TieMemberCost {
+  member_id: string;
+  nickname: string;
+  km: number;
+  minutes: number;
+  rank: number;
+  weight: number;
+}
+
+/** Hoà trong một loại quán (CR-15). Quán thiếu toạ độ có trong `candidates` nhưng không có dòng `ranking`. */
+export interface CategoryTieSuggestion {
+  category: PlaceCategory;
+  candidates: TieCandidate[];
+  recommended_place_id: string | null;
+  /** Ψ tăng dần. */
+  ranking: TieRanking[];
+  /** Của quán đề xuất, theo `rank`. */
+  members: TieMemberCost[];
+  runner_up_psi: number | null;
+  excluded_member_count: number;
+  estimated: boolean;
+  source: TravelSource | 'MIXED';
+  params: { lambda: number; k: number };
 }
 
 /**
- * `GET /rooms/{room_id}/tie-break/suggestion` (ALGO-02). `matrix[i][j]` = `members[i]` → `candidates[j]`
- * (null ở quán thiếu toạ độ — các quán đó nằm ở `unranked_place_ids`, không bao giờ được đề xuất).
- * `margin_vs_second_min` = S(hạng 2) − S(hạng 1), có thể ≤ 0 khi hạng 1 thắng nhờ người đi xa nhất đỡ vất vả hơn.
- * Không có toạ độ của ai.
+ * `GET /rooms/{room_id}/tie-break/suggestion` (CR-15): mỗi loại hoà một mục, thứ tự khai báo `PlaceCategory`.
+ * Không toạ độ, không hình học đường đi (CR-11).
  */
 export interface TieSuggestion {
   available: boolean;
   reason: TieUnavailableReason | null;
-  candidates: TieCandidate[];
-  members: TieMemberInfo[];
-  matrix: (TieLeg | null)[][];
-  ranking: TieRanking[];
-  unranked_place_ids: string[];
-  recommended_place_id: string | null;
-  margin_vs_second_min: number | null;
-  threshold_min: number;
-  travel_mode: 'TWO_WHEELER';
-  excluded_member_count: number;
-  /** true nếu có chặng nào là ước lượng (UI ghi "ước lượng" thay vì "Google Maps"). */
-  estimated: boolean;
+  suggestions: CategoryTieSuggestion[];
+}
+
+/** Một chiều đường đi (mục 37, 38). `shape`: polyline độ chính xác 6; null = chưa có đường thật (không vẽ đường cong). */
+export interface RouteLeg {
+  km: number;
+  minutes: number;
+  shape: string | null;
+  source: TravelSource;
+}
+
+/** `GET /rooms/{id}/routes/me?place_id=`: chỉ của người gọi (nhà mình ↔ quán). 404 `NO_ORIGIN` khi chưa chia sẻ. */
+export interface MyRoutes {
+  place_id: string;
+  to_place: RouteLeg;
+  to_home: RouteLeg;
+}
+
+export interface ScheduleRouteLeg extends RouteLeg {
+  from_item_id: string;
+  to_item_id: string;
+}
+
+/** `GET /rooms/{id}/schedule/routes`: đường giữa các mục liên tiếp của ngày phòng. */
+export interface ScheduleRoutes {
+  legs: ScheduleRouteLeg[];
+  unknown_leg_count: number;
 }
 
 // ── CR-12 phần 2 (T-87) ─────────────────────────────────────────────────────────────────────────

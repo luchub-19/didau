@@ -117,6 +117,29 @@ export const mockPlaces: Place[] = [
     current_user_vote: 0,
     created_at: '2026-10-17T07:45:00Z',
   },
+  {
+    // T-96: hoà điểm với Cơm Tấm Ba Ghiền trong loại FOOD (CR-15 hoà theo điểm + loại) để mock có thẻ đề xuất OMP
+    id: '2c3d4e5f-6a7b-8c9d-0e1f-2a3b4c5d6e7f',
+    room_id: 'c1f7a0b3-6c8a-4d45-9e28-86d48e89ef21',
+    submitted_by_id: 'e4a2d815-1a3b-4c22-b5f7-920478bf1144',
+    submitted_by_nickname: 'HoangNam',
+    name: 'Cơm Tấm Cali Nguyễn Trãi',
+    address: '32 Nguyễn Trãi, Bến Thành, Quận 1, TP.HCM',
+    latitude: 10.7703,
+    longitude: 106.6921,
+    category: 'FOOD',
+    status: 'VOTING',
+    url: null,
+    notes: null,
+    estimated_cost: 70000,
+    open_minute: 420,
+    close_minute: 1320,
+    upvotes: 3,
+    downvotes: 0,
+    score: 3,
+    current_user_vote: 0,
+    created_at: '2026-10-17T07:47:00Z',
+  },
 ];
 
 export const mockScheduleItems: ScheduleItem[] = [
