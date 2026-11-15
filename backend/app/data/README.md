@@ -31,6 +31,7 @@
   python -m venv /tmp/places-venv && /tmp/places-venv/bin/pip install duckdb httpx
   cd backend && /tmp/places-venv/bin/python ../scripts/build_places.py --release <bản Overture mới> --cache-dir ~/.cache/didau-places
   ```
+  Làm sạch (T-104): luật ở `app/domain/patterns/category_detector/osm_mapping.py` + `scripts/places_clean.py`, ghi đè tay `scripts/places_overrides.json`, báo cáo `scripts/audit_places.py` (xem `MAP-POI.md` §10).
   Release mới: <https://docs.overturemaps.org/release/latest/>. Bản cắt parquet theo vùng (~140 MB cả hai) nằm trong
   `--cache-dir`; xoá để tải lại. Overpass hay trả 502/504 → script tự thử lại 3 lần.
 

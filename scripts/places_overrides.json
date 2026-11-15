@@ -1,0 +1,6 @@
+{
+  "_doc": "Ghi đè tay cho ca mà luật trong build_places.py/places_clean.py không bắt được (T-104). Mỗi mục PHẢI có lý do. drop: {id: lý do}; kind: {id: {kind, reason}}; move: {id: {lat, lng, reason}}. Id không còn trong dữ liệu thì bị bỏ qua.",
+  "drop": {},
+  "kind": {},
+  "move": {}
+}

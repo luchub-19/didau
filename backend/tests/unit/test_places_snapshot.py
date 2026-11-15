@@ -45,7 +45,9 @@ def test_overture_kind_prefers_taxonomy_and_karaoke_name() -> None:
     assert overture_kind("casual_eatery", "bakery") == "bakery"
     assert overture_kind("casual_eatery", "ice_cream_shop") == "dessert"
     assert overture_kind("non_alcoholic_beverage_venue", "bubble_tea_shop") == "tea"
-    assert overture_kind("food_and_beverage_store", "grocery_store") == "supermarket"
+    assert (
+        overture_kind("food_and_beverage_store", "grocery_store", "Bách Hóa Xanh") == "supermarket"
+    )
     assert overture_kind("movie_theater", "movie_theater") == "cinema"
     assert overture_kind("bar", "bar", "Karaoke Nice") == "karaoke"
     assert overture_kind("convenience_store", "convenience_store") is None
@@ -324,3 +326,231 @@ def test_search_rank_name_then_band_then_score(places: PoiService) -> None:
     ]
     # "long" là chuỗi con: "Trà Sữa Long" khớp đủ từ nên đứng cùng tầng với "Phúc Long …"
     assert places.search("long", None, 1)[0].external_id == "osm:node/9"
+
+
+# ── T-104: làm sạch loại / trùng mốc lớn / sai vị trí ─────────────────────────────────────────────
+
+GROCERY = ("food_and_beverage_store", "grocery_store")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Circle K",
+        "FamilyMart",
+        "Ministop Q1",
+        "GS25 Phạm Văn Đồng",
+        "B's mart",
+        "Điện Máy Xanh",
+        "Nguyễn Kim_Bình Thạnh",
+        "Công Ty TNHH ABC",
+        "Bảo Việt Nhân Thọ",
+        "Viễn Thông Sài Gòn",
+        "Chợ Hoa Cau",
+        "Langfarm",
+        "Hải Sản Hoàng Gia",
+        "Siêu Thị Sữa DHA Max",
+        "Đồ Chơi Gỗ",
+    ],
+)
+def test_grocery_store_rejects_non_supermarkets(name: str) -> None:
+    from app.domain.patterns.category_detector.osm_mapping import clean_kind
+
+    assert clean_kind(overture_kind(*GROCERY, name), name) is None
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "WinMart",
+        "Co.opmart Điện Biên Phủ",
+        "Bách Hóa Xanh",
+        "GO! Nguyen Thi Thap",
+        "AEON Citimart",
+        "Kingfoodmart",
+        "Siêu Thị Hàng Nhập",
+        "Satra Foods",
+        "MM Mega Market Hiệp Phú",
+    ],
+)
+def test_grocery_store_keeps_real_supermarkets(name: str) -> None:
+    assert overture_kind(*GROCERY, name) == "supermarket"
+
+
+def test_grocery_store_relabelled_by_name() -> None:
+    assert overture_kind(*GROCERY, "Cà Phê Ông Bầu") == "cafe"
+    assert overture_kind(*GROCERY, "Hòn Đất Coffee") == "cafe"
+    assert overture_kind(*GROCERY, "Sinh tố Hoa") == "tea"
+    assert overture_kind(*GROCERY, "The Crescent Mall") == "mall"
+
+
+def test_clean_kind_drops_convenience_in_any_kind_and_junk_landmarks() -> None:
+    from app.domain.patterns.category_detector.osm_mapping import clean_kind
+
+    assert clean_kind("cafe", "Circle K Nguyễn Huệ") is None
+    assert clean_kind("mall", "Con Cưng Hcm") is None  # tiệm bị gắn nhãn mall
+    assert clean_kind("mall", "Lotteria Pandora City") is None
+    assert clean_kind("mall", "Vincom Plaza Cộng Hoà") == "mall"
+    assert clean_kind("park", "Sala Garden Memorial Park") is None
+    assert clean_kind("park", "Công viên Gia Định") == "park"
+    assert clean_kind("cinema", "Hãng Phim Sơn An") is None
+    assert clean_kind("supermarket", "Kfc Big C Trường Chinh") is None
+    assert (
+        clean_kind("restaurant", "Lotteria Nguyễn Văn Quá") == "restaurant"
+    )  # chỉ loại ở kind mốc lớn
+
+
+def test_osm_supermarket_needs_name_evidence() -> None:
+    assert osm_kind({"shop": "supermarket", "name": "WinMart"}) == "supermarket"
+    assert osm_kind({"shop": "supermarket", "name": "Đồ phượt Vũng Tàu"}) is None
+    assert osm_kind({"shop": "supermarket"}) == "supermarket"  # tags cũ không có tên (shrink_osm)
+
+
+@pytest.fixture(scope="module")
+def pc(bp):
+    return sys.modules["places_clean"]
+
+
+def _mall(bp, gid, name, lat, lng, **kw):
+    return _ovt(bp, gid, name, lat, lng, kind="mall", **kw)
+
+
+def test_merge_landmarks_one_record_per_mall(bp, pc) -> None:
+    recs = [
+        _mall(bp, "a", "Vincom Mega Mall - Thao Dien", 10.80238, 106.74096, score=88),
+        _mall(
+            bp,
+            "b",
+            "TTTM Vincom Mega Mall Thảo Điền, 161 Xa Lộ Hà Nội, Quận 2",
+            10.80232,
+            106.74117,
+        ),
+        _osm(bp, 1, "Vincom Megamall Thảo Điền", 10.80237, 106.74088, kind="mall"),
+        _mall(bp, "c", "Vincom Plaza Cộng Hoà", 10.8007, 106.6581),
+        _mall(bp, "d", "Tttm Vincom CỘNg HÒA, 15-17 CỘNg HÒA, Q. TÂN BÌNh", 10.80082, 106.65851),
+    ]
+    out, merged = pc.merge_landmarks(recs)
+    assert merged == 3 and len(out) == 2
+    thao_dien = next(r for r in out if "Thao" in r.name or "Thảo" in r.name)
+    assert thao_dien.external_id == "osm:node/1"  # giữ id OSM
+    assert {"ovt:a", "ovt:b"} <= set(thao_dien.aliases)  # id Overture cũ vẫn tra được
+    assert "," not in thao_dien.name
+    cong_hoa = next(r for r in out if "ng Ho" in r.name or "Cộng" in r.name)
+    assert "," not in cong_hoa.name
+
+
+def test_merge_landmarks_keeps_distinct_malls(bp, pc) -> None:
+    recs = [
+        _mall(bp, "a", "Vincom Plaza Quang Trung", 10.8292, 106.6726),
+        _mall(bp, "b", "Vincom Plaza Gò Vấp", 10.8267, 106.6892),  # xa
+        _mall(bp, "c", "Vincom Center", 10.7764, 106.7021),
+        _mall(
+            bp, "d", "Vincom Plaza Cộng Hoà", 10.7772, 106.7021
+        ),  # 90 m, chỉ chung "vincom" → hai mall khác nhau
+        _ovt(bp, "e", "CGV Cinemas Parkson Paragon", 10.7290, 106.7219, kind="cinema"),
+        _ovt(bp, "f", "CGV Cinemas Parkson Lê Thánh Tôn", 10.7320, 106.7219, kind="cinema"),
+    ]
+    out, merged = pc.merge_landmarks(recs)
+    assert merged == 0 and len(out) == 6
+
+
+def test_merge_landmarks_same_brand_same_spot(bp, pc) -> None:
+    recs = [
+        _mall(bp, "a", "Parkson Vietnam", 10.77740, 106.70218),
+        _mall(bp, "b", "Parkson Saigon Tourist", 10.77737, 106.70196),
+    ]
+    out, merged = pc.merge_landmarks(recs)
+    assert merged == 1 and len(out) == 1
+
+
+def test_drop_tenants_inside_mall(bp, pc) -> None:
+    recs = [
+        _mall(bp, "a", "Pearl Plaza", 10.8002, 106.7183),
+        _mall(bp, "b", "Nhà Sách Văn Lang - Pearl Plaza", 10.80015, 106.71825),
+        _mall(bp, "c", "Vincom Center Landmark 81", 10.7952, 106.7217),
+    ]
+    kept, dropped = pc.drop_tenants(recs)
+    assert [r.external_id for r in dropped] == ["ovt:b"]
+    assert len(kept) == 2
+
+
+def test_drop_brand_typos_only_when_unmerged(bp, pc) -> None:
+    recs = [
+        _mall(bp, "a", "Crensent Mall", 10.7859, 106.6714),
+        _mall(bp, "b", "Crescent Mall", 10.7288, 106.7188),
+    ]
+    _kept, dropped = pc.drop_brand_typos(recs)
+    assert [r.external_id for r in dropped] == ["ovt:a"]
+    # gần mall thật thì đã bị merge_landmarks gộp trước đó
+    near = [
+        _mall(bp, "a", "Crensent Mall", 10.72885, 106.71885),
+        _mall(bp, "b", "Crescent Mall", 10.7288, 106.7188),
+    ]
+    merged, _ = pc.merge_landmarks(near)
+    assert len(merged) == 1
+
+
+def test_flag_landmark_elsewhere_vincom_dong_khoi(bp, pc) -> None:
+    street = [
+        _ovt(
+            bp,
+            f"s{i}",
+            f"Quán {i}",
+            10.7775 + i * 0.0003,
+            106.6975,
+            address="Đường Đồng Khởi, Quận 1",
+        )
+        for i in range(8)
+    ]
+    wrong = _mall(bp, "w", "Vincom Center Đồng Khởi", 10.8480, 106.7749)
+    right = _mall(bp, "r", "Vincom Center Đồng Khởi", 10.7775, 106.7020)
+    index = pc.build_name_index([*street, wrong, right])
+    assert "dong khoi" in pc.flag_landmark_elsewhere(wrong, index)
+    assert pc.flag_landmark_elsewhere(right, index) is None
+    # tên riêng sau thương hiệu rỗng ("… Royal City 72 Nguyễn Trãi") thì không cờ
+    assert pc._place_phrase("B1-Vincom Mega Mall Royal City 72 Nguyễn Trãi") == []
+
+
+def test_flag_district_mismatch_for_mall(bp, pc) -> None:
+    districts = [
+        ("Q1", 10.7769, 106.7009),
+        ("Q7", 10.7324, 106.7246),
+        ("Q3", 10.7843, 106.6844),
+        ("Q4", 10.7578, 106.7013),
+    ]
+    centres = pc.district_centres(districts)
+    lotte = _mall(bp, "l", "Lotte Mart", 10.7784, 106.7032, address="Quận 7, TP.HCM")
+    assert pc.flag_district_mismatch(lotte, centres) is not None
+    ok = _mall(bp, "k", "Lotte Mart Quận 7", 10.7411, 106.7021, address="Tân Hưng, Quận 7")
+    assert pc.flag_district_mismatch(ok, centres) is None
+
+
+def test_overrides_apply(bp, pc) -> None:
+    recs = [
+        _ovt(bp, "a", "A", 10.0, 106.0),
+        _ovt(bp, "b", "B", 10.0, 106.0),
+        _ovt(bp, "c", "C", 10.0, 106.0),
+    ]
+    ov = {
+        "drop": {"ovt:a": "rác"},
+        "kind": {"ovt:b": {"kind": "bar", "reason": "x"}},
+        "move": {"ovt:c": {"lat": 10.5, "lng": 106.5, "reason": "y"}},
+    }
+    kept, dropped = pc.apply_overrides(recs, ov)
+    assert [r.external_id for r in dropped] == ["ovt:a"]
+    assert kept[0].kind == "bar" and (kept[1].lat, kept[1].lng) == (10.5, 106.5)
+
+
+def test_shipped_snapshot_is_clean() -> None:
+    """T-104: snapshot đang giao không còn tiện lợi/công ty, không có Vincom Đồng Khởi ở Thủ Đức, mỗi Vincom/AEON một bản ghi."""
+    from app.domain.patterns.category_detector.osm_mapping import is_excluded
+
+    data = Path(__file__).resolve().parents[2] / "app" / "data" / "places_hcm.json.gz"
+    with gzip.open(data, "rt", encoding="utf-8") as fh:
+        pois = json.load(fh)["pois"]
+    assert not [p["name"] for p in pois if is_excluded(p["name"], p.get("brand"))]
+    dong_khoi = [p for p in pois if "Đồng Khởi" in p["name"] and p["kind"] == "mall"]
+    assert all(p["lat"] < 10.80 for p in dong_khoi)
+    names = [p["name"].lower() for p in pois if p["kind"] == "mall"]
+    assert sum("crescent" in n for n in names) == 1
+    assert sum("vincom megamall" in n or "vincom mega mall thảo điền" in n for n in names) == 1

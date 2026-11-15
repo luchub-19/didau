@@ -169,3 +169,59 @@ RAM: ≈ 39k bản ghi (+ OSM bù) trong RAM ở bước A — dùng `@dataclass
 - **Theme tối — người dùng chốt "giữ trắng" (2026-11-15)**: nền Liberty không đổi theo theme, nên lớp quán luôn dùng bảng màu sáng
   (`MAP_COLORS` trong `PoiLayer.ts`: `CATEGORY_COLORS` đậm, glyph + viền chữ `#FFFFFF`) ở cả hai theme; không dựng lại ảnh khi đổi
   theme (lệch §4 "đổi theme thì dựng lại"). Ảnh `*-dark-*` đã chụp lại.
+
+## 10. Đã làm ở T-104 (2026-11-15) — làm sạch dữ liệu quán
+Làm bằng **luật trong code**, dựng lại snapshot từ cache Overture `2026-10-21.0` + Overpass (cùng nguồn T-100). Không vá tay từng quán;
+`scripts/places_overrides.json` (`drop`/`kind`/`move`, mỗi mục có lý do) hiện **rỗng** — chưa có ca nào luật không bắt được.
+- **Loại** (`osm_mapping.py`): `grocery_store`/`organic_grocery_store`/OSM `shop=supermarket` chỉ là `supermarket` khi tên khớp chuỗi
+  siêu thị (Co.op, Bách Hoá Xanh, WinMart/VinMart, Lotte Mart, AEON, GO!, Big C, Emart, MM Mega, Kingfood, Satra, Annam, Nam An, Tops,
+  Finelife…) hoặc có "siêu thị / …mart / …market" mà không phải cửa hàng chuyên doanh (sữa, tóc, xe máy, điện máy, shop…). Còn lại
+  đổi theo tên (cà phê → `cafe`; trà/sinh tố → `tea`; mall/TTTM/plaza → `mall`; bánh → `bakery`; phở/cơm/lẩu → `restaurant`) hoặc **bỏ**.
+  OSM `shop=supermarket` **không** còn được tin vô điều kiện: tên vẫn phải có dấu hiệu (nhiều tiệm tạp hoá bị gắn nhầm).
+- **Bỏ ở MỌI kind** (`is_excluded`): cửa hàng tiện lợi (Circle K, FamilyMart, Ministop, GS25, 7-Eleven, B's mart, "Cửa hàng tiện lợi"),
+  công ty/TNHH, điện máy, viễn thông, bảo hiểm, ngân hàng/ATM, đại lý, showroom, nhà phân phối, nghĩa trang, bãi đỗ xe, chung cư/nhà đất.
+  Chợ truyền thống bỏ ở kind mall/supermarket.
+- **Mốc lớn phải "ra dáng"** (`LANDMARK_NAME` + `_KIND_REJECT`): mall/rạp/công viên/bảo tàng/khu vui chơi mà tên không có dấu hiệu của loại
+  (hoặc có dấu hiệu loại khác: tiệm tạp hoá, lớp học, xưởng phim, nghĩa trang, Lotteria…) bị bỏ. Đây là nguồn rác lớn nhất: ~80 % "mall"
+  của T-100 là tiệm tạp hoá/đại lý OSM `shop=mall`.
+- **Trùng mốc lớn** (`places_clean.merge_landmarks`): cùng kind + < 150 m + chung ≥ 2 từ có nghĩa (bỏ TTTM/Trung tâm thương mại, cắt tên ở
+  dấu phẩy đầu, "megamall" = "mega mall", sai chính tả crescent/aeon/vincom được chuẩn hoá); tên này nằm trọn trong tên kia → nới 400 m
+  (trừ rạp: hai cụm CGV cách 300 m là hai rạp); cùng thương hiệu < 60 m ("Parkson Vietnam" + "Parkson Saigon Tourist"). Người thắng: có OSM
+  → điểm cao; id người thua vào `aliases`. Tenant ("Nhà Sách Văn Lang - Pearl Plaza", "C Club at Crescent Mall") bị bỏ nếu mall mẹ có trong 700 m.
+  Mall/rạp **chỉ của Overture** mang tên viết sai thương hiệu mà không nằm cạnh mall thật ("Crensent Mall" ở Q3) bị bỏ.
+- **Sai vị trí** (`places_clean.position_flags`): (a) tên/địa chỉ nhắc quận X nhưng quán cách tâm X > bán kính (mall/rạp: bán kính quận;
+  quán thường: ≥ 12 km và gấp đôi bán kính; huyện rộng như Bình Chánh/Củ Chi dùng 20 km vì tâm hộp bao không đại diện);
+  (b) mall/rạp "thương hiệu + địa danh" mà địa danh được ≥ 5 quán khác nhắc tới ở cụm cách 2,5–25 km và quanh mốc không có quán nào nhắc.
+  **Bỏ tự động chỉ khi** là mall/rạp của riêng Overture (không khớp OSM); còn lại chỉ in báo cáo (`audit_places.py`). Phát hiện (b) này bắt
+  được "Vincom Center Đồng Khởi" (Thủ Đức, cách cụm "Đồng Khởi" Q1 11,5 km) và "MM Mega Market Bình Phú" (Q12, địa chỉ ghi Bình Phú Q6).
+- **Id**: `retired` giờ gồm mọi id của snapshot `pois_*` cũ **và** `places_*` hiện có (kể cả `retired` của nó) không còn ở bản mới; alias của
+  quán cũ đã bị bỏ cũng thành một bản ghi retired. Kiểm bằng so tập id: HCM 46 940 id cũ, HN 27 342 — **0 id không tra được** (osm:* cũ 6 697 / 4 215, thiếu 0).
+- **Công cụ**: `scripts/audit_places.py` (chạy lại sau mỗi build; `--cache-dir` thêm bảng kind ← taxonomy Overture), `scripts/places_clean.py`.
+
+### Số đo trước → sau (`audit_places.py`, cùng seed)
+| | HCM trước | HCM sau | HN trước | HN sau |
+| :--- | --: | --: | --: | --: |
+| tổng quán | 46 821 | 44 226 | 27 268 | 25 772 |
+| supermarket | 1 441 | 476 | 1 051 | 416 |
+| mall | 1 033 | 159 | 452 | 109 |
+| cinema | 161 | 97 | 120 | 68 |
+| park | 661 | 416 | 432 | 274 |
+| museum | 246 | 93 | 236 | 101 |
+| tiện lợi/công ty/điện máy còn ở mọi kind | 453 | **0** | 300 | **0** |
+| tên không khớp mẫu kind: supermarket / mall (đếm) | 828 / 823 | 2 / 14 | 578 / 324 | 1 / 11 |
+| cờ vị trí (còn lại, chỉ báo cáo) | 127 | 105 | 38 | 30 |
+| cặp mốc lớn gần nhau trùng tên | 204 | 11 | 169 | 19 |
+| mall theo hãng: vincom / aeon / lotte / crescent | 23 / 6 / 17 / 4 | 17 / 4 / 10 / 1 | 19 / 6 / 10 / – | 13 / 4 / 4 / – |
+- Số quán HCM giảm 2 595 (5,5 %): ~1 000 supermarket + ~870 mall + còn lại là tiệm/đại lý/tenant, gộp mốc 119, bỏ 5 sai vị trí, 11 tên sai thương hiệu.
+- **Mẫu ngẫu nhiên 100 `supermarket` HCM** (seed 104/105, đọc bằng mắt): lần 1 sai 2 ("Siêu thị go Tuyển Dụng", "Kệ Siêu Thị Giá Rẻ"), lần 2 sai 2
+  ("Cửa Hàng Tiện Lợi Shop&Go!", "AEON Mail Bình Dương" — là mall viết sai). Cả bốn đã thêm luật (tuyển dụng, kệ siêu thị, cửa hàng tiện lợi) → **≥ 97 % đúng**,
+  0 cửa hàng tiện lợi. Tên mẫu: WinMart, Co.opmart Hóc Môn, Bách Hóa Xanh, Kingfoodmart Nguyễn Thị Định, Tops Market An Phú, Big C, AEON Nguyễn Văn Linh, Satra Foods, Metro Cash and Carry, MM Mega Market…
+- **Mẫu ≥ 50/kind** (mall, cinema, museum, park, play, karaoke, dessert, bakery): trước khi lọc, `play` sai ~12 % (tiệm, kho, "Khu đô thị"), `park` ~8 %
+  (nghĩa trang, ga metro, nhà đất), `museum` ~25 % (lớp nhạc/vẽ, tattoo studio), `cinema` ~10 % (xưởng phim, cà phê phim), `dessert`/`bakery` ~4 % (đại lý gas,
+  khuôn bánh). Sau khi thêm luật theo kind: mẫu mới còn lỗi lẻ (≈ 2–4 %): vài công viên mang tên đường, đền/chùa ở kind museum (vẫn là điểm tham quan).
+- Tìm vẫn đúng: "phuc long" (Phuc Long Coffee & Tea…), "vincom" (Vincom Plaza Ba Tháng Hai, Vincom Center…), "bach hoa xanh" (Bách Hóa Xanh…), "crescent" (Crescent Mall), "aeon".
+- **RSS backend** không tăng: `PoiService()` nạp 74 089 → 70 010 bản ghi, maxrss 215 → 214 MB, nạp 1,16 → 1,15 s.
+- Ảnh bản đồ chụp lại: `docs/phase7/screens/map-poi-t104/` (Thủ Đức z15 {sáng, tối, 390 px} — không còn mall nào ở chỗ cũ; Q1 z13 {sáng, tối, 390 px}). Cần nhìn lại bằng mắt người trước G2.
+- **Còn lại / chưa làm**: 105 cờ HCM + 30 HN (mốc nhiều nơi trùng tên, phường trùng tên quận) chỉ là báo cáo — chưa duyệt từng cái; "Vincom Mega Mall" (OSM, 10,8434/106,8428) và
+  "Vincom Grand Park Quận 9" (Overture, 10,8388/106,8298) cách 1,4 km nhưng có thể là một mall — chưa gộp vì chưa kiểm vị trí thật; "GO An Lạc" ≈ "BigC An Lạc" (đổi tên) chưa gộp.
+  Chạy lại `build_places.py` phải kèm `--cache-dir` có parquet cũ (hoặc tải lại ~140 MB).

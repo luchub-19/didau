@@ -29,7 +29,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import places_clean
+from places_clean import meters
+
 from app.domain.patterns.category_detector.osm_mapping import (
+    clean_kind,
     fold_text,
     kind_category,
     osm_address,
@@ -138,13 +142,6 @@ def brand_key(brand: str | None) -> str | None:
     return key or None
 
 
-def meters(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
-    """Khoảng cách xấp xỉ phẳng (đủ chính xác dưới vài km)."""
-    dy = (a_lat - b_lat) * 111_320.0
-    dx = (a_lng - b_lng) * 111_320.0 * math.cos(math.radians((a_lat + b_lat) / 2))
-    return math.hypot(dx, dy)
-
-
 # ── Overture ───────────────────────────────────────────────────────────────────────────────────
 
 _OVERTURE_SELECT = """
@@ -202,7 +199,11 @@ def overture_address(street: str | None, locality: str | None) -> str | None:
 
 def from_overture(row: dict) -> Rec | None:
     name = (row.get("name") or "").strip()
-    kind = overture_kind(row.get("basic_category"), row.get("taxonomy"), name)
+    kind = clean_kind(
+        overture_kind(row.get("basic_category"), row.get("taxonomy"), name, row.get("brand")),
+        name,
+        row.get("brand"),
+    )
     if not name or kind is None or row.get("lat") is None or row.get("lng") is None:
         return None
     return Rec(
@@ -288,7 +289,7 @@ def osm_rows(region: str, cache_dir: Path | None) -> list[dict]:
 
 def from_osm(row: dict) -> Rec | None:
     tags = row.get("tags") or {}
-    kind = osm_kind(tags)
+    kind = clean_kind(osm_kind({**tags, "name": row["name"]}), row["name"], tags.get("brand"))
     if kind is None:
         return None
     return Rec(
@@ -464,8 +465,17 @@ def to_json(rec: Rec) -> dict:
 
 
 def build_region(
-    overture_raw: list[dict], osm_raw: list[dict], region: str
+    overture_raw: list[dict],
+    osm_raw: list[dict],
+    region: str,
+    report: dict | None = None,
+    overrides: dict | None = None,
 ) -> tuple[list[Rec], Counter]:
+    """Dựng danh sách quán của một vùng. `report` (nếu truyền) nhận kết quả làm sạch để in/audit:
+    `flags` = [(Rec, lý do)] nghi sai vị trí, `dropped` = [(Rec, lý do)] bị bỏ ở bước làm sạch."""
+    report = report if report is not None else {}
+    report.setdefault("flags", [])
+    report.setdefault("dropped", [])
     ovt = [r for row in overture_raw if (r := from_overture(row)) is not None]
     osm = [
         r for row in osm_raw if (r := from_osm(row)) is not None
@@ -474,6 +484,7 @@ def build_region(
     stats["overture vào"] = len(ovt)
     stats["osm vào"] = len(osm)
     districts = load_districts(region)
+    recs = clean_region(recs, districts, stats, report, overrides)
     for rec in recs:
         assign_district(rec, districts)
         rec.score = compute_score(rec)
@@ -482,8 +493,46 @@ def build_region(
     return recs, stats
 
 
+def clean_region(
+    recs: list[Rec],
+    districts: list[tuple[str, float, float]],
+    stats: Counter,
+    report: dict,
+    overrides: dict | None = None,
+) -> list[Rec]:
+    """T-104 (MAP-POI §10): gộp trùng mốc lớn → bỏ tenant trong mall → file ghi đè tay → bỏ quán sai vị trí."""
+    recs, n_merged = places_clean.merge_landmarks(recs)
+    stats["làm sạch: gộp mốc lớn"] = n_merged
+    recs, typos = places_clean.drop_brand_typos(recs)
+    stats["làm sạch: bỏ tên sai thương hiệu"] = len(typos)
+    report["dropped"] += [(r, "tên viết sai thương hiệu, không nằm cạnh mall thật") for r in typos]
+    recs, tenants = places_clean.drop_tenants(recs)
+    stats["làm sạch: bỏ tenant"] = len(tenants)
+    report["dropped"] += [(r, "tenant trong mall khác") for r in tenants]
+    overrides = places_clean.load_overrides() if overrides is None else overrides
+    recs, manual = places_clean.apply_overrides(recs, overrides)
+    stats["làm sạch: ghi đè tay (bỏ)"] = len(manual)
+    report["dropped"] += [(r, overrides["drop"].get(r.external_id, "ghi đè tay")) for r in manual]
+    # sai vị trí: chỉ mall/rạp của riêng Overture (không khớp OSM) bị bỏ tự động; còn lại chỉ ghi báo cáo để duyệt
+    flags = places_clean.position_flags(recs, districts)
+    drop_ids = set()
+    for rec, reason in flags:
+        if rec.sources == ["overture"] and rec.kind in places_clean.COMMERCIAL_LANDMARKS:
+            drop_ids.add(rec.external_id)
+            report["dropped"].append((rec, f"sai vị trí: {reason}"))
+        else:
+            report["flags"].append((rec, reason))
+    stats["làm sạch: sai vị trí (bỏ)"] = len(drop_ids)
+    stats["làm sạch: sai vị trí (chỉ báo cáo)"] = len(report["flags"])
+    return [r for r in recs if r.external_id not in drop_ids]
+
+
 def print_stats(region: str, recs: list[Rec], stats: Counter) -> None:
     n = len(recs) or 1
+    print(
+        "    làm sạch: "
+        + ", ".join(f"{k[10:]} {v}" for k, v in sorted(stats.items()) if k.startswith("làm sạch"))
+    )
     with_addr = sum(1 for r in recs if r.address)
     with_any = sum(1 for r in recs if r.address or r.district)
     print(
@@ -501,16 +550,36 @@ def print_stats(region: str, recs: list[Rec], stats: Counter) -> None:
     print("    minzoom: " + ", ".join(f"z{k} {v}" for k, v in sorted(zooms.items())))
 
 
-def retired_records(region: str, recs: list[Rec]) -> list[dict]:
-    """Quán của snapshot cũ `pois_{region}` không còn trong bản mới (OSM đã xoá/đổi tag): giữ nguyên bản ghi cũ để
-    quán đã thêm vào phòng vẫn mở được chi tiết. Backend chỉ tra theo id, không đưa lên bản đồ/tìm kiếm."""
-    path = OUT_DIR / f"pois_{region}.json.gz"
-    if not path.exists():
-        return []
+def print_cleaning(report: dict) -> None:
+    """Cờ sai vị trí chưa bỏ (cần người duyệt) + bản ghi bị bỏ ở bước làm sạch."""
+    print(
+        f"    cờ vị trí chưa bỏ (người duyệt, xem audit_places.py): {len(report.get('flags', []))}"
+    )
+    for rec, reason in report.get("dropped", []):
+        print(f"    BỎ         {rec.external_id} {rec.kind} {rec.name!r}: {reason}")
+
+
+def retired_records(region: str, recs: list[Rec], report: dict | None = None) -> list[dict]:
+    """Quán của snapshot trước (`pois_{region}` cũ, `places_{region}` hiện có và mục retired của nó) không còn trong bản
+    mới — bị OSM xoá/đổi tag, hoặc bị luật làm sạch bỏ: giữ nguyên bản ghi cũ để quán đã thêm vào phòng vẫn mở được
+    chi tiết. Backend chỉ tra theo id, không đưa lên bản đồ/tìm kiếm."""
     ids = {r.external_id for r in recs} | {a for r in recs for a in r.aliases}
-    with gzip.open(path, "rt", encoding="utf-8") as fh:
-        old = json.load(fh).get("pois", [])
-    return [rec for rec in old if rec.get("external_id") not in ids]
+    old: dict[str, dict] = {}
+    for name in (f"pois_{region}.json.gz", f"places_{region}.json.gz"):
+        path = OUT_DIR / name
+        if not path.exists():
+            continue
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        for rec in [*payload.get("pois", []), *payload.get("retired", [])]:
+            old.setdefault(rec["external_id"], rec)
+    kept = {eid: rec for eid, rec in old.items() if eid not in ids}
+    # id phụ (alias) của quán cũ đã bị bỏ: vẫn phải tra được → mỗi alias là một bản ghi retired mang dữ liệu của quán chính
+    for rec in list(kept.values()):
+        for alias in rec.get("aliases") or ():
+            if alias not in ids and alias not in old:
+                kept[alias] = {**rec, "external_id": alias, "aliases": []}
+    return [{k: v for k, v in rec.items() if v != []} for rec in kept.values()]
 
 
 def write_snapshot(
@@ -594,14 +663,16 @@ def main() -> None:
             continue
         ovt = overture_rows(region, args.release, args.cache_dir, args.min_conf)
         osm = osm_rows(region, args.cache_dir)
-        recs, stats = build_region(ovt, osm, region)
+        report: dict = {}
+        recs, stats = build_region(ovt, osm, region, report)
         path = args.out / f"places_{region}.json.gz"
-        retired = retired_records(region, recs)
+        retired = retired_records(region, recs, report)
         write_snapshot(path, region, args.release, recs, retired)
         gj = args.geojson_dir / f"places_{region}.geojson"
         write_geojson(gj, [to_json(r) for r in recs])
         print(f"  → {gj} ({gj.stat().st_size / 1024:.0f} KB)")
         print_stats(region, recs, stats)
+        print_cleaning(report)
         print(f"    giữ {len(retired)} quán cũ đã mất khỏi nguồn (mục retired, chỉ tra theo id)")
         print(f"  → {path} ({path.stat().st_size / 1024:.0f} KB)")
 
