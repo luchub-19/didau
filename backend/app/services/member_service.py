@@ -8,6 +8,7 @@ from app.domain.models.member import Member
 from app.domain.patterns.event_bus import GroupCenterUpdatedEvent, IEventBus, MemberUpdatedEvent
 from app.repositories import IMemberRepository, IRoomRepository
 from app.services.algorithm_service import publish_priority_update, shared_origins
+from app.services.route_service import warm_after_commit
 from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,9 @@ class MemberService:
             await self._publish_group_center(updated.room_id, had_center)
             # ALGO-04: người đi xa nhất có thể đổi (CR-12)
             await publish_priority_update(self.room_repo, self.event_bus, updated.room_id)
+        if updated.has_origin:
+            # gđ7: km Valhalla nhà ↔ quán của người này — chạy nền SAU commit (cờ tắt thì không làm gì)
+            warm_after_commit(self.member_repo, updated.room_id)
         return updated
 
     async def _center_available(self, room_id: UUID) -> bool:

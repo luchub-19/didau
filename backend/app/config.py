@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     # Trần số phần tử Routes API `computeRouteMatrix` mỗi ngày (T-84); quá trần → ước lượng
     GOOGLE_ROUTES_DAILY_LIMIT: int = 1000
 
+    # Nguồn km/đường đi (gđ7, CR-15): "" (mặc định = như cũ: ước lượng, hoặc Google theo PLACES_PROVIDER) | "valhalla"
+    ROUTING_PROVIDER: str = ""
+
+    # Valhalla tự host qua tunnel (docs/phase7/VALHALLA.md). URL rỗng = chỉ đọc cache DB, không gọi mạng.
+    VALHALLA_URL: str = ""
+
+    # Khoá gửi trong header X-Route-Key (Caddy chặn yêu cầu thiếu khoá); rỗng = không gửi header
+    VALHALLA_KEY: str = ""
+
+    # Timeout mỗi yêu cầu Valhalla (giây); quá hạn → ước lượng, không ghi cache
+    VALHALLA_TIMEOUT_S: float = 4.0
+
     # Thư mục chứa snapshot POI (pois_*.json.gz); rỗng = backend/app/data
     POI_DATA_DIR: str = ""
 

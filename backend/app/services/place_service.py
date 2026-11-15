@@ -30,6 +30,7 @@ from app.services.algorithm_service import (
     priority_payload,
     publish_priority_update,
 )
+from app.services.route_service import warm_after_commit
 from app.services.state_version import publish_versioned
 
 logger = logging.getLogger(__name__)
@@ -236,6 +237,9 @@ class PlaceService:
         )
         await publish_versioned(self.room_repo, self.event_bus, event)
         await publish_priority_update(self.room_repo, self.event_bus, room_id)
+        if place.latitude is not None and place.longitude is not None:
+            # gđ7: km Valhalla cho quán mới — chạy nền SAU commit (cờ tắt thì không làm gì)
+            warm_after_commit(self.place_repo, room_id)
 
         logger.info(
             "Đã thêm địa điểm mới '%s' (category: %s) vào phòng %s",
@@ -422,6 +426,8 @@ class PlaceService:
         # ALGO-04 phụ thuộc trạng thái (REJECTED bị loại), toạ độ và giờ mở cửa
         if PRIORITY_FIELDS & update_dict.keys():
             await publish_priority_update(self.room_repo, self.event_bus, room_id)
+        if {"latitude", "longitude"} & update_dict.keys():
+            warm_after_commit(self.place_repo, room_id)
 
         vote_summary = await self.vote_repo.get_vote_summary_by_room(room_id)
         summary = vote_summary.get(final_place.id, {"upvotes": 0, "downvotes": 0, "score": 0})

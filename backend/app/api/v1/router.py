@@ -11,6 +11,7 @@ from app.api.v1.places import router as places_router
 from app.api.v1.pois import router as pois_router
 from app.api.v1.reviews import router as reviews_router
 from app.api.v1.rooms import router as rooms_router
+from app.api.v1.routes import router as routes_router
 from app.api.v1.schedule import router as schedule_router
 from app.api.v1.votes import router as votes_router
 from app.core.exceptions import AppException
@@ -27,6 +28,7 @@ api_router.include_router(pois_router)
 api_router.include_router(decisions_router)
 api_router.include_router(reviews_router)
 api_router.include_router(algorithms_router)
+api_router.include_router(routes_router)
 
 
 def register_exception_handlers(app: FastAPI) -> None:

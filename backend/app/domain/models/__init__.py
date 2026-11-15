@@ -9,6 +9,7 @@ from app.domain.models.place import Place
 from app.domain.models.review import PlaceReview
 from app.domain.models.room import Room
 from app.domain.models.schedule import ScheduleItem
+from app.domain.models.travel_leg import TravelLeg
 from app.domain.models.vote import Vote
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "PlaceReview",
     "Room",
     "ScheduleItem",
+    "TravelLeg",
     "Vote",
 ]

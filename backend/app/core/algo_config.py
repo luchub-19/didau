@@ -38,6 +38,31 @@ GOOGLE_DAILY_ELEMENT_LIMIT = 1000
 """Trần số phần tử gọi Google mỗi ngày (phòng lạm dụng/billing; quá trần → ước lượng). Không có trong tài liệu
 đồ án — thêm theo luật dự án "không gọi dịch vụ trả phí" (CLAUDE.md), đổi được qua `Settings.GOOGLE_ROUTES_DAILY_LIMIT`."""
 
+# Valhalla tự host + cache km trong DB (docs/phase7/ALGORITHMS.md §5, chỉ khi ROUTING_PROVIDER=valhalla)
+VALHALLA_COSTING = "motor_scooter"
+"""Chế độ xe máy của Valhalla (tránh đường cấp cao, trần 45 km/h)."""
+
+VALHALLA_TIMEOUT_S = 4.0
+"""Quá hạn một yêu cầu Valhalla → ô đó lùi về ước lượng (đổi được qua `Settings.VALHALLA_TIMEOUT_S`)."""
+
+VALHALLA_MAX_PAIRS = 2500
+"""Trần cặp (sources × targets) mỗi yêu cầu `/sources_to_targets` (mặc định `max_matrix_location_pairs`)."""
+
+VALHALLA_COOLDOWN_S = 60.0
+"""Sau một lỗi mạng/HTTP: không gọi Valhalla trong ngần ấy giây (PC tắt thì request không phải chờ timeout mãi)."""
+
+ROUTE_COORD_DECIMALS = 4
+"""Làm tròn toạ độ khi làm khoá cache `travel_legs` (~11 m)."""
+
+ROUTE_WARM_SHAPE_LIMIT = 60
+"""Số đường (`/route`) tối đa lấy hình dạng trong một lần làm ấm; phần còn lại lấy khi có người xem."""
+
+ROUTE_SHAPE_CONCURRENCY = 4
+"""Số yêu cầu `/route` chạy song song."""
+
+ROUTE_MEMORY_LIMIT = 20_000
+"""Trần số chặng giữ trong RAM (bản sao cache DB cho phần đồng bộ); quá trần thì xoá sạch, đọc lại từ DB."""
+
 # ── §3 ALGO-01 Tâm nhóm ───────────────────────────────────────────────────────────────────────────
 CENTER_RADIUS_KM = 2.0
 """Bán kính tìm quán quanh tâm nhóm."""

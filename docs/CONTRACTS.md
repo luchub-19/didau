@@ -94,7 +94,7 @@ Các mã chuẩn hoá và tham số cấu trúc để frontend hiển thị song
 | `rule_code` | Cấu trúc `params` |
 | :--- | :--- |
 | `TIME_OVERLAP` | `item_ids: [str, str]`, `place_names: [str, str]`, `ranges: [{start_minute, end_minute, day_offset}, {start_minute, end_minute, day_offset}]` |
-| `TRAVEL_TIME` | (CR-12 phần 2, ALGO-03) `from_item_id: str`, `to_item_id: str`, `place_names: [str, str]`, `eta_min: int`, `margin_min: int`, `buffer_min: int`, `gap_min: int`, `slack_min: int`, `distance_km: float`, `risk: "SOFT_CONFLICT" \| "HIGH_RISK"`, `peak: bool`, `source: "ESTIMATE" \| "GOOGLE"`, `estimated: bool` (trước T-87: `travel_min` thay `eta_min`, không có các trường còn lại) |
+| `TRAVEL_TIME` | (CR-12 phần 2, ALGO-03) `from_item_id: str`, `to_item_id: str`, `place_names: [str, str]`, `eta_min: int`, `margin_min: int`, `buffer_min: int`, `gap_min: int`, `slack_min: int`, `distance_km: float`, `risk: "SOFT_CONFLICT" \| "HIGH_RISK"`, `peak: bool`, `source: "ESTIMATE" \| "GOOGLE" \| "VALHALLA"` (VALHALLA: CR-15, T-95), `estimated: bool` (trước T-87: `travel_min` thay `eta_min`, không có các trường còn lại) |
 | `OPENING_HOURS` | `item_id: str`, `place_name: str`, `start_minute: int`, `end_minute: int`, `open_minute: int`, `close_minute: int` |
 | `DUPLICATE_PLACE` | `place_ids: [str, str]`, `place_names: [str, str]`, `similarity: float`, `distance_m: float` |
 | `BUDGET_THRESHOLD` | `total_cost: int`, `budget_limit: int` |
@@ -873,7 +873,7 @@ Khi có lỗi (status $\ge 400$):
 - **Kích hoạt (theo từng loại quán)**: trong một `category`, các quán chưa `REJECTED`/`VISITED`, ≥ 2 quán cùng `score` (upvotes − downvotes) lớn nhất, loại đó có ít nhất một phiếu, và loại chưa có quán `ACCEPTED`; mọi quán bằng điểm đó là ứng viên (có thể > 3). Mỗi loại hoà là một mục của `suggestions` (thứ tự khai báo `PlaceCategory`: FOOD, DRINK, ENTERTAINMENT, …). Không loại nào hoà → `{available:false, reason:"NO_TIE", suggestions:[]}` (không gọi estimator/Google). `NEAR_TIE` không kích hoạt.
 - **Xuất phát**: chỉ thành viên đang hoạt động **tự chia sẻ** vị trí (`members.origin_*`); **không** dùng điểm hẹn của host (khác CR-12). Người thiếu bị loại, đếm ở `excluded_member_count`. Không ai → `available:false`, `reason:"NO_ORIGINS"` (vẫn có `suggestions` với `candidates`, `ranking: []`). Mọi ứng viên của mọi loại thiếu toạ độ → `reason:"NO_PLACE_COORDS"`.
 - **Thuật toán (MVP K = 1)**: người i với quán s: `dᵢ = km(nhà_i → s) + km(s → nhà_i)` (hai chiều hỏi riêng, không giả định đối xứng), `cᵢ = dᵢ^k`, sắp c tăng dần, `Ψ = Σ w_r·c₍r₎` với `w_r = 1 + λ·(r−1)/(N−1)` (N = 1 → w = 1). Xếp Ψ tăng dần; hoà Ψ (sai số 1e-9) → `max_km` nhỏ hơn → `total_km` nhỏ hơn → quán thêm sớm hơn → `place_id`. Mặc định `λ = 0.5`, `k = 1` (`params`).
-- **Trường**: km là **khứ hồi**, làm tròn 3 số; `minutes` = phút đi + phút về của người đó; `max_min` = lớn nhất của các `minutes` ở quán đó. `members[]` là của **quán đề xuất**, sắp theo `rank` (1 = đi gần nhất), `weight` = w của hạng đó. Quán thiếu toạ độ có trong `candidates` nhưng không có dòng `ranking`, không bao giờ được đề xuất. `runner_up_psi` = Ψ hạng 2 (`null` nếu chỉ một quán xếp hạng được). `source` = `ESTIMATE` nếu còn ô ước lượng, ngược lại nguồn chung (`GOOGLE`; `VALHALLA` từ T-95) hoặc `MIXED`; `estimated` = `source == "ESTIMATE"`. Km khởi hành lúc `room.start_minute` của `event_date` (cả hai chiều).
+- **Trường**: km là **khứ hồi**, làm tròn 3 số; `minutes` = phút đi + phút về của người đó; `max_min` = lớn nhất của các `minutes` ở quán đó. `members[]` là của **quán đề xuất**, sắp theo `rank` (1 = đi gần nhất), `weight` = w của hạng đó. Quán thiếu toạ độ có trong `candidates` nhưng không có dòng `ranking`, không bao giờ được đề xuất. `runner_up_psi` = Ψ hạng 2 (`null` nếu chỉ một quán xếp hạng được). `source` = `ESTIMATE` nếu còn ô ước lượng, ngược lại nguồn chung (`GOOGLE`, `VALHALLA`) hoặc `MIXED`; `estimated` = `source == "ESTIMATE"`. Km khởi hành lúc `room.start_minute` của `event_date` (cả hai chiều). Với `ROUTING_PROVIDER=valhalla` (CR-15 phần B, T-95) km **chỉ đọc từ cache DB** (không chờ mạng); ô chưa có → ước lượng, và server hẹn làm ấm nền nên lần gọi sau có số Valhalla.
 - **Riêng tư**: không có toạ độ của ai, không hình học đường đi (CR-11).
 - **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
 
@@ -900,9 +900,42 @@ Khi có lỗi (status $\ge 400$):
 }
 ```
 - **Phạm vi**: chỉ mục của ngày phòng (`day_offset = 0`), vì khung giờ là của một ngày. `window_min = end_minute − start_minute` (khung qua nửa đêm +24h).
-- **Chặng**: mọi cặp mục liên tiếp (sắp như luật `TRAVEL_TIME`, §1.13 A), **kể cả cặp chồng giờ** (`gap_min < 0`, luôn `HIGH_RISK`; cảnh báo của cặp này vẫn chỉ là `TIME_OVERLAP`). Số liệu và mức giống hệt `params` của `TRAVEL_TIME` (cùng hàm); `SAFE` cũng có mặt. Cặp có quán thiếu toạ độ không vào `legs`, đếm ở `unknown_leg_count`. Chặng gọi Google nếu `PLACES_PROVIDER=google` + key (lỗi → `ESTIMATE`).
+- **Chặng**: mọi cặp mục liên tiếp (sắp như luật `TRAVEL_TIME`, §1.13 A), **kể cả cặp chồng giờ** (`gap_min < 0`, luôn `HIGH_RISK`; cảnh báo của cặp này vẫn chỉ là `TIME_OVERLAP`). Số liệu và mức giống hệt `params` của `TRAVEL_TIME` (cùng hàm); `SAFE` cũng có mặt. Cặp có quán thiếu toạ độ không vào `legs`, đếm ở `unknown_leg_count`. Chặng gọi Google nếu `PLACES_PROVIDER=google` + key (lỗi → `ESTIMATE`); `ROUTING_PROVIDER=valhalla` → km cache DB (`VALHALLA`), chưa có → `ESTIMATE` (CR-15).
 - **Tổng**: `required_total_min = Σ (end − start) + Σ (eta + margin + buffer)`; `buffer_total_min = window − required_total`; `is_feasible = buffer_total ≥ 0 và không chặng nào HIGH_RISK`. `estimated` = có chặng ước lượng.
 - **Cập nhật**: không có sự kiện WS riêng — client gọi lại khi nhận `SCHEDULE_UPDATED`, `CONFLICTS_UPDATED`, `ROOM_UPDATED`.
+- **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
+
+#### 37. Đường của tôi tới một quán (CR-15 phần B, T-95)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/routes/me?place_id=<uuid>`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Response 200 OK** (`MyRoutes`):
+```json
+{
+  "place_id": "…",
+  "to_place": { "km": 6.214, "minutes": 15, "shape": "_p~iF~ps|U_ulL…", "source": "VALHALLA" },
+  "to_home": { "km": 6.873, "minutes": 17, "shape": "…", "source": "VALHALLA" }
+}
+```
+- **Ý nghĩa**: `to_place` = nhà **người gọi** → quán, `to_home` = quán → nhà người gọi (một chiều, không đối xứng). Chỉ dùng vị trí người gọi **tự chia sẻ** (`origin_source = MEMBER`), không dùng điểm hẹn host.
+- **Trường**: `km` làm tròn 3 số; `minutes = ceil(km ÷ MOTORBIKE_KMH × 60)` (Google: phút có kẹt xe); `shape` = polyline mã hoá **độ chính xác 6** (định dạng Valhalla), `null` khi chưa có đường thật (`source = ESTIMATE`, hoặc nguồn Google); `source ∈ ESTIMATE | VALHALLA | GOOGLE`.
+- **Nguồn**: cache DB → (thiếu `shape` và Valhalla bật) gọi `/route` ngay, timeout `VALHALLA_TIMEOUT_S`, lưu lại → lỗi thì km cache/ước lượng, `shape: null`. Mặc định (`ROUTING_PROVIDER` trống): ước lượng, `shape: null`, không gọi mạng.
+- **Riêng tư (CR-11)**: không bao giờ có đường/km xuất phát từ nhà người khác; không có trường toạ độ, không khoá cache.
+- **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404), `PLACE_NOT_FOUND` (404, quán không thuộc phòng), `NO_ORIGIN` (404, người gọi chưa chia sẻ vị trí), `NO_PLACE_COORDS` (404, quán thiếu toạ độ), `VALIDATION_ERROR` (422, thiếu/sai `place_id`).
+
+#### 38. Đường giữa các mục trên lịch (CR-15 phần B, T-95)
+- **Method & Path**: `GET /api/v1/rooms/{room_id}/schedule/routes`
+- **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
+- **Response 200 OK** (`ScheduleRoutes`):
+```json
+{
+  "legs": [
+    { "from_item_id": "…", "to_item_id": "…", "km": 1.31, "minutes": 4, "shape": "…", "source": "VALHALLA" }
+  ],
+  "unknown_leg_count": 1
+}
+```
+- **Phạm vi**: các cặp mục liên tiếp của ngày phòng (`day_offset = 0`), cùng cách ghép cặp với mục 36 (kể cả cặp chồng giờ). Cặp có quán thiếu toạ độ không vào `legs`, đếm ở `unknown_leg_count`. Trường `km/minutes/shape/source` như mục 37.
+- **Cập nhật**: không có sự kiện WS riêng — client gọi lại khi nhận `SCHEDULE_UPDATED`, `PLACE_UPDATED`.
 - **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
 
 #### 29. Chi tiết một địa điểm trong phòng (CR-05)
@@ -1745,7 +1778,7 @@ export interface GroupCenterResponse {
   nearby_pois: Poi[]; // ≤ 10, trong 2 km, gần → xa
 }
 
-export type TravelSource = 'ESTIMATE' | 'GOOGLE';
+export type TravelSource = 'ESTIMATE' | 'GOOGLE' | 'VALHALLA'; // VALHALLA: CR-15 phần B (T-95)
 export type TieUnavailableReason = 'NO_TIE' | 'NO_ORIGINS' | 'NO_PLACE_COORDS';
 // CR-15 (T-94): hoà phiếu OMP theo từng loại — thay TieMemberInfo/TieLeg/matrix của CR-12
 export interface TieCandidate { place_id: string; name: string; upvotes: number; downvotes: number; score: number }
@@ -1760,7 +1793,7 @@ export interface CategoryTieSuggestion {
   runner_up_psi: number | null;
   excluded_member_count: number;
   estimated: boolean;
-  source: TravelSource | 'VALHALLA' | 'MIXED';
+  source: TravelSource | 'MIXED';
   params: { lambda: number; k: number };
 }
 
@@ -1792,6 +1825,11 @@ export interface ScheduleFeasibility {
   legs: FeasibilityLeg[]; estimated: boolean; item_count: number; unknown_leg_count: number;
 }
 export type PlaceSort = 'priority';
+// Đường đi (CR-15 phần B, T-95) — mục 37, 38. `shape`: polyline độ chính xác 6, null = chưa có đường thật
+export interface RouteLeg { km: number; minutes: number; shape: string | null; source: TravelSource }
+export interface MyRoutes { place_id: string; to_place: RouteLeg; to_home: RouteLeg }
+export interface ScheduleRouteLeg extends RouteLeg { from_item_id: string; to_item_id: string }
+export interface ScheduleRoutes { legs: ScheduleRouteLeg[]; unknown_leg_count: number }
 // websocket.ts
 export interface PriorityUpdatedPayload { items: (PlacePriority & { place_id: string })[] }
 

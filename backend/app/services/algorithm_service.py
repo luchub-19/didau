@@ -48,6 +48,7 @@ from app.domain.patterns.event_bus import DomainEvent, IEventBus
 from app.domain.patterns.itinerary.travel import (
     CachedEstimator,
     Coord,
+    DbCachedEstimator,
     Leg,
     TravelSource,
     get_travel_estimator,
@@ -231,6 +232,7 @@ class AlgorithmService:
             return [], UnavailableReason.NO_PLACE_COORDS, excluded, groups
 
         # Google (nếu bật) chỉ được gọi ở đây — sau khi đã chắc có hoà và đủ dữ liệu; lỗi → ước lượng.
+        # Valhalla (gđ7 §5): `amatrix` chỉ đọc cache DB, ô thiếu → ước lượng (không chờ mạng; làm ấm chạy nền).
         # Khứ hồi = hai lần hỏi đúng chiều (đi: nhà → quán, về: quán → nhà); không giả định đối xứng.
         estimator = get_travel_estimator()
         depart = self._depart_at(room)
@@ -314,6 +316,11 @@ class AlgorithmService:
                     params=params,
                 )
             )
+        if any(s.estimated for s in suggestions):
+            # gđ7: còn ô ước lượng → hẹn làm ấm nền (dữ liệu đã commit); lần xem sau có km Valhalla
+            from app.services.route_service import request_warm
+
+            request_warm(room_id)
         available = any(s.recommended_place_id is not None for s in suggestions)
         if not available and reason is None:
             reason = UnavailableReason.NO_PLACE_COORDS
@@ -427,7 +434,8 @@ class AlgorithmService:
         with_coords = [p for p in active if str(p.id) in coords]
         etas: dict[UUID, tuple[int, bool]] = {}
         if origins and with_coords:
-            matrix = get_travel_estimator().matrix(
+            # Chỉ đọc cache (RAM/DB) — không bao giờ gọi mạng; mặc định = ước lượng đồng bộ như cũ
+            matrix = await get_travel_estimator().acached_matrix(
                 origins, [coords[str(p.id)] for p in with_coords], self._depart_at(room)
             )
             for j, p in enumerate(with_coords):
@@ -555,9 +563,10 @@ async def publish_priority_update(room_repo: Any, event_bus: IEventBus | None, r
 
 async def warm_schedule_legs(context: ConflictContext) -> None:
     """Làm ấm cache Google cho các cặp liên tiếp trước khi `TravelTimeConflictRule` (đồng bộ) chạy, để cảnh báo và
-    `GET /schedule/feasibility` cùng số. Estimator ước lượng thuần thì không làm gì (không có gì để ấm)."""
+    `GET /schedule/feasibility` cùng số. Valhalla (gđ7): chỉ nạp km đã lưu trong DB vào RAM (không gọi mạng — km
+    quán ↔ quán đã được làm ấm nền khi thêm quán). Estimator ước lượng thuần thì không làm gì."""
     estimator = get_travel_estimator()
-    if not isinstance(estimator, CachedEstimator):
+    if not isinstance(estimator, CachedEstimator | DbCachedEstimator):
         return
     coords = {
         str(p.place_id): (float(p.latitude), float(p.longitude))
@@ -567,6 +576,11 @@ async def warm_schedule_legs(context: ConflictContext) -> None:
     pairs: list[tuple[PlanItem, PlanItem]] = consecutive_pairs(
         plan_items_from_dicts(context.schedule_items, coords)
     )
+    if isinstance(estimator, DbCachedEstimator):
+        await estimator.load(
+            [(c.coord, n.coord) for c, n in pairs if c.coord is not None and n.coord is not None]
+        )
+        return
     for curr, nxt in pairs:
         if curr.coord is None or nxt.coord is None or nxt.start_minute < curr.end_minute:
             continue

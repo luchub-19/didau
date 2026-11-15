@@ -485,7 +485,8 @@ Chỉ chặn ở frontend (lách được bằng gọi API trực tiếp).
 - **Người đề xuất**: Session T-93 (2026-11-14, efa7053a), theo `docs/phase7/ALGORITHMS.md` + quyết định `docs/phase7/PLAN.md` §1
 - **Ngày tạo**: 2026-11-14
 - **Trạng thái**: APPROVED (người dùng duyệt 2026-11-15, cùng 2 lệch MVP ở `docs/phase7/PLAN.md` §2) · **Phần A đã áp** vào
-  `CONTRACTS.md` (§1 `TRAVEL_TIME`, mục 8 resolve, mục 35, kiểu TS) ở T-94 (2026-11-15). Phần B chờ T-95.
+  `CONTRACTS.md` (§1 `TRAVEL_TIME`, mục 8 resolve, mục 35, kiểu TS) ở T-94 (2026-11-15). **Phần B đã áp** ở T-95
+  (2026-11-15): §1.13 A `source`, mục 35/36 (nguồn km), mục 37 `routes/me`, mục 38 `schedule/routes` (mới), kiểu TS.
 - **Task đã DONE bị ảnh hưởng**: T-86 (ALGO-02, `TieSuggestion`, resolve `TRAVEL_TIME`), T-89 (thẻ hoà phiếu + "Vì sao?"),
   T-84 (estimator), T-87/T-90 (ALGO-03/04 đổi nguồn km → số thay đổi), CR-12 phần 1.
 
@@ -506,6 +507,24 @@ Chỉ chặn ở frontend (lách được bằng gọi API trực tiếp).
 - `GET /rooms/{id}/routes/me?place_id=` → `{to_place: {km, minutes, shape, source}, to_home: {…}}` chỉ của người gọi;
   404 `NO_ORIGIN` khi người gọi chưa chia sẻ vị trí.
 - `GET /rooms/{id}/schedule/routes` → `{legs: [{from_item_id, to_item_id, km, minutes, shape, source}]}` (ngày đầu).
+
+**Phần B — cách làm đã chọn ở T-95 (2026-11-15):**
+- **Ai gọi Valhalla**: chỉ hai chỗ — (1) làm ấm nền, (2) `routes/me` + `schedule/routes` khi thiếu `shape` (timeout
+  `VALHALLA_TIMEOUT_S`, lỗi → nghỉ `VALHALLA_COOLDOWN_S = 60` giây để PC tắt không làm mọi request chờ timeout). Tính hoà,
+  resolve `TRAVEL_TIME`, ALGO-03/04 và luật `TRAVEL_TIME` chỉ đọc cache (RAM → DB) rồi ước lượng — không chờ mạng.
+- **Làm ấm sau commit**: service gọi `warm_after_commit(repo, room_id)` sau khi thêm quán có toạ độ, sửa toạ độ quán, đặt
+  vị trí thành viên. Hàm gắn listener `after_commit` / `after_soft_rollback` của SQLAlchemy vào session của request: chỉ
+  khi transaction commit xong mới `create_task` (session RIÊNG, đọc dữ liệu đã commit — tránh bẫy T-87); rollback = huỷ.
+  Chọn hook `after_commit` thay `BackgroundTasks` của FastAPI vì thứ tự "dependency teardown (commit) trước background
+  task" đổi theo phiên bản FastAPI, còn hook thì gắn đúng vào commit.
+- **Gom**: một task mỗi phòng (`RouteWarmer`); yêu cầu tới khi đang chạy → chạy lại đúng một lượt. Mỗi lượt: cặp còn thiếu
+  trong {thành viên tự chia sẻ + điểm hẹn host} ↔ quán (hai chiều) ∪ quán ↔ quán → **một** `/sources_to_targets`
+  (hình chữ nhật nhỏ nhất, ≤ 2 500 cặp), rồi `/route` lấy `shape` tối đa `ROUTE_WARM_SHAPE_LIMIT = 60` cặp (lịch trước,
+  4 yêu cầu song song). `GET /tie-break/suggestion`, `routes/me`, `schedule/routes` thấy ô ước lượng → hẹn làm ấm (tự lành
+  cho phòng có từ trước khi bật cờ, hoặc lúc PC tắt). Render ngủ → task mất, lần kích hoạt sau làm lại.
+- **Cache**: phút không là nguồn sự thật — tính lại từ km mỗi lần đọc (đổi `MOTORBIKE_KMH` có hiệu lực ngay). `/route` của
+  cặp đã có km chỉ ghi `shape`, giữ km của ma trận (hoà phiếu và đường vẽ cùng số). `VALHALLA_URL` trống mà
+  `ROUTING_PROVIDER=valhalla` → chỉ đọc cache DB. Google giữ nguyên cache RAM 15′ cũ, không ghi DB.
 
 ### 3. Phương án nếu không duyệt
 Giữ ALGO-02 (CR-12); thuật toán của Sơn chỉ nằm trong báo cáo + playground của Sơn.
