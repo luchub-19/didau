@@ -46,6 +46,9 @@ import {
   type MotionTier,
 } from '../motion';
 import { useSound, type SoundName } from '../sound';
+import { Wordmark } from '../components/shell/Wordmark';
+import { TripCard } from '../stage/card/TripCard';
+import { mockGuestMember, mockHostMember, mockPlaces, mockRoom, mockScheduleItems } from '../mocks/mockData';
 
 interface ColorSwatchProps {
   name: string;
@@ -297,7 +300,7 @@ const StageSection: React.FC = () => {
         {STAGE_FONT_CANDIDATES.map((f) => (
           <div key={f.family} data-font={f.family} className="border-t border-line pt-3">
             <p className="text-caption mb-1" style={{ color: 'rgb(var(--stage-ink-2))' }}>{f.family}</p>
-            <p style={{ fontFamily: `"${f.family}"`, fontSize: 96, lineHeight: 1.25, fontWeight: 800 }}>Ở Ữ Ặ HookupFPT</p>
+            <p style={{ fontFamily: `"${f.family}"`, fontSize: 96, lineHeight: 1.25, fontWeight: 800 }}>Ở Ữ Ặ Hangoutplanner</p>
             <p style={{ fontFamily: `"${f.family}"`, fontSize: 64, lineHeight: 1.2, fontWeight: 700 }}>{tVi('stage.tagline')}</p>
             <p style={{ fontFamily: `"${f.family}"`, fontSize: 64, lineHeight: 1.2, fontWeight: 700 }}>{tEn('stage.tagline')}</p>
             <p className="text-body mt-1">{tVi('stage.subline')} · {tEn('stage.subline')}</p>
@@ -446,7 +449,7 @@ export const StyleGuide: React.FC = () => {
           <LanguageSwitcher />
         </div>
         <h1 className="text-display font-bold text-ink mb-2">
-          HookupFPT — Bảng phong cách mẫu & Bộ khung UI Kit
+          Hangoutplanner — Bảng phong cách mẫu & Bộ khung UI Kit
         </h1>
         <p className="text-body text-ink-2 max-w-2xl">
           Trang mẫu tích hợp toàn bộ component UI Kit chuẩn hoá (`src/components/ui/`), token màu, font Be Vietnam Pro,
@@ -474,6 +477,30 @@ export const StyleGuide: React.FC = () => {
             <p className="font-semibold text-sm text-ink">{t('app.name')}</p>
             <p className="text-caption text-ink-2">{t('app.tagline')}</p>
           </div>
+          <div className="p-3 rounded-field bg-surface-2 border border-line">
+            <span className="text-caption text-ink-3 block mb-2">Wordmark C (44px) + ô &quot;H.&quot;</span>
+            <div className="flex flex-wrap items-end gap-4">
+              <Wordmark size={44} />
+              <Wordmark variant="mark" size={32} />
+            </div>
+          </div>
+        </div>
+
+        {/* T-98: chân thẻ PNG có wordmark — xem cả hai palette */}
+        <div data-testid="styleguide-trip-cards" className="flex flex-wrap gap-4 my-6">
+          {(['light', 'dark'] as const).map((palette) => (
+            <TripCard
+              key={palette}
+              room={mockRoom}
+              items={mockScheduleItems}
+              places={mockPlaces}
+              members={[mockHostMember, mockGuestMember]}
+              palette={palette}
+              lang="vi"
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-3 rounded-field bg-surface-2 border border-line">
             <span className="text-caption text-ink-3 block mb-1">common (hành động mẫu)</span>
             <div className="flex flex-wrap gap-1.5 mt-1">

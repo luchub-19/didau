@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Ô logo Hangoutplanner (T-98): nền tối, chữ H + chấm coral; vẽ bằng hình khối để không phụ thuộc font -->
+  <rect width="32" height="32" rx="9" fill="#1C1917"/>
+  <path fill="#FAFAF9" d="M7 8h4.6v6.2h5.6V8h4.6v16h-4.6v-6h-5.6v6H7z"/>
+  <circle cx="25.3" cy="21.8" r="2.3" fill="#FF8566"/>
+</svg>

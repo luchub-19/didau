@@ -18,6 +18,11 @@
   --color-accent-soft: 255 241 236;/* #FFF1EC */
   --color-accent-text: 199 62 38;  /* #C73E26 (5.1:1 trên trắng) */
 
+  /* Ô logo "H." (T-98): luôn nền tối ở cả hai theme, nên chỉ khai báo một lần ở :root */
+  --brand-mark-bg: 28 25 23;       /* #1C1917 */
+  --brand-mark-ink: 250 250 249;   /* #FAFAF9 (16.7:1) */
+  --brand-mark-dot: 255 133 102;   /* #FF8566 (6.9:1) */
+
   /* Trạng thái (DESIGN.md §2) */
   --color-success: 4 120 87;         /* #047857 */
   --color-success-soft: 236 253 245; /* #ECFDF5 */
@@ -178,6 +183,7 @@
   --color-accent-hover: 242 92 60; /* #F25C3C */
   --color-accent-soft: 58 31 24;   /* #3A1F18 */
   --color-accent-text: 255 133 102;/* #FF8566 (7.8:1 trên bg, 7.0:1 trên surface) */
+  --brand-mark-bg: 46 40 36;       /* #2E2824 — ô "H." nhô lên khỏi nền tối thay vì chìm vào nó (T-98) */
 
   /* Trạng thái (đạt ≥4.5:1 chữ / ≥3:1 icon) */
   --color-success: 52 211 153;        /* #34D399 (9.7:1 trên bg, 8.7:1 trên surface) */
@@ -243,6 +249,7 @@
     --color-accent-hover: 242 92 60;
     --color-accent-soft: 58 31 24;
     --color-accent-text: 255 133 102;
+    --brand-mark-bg: 46 40 36;
 
     /* Trạng thái */
     --color-success: 52 211 153;

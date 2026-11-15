@@ -5,6 +5,7 @@ import { copyText, shareRoom } from '../room/shareRoom';
 import { useRoomPhase, type UseRoomPhaseResult } from '../../room/useRoomPhase';
 import { PhaseStepper } from './PhaseStepper';
 import { TimeWindowChip } from './TimeWindowChip';
+import { Wordmark } from './Wordmark';
 import { formatTimeWindow } from '../../i18n/format';
 import { useLanguage } from '../../i18n/useLanguage';
 
@@ -54,6 +55,9 @@ export const RoomTopBar: React.FC<RoomTopBarProps> = ({
             onClick={onGoHome}
             className="flex-shrink-0"
           />
+
+          {/* Logo gọn "H." — ẩn ở điện thoại để nhường chỗ cho tên phòng */}
+          <Wordmark variant="mark" size={30} className="hidden sm:inline-flex" />
 
           <div className="min-w-0 flex items-center gap-2">
             <h1 className="text-heading font-semibold text-ink truncate max-w-[140px] sm:max-w-xs md:max-w-md">

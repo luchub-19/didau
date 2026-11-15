@@ -14,13 +14,13 @@ export const CARD_WIDTH = 540;
 export const CARD_HEIGHT = 675;
 export const CARD_PIXEL_RATIO = 2;
 
-/** `hookupfpt-<mã phòng>.png`, mã phòng chỉ giữ chữ-số. */
+/** `hangoutplanner-<mã phòng>.png`, mã phòng chỉ giữ chữ-số. */
 export function cardFileName(code: string): string {
   const slug = code
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '')
     .slice(0, 12);
-  return `hookupfpt-${slug || 'plan'}.png`;
+  return `hangoutplanner-${slug || 'plan'}.png`;
 }
 
 const LATIN_RANGE =

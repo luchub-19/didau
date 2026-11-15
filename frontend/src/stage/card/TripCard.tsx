@@ -11,6 +11,7 @@ import { CARD_HEIGHT, CARD_WIDTH } from './exportCard';
 import { MAX_NAMES, describeLongDate, limitList, shortAddress, sortPlanItems } from './planText';
 import type { PlanFeasibility, PlanLeg } from './planText';
 import { routeSketch } from './routeSketch';
+import { Wordmark } from '../../components/shell/Wordmark';
 
 export type CardPalette = 'light' | 'dark';
 
@@ -263,12 +264,15 @@ export const TripCard = React.forwardRef<HTMLDivElement, TripCardProps>(function
         </div>
       )}
 
-      <p
+      <div
         data-testid="trip-card-footer"
-        style={{ margin: '16px 0 0', paddingTop: 12, borderTop: '1px solid rgb(var(--c-ink-2) / 0.25)', fontSize: 13, fontWeight: 700, color: col('ink-2') }}
+        style={{ margin: '16px 0 0', paddingTop: 12, borderTop: '1px solid rgb(var(--c-ink-2) / 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
       >
-        {t('export.card.footer', { app: t('app.name'), code: room.code })}
-      </p>
+        <Wordmark size={27} inkColor={col('ink')} accentColor={col('accent-text')} />
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: col('ink-2') }}>
+          {t('export.card.footer', { code: room.code })}
+        </p>
+      </div>
     </div>
   );
 });

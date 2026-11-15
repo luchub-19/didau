@@ -278,10 +278,10 @@ describe('T-61: nút thật sau màn công bố (actions)', () => {
     expect(fallback).toContain('DTSTART:20261030T170000');
   });
 
-  it('T-91: PRODID HookupFPT và UID @hookupfpt', () => {
+  it('T-98: PRODID Hangoutplanner và UID @hangoutplanner', () => {
     const ics = buildIcs({ room, place, url: 'u' });
-    expect(ics).toContain('PRODID:-//HookupFPT//VN');
-    expect(ics).toMatch(/UID:r1-p1@hookupfpt/);
+    expect(ics).toContain('PRODID:-//Hangoutplanner//VN');
+    expect(ics).toMatch(/UID:r1-p1@hangoutplanner/);
     expect(ics).not.toMatch(/Di Dau|@didau/);
   });
 
@@ -301,8 +301,8 @@ describe('T-61: nút thật sau màn công bố (actions)', () => {
   });
 
   it('tên tệp lịch không dấu', () => {
-    expect(icsFileName('Đông Phương Quán')).toBe('hookupfpt-dong-phuong-quan.ics');
-    expect(icsFileName('!!!')).toBe('hookupfpt-plan.ics');
+    expect(icsFileName('Đông Phương Quán')).toBe('hangoutplanner-dong-phuong-quan.ics');
+    expect(icsFileName('!!!')).toBe('hangoutplanner-plan.ics');
   });
 });
 

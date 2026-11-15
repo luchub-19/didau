@@ -27,7 +27,7 @@ export const vi = {
     },
   },
   app: {
-    name: 'HookupFPT',
+    name: 'Hangoutplanner',
     tagline: 'Chọn chỗ đi chơi cùng nhóm',
     coldStart: {
       wakingTitle: 'Đang đánh thức máy chủ, chờ khoảng 1 phút nhé…',
@@ -326,7 +326,7 @@ export const vi = {
       leg: '~{{minutes}}′',
       spare: 'Còn dư {{minutes}}′ dự phòng',
       routeLabel: 'Phác thảo tuyến đi giữa các điểm',
-      footer: '{{app}} · mã phòng {{code}}',
+      footer: 'Mã phòng {{code}}',
     },
     text: {
       header: 'KẾ HOẠCH ĐI CHƠI: {{title}}',

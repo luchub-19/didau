@@ -29,7 +29,7 @@ export const en: Messages = {
     },
   },
   app: {
-    name: 'HookupFPT',
+    name: 'Hangoutplanner',
     tagline: 'Pick hangout spots with friends',
     coldStart: {
       wakingTitle: 'Waking up the server, please wait about a minute…',
@@ -328,7 +328,7 @@ export const en: Messages = {
       leg: '~{{minutes}}′',
       spare: '{{minutes}}′ to spare',
       routeLabel: 'Route sketch between the stops',
-      footer: '{{app}} · room code {{code}}',
+      footer: 'Room code {{code}}',
     },
     text: {
       header: 'PLAN FOR THE OUTING: {{title}}',

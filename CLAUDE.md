@@ -10,7 +10,7 @@ giải bằng DP; km từ Valhalla tự host (xe máy) + cache DB, lùi về ư�
 - **Đặc tả đã chốt: `docs/phase7/ALGORITHMS.md`** (thay `docs/phase6/ALGORITHMS.md` §4; §1–§3, §5–§6 gđ6 vẫn dùng).
 - **Bẫy:** không gì tự động — mọi đề xuất chỉ host xác nhận; chồng/thiếu giờ chỉ cảnh báo. Hoà = bằng ĐIỂM theo từng loại
   quán. Không bao giờ trả đường/km xuất phát từ nhà người khác (CR-11). T-96 không tự chọn UI khi PLAN §5 chưa được trả lời.
-- Tên web mới: **Hangoutplanner** (logo chữ C "Hai tầng", T-98) thay HookupFPT.
+- Tên hiển thị: **Hangoutplanner** (T-98 xong) — logo dùng `components/shell/Wordmark.tsx` (`<Wordmark />`, ô `variant="mark"`), không tự viết tên.
 
 ## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — XONG (T-92 đóng 2026-11-14), G2/G3 chưa có góp ý
 Mạch A (FE): lịch kéo thả kiểu Google Calendar ở cột Kế hoạch, popup xem/sửa giờ + ghi chú, xuất kế hoạch (PNG, văn bản

@@ -107,10 +107,10 @@ describe('T-82: cắt danh sách, tên tệp, địa chỉ', () => {
     expect(limitList([], 6)).toEqual({ shown: [], extra: 0 });
   });
 
-  it('cardFileName: hookupfpt-<mã>.png, mã lạ được làm sạch', () => {
-    expect(cardFileName('ABC123')).toBe('hookupfpt-abc123.png');
-    expect(cardFileName(' a/b?c ')).toBe('hookupfpt-abc.png');
-    expect(cardFileName('')).toBe('hookupfpt-plan.png');
+  it('cardFileName: hangoutplanner-<mã>.png, mã lạ được làm sạch', () => {
+    expect(cardFileName('ABC123')).toBe('hangoutplanner-abc123.png');
+    expect(cardFileName(' a/b?c ')).toBe('hangoutplanner-abc.png');
+    expect(cardFileName('')).toBe('hangoutplanner-plan.png');
   });
 
   it('shortAddress: hai đoạn đầu, cắt dài, rỗng', () => {
@@ -234,7 +234,8 @@ describe('T-82: TripCard markup tĩnh', () => {
     expect(html).toContain('Tối thứ Bảy');
     expect(html).toContain('Thứ Bảy (07/11/2026)');
     expect(html).toContain('19:10'); // giờ bắt đầu điểm thứ hai
-    expect(html).toContain('mã phòng ABC123');
+    expect(html).toContain('Mã phòng ABC123');
+    expect(html).toContain('aria-label="Hangoutplanner"');
     expect(html).toContain('data-testid="trip-card-sketch"');
     expect(html).not.toContain('trip-card-more');
   });
@@ -244,7 +245,7 @@ describe('T-82: TripCard markup tĩnh', () => {
     const html = render({ lang: 'en' });
     expect(html).toContain('Saturday (Nov 7, 2026)');
     expect(html).toContain('7:10 PM');
-    expect(html).toContain('room code ABC123');
+    expect(html).toContain('Room code ABC123');
   });
 
   it('hơn 6 điểm: chỉ 6 hàng + "+N điểm nữa"; hơn 8 avatar: +N; một điểm → không có phác thảo', () => {

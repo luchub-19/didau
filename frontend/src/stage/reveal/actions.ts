@@ -54,10 +54,10 @@ export function buildIcs({ room, place, url, now = new Date() }: IcsInput): stri
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//HookupFPT//VN',
+    'PRODID:-//Hangoutplanner//VN',
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
-    `UID:${room.id}-${place.id}@hookupfpt`,
+    `UID:${room.id}-${place.id}@hangoutplanner`,
     `DTSTAMP:${stamp}`,
     `DTSTART:${icsLocalTime(room.event_date, start)}`,
     `DTEND:${icsLocalTime(room.event_date, end)}`,
@@ -129,7 +129,7 @@ export function buildScheduleIcs({ room, items, places = [], legs = [], url, now
     const description = [item.note, legOf.get(item.id)].filter(Boolean).join('\n');
     return [
       'BEGIN:VEVENT',
-      `UID:${room.id}-${item.id}@hookupfpt`,
+      `UID:${room.id}-${item.id}@hangoutplanner`,
       `DTSTAMP:${stamp}`,
       `DTSTART:${icsLocalTime(room.event_date, start)}`,
       `DTEND:${icsLocalTime(room.event_date, end)}`,
@@ -143,7 +143,7 @@ export function buildScheduleIcs({ room, items, places = [], legs = [], url, now
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//HookupFPT//VN',
+    'PRODID:-//Hangoutplanner//VN',
     'CALSCALE:GREGORIAN',
     ...events,
     'END:VCALENDAR',
@@ -163,7 +163,7 @@ export function icsFileName(placeName: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
-  return `hookupfpt-${slug || 'plan'}.ics`;
+  return `hangoutplanner-${slug || 'plan'}.ics`;
 }
 
 /** Tải tệp .ics xuống (trình duyệt/điện thoại mở bằng ứng dụng lịch). */
