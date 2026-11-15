@@ -268,3 +268,17 @@ async def test_real_snapshot_typos_brands_and_latency(session: AsyncSession) -> 
             timings.append((time.perf_counter() - start) * 1000)
     timings.sort()
     assert timings[int(len(timings) * 0.95)] < 150
+
+
+async def test_city_filter_never_returns_other_city(client: AsyncClient, service: PoiService) -> None:
+    """CR-18: phòng TP.HCM tìm "phúc long" không ra chi nhánh Hà Nội, kể cả khi thiếu vị trí (Hà Nội score cao nhất)."""
+    body = await _search(client, "phuc long", near=None, city="HCM")
+    assert {p["external_id"] for p in body} == {"ovt:pl1", "ovt:pl2", "ovt:pl3"}
+    assert [p["external_id"] for p in await _search(client, "phuc long", near=None, city="HN")] == ["ovt:pl4"]
+    ram = service.search("phuc long", None, 10, (10.35, 106.35, 11.17, 107.05))
+    assert {p.external_id for p in ram} == {p["external_id"] for p in body}
+    brands = (await client.get("/api/v1/pois/brands", params={"q": "phuc lo", "city": "HCM"})).json()
+    assert brands == [{"brand_key": "phuc-long", "name": "Phúc Long", "count": 3, "nearest_km": None}]
+    branches = (await client.get("/api/v1/pois/brands/phuc-long", params={"city": "HCM"})).json()
+    assert len(branches) == 3
+    assert (await client.get("/api/v1/pois/search", params={"q": "x", "city": "DN"})).status_code == 422

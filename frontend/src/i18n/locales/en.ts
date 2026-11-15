@@ -846,6 +846,8 @@ export const en: Messages = {
       errDenied: 'Your browser is blocking location access. You can search for a place instead.',
       errUnavailable: "Couldn't get your location. Try again or search for a place.",
       sharedDot: 'Shared a starting point',
+      requiredTitle: 'Share where you are starting from',
+      requiredDesc: 'You need this to enter the room: the group uses it to find places near everyone and plan routes.',
     },
     center: {
       title: 'Group center',

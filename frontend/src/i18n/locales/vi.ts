@@ -844,6 +844,8 @@ export const vi = {
       errDenied: 'Trình duyệt đang chặn quyền vị trí. Bạn có thể tìm một địa điểm thay thế.',
       errUnavailable: 'Chưa lấy được vị trí. Thử lại hoặc tìm một địa điểm.',
       sharedDot: 'Đã chia sẻ nơi xuất phát',
+      requiredTitle: 'Chia sẻ nơi bạn xuất phát',
+      requiredDesc: 'Cần bước này để vào phòng: nhóm dùng nó để tìm quán gần mọi người và tính đường đi.',
     },
     center: {
       title: 'Trung tâm nhóm',

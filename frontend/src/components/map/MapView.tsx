@@ -26,6 +26,8 @@ import { syncCenterRadius } from '../algo/CenterRadiusLayer';
 import { buildRouteFeatures, syncAlgoRoutes } from '../algo/RouteLayer';
 import { useAlgoRoutes } from '../algo/useAlgoRoutes';
 import { OriginSetting } from '../algo/OriginSetting';
+import { searchCenter } from '../../room/origin';
+import { useRoomStore } from '../../store/useRoomStore';
 import { formatMinutes } from '../algo/tieSuggestionLogic';
 import { useAlgoStore } from '../../store/useAlgoStore';
 import { CENTER_RADIUS_KM, centerVisible } from '../../room/groupCenter';
@@ -444,7 +446,11 @@ export function MapView({
       {/* O tim kiem noi phia tren */}
       {showSearch && (
         <div className="absolute left-3 right-3 top-3 z-10 max-w-md">
-          <MapSearchBox getCenter={getCenter} onPick={flyToPoi} />
+          <MapSearchBox
+            getCenter={() => searchCenter(room, useRoomStore.getState().currentMember, getCenter())}
+            city={room.city}
+            onPick={flyToPoi}
+          />
         </div>
       )}
 

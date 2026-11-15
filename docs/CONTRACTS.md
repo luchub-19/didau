@@ -716,17 +716,21 @@ Khi có lỗi (status $\ge 400$):
 - **Thứ tự**: `score` giảm dần (trước CR-17: theo tên) để `limit` giữ quán nổi bật.
 - Mỗi phần tử là `Poi` (§6) với các trường CR-17 A: `kind`, `district`, `brand`, `brand_key`, `score` (0–100), `minzoom` (12–17).
 
-#### 14. Tìm kiếm POI không dấu (CR-02, CR-17 A, CR-17 B)
-- **Method & Path**: `GET /api/v1/pois/search?q={query}&lat={lat}&lng={lng}&limit={limit}`
+#### 14. Tìm kiếm POI không dấu (CR-02, CR-17 A, CR-17 B, CR-18)
+- **Method & Path**: `GET /api/v1/pois/search?q={query}&lat={lat}&lng={lng}&limit={limit}&city={city}`
 - **Auth**: Công khai.
 - Khớp không dấu trên tên + ẩm thực + brand. **Thứ tự** (CR-17 A): độ khớp tên (đầu tên/đủ từ → chứa chuỗi → chỉ khớp
   ẩm thực/brand) → khi có `lat,lng`: dải khoảng cách 3 km → `score` giảm dần → khoảng cách.
 - (CR-17 B) Tìm trong Postgres (`pg_trgm`) khi bảng `pois` đã nạp snapshot: thêm tầng cuối **khớp gần đúng** (gõ sai,
   vd. "vincon" → Vincom; truy vấn ≥ 3 ký tự), trong tầng này: dải 3 km → độ giống → `score` → khoảng cách. Bảng chưa nạp
   hoặc lỗi DB → tìm trong RAM (chỉ khớp chuỗi con). Hình dạng phản hồi không đổi (`Poi[]`).
+- (CR-18) `city` tuỳ chọn (`HCM` | `HN`, mã khác → 422): chỉ trả quán trong khung thành phố đó (HCM
+  `10.35–11.17°N, 106.35–107.05°E`, HN `20.85–21.25°N, 105.60–106.05°E` — cùng khung `scripts/build_places.py`).
+  Không gửi = mọi thành phố (như cũ). Frontend luôn gửi `city` của phòng.
 
-#### 14a. Chuỗi cửa hàng khớp truy vấn (CR-17 B)
-- **Method & Path**: `GET /api/v1/pois/brands?q={query}&lat={lat}&lng={lng}&limit={limit}` (`limit` 1–20, mặc định 5)
+#### 14a. Chuỗi cửa hàng khớp truy vấn (CR-17 B, CR-18)
+- **Method & Path**: `GET /api/v1/pois/brands?q={query}&lat={lat}&lng={lng}&limit={limit}&city={city}` (`limit` 1–20, mặc định 5;
+  `city` như mục 14: chỉ đếm chi nhánh trong thành phố đó)
 - **Auth**: Công khai.
 - **Response 200 OK**: `PoiBrand[]` — `[{ "brand_key": "phuc-long-coffee-tea", "name": "Phuc Long Coffee & Tea", "count": 93, "nearest_km": 0.42 }]`
 - Chỉ chuỗi có **≥ 3 chi nhánh**. Khớp: `q` (không dấu) là **tiền tố** tên chuỗi (bỏ "the " đầu) hoặc gần đúng với số từ
@@ -734,8 +738,9 @@ Khi có lỗi (status $\ge 400$):
   **60 km**, `nearest_km` = chi nhánh gần nhất; không có: đếm hết, `nearest_km = null`. `name` = tên chuỗi hay gặp nhất.
   Thứ tự: khớp tiền tố trước gần đúng → `count` giảm dần → gần.
 
-#### 14b. Chi nhánh của một chuỗi (CR-17 B)
-- **Method & Path**: `GET /api/v1/pois/brands/{brand_key}?lat={lat}&lng={lng}&limit={limit}` (`limit` 1–500, mặc định 300)
+#### 14b. Chi nhánh của một chuỗi (CR-17 B, CR-18)
+- **Method & Path**: `GET /api/v1/pois/brands/{brand_key}?lat={lat}&lng={lng}&limit={limit}&city={city}` (`limit` 1–500, mặc định 300;
+  `city` như mục 14)
 - **Auth**: Công khai.
 - **Response 200 OK**: `Poi[]` — có `lat,lng`: chi nhánh trong 60 km, **gần → xa**, kèm `distance_km`; không có: mọi chi
   nhánh, `score` giảm dần. `brand_key` không tồn tại → `[]` (không 404).

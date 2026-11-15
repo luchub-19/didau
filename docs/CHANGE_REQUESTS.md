@@ -584,3 +584,25 @@ kết quả tìm không phân biệt được chi nhánh; icon của bản đồ
 ### 3. Người dùng đã trả lời (2026-11-15)
 - Mall / siêu thị / rạp / công viên được thêm vào phòng và bình chọn như quán ăn: **có**.
 - Ngưỡng `confidence`: **≥ 0,7** (≈ 39k điểm HCM trước khi gộp OSM).
+
+
+## CR-18: Tìm quán theo thành phố của phòng + bắt buộc chia sẻ nơi xuất phát
+
+- **Người đề xuất**: session 2026-11-15 (T-105), theo lỗi người dùng báo: phòng mới gõ "phê la" ra quán Hà Nội cách ~1 400 km
+- **Ngày tạo**: 2026-11-15
+- **Trạng thái**: **APPROVED** (người dùng chọn phương án 2026-11-15) · **Đã áp** ở T-105 (`CONTRACTS.md` mục 14, 14a, 14b)
+- **Task áp**: T-105. **Task đã DONE bị ảnh hưởng**: T-102 (`PoiRepository.search/brands`), T-88 (`searchCenter`,
+  `OriginSetting`), mock MSW `/pois/search`.
+
+### 1. Vấn đề
+`/pois/search` không biết phòng ở thành phố nào và không có bán kính tối đa; xếp độ khớp tên → dải 3 km quanh `lat,lng` →
+`score`. Frontend gửi **tâm bản đồ**, nên khi tâm lệch (bản đồ tự lia vừa đường đi xa, xem nơi khác) hoặc thiếu toạ độ,
+"Phê La" Hà Nội (score 78) đứng trên Phê La TP.HCM (77). Đã tái hiện trên Render: không `lat,lng` → kết quả đầu ở 21,03°N.
+
+### 2. Đã áp
+- Backend: tham số tuỳ chọn `city` (`HCM` | `HN`) cho mục 14, 14a, 14b; lọc theo khung thành phố `CITY_BBOX`
+  (`poi_service.py`, trùng `REGIONS` của `build_places.py`) ở cả Postgres lẫn RAM. Không gửi `city` = như cũ.
+- Frontend: mọi ô tìm gửi `city` của phòng; tâm tìm = nơi xuất phát của **mình** → điểm hẹn → tâm bản đồ → tâm thành phố
+  (`searchCenter(room, me, mapCenter)`). Toạ độ của mình chỉ đi kèm truy vấn, không hiển thị (CR-11 giữ nguyên).
+- Vào phòng mà chưa chia sẻ nơi xuất phát → Sheet "Chia sẻ nơi bạn xuất phát" **bắt buộc với mọi thành viên** (không X/Esc/
+  bấm nền/kéo xuống), chia sẻ bằng GPS hoặc tìm một địa điểm; lưu xong mới dùng phòng. Không đổi API.

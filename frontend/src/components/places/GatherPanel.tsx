@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { Member, Place, Poi, Room } from '../../types';
 import { useMapStore } from '../../store/useMapStore';
 import { usePlaceStore } from '../../store/usePlaceStore';
+import { useRoomStore } from '../../store/useRoomStore';
+import { searchCenter } from '../../room/origin';
 import { describeApiError } from '../../i18n/serverText';
 import { MapSearchBox } from '../map/MapSearchBox';
 import { currentMapCenter, flyToPlace } from '../map/flyToPlace';
@@ -82,7 +84,11 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
   // CR-14: hạn mức đề xuất của mình
   const quota = placeQuota(room, places, currentMemberId);
 
-  const getCenter = useCallback(() => currentMapCenter() ?? origin, [origin]);
+  // CR-18: nơi xuất phát của mình → điểm hẹn → tâm bản đồ → tâm thành phố
+  const getCenter = useCallback(
+    () => searchCenter(room, useRoomStore.getState().currentMember, currentMapCenter() ?? origin),
+    [room, origin],
+  );
 
   const openPoi = (poi: Poi) => {
     previewPoi(poi);
@@ -158,6 +164,7 @@ export const GatherPanel: React.FC<GatherPanelProps> = ({
           size="large"
           inputRef={searchRef}
           getCenter={getCenter}
+          city={room.city}
           onPick={openPoi}
           className={isColumn ? 'mt-4' : ''}
         />

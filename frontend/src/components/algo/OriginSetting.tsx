@@ -56,11 +56,16 @@ export interface OriginSettingProps {
   room: Pick<Room, 'id' | 'origin_lat' | 'origin_lng' | 'city'>;
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * CR-18: bước bắt buộc khi vào phòng mà chưa chia sẻ nơi xuất phát — không đóng được (không X/Esc/bấm nền),
+   * không có nút xoá; lưu xong thì nơi gọi tự đóng (cờ `has_origin` bật).
+   */
+  required?: boolean;
 }
 
 type Busy = null | 'locating' | 'saving';
 
-export const OriginSetting: React.FC<OriginSettingProps> = ({ room, isOpen, onClose }) => {
+export const OriginSetting: React.FC<OriginSettingProps> = ({ room, isOpen, onClose, required = false }) => {
   const { t } = useTranslation();
   const me = useRoomStore((s) => s.currentMember);
   const updateMyOrigin = useRoomStore((s) => s.updateMyOrigin);
@@ -109,10 +114,13 @@ export const OriginSetting: React.FC<OriginSettingProps> = ({ room, isOpen, onCl
     <Sheet
       isOpen={isOpen}
       onClose={close}
-      title={t('algo.origin.sheetTitle')}
-      description={t('algo.origin.privacy')}
+      dismissible={!required}
+      title={required ? t('algo.origin.requiredTitle') : t('algo.origin.sheetTitle')}
+      description={
+        required ? `${t('algo.origin.requiredDesc')} ${t('algo.origin.privacy')}` : t('algo.origin.privacy')
+      }
     >
-      <div className="space-y-4 pb-2" data-testid="origin-setting">
+      <div className="space-y-4 pb-2" data-testid="origin-setting" data-required={required}>
         <Button
           variant="primary"
           fullWidth
@@ -127,7 +135,7 @@ export const OriginSetting: React.FC<OriginSettingProps> = ({ room, isOpen, onCl
 
         <div>
           <p className="mb-1.5 text-label font-semibold text-ink-2">{t('algo.origin.searchLabel')}</p>
-          <MapSearchBox getCenter={() => searchCenter(room)} onPick={pick} />
+          <MapSearchBox getCenter={() => searchCenter(room, me)} city={room.city} onPick={pick} />
         </div>
 
         {error && (
@@ -136,7 +144,7 @@ export const OriginSetting: React.FC<OriginSettingProps> = ({ room, isOpen, onCl
           </p>
         )}
 
-        {shared && (
+        {shared && !required && (
           <Button
             variant="ghost"
             fullWidth

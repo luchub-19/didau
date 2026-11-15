@@ -31,8 +31,10 @@ import type { Language } from '../../i18n/useLanguage';
 import { matchRanges, nextIndex, shortAddress } from './searchText';
 
 export interface MapSearchBoxProps {
-  /** Tam ban do hien tai, de uu tien ket qua gan. */
+  /** Tâm ưu tiên kết quả gần (CR-18: nơi xuất phát của mình → điểm hẹn → tâm bản đồ, xem `searchCenter`). */
   getCenter: () => { lat: number; lng: number };
+  /** Mã thành phố của phòng (CR-18): chỉ ra quán trong thành phố này. */
+  city?: string;
   onPick: (poi: Poi) => void;
   className?: string;
   /** `large`: ô tìm kiếm to của giai đoạn ① (GatherPanel); mặc định là ô nhỏ nổi trên bản đồ. */
@@ -128,7 +130,14 @@ export function BrandRow({ brand, query }: { brand: PoiBrand; query: string }) {
 type SearchOption = { type: 'brand'; brand: PoiBrand } | { type: 'poi'; poi: Poi };
 
 /** Ô tìm `/pois/search`: debounce 300 ms, ưu tiên khung đang xem (lat/lng); ↑/↓ chọn, Enter mở, Esc đóng. */
-export function MapSearchBox({ getCenter, onPick, className = '', size = 'default', inputRef }: MapSearchBoxProps) {
+export function MapSearchBox({
+  getCenter,
+  onPick,
+  city,
+  className = '',
+  size = 'default',
+  inputRef,
+}: MapSearchBoxProps) {
   const large = size === 'large';
   const { t, i18n } = useTranslation();
   const lang = (i18n.language as Language) || 'vi';
@@ -181,7 +190,7 @@ export function MapSearchBox({ getCenter, onPick, className = '', size = 'defaul
       clearSearch();
       return;
     }
-    timer.current = setTimeout(() => void search(value, getCenter()), 300);
+    timer.current = setTimeout(() => void search(value, getCenter(), city), 300);
   };
 
   const pick = (poi: Poi) => {
@@ -191,7 +200,7 @@ export function MapSearchBox({ getCenter, onPick, className = '', size = 'defaul
 
   const choose = (option: SearchOption) => {
     if (option.type === 'poi') pick(option.poi);
-    else void showBrand(option.brand, getCenter());
+    else void showBrand(option.brand, getCenter(), city);
   };
 
   const listOpen = open && text.trim() !== '';

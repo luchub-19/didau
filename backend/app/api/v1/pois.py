@@ -7,13 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_member, get_db
 from app.core.exceptions import AppException, ValidationError
-from app.domain.enums import PlaceCategory
+from app.domain.enums import CityCode, PlaceCategory
 from app.domain.models.member import Member
 from app.repositories.external_link_repo import ExternalLinkRepository
 from app.repositories.poi_repo import PoiRepository
 from app.schemas.poi import GoogleMatchRequest, GoogleMatchResponse, PoiBrandResponse, PoiResponse
 from app.services.google_places_service import GooglePlacesService
-from app.services.poi_service import Poi, PoiService, get_poi_service
+from app.services.poi_service import Poi, PoiService, city_bbox, get_poi_service
 
 logger = logging.getLogger(__name__)
 
@@ -84,18 +84,21 @@ async def search_pois(
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    city: CityCode | None = None,
 ) -> list[PoiResponse]:
     """Tìm không dấu theo tên/ẩm thực/brand; xếp độ khớp → score → khoảng cách (MAP-POI §5). Postgres (`pg_trgm`,
-    chịu gõ sai) khi bảng `pois` đã nạp; ngược lại tìm trong RAM (chỉ khớp chuỗi con)."""
+    chịu gõ sai) khi bảng `pois` đã nạp; ngược lại tìm trong RAM (chỉ khớp chuỗi con). `city` (CR-18): chỉ quán
+    trong thành phố đó."""
     near = (lat, lng) if lat is not None and lng is not None else None
+    box = city_bbox(city.value if city else None)
     try:
         if await repo.is_ready():
-            hits = await repo.search(q, near, limit)
+            hits = await repo.search(q, near, limit, box)
             pois = [poi for pid, _ in hits if (poi := service.get(pid)) is not None]
             return [_to_response(service.with_distance(p, near)) for p in pois]
     except SQLAlchemyError:
         logger.warning("Tìm quán trong Postgres lỗi, lùi về RAM", exc_info=True)
-    return [_to_response(p) for p in service.search(q, near, limit)]
+    return [_to_response(p) for p in service.search(q, near, limit, box)]
 
 
 @router.get("/brands", response_model=list[PoiBrandResponse])
@@ -106,17 +109,20 @@ async def search_brands(
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
     limit: Annotated[int, Query(ge=1, le=20)] = 5,
+    city: CityCode | None = None,
 ) -> list[PoiBrandResponse]:
-    """Chuỗi ≥ 3 chi nhánh khớp `q` (CR-17 B). Có lat/lng: đếm trong 60 km, kèm chi nhánh gần nhất."""
+    """Chuỗi ≥ 3 chi nhánh khớp `q` (CR-17 B). Có lat/lng: đếm trong 60 km, kèm chi nhánh gần nhất. `city` (CR-18):
+    chỉ đếm chi nhánh trong thành phố đó."""
     near = (lat, lng) if lat is not None and lng is not None else None
+    box = city_bbox(city.value if city else None)
     try:
         if await repo.is_ready():
-            brands = await repo.brands(q, near, limit)
+            brands = await repo.brands(q, near, limit, box)
             return [PoiBrandResponse.model_validate(b, from_attributes=True) for b in brands]
     except SQLAlchemyError:
         logger.warning("Tìm chuỗi trong Postgres lỗi, lùi về RAM", exc_info=True)
     return [
-        PoiBrandResponse.model_validate(b, from_attributes=True) for b in service.brands(q, near, limit)
+        PoiBrandResponse.model_validate(b, from_attributes=True) for b in service.brands(q, near, limit, box)
     ]
 
 
@@ -127,10 +133,13 @@ async def list_brand_branches(
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 300,
+    city: CityCode | None = None,
 ) -> list[PoiResponse]:
-    """Chi nhánh của chuỗi, gần → xa (trong 60 km khi có lat/lng). Chuỗi không có → `[]`."""
+    """Chi nhánh của chuỗi, gần → xa (trong 60 km khi có lat/lng). Chuỗi không có → `[]`. `city` (CR-18): chỉ chi
+    nhánh trong thành phố đó."""
     near = (lat, lng) if lat is not None and lng is not None else None
-    return [_to_response(p) for p in service.branches(brand_key, near, limit)]
+    box = city_bbox(city.value if city else None)
+    return [_to_response(p) for p in service.branches(brand_key, near, limit, box)]
 
 
 @router.post("/google-match", response_model=GoogleMatchResponse)

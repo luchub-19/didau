@@ -1128,7 +1128,10 @@ export const handlers = [
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
 
     const normQ = removeVietnameseTones(q);
-    let matched = mockPois.filter((p) => {
+    // CR-18: `city` chỉ giữ quán trong thành phố đó (mock chia theo vĩ độ: Hà Nội ở phía bắc 16°)
+    const city = url.searchParams.get('city');
+    const inCity = (p: Poi) => !city || (city === 'HN' ? p.lat > 16 : p.lat <= 16);
+    let matched = mockPois.filter(inCity).filter((p) => {
       const normName = removeVietnameseTones(p.name);
       const normAddress = removeVietnameseTones(p.address || '');
       const normCuisine = removeVietnameseTones(p.cuisine || '');

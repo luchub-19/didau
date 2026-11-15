@@ -17,6 +17,8 @@ export interface SheetProps {
   footer?: React.ReactNode;
   closeLabel?: string;
   className?: string;
+  /** false = bước bắt buộc: không có nút X, Esc/bấm nền/kéo xuống không đóng (chỉ nơi gọi đổi `isOpen`). */
+  dismissible?: boolean;
 }
 
 export const Sheet: React.FC<SheetProps> = ({
@@ -28,6 +30,7 @@ export const Sheet: React.FC<SheetProps> = ({
   footer,
   closeLabel,
   className = '',
+  dismissible = true,
 }) => {
   const { t } = useTranslation();
   const titleId = useId();
@@ -50,6 +53,7 @@ export const Sheet: React.FC<SheetProps> = ({
   const currentDeltaY = useRef<number>(0);
 
   const handleRequestClose = useCallback(() => {
+    if (!dismissible) return;
     if (isClosing || closeRequestedRef.current) return;
     closeRequestedRef.current = true;
     setIsClosing(true);
@@ -60,7 +64,7 @@ export const Sheet: React.FC<SheetProps> = ({
       setIsClosing(false);
       closeTimerRef.current = null;
     }, 220); // Thời lượng đóng thoát 220ms (--t-ui)
-  }, [isClosing, onClose]);
+  }, [dismissible, isClosing, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -178,7 +182,7 @@ export const Sheet: React.FC<SheetProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current === null || !dialogRef.current) return;
+    if (!dismissible || touchStartY.current === null || !dialogRef.current) return;
     const currentY = e.touches[0].clientY;
     const delta = currentY - touchStartY.current;
     if (delta > 0) {
@@ -257,10 +261,12 @@ export const Sheet: React.FC<SheetProps> = ({
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchCancel}
         >
-          {/* Tay nắm kéo trên mobile (DESIGN.md §5, T-52) */}
-          <div className="md:hidden flex justify-center pt-3 pb-1 cursor-grab" aria-hidden="true">
-            <div className="w-10 h-1 rounded-full bg-line" />
-          </div>
+          {/* Tay nắm kéo trên mobile (DESIGN.md §5, T-52); bước bắt buộc thì không có */}
+          {dismissible && (
+            <div className="md:hidden flex justify-center pt-3 pb-1 cursor-grab" aria-hidden="true">
+              <div className="w-10 h-1 rounded-full bg-line" />
+            </div>
+          )}
 
           {/* Tiêu đề và nút đóng X */}
           <div className="flex items-start justify-between gap-4 p-4 md:p-6 pb-2 md:pb-4">
@@ -279,11 +285,13 @@ export const Sheet: React.FC<SheetProps> = ({
                 </p>
               )}
             </div>
-            <IconButton
-              aria-label={closeLabel || t('ui.close')}
-              icon={<X size={20} />}
-              onClick={handleRequestClose}
-            />
+            {dismissible && (
+              <IconButton
+                aria-label={closeLabel || t('ui.close')}
+                icon={<X size={20} />}
+                onClick={handleRequestClose}
+              />
+            )}
           </div>
         </div>
 

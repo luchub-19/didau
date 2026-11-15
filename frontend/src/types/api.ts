@@ -199,6 +199,8 @@ export interface PoiSearchParams {
   lat?: number;
   lng?: number;
   limit?: number;
+  /** CR-18: chỉ quán trong thành phố của phòng (`HCM` | `HN`). */
+  city?: string;
 }
 
 export interface GoogleMatchRequest {

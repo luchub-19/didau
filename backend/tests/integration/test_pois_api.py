@@ -249,3 +249,23 @@ def test_real_snapshot_bbox_sorted_by_score(real_service: PoiService) -> None:
     scores = [p.score for p in found]
     assert scores == sorted(scores, reverse=True)
     assert {p.kind for p in found[:20]} & {"mall", "cinema", "museum", "park"}
+
+
+@real_snapshot
+def test_real_snapshot_city_filter_phe_la(real_service: PoiService) -> None:
+    """CR-18 (lỗi người dùng báo 2026-11-15): "phê la" không vị trí ra Phê La Hà Nội đầu tiên (score 78 > 77).
+    Có `city` thì mọi kết quả nằm trong khung thành phố của phòng."""
+    from app.services.poi_service import city_bbox
+
+    assert real_service.search("phê la", None, 8)[0].lat > 20  # hành vi cũ không có city: Hà Nội đứng đầu
+    hcm = real_service.search("phê la", None, 8, city_bbox("HCM"))
+    assert hcm and all(p.lat < 12 for p in hcm)
+    hn = real_service.search("phê la", None, 8, city_bbox("HN"))
+    assert hn and all(p.lat > 20 for p in hn)
+    assert city_bbox(None) is None and city_bbox("DN") is None
+
+
+async def test_search_city_param_ram(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/pois/search", params={"q": "pho", "city": "HN"})
+    assert resp.status_code == 200 and resp.json() == []  # dữ liệu test toàn TP.HCM
+    assert (await client.get("/api/v1/pois/search", params={"q": "pho", "city": "HCM"})).json()

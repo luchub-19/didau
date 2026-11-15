@@ -81,6 +81,16 @@ def _like_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _box_sql(box: tuple[float, float, float, float] | None, params: dict[str, object], alias: str = "") -> str:
+    """Điều kiện `AND lat/lng trong khung thành phố` (CR-18); không có khung → chuỗi rỗng."""
+    if box is None:
+        return ""
+    params["bmin_lat"], params["bmin_lng"], params["bmax_lat"], params["bmax_lng"] = box
+    return (
+        f" AND {alias}lat BETWEEN :bmin_lat AND :bmax_lat AND {alias}lng BETWEEN :bmin_lng AND :bmax_lng"
+    )
+
+
 def _poi_row(poi) -> dict:
     return {
         "external_id": poi.external_id,
@@ -122,7 +132,11 @@ class PoiRepository:
         return ready
 
     async def search(
-        self, q: str, near: tuple[float, float] | None, limit: int
+        self,
+        q: str,
+        near: tuple[float, float] | None,
+        limit: int,
+        box: tuple[float, float, float, float] | None = None,
     ) -> list[tuple[str, float | None]]:
         """[(external_id, km)] theo thứ tự MAP-POI §5: tầng khớp tên → dải 3 km → score → km. Thêm tầng 3 = khớp
         gần đúng (`word_similarity`, gõ sai/thiếu chữ) xếp sau mọi kết quả khớp chuỗi; trong tầng 3 vẫn dải 3 km trước,
@@ -142,6 +156,7 @@ class PoiRepository:
         exact = " AND ".join(like_text)
         fuzzy = len(query) >= FUZZY_MIN_LEN
         where = f"({exact}) OR (:q <% norm_text)" if fuzzy else exact
+        where = f"({where}){_box_sql(box, params)}"
         if near is not None:
             dist = _DIST_SQL
             params["lat"], params["lng"] = near
@@ -171,7 +186,13 @@ class PoiRepository:
             rows = (await self.session.execute(sa.text(sql), params)).all()
         return [(r.external_id, float(r.dist) if near is not None else None) for r in rows]
 
-    async def brands(self, q: str, near: tuple[float, float] | None, limit: int) -> list[BrandSummary]:
+    async def brands(
+        self,
+        q: str,
+        near: tuple[float, float] | None,
+        limit: int,
+        box: tuple[float, float, float, float] | None = None,
+    ) -> list[BrandSummary]:
         """Chuỗi ≥ `BRAND_MIN_BRANCHES` chi nhánh khớp truy vấn: tiền tố tên chuỗi (tầng 0) hoặc gần đúng (tầng 1,
         `similarity` với số từ đầu tương ứng của tên chuỗi, chỉ khi gõ ≥ `BRAND_FUZZY_MIN_LEN` ký tự). Xếp tầng → số chi nhánh → gần."""
         query = normalize_text(q)
@@ -207,6 +228,7 @@ class PoiRepository:
             ), b AS (
                 SELECT p.brand_key, p.brand, p.norm_brand, {dist} AS dist
                 FROM pois p JOIN hit USING (brand_key)
+                WHERE TRUE{_box_sql(box, params, "p.")}
             ), g AS (
                 SELECT brand_key,
                     mode() WITHIN GROUP (ORDER BY brand) AS name,

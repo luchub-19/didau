@@ -20,6 +20,8 @@ export interface PoiBrandParams {
   lat?: number;
   lng?: number;
   limit?: number;
+  /** CR-18: chỉ chi nhánh trong thành phố của phòng. */
+  city?: string;
 }
 
 export const poiApi = {

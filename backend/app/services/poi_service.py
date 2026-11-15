@@ -34,6 +34,12 @@ _EXTRA_TAGS = ("phone", "website", "brand")
 BRAND_MIN_BRANCHES = 3  # CR-17 B: chuỗi có ≥ 3 chi nhánh mới có dòng "Xem N chi nhánh"
 BRAND_RADIUS_KM = 60.0  # có lat/lng: chỉ đếm/hiện chi nhánh cùng vùng (không kéo Hà Nội vào khi đang xem TP.HCM)
 BRAND_FUZZY_MIN_LEN = 4  # khớp gần đúng tên chuỗi chỉ khi gõ ≥ 4 ký tự (ít hơn thì trigram ra rác)
+# CR-18: khung thành phố (min_lat, min_lng, max_lat, max_lng), trùng `REGIONS` của scripts/build_places.py.
+# Tìm quán/chuỗi kèm `city` chỉ trả quán trong khung này (phòng TP.HCM không bao giờ ra quán Hà Nội).
+CITY_BBOX: dict[str, tuple[float, float, float, float]] = {
+    "HCM": (10.35, 106.35, 11.17, 107.05),
+    "HN": (20.85, 105.60, 21.25, 106.05),
+}
 LOAD_FORMAT = "pois-v1"  # đổi khi đổi cột bảng `pois` → lệnh nạp chạy lại dù snapshot không đổi
 
 
@@ -74,6 +80,15 @@ class BrandSummary:
     name: str
     count: int
     nearest_km: float | None = None
+
+
+def city_bbox(city: str | None) -> tuple[float, float, float, float] | None:
+    """Khung của mã thành phố (CR-18); không có/không biết → None (không lọc)."""
+    return CITY_BBOX.get(city.upper()) if city else None
+
+
+def in_box(poi: Poi, box: tuple[float, float, float, float] | None) -> bool:
+    return box is None or (box[0] <= poi.lat <= box[2] and box[1] <= poi.lng <= box[3])
 
 
 def brand_heads(norm_brand: str) -> tuple[str, ...]:
@@ -256,9 +271,16 @@ class PoiService:
                 return set()
         return result or set()
 
-    def search(self, q: str, near: tuple[float, float] | None, limit: int) -> list[Poi]:
+    def search(
+        self,
+        q: str,
+        near: tuple[float, float] | None,
+        limit: int,
+        box: tuple[float, float, float, float] | None = None,
+    ) -> list[Poi]:
         """Khớp không dấu trên tên + ẩm thực + brand. Xếp (MAP-POI §5): độ khớp tên → score → khoảng cách;
-        có `near` thì khoảng cách chia dải 3 km thắng score (quán cách xa hơn 3 km xếp sau dù điểm cao)."""
+        có `near` thì khoảng cách chia dải 3 km thắng score (quán cách xa hơn 3 km xếp sau dù điểm cao).
+        `box` (CR-18, khung thành phố của phòng): bỏ quán ngoài khung."""
         query = normalize_text(q)
         if not query:
             return []
@@ -266,6 +288,8 @@ class PoiService:
         scored: list[tuple[int, int, int, float, str, Poi]] = []
         for pid in self._candidates(tokens):
             poi = self._pois[pid]
+            if not in_box(poi, box):
+                continue
             if not all(t in poi.norm_text for t in tokens):
                 continue  # token khớp ở các từ khác nhau nhưng chuỗi đầy đủ không khớp (hiếm)
             rank = _match_tier(poi, query, tokens)
@@ -288,9 +312,16 @@ class PoiService:
         dist = haversine_distance_km(near[0], near[1], poi.lat, poi.lng)
         return replace(poi, distance_km=round(dist, 3))
 
-    def branches(self, brand_key: str, near: tuple[float, float] | None, limit: int) -> list[Poi]:
-        """Chi nhánh của một chuỗi, gần → xa (CR-17 B). Có `near`: chỉ trong `BRAND_RADIUS_KM`; không có: xếp score."""
-        pois = [self.with_distance(p, near) for p in self._brands.get(brand_key, ())]
+    def branches(
+        self,
+        brand_key: str,
+        near: tuple[float, float] | None,
+        limit: int,
+        box: tuple[float, float, float, float] | None = None,
+    ) -> list[Poi]:
+        """Chi nhánh của một chuỗi, gần → xa (CR-17 B). Có `near`: chỉ trong `BRAND_RADIUS_KM`; không có: xếp score.
+        `box` (CR-18): chỉ chi nhánh trong khung thành phố."""
+        pois = [self.with_distance(p, near) for p in self._brands.get(brand_key, ()) if in_box(p, box)]
         if near is not None:
             pois = [p for p in pois if (p.distance_km or 0.0) <= BRAND_RADIUS_KM]
             pois.sort(key=lambda p: (p.distance_km or 0.0, p.external_id))
@@ -298,14 +329,23 @@ class PoiService:
             pois.sort(key=_rank_key)
         return pois[:limit]
 
-    def brands(self, q: str, near: tuple[float, float] | None, limit: int) -> list[BrandSummary]:
+    def brands(
+        self,
+        q: str,
+        near: tuple[float, float] | None,
+        limit: int,
+        box: tuple[float, float, float, float] | None = None,
+    ) -> list[BrandSummary]:
         """Chuỗi khớp tiền tố tên (bản RAM, dùng khi bảng `pois` chưa nạp — không khớp gần đúng như bản Postgres).
-        Xếp: số chi nhánh giảm dần → gần nhất → brand_key."""
+        Xếp: số chi nhánh giảm dần → gần nhất → brand_key. `box` (CR-18): chỉ đếm chi nhánh trong khung thành phố."""
         query = normalize_text(q)
         if not query:
             return []
         out: list[BrandSummary] = []
-        for key, pois in self._brands.items():
+        for key, all_pois in self._brands.items():
+            pois = [p for p in all_pois if in_box(p, box)]
+            if not pois:
+                continue
             names = Counter(p.brand for p in pois if p.brand)
             if not names or not any(brand_matches(normalize_text(n), query) for n in names):
                 continue

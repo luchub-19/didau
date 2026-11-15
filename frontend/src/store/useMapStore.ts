@@ -112,9 +112,10 @@ interface MapState {
   error: string | null;
 
   loadBounds: (bounds: Bounds) => Promise<void>;
-  search: (q: string, near?: { lat: number; lng: number }) => Promise<Poi[]>;
+  /** `city` (CR-18): chỉ quán trong thành phố của phòng. */
+  search: (q: string, near?: { lat: number; lng: number }, city?: string) => Promise<Poi[]>;
   /** Tải mọi chi nhánh của chuỗi (gần → xa so với `near`), đưa vào cache và bật `brandFocus`. */
-  showBrand: (brand: PoiBrand, near?: { lat: number; lng: number }) => Promise<Poi[]>;
+  showBrand: (brand: PoiBrand, near?: { lat: number; lng: number }, city?: string) => Promise<Poi[]>;
   clearBrand: () => void;
   selectPoi: (externalId: string | null) => void;
   selectPlace: (placeId: string | null) => void;
@@ -162,7 +163,7 @@ export const useMapStore = create<MapState>((set, get) => ({
     set({ isLoading: false });
   },
 
-  search: async (q, near) => {
+  search: async (q, near, city) => {
     const query = q.trim();
     set({ searchQuery: query, brandFocus: null, isLoadingBrand: false });
     if (!query) {
@@ -170,7 +171,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       return [];
     }
     set({ isSearching: true });
-    const params = { q: query, lat: near?.lat, lng: near?.lng };
+    const params = { q: query, lat: near?.lat, lng: near?.lng, city };
     // Chuỗi hỏi song song; lỗi thì chỉ mất dòng "Xem N chi nhánh", danh sách quán vẫn hiện
     const brandsReq =
       query.length >= BRAND_MIN_QUERY
@@ -193,11 +194,11 @@ export const useMapStore = create<MapState>((set, get) => ({
     }
   },
 
-  showBrand: async (brand, near) => {
+  showBrand: async (brand, near, city) => {
     const query = get().searchQuery;
     set({ isLoadingBrand: true, brandFocus: { brand, pois: [] } });
     try {
-      const pois = await poiApi.getBrandBranches(brand.brand_key, { lat: near?.lat, lng: near?.lng, limit: 300 });
+      const pois = await poiApi.getBrandBranches(brand.brand_key, { lat: near?.lat, lng: near?.lng, city, limit: 300 });
       // Người dùng đã gõ tiếp / bấm chuỗi khác trong lúc chờ
       if (get().searchQuery !== query || get().brandFocus?.brand.brand_key !== brand.brand_key) return pois;
       set((s) => ({

@@ -34,6 +34,8 @@ import { TieBreakSelectorModal } from '../components/voting';
 import { AddScheduleItemModal } from '../components/schedule';
 import { DecideModal, type DecideIntent } from '../components/decide';
 import { JoinRoomModal } from '../components/room';
+import { OriginSetting } from '../components/algo/OriginSetting';
+import { hasMyOrigin } from '../room/origin';
 import { flyToPlace } from '../components/map/flyToPlace';
 import { useRoomPhase } from '../room/useRoomPhase';
 import { formatBudgetShort, planBudget } from '../room/budget';
@@ -285,6 +287,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({ roomId, onGoHome }) => {
         />
       }
     >
+      {/* CR-18: mọi thành viên phải chia sẻ nơi xuất phát ngay khi vào phòng (GPS hoặc tìm địa điểm), không bỏ qua */}
+      <OriginSetting
+        room={room}
+        isOpen={currentMember != null && !hasMyOrigin(currentMember)}
+        onClose={() => {}}
+        required
+      />
       {/* Desktop 3 cột / mobile 2 tab; nội dung cột là panel cũ (T-69/72/73 thiết kế lại bên trong) */}
       <RoomWorkspace
         activeTab={activeTab}
