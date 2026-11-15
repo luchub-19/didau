@@ -477,3 +477,34 @@ Lịch kéo thả nhiều người sửa có thể bị tin trễ đè tạm th�
 
 ### 3. Phương án nếu không duyệt
 Chỉ chặn ở frontend (lách được bằng gọi API trực tiếp).
+
+---
+
+## CR-15: Hoà phiếu bằng Ordered Median (OMP) + nguồn km Valhalla + đường đi của mình
+
+- **Người đề xuất**: Session T-93 (2026-11-14, efa7053a), theo `docs/phase7/ALGORITHMS.md` + quyết định `docs/phase7/PLAN.md` §1
+- **Ngày tạo**: 2026-11-14
+- **Trạng thái**: PROPOSED
+- **Task đã DONE bị ảnh hưởng**: T-86 (ALGO-02, `TieSuggestion`, resolve `TRAVEL_TIME`), T-89 (thẻ hoà phiếu + "Vì sao?"),
+  T-84 (estimator), T-87/T-90 (ALGO-03/04 đổi nguồn km → số thay đổi), CR-12 phần 1.
+
+### 2. Đề xuất
+**Phần A — hoà phiếu (T-94):**
+- Hoà = ≥ 2 quán cùng **điểm** (upvotes − downvotes) lớn nhất **trong cùng loại quán** (chưa có quán ACCEPTED trong loại);
+  thay định nghĩa "số Muốn đi, cả phòng" của CR-12. `NEAR_TIE` không kích hoạt OMP.
+- Thành viên không tự chia sẻ vị trí bị loại khỏi phép tính (bỏ lùi về điểm hẹn host cho hoà phiếu).
+- `GET /rooms/{id}/tie-break/suggestion` → `{available, reason?, suggestions: [{category, candidates[], recommended_place_id,
+  ranking[{place_id, rank, psi, max_km, total_km, max_min}], members[{member_id, nickname, km, minutes, rank, weight}],
+  runner_up_psi, excluded_member_count, estimated, source, params {lambda, k}}]}`. Bỏ `matrix`, `threshold_min`,
+  `margin_vs_second_min`. Không toạ độ, không hình học.
+- `POST /voting/resolve {strategy: "TRAVEL_TIME"}` giữ tên; server tính lại Ψ theo loại. Luồng chốt cũ giữ nguyên ở MVP.
+
+**Phần B — km và đường đi (T-95):**
+- `Leg.source` thêm `VALHALLA`; cờ `ROUTING_PROVIDER=valhalla` + `VALHALLA_URL` + `VALHALLA_KEY` (mặc định trống = như cũ).
+- Bảng mới `travel_legs` (cache km/phút/shape theo cặp toạ độ làm tròn 4 số), không API nào trả khoá cache.
+- `GET /rooms/{id}/routes/me?place_id=` → `{to_place: {km, minutes, shape, source}, to_home: {…}}` chỉ của người gọi;
+  404 `NO_ORIGIN` khi người gọi chưa chia sẻ vị trí.
+- `GET /rooms/{id}/schedule/routes` → `{legs: [{from_item_id, to_item_id, km, minutes, shape, source}]}` (ngày đầu).
+
+### 3. Phương án nếu không duyệt
+Giữ ALGO-02 (CR-12); thuật toán của Sơn chỉ nằm trong báo cáo + playground của Sơn.

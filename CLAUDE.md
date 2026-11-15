@@ -3,7 +3,16 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — T-76 XONG, G1 QUA 2026-11-04; T-77…T-90 XONG; làm T-91…
+## Giai đoạn 7 "Thuật toán OMP của Sơn" (T-93 → T-97 MVP) — T-93 XONG, CHỜ G1; hạn MVP thứ Hai 2026-11-16
+Thay ALGO-02 bằng Ordered Median (OMP) của Sơn (nhánh orphan `origin/feat/tie-breaker` — đọc bằng `git show`, KHÔNG merge),
+giải bằng DP; km từ Valhalla tự host (xe máy) + cache DB, lùi về ước lượng; vẽ đường của mình + đường giữa các quán.
+- Quyết định (18 mục), lệch có chủ ý ở MVP, câu hỏi UI: `docs/phase7/PLAN.md`. Tiến độ: `docs/phase7/PROGRESS.md`.
+- **Đặc tả đã chốt: `docs/phase7/ALGORITHMS.md`** (thay `docs/phase6/ALGORITHMS.md` §4; §1–§3, §5–§6 gđ6 vẫn dùng).
+- **Bẫy:** không gì tự động — mọi đề xuất chỉ host xác nhận; chồng/thiếu giờ chỉ cảnh báo. Hoà = bằng ĐIỂM theo từng loại
+  quán. Không bao giờ trả đường/km xuất phát từ nhà người khác (CR-11). T-96 không tự chọn UI khi PLAN §5 chưa được trả lời.
+- Tên web mới: **Hangoutplanner** (logo chữ C "Hai tầng", T-98) thay HookupFPT.
+
+## Giai đoạn 6 "Lịch chung & Algorithm Engine" (T-76 → T-92) — XONG (T-92 đóng 2026-11-14), G2/G3 chưa có góp ý
 Mạch A (FE): lịch kéo thả kiểu Google Calendar ở cột Kế hoạch, popup xem/sửa giờ + ghi chú, xuất kế hoạch (PNG, văn bản
 emoji, `.ics`, link), form tạo phòng bỏ ngân sách + điểm hẹn, chip khung giờ, quả địa cầu khi bản đồ 3D đang tải.
 Mạch B (backend + FE): Algorithm Engine theo tài liệu đồ án `docs/proposal/` — ALGO-01 tâm nhóm, ALGO-02 hoà phiếu theo
