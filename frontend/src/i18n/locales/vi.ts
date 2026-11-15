@@ -880,6 +880,8 @@ export const vi = {
       resolveFailed: 'Chưa chốt được quán. Bạn thử lại nhé.',
       whyTitle: 'Vì sao chọn {{name}}?',
       whyRule: 'Máy cộng quãng đường đi và về của từng người. Người ở xa được tính nặng hơn (người xa nhất {{weight}}) để không ai phải đi quá xa. Quán có tổng nhỏ nhất được đề xuất.',
+      whyRuleSquared: 'Máy lấy quãng đường đi và về của từng người rồi bình phương lên, nên đi xa gấp đôi bị tính nặng gấp bốn. Người xa nhất còn được nhân thêm {{weight}} để không ai phải đi quá xa. Quán có tổng nhỏ nhất được đề xuất.',
+      whyRulePow: 'Máy lấy quãng đường đi và về của từng người rồi nâng lên luỹ thừa {{k}}, nên người ở xa bị tính nặng hơn nhiều. Người xa nhất còn được nhân thêm {{weight}} để không ai phải đi quá xa. Quán có tổng nhỏ nhất được đề xuất.',
       whyRuleOne: 'Mới có một người được tính nên máy chọn quán có quãng đường đi và về ngắn nhất.',
       tableLabel: 'Quãng đường đi và về của từng người tới {{name}}',
       colMember: 'Thành viên',

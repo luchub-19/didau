@@ -95,6 +95,18 @@ export function buildCompareRows(s: CategoryTieSuggestion): { rows: TieCompareRo
   return { rows, unranked: s.candidates.filter((c) => !ranked.has(c.place_id)).length };
 }
 
+/** Câu "Vì sao?" theo k (T-99, CR-16): k = 1 cộng km, k = 2 bình phương (mặc định), khác → luỹ thừa k. */
+export const whyRuleKey = (
+  s: CategoryTieSuggestion,
+  lang: Language = 'vi',
+): { key: 'algo.tie.whyRule' | 'algo.tie.whyRuleSquared' | 'algo.tie.whyRulePow'; k: string } => {
+  const k = s.params.k;
+  const text = nf(lang, { maximumFractionDigits: 2 }).format(k);
+  if (Math.abs(k - 1) < 1e-9) return { key: 'algo.tie.whyRule', k: text };
+  if (Math.abs(k - 2) < 1e-9) return { key: 'algo.tie.whyRuleSquared', k: text };
+  return { key: 'algo.tie.whyRulePow', k: text };
+};
+
 /** Trọng số của người xa nhất = 1 + λ (Sơn: w tăng đều từ 1 tới 1 + λ). Một người → 1. */
 export const farthestWeight = (s: CategoryTieSuggestion): number =>
   s.members.length > 1 ? 1 + s.params.lambda : 1;

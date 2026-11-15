@@ -528,3 +528,24 @@ Chỉ chặn ở frontend (lách được bằng gọi API trực tiếp).
 
 ### 3. Phương án nếu không duyệt
 Giữ ALGO-02 (CR-12); thuật toán của Sơn chỉ nằm trong báo cáo + playground của Sơn.
+
+## CR-16: Tham số OMP mặc định (λ = 1; k = 2) theo báo cáo so sánh của Bảo
+
+- **Người đề xuất**: Bảo (báo cáo "So sánh các cặp λ và k của Ordered Median", 2026-11-15); session T-99 (c37faf68) đối chiếu
+- **Ngày tạo**: 2026-11-15
+- **Trạng thái**: APPROVED (người dùng: "đổi sang giống của Bảo", 2026-11-15) · **Đã áp** ở T-99: `CONTRACTS.md` mục 35
+  (mặc định `params`, ví dụ JSON).
+- **Task đã DONE bị ảnh hưởng**: T-94 (Ψ khoá, fixture `tie_break`), T-96 (câu "Vì sao?", mock), T-97 (số đo §9, DEMO.md);
+  quyết định 3 ở `docs/phase7/PLAN.md` §1.
+
+### 1. Vấn đề
+Mặc định của Sơn (λ = 0,5; k = 1) cho kết quả gần như MinSum (khác 1/20 case); trường hợp tệ nhất người xa nhất đi xa hơn
+MinMax 35,7%. Với k = 1 thì λ nào cũng không kéo được về MinMax.
+
+### 2. Đề xuất
+- `OMP_LAMBDA = 1.0`, `OMP_K = 2.0`; `params` trả `{lambda: 1.0, k: 2.0}`. Hình dạng phản hồi không đổi; `psi` lớn hơn (km²).
+- "Vì sao?" nói "bình phương quãng đường" khi k = 2 (khoá i18n `algo.tie.whyRuleSquared`, `whyRulePow` cho k khác 1/2).
+- Thanh trượt 3 mức (Tiết kiệm / Cân bằng / Bảo vệ người xa) Bảo đề xuất: **để sau MVP**, cần CR riêng (đổi API + UI).
+
+### 3. Số liệu
+`docs/phase7/ALGORITHMS.md` §9.5 (9 cặp khớp báo cáo của Bảo, lưới quét, độ nhạy theo trọng số, hạn chế).

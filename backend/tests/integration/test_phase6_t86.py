@@ -24,6 +24,7 @@ import app.services.algorithm_service as algo_module
 from app.api.deps import get_db, set_event_bus
 from app.api.v1.router import api_router, register_exception_handlers
 from app.config import get_settings
+from app.core import algo_config as cfg
 from app.domain.models import Room
 from app.domain.patterns.event_bus import InMemoryEventBus
 from app.domain.patterns.itinerary.travel import (
@@ -357,17 +358,18 @@ def test_tc03_tc04_three_way_tie_suggests_van_hanh_mall(client: TestClient, esti
     assert [r["place_id"] for r in sug["ranking"]] == [ids[n] for n in exp["ranking"]]
     for r in sug["ranking"]:
         name = next(n for n, pid in ids.items() if pid == r["place_id"])
-        # toạ độ riêng (SECRET) lệch points của fixture ≤ 1e-4 độ (~10 m) → km khứ hồi lệch < 0,05
-        assert r["psi"] == pytest.approx(exp["psi"][name], abs=0.1)
+        # toạ độ riêng (SECRET) lệch points của fixture ≤ 1e-4 độ (~10 m) → km khứ hồi lệch < 0,05;
+        # k = 2 (T-99) khuếch đại lệch theo km nên so tương đối
+        assert r["psi"] == pytest.approx(exp["psi"][name], rel=5e-3)
         assert r["max_km"] == pytest.approx(exp["max_km"][name], abs=0.05)
         assert r["max_min"] > 0
-    assert sug["runner_up_psi"] == pytest.approx(exp["runner_up_psi"], abs=0.1)
+    assert sug["runner_up_psi"] == pytest.approx(exp["runner_up_psi"], rel=5e-3)
     assert sug["excluded_member_count"] == 2  # V4, V5
     assert [m["rank"] for m in sug["members"]] == [1, 2, 3]
-    assert [m["weight"] for m in sug["members"]] == [1.0, 1.25, 1.5]
+    assert [m["weight"] for m in sug["members"]] == [1.0, 1 + cfg.OMP_LAMBDA / 2, 1 + cfg.OMP_LAMBDA]
     assert {m["nickname"] for m in sug["members"]} == {"Host", "Nam", "Linh"}
     assert set(sug["members"][0]) == {"member_id", "nickname", "km", "minutes", "rank", "weight"}
-    assert sug["params"] == {"lambda": 0.5, "k": 1.0}
+    assert sug["params"] == {"lambda": 1.0, "k": 2.0}
     assert sug["estimated"] is True and sug["source"] == "ESTIMATE"
     for gone in ("matrix", "threshold_min", "margin_vs_second_min"):
         assert gone not in s and gone not in sug

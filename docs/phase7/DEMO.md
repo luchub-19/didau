@@ -29,14 +29,15 @@ Cache km đã làm ấm (56 đường nhà ↔ quán) nên tính toán không ph
 | 0:30 | Cột danh sách: Ăn có Cơm Tấm Ba Ghiền 3 phiếu, Quán Bụi 2, Lẩu Dê 2; Uống, Giải trí có quán thắng rõ. | "Chỉ khi hai quán **bằng điểm ở hạng đầu** mới cần thuật toán — còn lại người dùng tự quyết." |
 | 1:00 | **Sơn**: bấm **Muốn đi** cho Quán Bụi rồi Lẩu Dê 404. Cửa sổ Bảo (không tải lại) hiện thẻ **"Ăn đang hoà"** — 3 quán cùng 3 điểm. | "Hoà ba quán. Đây là lúc Ordered Median vào việc." (2 tab realtime) |
 | 1:20 | Thẻ nói: "Chọn **Quán Bụi** sẽ tốt hơn · người xa nhất bớt …". Chỉ đường **của Bảo** vẽ trên bản đồ tới quán đề xuất (nhãn "Đường của bạn · đi … · về …"). | "Một câu ngắn, kèm con số. Đường vẽ chỉ của riêng tôi — không ai xem được đường từ nhà người khác." |
-| 1:45 | Bấm **Vì sao?** → bảng từng người (đi + về, km, "tính nặng") + "So với các quán cùng hoà". Chỉ nhãn nguồn **Valhalla · xe máy**. | "Máy cộng đi và về của từng người, người ở xa tính nặng hơn để không ai phải đi quá xa. Linh ở Thủ Đức xa nhất nên được tính nặng nhất." |
+| 1:45 | Bấm **Vì sao?** → bảng từng người (đi + về, km, "tính nặng") + "So với các quán cùng hoà". Chỉ nhãn nguồn **Valhalla · xe máy**. | "Máy lấy quãng đường đi + về của từng người rồi **bình phương** — đi xa gấp đôi bị tính nặng gấp bốn — người xa nhất còn nhân thêm ×2, để không ai phải đi quá xa. Linh ở Thủ Đức xa nhất nên được tính nặng nhất." (Bị hỏi "sao bình phương, sao ×2?" → `ALGORITHMS.md` §9.5) |
 | 2:15 | **Bảo** bấm **Chốt Quán Bụi** (host xác nhận; Sơn không có nút này). | "Chủ phòng quyết. MVP chốt 1 quán cho cả phòng; bản đầy đủ sẽ chốt theo từng loại." |
 | 2:35 | Cột Kế hoạch: kéo Quán Bụi vào 17:30; kéo Cà Phê Trứng sát ngay sau → dải **"Thiếu …"**; kéo CGV muộn hơn. Bản đồ tự vẽ **đường giữa các quán** (xanh). | "Lịch do người dùng xếp. Thiếu giờ chỉ cảnh báo, máy không tự đẩy giờ." |
 | 3:15 | Bấm dải **Thiếu …** → **Vì sao?** (km từ Valhalla). Dời quán ra, dải về "SAFE". | "Cùng nguồn km với thuật toán nên phút và đề xuất không lệch nhau." |
 | 3:40 | Chốt ý: phạm vi MVP — một chặng, km không có kẹt xe; bản đầy đủ: nhiều chặng theo lịch. | Slide giới hạn (xem `ALGORITHMS.md` §9.4). |
 
-Số đã đo khi diễn tập API trên phòng seed (2026-11-15, Valhalla local): Quán Bụi Ψ 69,686 · Cơm Tấm Ba Ghiền 95,183 · Lẩu Dê 404
-100,793; người xa nhất (Linh) 22,959 km khứ hồi, tổng 51,192 km. Sau chốt: Quán Bụi → Cà Phê Trứng 0,566 km (SOFT_CONFLICT khi sát giờ),
+Số đã đo khi diễn tập API trên phòng seed (2026-11-15, Valhalla local, tham số T-99 λ = 1, k = 2): Quán Bụi Ψ 1622,983 · Cơm Tấm Ba
+Ghiền 2641,319 · Lẩu Dê 404 3463,994 (Ψ không hiện trên giao diện); người xa nhất (Linh) 22,959 km khứ hồi, tổng 51,192 km — cùng
+quán, cùng km như ở tham số cũ của Sơn. Sau chốt: Quán Bụi → Cà Phê Trứng 0,566 km (SOFT_CONFLICT khi sát giờ),
 → CGV 1,334 km. Giao diện phải khớp các số này; lệch = đã đổi dữ liệu seed.
 
 ## Nếu hỏng thì

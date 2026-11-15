@@ -24,6 +24,7 @@ import {
   lockTarget,
   tieDelta,
   tieRefreshKey,
+  whyRuleKey,
 } from '../components/algo/tieSuggestionLogic';
 import { decodePolyline, encodePolyline } from '../components/algo/polyline';
 import { buildRouteFeatures } from '../components/algo/RouteLayer';
@@ -436,6 +437,27 @@ describe('TieWhyBody ("Vì sao?", §5.3)', () => {
     expect(out).toContain('4,2 km');
     expect(out).toContain('×1,25');
     expect(out).toContain('overflow-x-auto');
+  });
+
+  it('T-99 (CR-16): câu luật theo k — k = 2 nói "bình phương", k khác 1/2 nói luỹ thừa; VI + EN', async () => {
+    const sq = food({ params: { lambda: 1, k: 2 } });
+    expect(whyRuleKey(food()).key).toBe('algo.tie.whyRule');
+    expect(whyRuleKey(sq).key).toBe('algo.tie.whyRuleSquared');
+    expect(whyRuleKey(food({ params: { lambda: 1, k: 1.5 } }), 'vi')).toEqual({ key: 'algo.tie.whyRulePow', k: '1,5' });
+    const vi = renderToStaticMarkup(<TieWhyBody suggestion={sq} />);
+    expect(vi).toContain('bình phương');
+    expect(vi).toContain('gấp bốn');
+    expect(vi).toContain('nhân thêm ×2');
+    expect(vi).not.toMatch(/Ψ|psi/i);
+    expect(renderToStaticMarkup(<TieWhyBody suggestion={food({ params: { lambda: 1, k: 3 } })} />)).toContain('luỹ thừa 3');
+    await i18n.changeLanguage('en');
+    try {
+      const out = renderToStaticMarkup(<TieWhyBody suggestion={sq} />);
+      expect(out).toContain('square it');
+      expect(out).toContain('also counts ×2');
+    } finally {
+      await i18n.changeLanguage('vi');
+    }
   });
 
   it('so với quán cùng hoà: đề xuất tô nhấn, xa nhất + tổng km; thiếu toạ độ và người bị loại được ghi', () => {

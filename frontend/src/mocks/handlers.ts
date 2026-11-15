@@ -131,7 +131,9 @@ function mockGroupCenter(points: LatLngPoint[]): LatLngPoint {
 /* ---------- CR-15 (T-96): hoà phiếu OMP theo loại + đường đi — cùng luật với backend, ước lượng 25 km/h ---------- */
 
 const CATEGORY_ORDER: PlaceCategory[] = ['FOOD', 'DRINK', 'ENTERTAINMENT', 'SIGHTSEEING', 'ACCOMMODATION', 'SHOPPING', 'OTHER'];
-const OMP_LAMBDA = 0.5;
+// T-99 (CR-16): mặc định (λ = 1; k = 2) như backend `algo_config.py`
+const OMP_LAMBDA = 1;
+const OMP_K = 2;
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const mockKmEst = (a: LatLngPoint, b: LatLngPoint) => mockKm(a, b) * 1.3;
 const mockMin = (km: number) => Math.ceil(Math.round((km / 25) * 60 * 1e6) / 1e6);
@@ -186,7 +188,7 @@ function mockTieSuggestion(): TieSuggestion {
           return { m, km: go + back, minutes: mockMin(go) + mockMin(back) };
         })
         .sort((x, y) => x.km - y.km);
-      const psi = people.reduce((acc, x, i) => acc + w(i + 1) * x.km, 0);
+      const psi = people.reduce((acc, x, i) => acc + w(i + 1) * x.km ** OMP_K, 0);
       return [{ p, people, psi, max_km: people[people.length - 1].km, total_km: people.reduce((a2, x) => a2 + x.km, 0) }];
     });
     evals.sort(
@@ -217,7 +219,7 @@ function mockTieSuggestion(): TieSuggestion {
       excluded_member_count: excluded,
       estimated: true,
       source: 'ESTIMATE',
-      params: { lambda: OMP_LAMBDA, k: 1 },
+      params: { lambda: OMP_LAMBDA, k: OMP_K },
     });
   }
   if (suggestions.length === 0) return { available: false, reason: 'NO_TIE', suggestions: [] };

@@ -77,11 +77,13 @@ DISTRICT_TIE_KM = 1.5
 """Quận thứ hai chênh ≤ ngưỡng này so với quận thứ nhất thì nhãn gộp "Q3 – Phú Nhuận"."""
 
 # ── ALGO-02 Hoà phiếu = Ordered Median của Sơn (docs/phase7/ALGORITHMS.md §2, thay gđ6 §4) ────────────
-OMP_LAMBDA = 0.5
-"""λ — hệ số công bằng: `w_r = 1 + λ·(r − 1)/(N − 1)` cho người xếp thứ r theo chi phí tăng dần (mặc định Sơn)."""
+OMP_LAMBDA = 1.0
+"""λ — hệ số công bằng: `w_r = 1 + λ·(r − 1)/(N − 1)` cho người xếp thứ r theo chi phí tăng dần.
+T-99/CR-16: 1,0 theo báo cáo so sánh (λ; k) của Bảo 2026-11-15 (mặc định Sơn là 0,5). Lý do: ALGORITHMS gđ7 §9.5."""
 
-OMP_K = 1.0
-"""k — luỹ thừa phạt cá nhân `cᵢ = dᵢ^k` (chặn dưới 1; mặc định Sơn, tuyến tính)."""
+OMP_K = 2.0
+"""k — luỹ thừa phạt cá nhân `cᵢ = dᵢ^k` (chặn dưới 1). T-99/CR-16: 2,0 = bình phương km (mặc định Sơn là 1,0 tuyến tính);
+với k = 1 thì λ nào cũng gần MinSum, muốn bảo vệ người xa phải tăng k (ALGORITHMS gđ7 §9.5)."""
 
 OMP_PSI_EPS = 1e-9
 """Sai số khi so Ψ / km để phá hoà (ALGORITHMS gđ7 §3)."""

@@ -859,20 +859,20 @@ Khi có lỗi (status $\ge 400$):
       "category": "FOOD",
       "candidates": [ { "place_id": "…", "name": "Vạn Hạnh Mall", "upvotes": 7, "downvotes": 0, "score": 7 } ],
       "recommended_place_id": "…",
-      "ranking": [ { "place_id": "…", "rank": 1, "psi": 50.278, "max_km": 17.066, "total_km": 37.647, "max_min": 42 } ],
+      "ranking": [ { "place_id": "…", "rank": 1, "psi": 1003.08, "max_km": 17.066, "total_km": 37.647, "max_min": 42 } ],
       "members": [ { "member_id": "…", "nickname": "Bảo", "km": 4.19, "minutes": 12, "rank": 1, "weight": 1.0 } ],
-      "runner_up_psi": 51.457,
+      "runner_up_psi": 1208.954,
       "excluded_member_count": 0,
       "estimated": true,
       "source": "ESTIMATE",
-      "params": { "lambda": 0.5, "k": 1.0 }
+      "params": { "lambda": 1.0, "k": 2.0 }
     }
   ]
 }
 ```
 - **Kích hoạt (theo từng loại quán)**: trong một `category`, các quán chưa `REJECTED`/`VISITED`, ≥ 2 quán cùng `score` (upvotes − downvotes) lớn nhất, loại đó có ít nhất một phiếu, và loại chưa có quán `ACCEPTED`; mọi quán bằng điểm đó là ứng viên (có thể > 3). Mỗi loại hoà là một mục của `suggestions` (thứ tự khai báo `PlaceCategory`: FOOD, DRINK, ENTERTAINMENT, …). Không loại nào hoà → `{available:false, reason:"NO_TIE", suggestions:[]}` (không gọi estimator/Google). `NEAR_TIE` không kích hoạt.
 - **Xuất phát**: chỉ thành viên đang hoạt động **tự chia sẻ** vị trí (`members.origin_*`); **không** dùng điểm hẹn của host (khác CR-12). Người thiếu bị loại, đếm ở `excluded_member_count`. Không ai → `available:false`, `reason:"NO_ORIGINS"` (vẫn có `suggestions` với `candidates`, `ranking: []`). Mọi ứng viên của mọi loại thiếu toạ độ → `reason:"NO_PLACE_COORDS"`.
-- **Thuật toán (MVP K = 1)**: người i với quán s: `dᵢ = km(nhà_i → s) + km(s → nhà_i)` (hai chiều hỏi riêng, không giả định đối xứng), `cᵢ = dᵢ^k`, sắp c tăng dần, `Ψ = Σ w_r·c₍r₎` với `w_r = 1 + λ·(r−1)/(N−1)` (N = 1 → w = 1). Xếp Ψ tăng dần; hoà Ψ (sai số 1e-9) → `max_km` nhỏ hơn → `total_km` nhỏ hơn → quán thêm sớm hơn → `place_id`. Mặc định `λ = 0.5`, `k = 1` (`params`).
+- **Thuật toán (MVP K = 1)**: người i với quán s: `dᵢ = km(nhà_i → s) + km(s → nhà_i)` (hai chiều hỏi riêng, không giả định đối xứng), `cᵢ = dᵢ^k`, sắp c tăng dần, `Ψ = Σ w_r·c₍r₎` với `w_r = 1 + λ·(r−1)/(N−1)` (N = 1 → w = 1). Xếp Ψ tăng dần; hoà Ψ (sai số 1e-9) → `max_km` nhỏ hơn → `total_km` nhỏ hơn → quán thêm sớm hơn → `place_id`. Mặc định `λ = 1.0`, `k = 2.0` (`params`; CR-16, T-99 — trước đó `λ = 0.5`, `k = 1` của Sơn). Với `k = 2`, Ψ có đơn vị km² (chỉ để so).
 - **Trường**: km là **khứ hồi**, làm tròn 3 số; `minutes` = phút đi + phút về của người đó; `max_min` = lớn nhất của các `minutes` ở quán đó. `members[]` là của **quán đề xuất**, sắp theo `rank` (1 = đi gần nhất), `weight` = w của hạng đó. Quán thiếu toạ độ có trong `candidates` nhưng không có dòng `ranking`, không bao giờ được đề xuất. `runner_up_psi` = Ψ hạng 2 (`null` nếu chỉ một quán xếp hạng được). `source` = `ESTIMATE` nếu còn ô ước lượng, ngược lại nguồn chung (`GOOGLE`, `VALHALLA`) hoặc `MIXED`; `estimated` = `source == "ESTIMATE"`. Km khởi hành lúc `room.start_minute` của `event_date` (cả hai chiều). Với `ROUTING_PROVIDER=valhalla` (CR-15 phần B, T-95) km **chỉ đọc từ cache DB** (không chờ mạng); ô chưa có → ước lượng, và server hẹn làm ấm nền nên lần gọi sau có số Valhalla.
 - **Riêng tư**: không có toạ độ của ai, không hình học đường đi (CR-11).
 - **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).

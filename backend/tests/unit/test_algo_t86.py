@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.core import algo_config as cfg
 from app.domain.algorithms import (
     OriginSource,
     TieGroup,
@@ -137,11 +138,12 @@ def km_grids(case_places: list[dict], places: list[TiePlace], n: int):
     return go, back
 
 
-def run_km_case(members: list[str], case_places: list[dict]):
+def run_km_case(members: list[str], case_places: list[dict], params: dict | None = None):
     places = [mk_place(p["id"], 3, p["created_order"]) for p in case_places]
     tm = mk_members(members)
     go, back = km_grids(case_places, places, len(tm))
-    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), tm, go, back)
+    kw = {"lam": params["lambda"], "k": params["k"]} if params else {}
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), tm, go, back, **kw)
     return out, {p.place_id: p.name for p in places}
 
 
@@ -175,14 +177,14 @@ def test_tc04_fixture_van_hanh_mall_still_wins_by_km():
         assert r.max_km == pytest.approx(exp["max_km"][n], abs=1e-3)
         assert r.total_km == pytest.approx(exp["total_km"][n], abs=1e-3)
     assert out.runner_up_psi == pytest.approx(exp["runner_up_psi"], abs=1e-3)
-    # thành viên ở quán đề xuất: km khứ hồi đúng fixture, hạng 1..3 theo km tăng dần, w = 1 / 1,25 / 1,5
+    # thành viên ở quán đề xuất: km khứ hồi đúng fixture, hạng 1..3 theo km tăng dần, w = 1 / 1 + λ/2 / 1 + λ
     km = dict(zip(case["members"], exp["round_trip_km"]["van_hanh_mall"], strict=True))
     assert {m.nickname: m.km for m in out.members} == pytest.approx(km, abs=1e-3)
     assert [m.rank for m in out.members] == [1, 2, 3]
-    assert [m.weight for m in out.members] == [1.0, 1.25, 1.5]
+    assert [m.weight for m in out.members] == [1.0, 1 + cfg.OMP_LAMBDA / 2, 1 + cfg.OMP_LAMBDA]
     assert [m.km for m in out.members] == sorted(m.km for m in out.members)
     assert out.estimated is True and out.source == "ESTIMATE"
-    assert (out.lam, out.k) == (0.5, 1.0)
+    assert (out.lam, out.k) == (cfg.OMP_LAMBDA, cfg.OMP_K) == (1.0, 2.0)
 
 
 def test_tc04_round_trip_uses_both_directions():
@@ -205,7 +207,7 @@ def test_asymmetric_km_case():
 @pytest.mark.parametrize("g", range(len(FX["tie_break"]["psi_ties"]["groups"])))
 def test_psi_ties_fall_through_max_sum_created(g):
     group = FX["tie_break"]["psi_ties"]["groups"][g]
-    out, names = run_km_case(group["members"], group["places"])
+    out, names = run_km_case(group["members"], group["places"], FX["tie_break"]["psi_ties"]["params"])
     assert [names[r.place_id] for r in out.ranking] == group["expect"]["ranking"]
     for name, value in group["expect"].get("psi", {}).items():
         assert next(r.psi for r in out.ranking if names[r.place_id] == name) == pytest.approx(value, abs=1e-9)

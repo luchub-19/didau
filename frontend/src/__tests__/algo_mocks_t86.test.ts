@@ -78,8 +78,8 @@ describe('T-86: mock group-center + tie-break/suggestion (kiểu cho T-88/T-89)'
     expect(food.recommended_place_id).toBe(food.ranking[0].place_id);
     expect(food.runner_up_psi).toBe(food.ranking[1].psi);
     expect(food.members.map((m) => m.rank)).toEqual([1, 2]);
-    expect(food.members.map((m) => m.weight)).toEqual([1, 1.5]);
-    expect(food.params).toEqual({ lambda: 0.5, k: 1 });
+    expect(food.members.map((m) => m.weight)).toEqual([1, 2]);
+    expect(food.params).toEqual({ lambda: 1, k: 2 }); // T-99 (CR-16), như backend
     expect(JSON.stringify(s)).not.toContain('10.7626');
     expect(JSON.stringify(s)).not.toContain('10.795');
 

@@ -15,7 +15,7 @@ Hướng dẫn tự host Valhalla (việc của người): `VALHALLA.md`. Tiến
 | :-: | :--- | :--- |
 | 1 | Thuật toán chính | **OMP của Sơn**; chấp nhận đổi app khá nhiều cho khớp. Kịch bản thuyết trình của nhóm trưởng chỉ là ví dụ thứ tự trình bày |
 | 2 | Đơn vị | Thuật toán tính **km**; giao diện hiện **phút** (`phút = ceil(km ÷ MOTORBIKE_KMH × 60)`, cùng nguồn km nên phút và đề xuất không vênh) |
-| 3 | Công thức | Làm đúng như Sơn: khứ hồi `Nhà → S₁ → … → S_K → Nhà`, `cᵢ = dᵢᵏ`, `Ψ = Σ w₍ᵣ₎·c₍ᵣ₎`; λ = 0,5, k = 1 (mặc định của Sơn) |
+| 3 | Công thức | Làm đúng như Sơn: khứ hồi `Nhà → S₁ → … → S_K → Nhà`, `cᵢ = dᵢᵏ`, `Ψ = Σ w₍ᵣ₎·c₍ᵣ₎`; ~~λ = 0,5, k = 1 (mặc định của Sơn)~~ → **λ = 1, k = 2** (báo cáo của Bảo, người dùng chốt 2026-11-15, CR-16 / T-99) |
 | 4 | Khi nào dùng thuật toán | Chỉ khi có **xung đột giữa nhiều lựa chọn** = hoà phiếu. Người dùng vẫn tự kéo lịch |
 | 5 | Chồng giờ / thiếu giờ | **Chỉ cảnh báo** (ALGO-03 như cũ), không tự chọn/bỏ hoạt động nào |
 | 6 | Hoà | Bằng **điểm** (Muốn đi − Không) ở hạng đầu, **theo từng loại quán**; chỉ khi bằng điểm thật (không dùng "gần hoà") |

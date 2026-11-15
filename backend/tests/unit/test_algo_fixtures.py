@@ -33,11 +33,16 @@ def margin(eta: int, end_curr_min: int, on: date) -> int:
     return max(cfg.MARGIN_MIN, math.ceil(round(eta * ratio, 6)))
 
 
-def omp_reference(round_trip: dict[str, list[float]], created: dict[str, int]) -> tuple[list[str], dict[str, float]]:
-    """Bản tham chiếu tối thiểu của OMP gđ7 (độc lập với `ordered_median.py`): k = 1, λ = OMP_LAMBDA."""
+def omp_reference(
+    round_trip: dict[str, list[float]], created: dict[str, int], params: dict | None = None
+) -> tuple[list[str], dict[str, float]]:
+    """Bản tham chiếu tối thiểu của OMP gđ7 (độc lập với `ordered_median.py`): cᵢ = dᵢ^k, λ, k theo `params`
+    (mặc định = `algo_config`, T-99: λ = 1, k = 2)."""
+    lam = params["lambda"] if params else cfg.OMP_LAMBDA
+    k = params["k"] if params else cfg.OMP_K
     n = len(next(iter(round_trip.values())))
-    w = [1.0] if n == 1 else [1 + cfg.OMP_LAMBDA * r / (n - 1) for r in range(n)]
-    psi = {j: sum(a * b for a, b in zip(w, sorted(d), strict=True)) for j, d in round_trip.items()}
+    w = [1.0] if n == 1 else [1 + lam * r / (n - 1) for r in range(n)]
+    psi = {j: sum(a * b**k for a, b in zip(w, sorted(d), strict=True)) for j, d in round_trip.items()}
     ranking = sorted(
         round_trip,
         key=lambda j: (round(psi[j], 9), round(max(round_trip[j]), 9), round(sum(round_trip[j]), 9), created[j]),
@@ -48,6 +53,7 @@ def omp_reference(round_trip: dict[str, list[float]], created: dict[str, int]) -
 def test_constants_in_fixture_match_algo_config():
     for name, value in FX["_meta"]["constants"].items():
         assert getattr(cfg, name) == value, name
+    assert FX["tie_break"]["params"] == {"lambda": cfg.OMP_LAMBDA, "k": cfg.OMP_K}
 
 
 @pytest.mark.parametrize("case", FX["estimate"], ids=lambda c: c["id"])
@@ -96,10 +102,11 @@ def test_tie_break_doc_case_by_km():
 
 
 def test_tie_break_km_cases():
-    groups = [FX["tie_break"]["asymmetric"], *FX["tie_break"]["psi_ties"]["groups"]]
-    for g in groups:
+    ties = FX["tie_break"]["psi_ties"]
+    groups = [(FX["tie_break"]["asymmetric"], None), *((g, ties["params"]) for g in ties["groups"])]
+    for g, params in groups:
         rt, created = _km_case(g["places"])
-        ranking, psi = omp_reference(rt, created)
+        ranking, psi = omp_reference(rt, created, params)
         assert ranking == g["expect"]["ranking"]
         for j, v in g["expect"].get("psi", {}).items():
             assert psi[j] == pytest.approx(v, abs=1e-9)

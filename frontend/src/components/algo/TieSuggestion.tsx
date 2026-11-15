@@ -30,6 +30,7 @@ import {
   lockTarget,
   tieDelta,
   tieRefreshKey,
+  whyRuleKey,
 } from './tieSuggestionLogic';
 
 const linkBtn =
@@ -58,7 +59,10 @@ export const TieWhyBody: React.FC<{ suggestion: CategoryTieSuggestion; myMemberI
     <div data-testid="tie-why">
       <p className="text-label leading-normal text-ink-2" data-testid="tie-why-rule">
         {s.members.length > 1
-          ? t('algo.tie.whyRule', { weight: formatWeight(farthestWeight(s), lang) })
+          ? (() => {
+              const { key, k } = whyRuleKey(s, lang);
+              return t(key, { weight: formatWeight(farthestWeight(s), lang), k });
+            })()
           : t('algo.tie.whyRuleOne')}
       </p>
       {rows.length > 0 && (

@@ -143,14 +143,16 @@ def test_omp_s07_dp_equals_brute_random(grid, k):
 
 
 def test_omp_s08_tie_break_order_psi_max_sum_then_key():
-    """§3: Ψ bằng → max dᵢ nhỏ hơn; còn bằng → Σ nhỏ hơn; còn bằng → khoá (created_at) nhỏ hơn."""
+    """§3: Ψ bằng → max dᵢ nhỏ hơn; còn bằng → Σ nhỏ hơn; còn bằng → khoá (created_at) nhỏ hơn.
+
+    Số tính tay ở tham số của Sơn (λ = 0,5; k = 1) — luật phá hoà không phụ thuộc tham số."""
     # Hai người, một chiều đi = về: d = 2 × km
     km = {
         ("a", "far"): 0.5, ("b", "far"): 2.5,  # d = [1, 5]: Ψ = 1 + 1,5·5 = 8,5, max 5
         ("a", "fair"): 1.25, ("b", "fair"): 2.0,  # d = [2,5; 4]: Ψ = 2,5 + 6 = 8,5, max 4
     }
     dist = lambda x, y: km.get((x, y), km.get((y, x)))
-    ranked = rank_candidates(["a", "b"], ["far", "fair"], dist)
+    ranked = rank_candidates(["a", "b"], ["far", "fair"], dist, lam=0.5, k=1.0)
     assert [e.combo[0] for e in ranked] == ["fair", "far"]
     assert ranked[0].psi == pytest.approx(ranked[1].psi, abs=1e-12)
 
@@ -173,9 +175,10 @@ def test_omp_s09_input_order_does_not_change_result():
 
 def test_omp_s10_single_member_and_single_option():
     dist = lambda a, b: 3.0
-    ev = solve_dp(["solo"], [["only"]], dist)
+    ev = solve_dp(["solo"], [["only"]], dist, k=1.0)
     assert ev.combo == ("only",) and ev.distances == (6.0,) and ev.psi == 6.0
-    assert evaluate(["solo"], ["only"], dist).psi == 6.0
+    assert evaluate(["solo"], ["only"], dist, k=1.0).psi == 6.0
+    assert solve_dp(["solo"], [["only"]], dist).psi == pytest.approx(6.0**cfg.OMP_K)  # N = 1 → w = 1, Ψ = d^k
 
 
 def test_omp_s11_asymmetric_distance_is_respected():

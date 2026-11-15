@@ -882,6 +882,8 @@ export const en: Messages = {
       resolveFailed: 'Could not lock in the place. Please try again.',
       whyTitle: 'Why {{name}}?',
       whyRule: 'We add up each person’s distance there and back. People who live farther away count more (the farthest person {{weight}}) so nobody has to travel too far. The place with the lowest total is suggested.',
+      whyRuleSquared: 'We take each person’s distance there and back and square it, so going twice as far counts four times as much. The farthest person also counts {{weight}} so nobody has to travel too far. The place with the lowest total is suggested.',
+      whyRulePow: 'We take each person’s distance there and back and raise it to the power of {{k}}, so people who live farther away count much more. The farthest person also counts {{weight}} so nobody has to travel too far. The place with the lowest total is suggested.',
       whyRuleOne: 'Only one person is counted so far, so we pick the place with the shortest distance there and back.',
       tableLabel: 'Distance there and back for each person to {{name}}',
       colMember: 'Member',

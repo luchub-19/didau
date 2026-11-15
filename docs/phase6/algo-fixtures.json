@@ -7,8 +7,8 @@
    "DETOUR_FACTOR": 1.3,
    "MOTORBIKE_KMH": 25,
    "BUFFER_MIN": 5,
-   "OMP_LAMBDA": 0.5,
-   "OMP_K": 1.0,
+   "OMP_LAMBDA": 1.0,
+   "OMP_K": 2.0,
    "MARGIN_MIN": 5,
    "PEAK_MARGIN_RATIO": 0.5,
    "OFFPEAK_MARGIN_RATIO": 0.25,
@@ -140,10 +140,10 @@
   "min_members": 2
  },
  "tie_break": {
-  "_note": "Giai đoạn 7 (docs/phase7/ALGORITHMS.md §2–§3, CR-15): Ordered Median của Sơn, K = 1. Km MỘT CHIỀU theo đúng chiều; khứ hồi dᵢ = đi + về; cᵢ = dᵢ^k; Ψ = Σ w_r·c₍r₎ với c tăng dần, w_r = 1 + λ·(r−1)/(N−1). Hoà Ψ (1e-9) → max dᵢ → Σ dᵢ → thêm sớm hơn. Bản gđ6 (ngưỡng 2′ theo phút) đã bỏ.",
+  "_note": "Giai đoạn 7 (docs/phase7/ALGORITHMS.md §2–§3, CR-15): Ordered Median của Sơn, K = 1. Km MỘT CHIỀU theo đúng chiều; khứ hồi dᵢ = đi + về; cᵢ = dᵢ^k; Ψ = Σ w_r·c₍r₎ với c tăng dần, w_r = 1 + λ·(r−1)/(N−1). Hoà Ψ (1e-9) → max dᵢ → Σ dᵢ → thêm sớm hơn. Bản gđ6 (ngưỡng 2′ theo phút) đã bỏ. T-99 (CR-16, 2026-11-15): mặc định đổi sang λ = 1, k = 2 (báo cáo so sánh của Bảo); ca psi_ties giữ tham số của Sơn (λ = 0,5, k = 1) vì số tính tay — luật phá hoà không phụ thuộc tham số.",
   "params": {
-   "lambda": 0.5,
-   "k": 1.0
+   "lambda": 1.0,
+   "k": 2.0
   },
   "weights_cases": [
    {
@@ -187,7 +187,7 @@
   "doc_case": {
    "id": "TC-04",
    "algo": "ALGO-02 OMP (gđ7 §2)",
-   "note": "Ca tài liệu đồ án (3 quán hoà 7 điểm, Bảo/Nam/Linh). Ma trận phút cũ của tài liệu là giả lập nên gđ7 tính lại bằng km ƯỚC LƯỢNG (Haversine × DETOUR_FACTOR) từ toạ độ points + toạ độ quán dưới đây, hai chiều. Vạn Hạnh Mall vẫn thắng: người xa nhất (Nam) 17,1 km khứ hồi thay vì 22,9.",
+   "note": "Ca tài liệu đồ án (3 quán hoà 7 điểm, Bảo/Nam/Linh). Ma trận phút cũ của tài liệu là giả lập nên gđ7 tính lại bằng km ƯỚC LƯỢNG (Haversine × DETOUR_FACTOR) từ toạ độ points + toạ độ quán dưới đây, hai chiều. Vạn Hạnh Mall vẫn thắng (cả ở λ = 0,5, k = 1 lẫn λ = 1, k = 2 của T-99): người xa nhất (Nam) 17,1 km khứ hồi thay vì 22,9.",
    "members": [
     "bao",
     "nam",
@@ -238,9 +238,9 @@
      ]
     },
     "psi": {
-     "dinh_doc_lap": 51.457,
-     "saigon_centre": 54.122,
-     "van_hanh_mall": 50.278
+     "dinh_doc_lap": 1208.954,
+     "saigon_centre": 1376.004,
+     "van_hanh_mall": 1003.08
     },
     "max_km": {
      "dinh_doc_lap": 22.932,
@@ -258,7 +258,7 @@
      "saigon_centre"
     ],
     "recommended_place_id": "van_hanh_mall",
-    "runner_up_psi": 51.457
+    "runner_up_psi": 1208.954
    }
   },
   "asymmetric": {
@@ -296,8 +296,8 @@
    ],
    "expect": {
     "psi": {
-     "x": 20.0,
-     "y": 17.5
+     "x": 192.0,
+     "y": 147.0
     },
     "ranking": [
      "y",
@@ -307,7 +307,7 @@
   },
   "psi_ties": {
    "id": "ALGO-02-ties",
-   "note": "Phá hoà §3. p_max/p_far: Ψ bằng 8,5 → max dᵢ nhỏ hơn thắng (p_max 4 < p_far 5). p_sum1/p_sum2 (N=3): Ψ = 15, max = 6 → tổng nhỏ hơn (11 < 11,2). same_late/same_early: giống hệt → thêm sớm hơn.",
+   "note": "Phá hoà §3. p_max/p_far: Ψ bằng 8,5 → max dᵢ nhỏ hơn thắng (p_max 4 < p_far 5). p_sum1/p_sum2 (N=3): Ψ = 15, max = 6 → tổng nhỏ hơn (11 < 11,2). same_late/same_early: giống hệt → thêm sớm hơn. Số tính tay ở tham số của Sơn (`params` của mục này: λ = 0,5, k = 1), không theo `tie_break.params`.",
    "groups": [
     {
      "members": [
@@ -436,7 +436,11 @@
       ]
      }
     }
-   ]
+   ],
+   "params": {
+    "lambda": 0.5,
+    "k": 1.0
+   }
   }
  },
  "margin": {
