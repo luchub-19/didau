@@ -1,6 +1,8 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_member, get_db
@@ -8,15 +10,26 @@ from app.core.exceptions import AppException, ValidationError
 from app.domain.enums import PlaceCategory
 from app.domain.models.member import Member
 from app.repositories.external_link_repo import ExternalLinkRepository
-from app.schemas.poi import GoogleMatchRequest, GoogleMatchResponse, PoiResponse
+from app.repositories.poi_repo import PoiRepository
+from app.schemas.poi import GoogleMatchRequest, GoogleMatchResponse, PoiBrandResponse, PoiResponse
 from app.services.google_places_service import GooglePlacesService
 from app.services.poi_service import Poi, PoiService, get_poi_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pois", tags=["POIs"])
 
 MAX_BBOX_SPAN_DEG = 0.2
 
 PoiServiceDep = Annotated[PoiService, Depends(get_poi_service)]
+
+
+def get_poi_repository(session: Annotated[AsyncSession, Depends(get_db)]) -> PoiRepository:
+    """Bảng `pois` trong Postgres (T-102); bảng chưa nạp hoặc lỗi thì endpoint lùi về tìm trong RAM."""
+    return PoiRepository(session)
+
+
+PoiRepoDep = Annotated[PoiRepository, Depends(get_poi_repository)]
 
 
 def get_google_places_service(
@@ -66,14 +79,58 @@ async def list_pois(
 @router.get("/search", response_model=list[PoiResponse])
 async def search_pois(
     service: PoiServiceDep,
+    repo: PoiRepoDep,
     q: Annotated[str, Query(min_length=1, max_length=100)],
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> list[PoiResponse]:
-    """Tìm không dấu theo tên/ẩm thực/brand; xếp độ khớp → score → khoảng cách (MAP-POI §5)."""
+    """Tìm không dấu theo tên/ẩm thực/brand; xếp độ khớp → score → khoảng cách (MAP-POI §5). Postgres (`pg_trgm`,
+    chịu gõ sai) khi bảng `pois` đã nạp; ngược lại tìm trong RAM (chỉ khớp chuỗi con)."""
     near = (lat, lng) if lat is not None and lng is not None else None
+    try:
+        if await repo.is_ready():
+            hits = await repo.search(q, near, limit)
+            pois = [poi for pid, _ in hits if (poi := service.get(pid)) is not None]
+            return [_to_response(service.with_distance(p, near)) for p in pois]
+    except SQLAlchemyError:
+        logger.warning("Tìm quán trong Postgres lỗi, lùi về RAM", exc_info=True)
     return [_to_response(p) for p in service.search(q, near, limit)]
+
+
+@router.get("/brands", response_model=list[PoiBrandResponse])
+async def search_brands(
+    service: PoiServiceDep,
+    repo: PoiRepoDep,
+    q: Annotated[str, Query(min_length=1, max_length=100)],
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    limit: Annotated[int, Query(ge=1, le=20)] = 5,
+) -> list[PoiBrandResponse]:
+    """Chuỗi ≥ 3 chi nhánh khớp `q` (CR-17 B). Có lat/lng: đếm trong 60 km, kèm chi nhánh gần nhất."""
+    near = (lat, lng) if lat is not None and lng is not None else None
+    try:
+        if await repo.is_ready():
+            brands = await repo.brands(q, near, limit)
+            return [PoiBrandResponse.model_validate(b, from_attributes=True) for b in brands]
+    except SQLAlchemyError:
+        logger.warning("Tìm chuỗi trong Postgres lỗi, lùi về RAM", exc_info=True)
+    return [
+        PoiBrandResponse.model_validate(b, from_attributes=True) for b in service.brands(q, near, limit)
+    ]
+
+
+@router.get("/brands/{brand_key}", response_model=list[PoiResponse])
+async def list_brand_branches(
+    brand_key: str,
+    service: PoiServiceDep,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 300,
+) -> list[PoiResponse]:
+    """Chi nhánh của chuỗi, gần → xa (trong 60 km khi có lat/lng). Chuỗi không có → `[]`."""
+    near = (lat, lng) if lat is not None and lng is not None else None
+    return [_to_response(p) for p in service.branches(brand_key, near, limit)]
 
 
 @router.post("/google-match", response_model=GoogleMatchResponse)

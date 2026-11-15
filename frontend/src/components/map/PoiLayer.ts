@@ -6,6 +6,7 @@ import type {
   MapMouseEvent,
 } from 'maplibre-gl';
 import type { Poi, PlaceCategory } from '../../types';
+import { useMapStore, type BrandFocus } from '../../store/useMapStore';
 import {
   DOT_SIZE,
   ICON_SIZE,
@@ -22,14 +23,17 @@ import {
  * Lớp quán của mình (T-101, MAP-POI §4): không gom cụm; ba lớp symbol trên một nguồn GeoJSON.
  *  - poi-dot: quán sắp tới `minzoom` (≤ zoom + 2) → chấm nhỏ không chữ, không chiếm chỗ chữ; từ z14.
  *  - poi-icon: zoom ≥ `minzoom` → vòng màu loại + icon theo kind + tên; chật thì bỏ chữ, quán điểm cao thắng.
+ *  - poi-brand: chi nhánh của chuỗi đang xem ("Xem N chi nhánh", T-102) → icon + tên, bỏ qua `minzoom`, icon được
+ *    chồng nhau để hiện ĐỦ mọi chi nhánh (chữ vẫn tránh va chạm).
  *  - poi-selected: quán đang chọn → ghim giọt nước, luôn hiện.
  * POI nền của style (lớp `source-layer = poi`) bị ẩn đúng các class mình có dữ liệu thay thế.
  */
 export const POI_SOURCE = 'pois';
 export const POI_DOT_LAYER = 'poi-dot';
 export const POI_ICON_LAYER = 'poi-icon';
+export const POI_BRAND_LAYER = 'poi-brand';
 export const POI_SELECTED_LAYER = 'poi-selected';
-const POI_LAYERS = [POI_SELECTED_LAYER, POI_ICON_LAYER, POI_DOT_LAYER];
+const POI_LAYERS = [POI_SELECTED_LAYER, POI_BRAND_LAYER, POI_ICON_LAYER, POI_DOT_LAYER];
 
 /** Quán thiếu `minzoom` (snapshot cũ) coi như chỉ hiện từ z17. */
 const DEFAULT_MINZOOM = 17;
@@ -42,6 +46,7 @@ const HIT_PADDING = 8;
 const HIT_SHAPE: Record<string, { r: number; dy: number }> = {
   [POI_SELECTED_LAYER]: { r: PIN_W / 2, dy: -(PIN_H - PIN_W / 2) },
   [POI_ICON_LAYER]: { r: ICON_SIZE / 2, dy: 0 },
+  [POI_BRAND_LAYER]: { r: ICON_SIZE / 2, dy: 0 },
   [POI_DOT_LAYER]: { r: DOT_SIZE / 2, dy: 0 },
 };
 
@@ -187,20 +192,83 @@ export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection<GeoJSON.Po
   };
 }
 
-/** Bộ lọc ba lớp theo quán đang chọn (quán đang chọn chỉ vẽ ở lớp ghim). */
-export function poiLayerFilters(selectedId: string | null): Record<string, FilterSpecification> {
+/**
+ * Bộ lọc bốn lớp theo quán đang chọn + chi nhánh của chuỗi đang xem. Mỗi quán chỉ vẽ ở một lớp: đang chọn → ghim;
+ * chi nhánh → lớp chuỗi (bỏ qua `minzoom`); còn lại theo `minzoom` (icon hoặc chấm).
+ */
+export function poiLayerFilters(
+  selectedId: string | null,
+  brandIds: readonly string[] = [],
+): Record<string, FilterSpecification> {
   const id = selectedId ?? '';
   const notSelected: ExpressionSpecification = ['!=', ['get', 'id'], id];
+  const inBrand: ExpressionSpecification = ['in', ['get', 'id'], ['literal', [...brandIds]]];
+  const notBrand: ExpressionSpecification = ['!', inBrand];
   return {
-    [POI_ICON_LAYER]: ['all', ['>=', ['zoom'], ['get', 'minzoom']], notSelected],
+    [POI_ICON_LAYER]: ['all', ['>=', ['zoom'], ['get', 'minzoom']], notSelected, notBrand],
     [POI_DOT_LAYER]: [
       'all',
       ['<', ['zoom'], ['get', 'minzoom']],
       ['<=', ['get', 'minzoom'], ['+', ['zoom'], DOT_LEAD_ZOOM]],
       notSelected,
+      notBrand,
     ],
+    [POI_BRAND_LAYER]: ['all', inBrand, notSelected],
     [POI_SELECTED_LAYER]: ['==', ['get', 'id'], id],
   };
+}
+
+/** Trạng thái lọc của từng map (quán chọn đến từ MapView, chuỗi đến từ store — hai nguồn ghép một bộ lọc). */
+const layerState = new WeakMap<MapLibreMap, { selected: string | null; brandIds: string[] }>();
+
+function applyFilters(map: MapLibreMap): void {
+  const st = layerState.get(map) ?? { selected: null, brandIds: [] };
+  const filters = poiLayerFilters(st.selected, st.brandIds);
+  for (const layer of POI_LAYERS) {
+    if (map.getLayer(layer)) map.setFilter(layer, filters[layer]);
+  }
+}
+
+/** Khung bao các chi nhánh; null khi không có quán nào. */
+export function brandBounds(pois: readonly Pick<Poi, 'lat' | 'lng'>[]): [[number, number], [number, number]] | null {
+  if (pois.length === 0) return null;
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const p of pois) {
+    minLng = Math.min(minLng, p.lng);
+    minLat = Math.min(minLat, p.lat);
+    maxLng = Math.max(maxLng, p.lng);
+    maxLat = Math.max(maxLat, p.lat);
+  }
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}
+
+/** Đổi chuỗi đang xem: lọc lại các lớp và lia bản đồ bao trọn mọi chi nhánh (T-102). */
+export function showBrandOnMap(map: MapLibreMap, focus: BrandFocus | null): void {
+  const st = layerState.get(map) ?? { selected: null, brandIds: [] };
+  st.brandIds = focus ? focus.pois.map((p) => p.external_id) : [];
+  layerState.set(map, st);
+  applyFilters(map);
+  const bounds = focus ? brandBounds(focus.pois) : null;
+  if (!bounds) return;
+  const el = map.getContainer();
+  const narrow = el.clientWidth < 640;
+  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  try {
+    map.fitBounds(bounds, {
+      // Trên: ô tìm nổi trên bản đồ; màn hẹp: danh sách/sheet che nửa dưới
+      padding: { top: 120, left: 40, right: 40, bottom: narrow ? Math.round(el.clientHeight * 0.45) : 60 },
+      maxZoom: 16,
+      duration: reduce ? 0 : 800,
+    });
+  } catch (err) {
+    console.warn('[PoiLayer] khong lia duoc toi chuoi', err);
+  }
 }
 
 /**
@@ -277,6 +345,32 @@ export function installPoiLayer(
   });
 
   map.addLayer({
+    id: POI_BRAND_LAYER,
+    type: 'symbol',
+    source: POI_SOURCE,
+    filter: filters[POI_BRAND_LAYER],
+    layout: {
+      'symbol-sort-key': ['-', 0, ['get', 'score']],
+      'icon-image': ['get', 'icon'],
+      'icon-allow-overlap': true,
+      'text-field': ['get', 'name'],
+      'text-font': ['Noto Sans Bold'],
+      'text-size': 12,
+      'text-max-width': 8,
+      'text-variable-anchor': ['left', 'right', 'top', 'bottom'],
+      'text-radial-offset': 1.05,
+      'text-justify': 'auto',
+      'text-padding': 2,
+      'text-optional': true,
+    },
+    paint: {
+      'text-color': textColor,
+      'text-halo-color': colors.surface,
+      'text-halo-width': 1.5,
+    },
+  });
+
+  map.addLayer({
     id: POI_SELECTED_LAYER,
     type: 'symbol',
     source: POI_SOURCE,
@@ -332,6 +426,17 @@ export function installPoiLayer(
     if (id) onSelect(id);
   });
 
+  // Chuỗi đang xem nằm trong store (ô tìm bật/tắt); lớp tự theo dõi để không cần nối qua MapView
+  layerState.set(map, { selected: null, brandIds: [] });
+  let lastFocus = useMapStore.getState().brandFocus;
+  if (lastFocus) showBrandOnMap(map, lastFocus);
+  const unsubscribe = useMapStore.subscribe((state) => {
+    if (state.brandFocus === lastFocus) return;
+    lastFocus = state.brandFocus;
+    showBrandOnMap(map, lastFocus);
+  });
+  map.on('remove', unsubscribe);
+
   let hovering = false;
   map.on('mousemove', (e) => {
     const over = hitAt(e) !== undefined;
@@ -352,10 +457,10 @@ export function updatePoiSource(
 }
 
 export function highlightPoi(map: MapLibreMap, externalId: string | null): void {
-  const filters = poiLayerFilters(externalId);
-  for (const layer of POI_LAYERS) {
-    if (map.getLayer(layer)) map.setFilter(layer, filters[layer]);
-  }
+  const st = layerState.get(map) ?? { selected: null, brandIds: [] };
+  st.selected = externalId;
+  layerState.set(map, st);
+  applyFilters(map);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { server } from '../mocks/server';
 import { resetMockDb } from '../mocks/handlers';
 import { mockPois } from '../mocks/mockData';
@@ -93,6 +94,43 @@ describe('T-27: useMapStore', () => {
     const s = useMapStore.getState();
     expect(s.searchResults).toEqual(results);
     for (const p of results) expect(s.poisById[p.external_id]).toBeDefined();
+  });
+
+  it('T-102: search lấy cả chuỗi; showBrand nạp mọi chi nhánh vào cache, gõ tiếp thì tắt', async () => {
+    const near = { lat: 10.7725, lng: 106.699 };
+    await useMapStore.getState().search('phuc long', near);
+    const brand = useMapStore.getState().brandResults[0];
+    expect(brand).toMatchObject({ brand_key: 'phuc-long', count: 3 });
+
+    const pois = await useMapStore.getState().showBrand(brand, near);
+    let s = useMapStore.getState();
+    expect(pois.map((p) => p.external_id)).toEqual([
+      'ovt:mock-phuclong-1',
+      'ovt:mock-phuclong-2',
+      'ovt:mock-phuclong-3',
+    ]);
+    expect(s.brandFocus?.pois).toEqual(pois);
+    expect(s.isLoadingBrand).toBe(false);
+    for (const p of pois) expect(s.poisById[p.external_id]).toBeDefined();
+
+    await useMapStore.getState().search('vincom', near);
+    s = useMapStore.getState();
+    expect(s.brandFocus).toBeNull();
+    expect(s.brandResults).toEqual([]);
+
+    await useMapStore.getState().showBrand(brand, near);
+    useMapStore.getState().clearSearch();
+    expect(useMapStore.getState().brandFocus).toBeNull();
+  });
+
+  it('T-102: truy vấn 1 ký tự không hỏi chuỗi; lỗi /brands không làm mất kết quả quán', async () => {
+    await useMapStore.getState().search('p');
+    expect(useMapStore.getState().brandResults).toEqual([]);
+    server.use(http.get('*/api/v1/pois/brands', () => HttpResponse.json({}, { status: 500 })));
+    const results = await useMapStore.getState().search('phuc long');
+    expect(results.length).toBeGreaterThan(0);
+    expect(useMapStore.getState().searchResults).toEqual(results);
+    expect(useMapStore.getState().brandResults).toEqual([]);
   });
 
   it('chọn POI / quán rồi bỏ chọn', () => {

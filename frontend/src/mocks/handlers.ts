@@ -1155,6 +1155,46 @@ export const handlers = [
     return HttpResponse.json(matched.slice(0, limit));
   }),
 
+  // 19b. Chuỗi cửa hàng khớp truy vấn (CR-17 B) — phải đứng trước `/pois/:prefix/:id`
+  http.get('*/api/v1/pois/brands', ({ request }) => {
+    const url = new URL(request.url);
+    const normQ = removeVietnameseTones(url.searchParams.get('q') || '');
+    const lat = url.searchParams.get('lat') ? parseFloat(url.searchParams.get('lat')!) : null;
+    const lng = url.searchParams.get('lng') ? parseFloat(url.searchParams.get('lng')!) : null;
+    const limit = parseInt(url.searchParams.get('limit') || '5', 10);
+    const groups = new Map<string, Poi[]>();
+    for (const p of mockPois) {
+      if (!p.brand_key || !p.brand || !removeVietnameseTones(p.brand).startsWith(normQ)) continue;
+      groups.set(p.brand_key, [...(groups.get(p.brand_key) ?? []), p]);
+    }
+    const brands = [...groups.entries()]
+      .filter(([, pois]) => pois.length >= 3)
+      .map(([brand_key, pois]) => ({
+        brand_key,
+        name: pois[0].brand!,
+        count: pois.length,
+        nearest_km:
+          lat !== null && lng !== null
+            ? Math.round(Math.min(...pois.map((p) => haversineKm(lat, lng, p.lat, p.lng))) * 1000) / 1000
+            : null,
+      }))
+      .sort((a, b) => b.count - a.count);
+    return HttpResponse.json(brands.slice(0, limit));
+  }),
+
+  http.get('*/api/v1/pois/brands/:brandKey', ({ request, params }) => {
+    const url = new URL(request.url);
+    const lat = url.searchParams.get('lat') ? parseFloat(url.searchParams.get('lat')!) : null;
+    const lng = url.searchParams.get('lng') ? parseFloat(url.searchParams.get('lng')!) : null;
+    let pois = mockPois.filter((p) => p.brand_key === params.brandKey);
+    if (lat !== null && lng !== null) {
+      pois = pois
+        .map((p) => ({ ...p, distance_km: Math.round(haversineKm(lat, lng, p.lat, p.lng) * 1000) / 1000 }))
+        .sort((a, b) => a.distance_km - b.distance_km);
+    }
+    return HttpResponse.json(pois);
+  }),
+
   // 20. Chi tiết một POI
   http.get('*/api/v1/pois/:prefix/:id', ({ params }) => {
     const extId = `${params.prefix}/${params.id}`;

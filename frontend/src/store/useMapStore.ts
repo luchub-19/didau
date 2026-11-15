@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { poiApi } from '../services/api/poiApi';
+import { poiApi, type PoiBrand } from '../services/api/poiApi';
 import type { Poi } from '../types';
 import { errorKey } from '../i18n/serverText';
 
@@ -16,6 +16,15 @@ export interface Bounds {
   maxLat: number;
   maxLng: number;
 }
+
+/** "Xem N chi nhánh" (T-102): chuỗi đang hiện trên bản đồ, `pois` xếp gần → xa. */
+export interface BrandFocus {
+  brand: PoiBrand;
+  pois: Poi[];
+}
+
+/** Truy vấn ngắn hơn thì không hỏi chuỗi (1 ký tự khớp gần như mọi chuỗi). */
+const BRAND_MIN_QUERY = 2;
 
 export type MapSelection = { kind: 'poi'; id: string } | { kind: 'place'; id: string } | null;
 
@@ -94,12 +103,19 @@ interface MapState {
   selection: MapSelection;
   searchQuery: string;
   searchResults: Poi[];
+  /** Chuỗi khớp truy vấn hiện tại (dòng "Xem N chi nhánh" lấy phần tử đầu). */
+  brandResults: PoiBrand[];
+  brandFocus: BrandFocus | null;
+  isLoadingBrand: boolean;
   isLoading: boolean;
   isSearching: boolean;
   error: string | null;
 
   loadBounds: (bounds: Bounds) => Promise<void>;
   search: (q: string, near?: { lat: number; lng: number }) => Promise<Poi[]>;
+  /** Tải mọi chi nhánh của chuỗi (gần → xa so với `near`), đưa vào cache và bật `brandFocus`. */
+  showBrand: (brand: PoiBrand, near?: { lat: number; lng: number }) => Promise<Poi[]>;
+  clearBrand: () => void;
   selectPoi: (externalId: string | null) => void;
   selectPlace: (placeId: string | null) => void;
   clearSearch: () => void;
@@ -112,6 +128,9 @@ const initial = {
   selection: null,
   searchQuery: '',
   searchResults: [],
+  brandResults: [],
+  brandFocus: null,
+  isLoadingBrand: false,
   isLoading: false,
   isSearching: false,
   error: null,
@@ -145,32 +164,61 @@ export const useMapStore = create<MapState>((set, get) => ({
 
   search: async (q, near) => {
     const query = q.trim();
-    set({ searchQuery: query });
+    set({ searchQuery: query, brandFocus: null, isLoadingBrand: false });
     if (!query) {
-      set({ searchResults: [], isSearching: false });
+      set({ searchResults: [], brandResults: [], isSearching: false });
       return [];
     }
     set({ isSearching: true });
+    const params = { q: query, lat: near?.lat, lng: near?.lng };
+    // Chuỗi hỏi song song; lỗi thì chỉ mất dòng "Xem N chi nhánh", danh sách quán vẫn hiện
+    const brandsReq =
+      query.length >= BRAND_MIN_QUERY
+        ? poiApi.searchBrands({ ...params, limit: 3 }).catch(() => [] as PoiBrand[])
+        : Promise.resolve([] as PoiBrand[]);
     try {
-      const results = await poiApi.searchPois({ q: query, lat: near?.lat, lng: near?.lng, limit: 8 });
+      const [results, brands] = await Promise.all([poiApi.searchPois({ ...params, limit: 8 }), brandsReq]);
       // Bỏ kết quả cũ nếu người dùng đã gõ tiếp
       if (get().searchQuery !== query) return results;
       set((s) => ({
         searchResults: results,
+        brandResults: brands,
         poisById: mergePois(s.poisById, results),
         isSearching: false,
       }));
       return results;
     } catch {
-      set({ searchResults: [], isSearching: false });
+      if (get().searchQuery === query) set({ searchResults: [], brandResults: [], isSearching: false });
       return [];
     }
   },
+
+  showBrand: async (brand, near) => {
+    const query = get().searchQuery;
+    set({ isLoadingBrand: true, brandFocus: { brand, pois: [] } });
+    try {
+      const pois = await poiApi.getBrandBranches(brand.brand_key, { lat: near?.lat, lng: near?.lng, limit: 300 });
+      // Người dùng đã gõ tiếp / bấm chuỗi khác trong lúc chờ
+      if (get().searchQuery !== query || get().brandFocus?.brand.brand_key !== brand.brand_key) return pois;
+      set((s) => ({
+        brandFocus: { brand, pois },
+        poisById: mergePois(s.poisById, pois),
+        isLoadingBrand: false,
+      }));
+      return pois;
+    } catch {
+      if (get().brandFocus?.brand.brand_key === brand.brand_key) set({ brandFocus: null, isLoadingBrand: false });
+      return [];
+    }
+  },
+
+  clearBrand: () => set({ brandFocus: null, isLoadingBrand: false }),
 
   selectPoi: (externalId) =>
     set({ selection: externalId ? { kind: 'poi', id: externalId } : null }),
   selectPlace: (placeId) =>
     set({ selection: placeId ? { kind: 'place', id: placeId } : null }),
-  clearSearch: () => set({ searchQuery: '', searchResults: [] }),
+  clearSearch: () =>
+    set({ searchQuery: '', searchResults: [], brandResults: [], brandFocus: null, isLoadingBrand: false }),
   reset: () => set({ ...initial }),
 }));

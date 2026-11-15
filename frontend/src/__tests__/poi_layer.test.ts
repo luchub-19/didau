@@ -1,17 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { featureFilter } from '@maplibre/maplibre-gl-style-spec';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import {
   BASEMAP_POI_KEEP_FILTER,
+  POI_BRAND_LAYER,
   POI_DOT_LAYER,
   POI_ICON_LAYER,
   POI_SELECTED_LAYER,
   hideBasemapPois,
   highlightPoi,
+  brandBounds,
   installPoiLayer,
   poiLayerFilters,
   poisToGeoJSON,
 } from '../components/map/PoiLayer';
+import { useMapStore } from '../store/useMapStore';
 import { KIND_CATEGORY, KIND_GLYPH, poiIconKey } from '../components/map/poiIcons';
 import type { Poi } from '../types';
 
@@ -82,6 +85,41 @@ describe('bộ lọc ba lớp theo zoom', () => {
     expect(passes(sel[POI_ICON_LAYER], 16, props)).toBe(false);
     expect(passes(sel[POI_DOT_LAYER], 14, props)).toBe(false);
     expect(passes(sel[POI_SELECTED_LAYER], 16, { id: 'b', minzoom: 12 })).toBe(false);
+  });
+});
+
+describe('chi nhánh của chuỗi đang xem (T-102)', () => {
+  const props = { id: 'a', minzoom: 17 };
+
+  it('chi nhánh vẽ ở lớp chuỗi ở mọi zoom, không ở lớp icon/chấm', () => {
+    const f = poiLayerFilters(null, ['a', 'b']);
+    expect(passes(f[POI_BRAND_LAYER], 11, props)).toBe(true);
+    expect(passes(f[POI_ICON_LAYER], 17, props)).toBe(false);
+    expect(passes(f[POI_DOT_LAYER], 16, props)).toBe(false);
+    // Quán khác giữ luật minzoom
+    expect(passes(f[POI_BRAND_LAYER], 17, { id: 'c', minzoom: 12 })).toBe(false);
+    expect(passes(f[POI_ICON_LAYER], 17, { id: 'c', minzoom: 12 })).toBe(true);
+  });
+
+  it('chi nhánh đang chọn chỉ vẽ ở lớp ghim', () => {
+    const f = poiLayerFilters('a', ['a', 'b']);
+    expect(passes(f[POI_SELECTED_LAYER], 12, props)).toBe(true);
+    expect(passes(f[POI_BRAND_LAYER], 12, props)).toBe(false);
+    expect(passes(f[POI_BRAND_LAYER], 12, { id: 'b', minzoom: 17 })).toBe(true);
+  });
+
+  it('brandBounds bao trọn mọi chi nhánh', () => {
+    expect(brandBounds([])).toBeNull();
+    expect(
+      brandBounds([
+        { lat: 10.77, lng: 106.7 },
+        { lat: 10.8, lng: 106.66 },
+        { lat: 10.75, lng: 106.74 },
+      ]),
+    ).toEqual([
+      [106.66, 10.75],
+      [106.74, 10.8],
+    ]);
   });
 });
 
@@ -169,14 +207,19 @@ function fakeMap(rendered: Record<string, { id: string; at: [number, number] }[]
       ),
   };
   const fire = (ev: string, x: number, y: number) => handlers[ev]?.forEach((h) => h({ point: { x, y } }));
+  liveMaps.push(() => fire('remove', 0, 0));
   return { map: map as unknown as MapLibreMap, layers, fire, canvas };
 }
 
+// installPoiLayer theo dõi store tới khi map 'remove' — gỡ map giả của test trước để không nhận thay đổi store
+const liveMaps: (() => void)[] = [];
+afterEach(() => liveMaps.splice(0).forEach((remove) => remove()));
+
 describe('installPoiLayer', () => {
-  it('ba lớp symbol, không còn circle/gom cụm', () => {
+  it('bốn lớp symbol (chấm, icon, chuỗi, ghim), không còn circle/gom cụm', () => {
     const { map, layers } = fakeMap({});
     installPoiLayer(map, vi.fn());
-    expect(Object.keys(layers)).toEqual([POI_DOT_LAYER, POI_ICON_LAYER, POI_SELECTED_LAYER]);
+    expect(Object.keys(layers)).toEqual([POI_DOT_LAYER, POI_ICON_LAYER, POI_BRAND_LAYER, POI_SELECTED_LAYER]);
     expect(Object.values(layers).every((l) => l.type === 'symbol')).toBe(true);
   });
 
@@ -228,5 +271,28 @@ describe('installPoiLayer', () => {
     highlightPoi(map, 'icon');
     expect(layers[POI_SELECTED_LAYER].filter).toEqual(['==', ['get', 'id'], 'icon']);
     expect(JSON.stringify(layers[POI_ICON_LAYER].filter)).toContain('"icon"');
+  });
+
+  it('bật chuỗi trong store: lọc lại các lớp + fitBounds; tắt thì bỏ', () => {
+    useMapStore.getState().reset();
+    const { map, layers } = fakeMap({});
+    const fitBounds = vi.fn();
+    Object.assign(map, { fitBounds, getContainer: () => ({ clientWidth: 1280, clientHeight: 800 }) });
+    installPoiLayer(map, vi.fn());
+    const brand = { brand_key: 'phuc-long', name: 'Phúc Long', count: 2, nearest_km: 0.4 };
+    useMapStore.setState({ brandFocus: { brand, pois: [] } });
+    expect(fitBounds).not.toHaveBeenCalled(); // đang tải chi nhánh
+    useMapStore.setState({
+      brandFocus: { brand, pois: [poi({ external_id: 'p1' }), poi({ external_id: 'p2', lat: 10.8, lng: 106.65 })] },
+    });
+    expect(JSON.stringify(layers[POI_BRAND_LAYER].filter)).toContain('"p1","p2"');
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(fitBounds.mock.calls[0][0]).toEqual([
+      [106.65, 10.77],
+      [106.7, 10.8],
+    ]);
+    useMapStore.getState().clearBrand();
+    expect(JSON.stringify(layers[POI_BRAND_LAYER].filter)).not.toContain('"p1"');
+    expect(fitBounds).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,7 +17,7 @@ flowchart TD
     
     subgraph Render["Render Cloud (Singapore Region)"]
         Docker["Docker Container (Python 3.12-slim)"]
-        StartScript["start.sh<br/>1. alembic upgrade head<br/>2. seed (nếu SEED_DEMO=true)<br/>3. uvicorn worker"]
+        StartScript["start.sh<br/>1. alembic upgrade head<br/>2. nạp bảng pois (bỏ qua nếu snapshot không đổi)<br/>3. seed (nếu SEED_DEMO=true)<br/>4. uvicorn worker"]
         FastAPI["FastAPI REST & WebSocket Server<br/>Port 8000 (Proxy headers enabled)"]
     end
     
@@ -87,6 +87,16 @@ flowchart TD
   ```
 - **Vercel**: Tự động phát hiện thay đổi trong thư mục `frontend/`, chạy `npm run build` và deploy bản mới trong ~30-45 giây.
 - **Render**: Tự động build lại Docker image từ `backend/Dockerfile`, chạy `start.sh` và switch traffic không gián đoạn.
+
+### 4.1a. Bước nạp bảng tìm quán `pois` (T-102, CR-17 B)
+- `start.sh` chạy `python -m app.repositories.poi_repo` ngay sau `alembic upgrade head` (migration `006` tạo bảng `pois`,
+  `poi_snapshots` và extension `pg_trgm` — Neon có sẵn, không cần bật tay).
+- **Idempotent**: so sha256 của `backend/app/data/places_*.json.gz` với `poi_snapshots`; trùng thì in
+  `POI table already up to date` và bỏ qua (~1 s). Snapshot đổi → xoá + nạp lại ~74 nghìn dòng trong một transaction
+  (máy dev ~4–5 s; Neon dự kiến lâu hơn vì độ trễ mạng) — bản đang chạy vẫn đọc dữ liệu cũ tới lúc commit.
+- Lỗi nạp **không chặn deploy**: log `POI load failed…`, `/pois/search` + `/pois/brands` tự lùi về tìm trong RAM (không
+  chịu gõ sai). Nạp tay / ép nạp lại: Render Shell → `python -m app.repositories.poi_repo --force`.
+- Kiểm sau deploy: `GET /api/v1/pois/search?q=vincon&lat=10.7769&lng=106.7009` phải ra Vincom (đường RAM trả `[]`).
 
 ### 4.2. Kích hoạt Deploy thủ công (Manual Deploy)
 - **Trên Render:** Vào Web Service $\rightarrow$ Nhấn nút **Manual Deploy** (góc trên bên phải) $\rightarrow$ Chọn **Deploy latest commit** (hoặc **Clear build cache & deploy** nếu muốn build lại từ đầu).

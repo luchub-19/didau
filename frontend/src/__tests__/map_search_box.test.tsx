@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import i18n from '../i18n';
 import { describe, expect, it, beforeAll, afterAll, afterEach } from 'vitest';
 import { server } from '../mocks/server';
 import { mockPois } from '../mocks/mockData';
-import { MapSearchBox, SearchResultRow } from '../components/map/MapSearchBox';
+import { BrandRow, MapSearchBox, SearchResultRow } from '../components/map/MapSearchBox';
 import { foldText, matchRanges, nextIndex, shortAddress } from '../components/map/searchText';
 import { poiApi } from '../services/api/poiApi';
 import type { Poi } from '../types';
@@ -88,5 +89,44 @@ describe('MSW /pois/search (CR-17 A)', () => {
   it('tìm được mall và rạp', async () => {
     expect((await poiApi.searchPois({ q: 'vincom' })).some((p) => p.kind === 'mall')).toBe(true);
     expect((await poiApi.searchPois({ q: 'cgv' }))[0].kind).toBe('cinema');
+  });
+});
+
+describe('Dòng "Xem N chi nhánh" (T-102)', () => {
+  const brand = { brand_key: 'phuc-long', name: 'Phúc Long', count: 93, nearest_km: 0.42 };
+
+  it('tên chuỗi in đậm phần khớp + số chi nhánh, đủ VI/EN', async () => {
+    await i18n.changeLanguage('vi');
+    const vi = renderToStaticMarkup(<BrandRow brand={brand} query="phuc" />);
+    expect(vi).toContain('<strong class="font-semibold text-ink">Phúc</strong>');
+    expect(vi).toContain('Xem 93 chi nhánh');
+    await i18n.changeLanguage('en');
+    expect(renderToStaticMarkup(<BrandRow brand={brand} query="phuc" />)).toContain('See 93 locations');
+    expect(renderToStaticMarkup(<BrandRow brand={{ ...brand, count: 1 }} query="" />)).toContain('See 1 location<');
+    await i18n.changeLanguage('vi');
+  });
+
+  it('icon theo kind thay cho icon category', () => {
+    const mall = mockPois.find((p) => p.kind === 'mall') as Poi;
+    const asCafe = renderToStaticMarkup(<SearchResultRow poi={{ ...mall, kind: 'cafe' }} query="" lang="vi" />);
+    const asMall = renderToStaticMarkup(<SearchResultRow poi={mall} query="" lang="vi" />);
+    expect(asMall).not.toEqual(asCafe);
+    const noKind = renderToStaticMarkup(<SearchResultRow poi={{ ...mall, kind: null }} query="" lang="vi" />);
+    expect(noKind).toContain('<svg');
+  });
+});
+
+describe('MSW /pois/brands (CR-17 B)', () => {
+  it('chuỗi ≥ 3 chi nhánh khớp tiền tố, kèm chi nhánh gần nhất', async () => {
+    const brands = await poiApi.searchBrands({ q: 'phuc', lat: 10.7725, lng: 106.699 });
+    expect(brands).toEqual([{ brand_key: 'phuc-long', name: 'Phúc Long', count: 3, nearest_km: 0 }]);
+    expect(await poiApi.searchBrands({ q: 'vincom' })).toEqual([]); // 1 chi nhánh
+  });
+
+  it('chi nhánh gần → xa', async () => {
+    const pois = await poiApi.getBrandBranches('phuc-long', { lat: 10.7546, lng: 106.6639 });
+    expect(pois[0].external_id).toBe('ovt:mock-phuclong-3');
+    const d = pois.map((p) => p.distance_km ?? 0);
+    expect(d).toEqual([...d].sort((a, b) => a - b));
   });
 });

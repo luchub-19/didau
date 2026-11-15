@@ -26,6 +26,15 @@ class PoiResponse(BaseModel):
     minzoom: int = Field(default=17, ge=12, le=17, description="Zoom bắt đầu hiện icon + tên")
 
 
+class PoiBrandResponse(BaseModel):
+    """Một chuỗi cửa hàng khớp truy vấn (CR-17 B, `GET /pois/brands`)."""
+
+    brand_key: str
+    name: str = Field(description="Tên chuỗi hay gặp nhất trong các chi nhánh")
+    count: int = Field(ge=1, description="Số chi nhánh; có lat/lng thì chỉ trong 60 km")
+    nearest_km: float | None = Field(default=None, description="Chi nhánh gần nhất; chỉ có khi truyền lat/lng")
+
+
 class GoogleMatchRequest(BaseModel):
     """Yêu cầu khớp một quán OSM với Google place_id."""
 

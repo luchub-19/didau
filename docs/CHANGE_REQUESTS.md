@@ -555,7 +555,8 @@ MinMax 35,7%. Với k = 1 thì λ nào cũng không kéo được về MinMax.
 - **Người đề xuất**: session 2026-11-15 (fa552239), theo góp ý người dùng về ô tìm kiếm + bản đồ; thiết kế `docs/phase7/MAP-POI.md`
 - **Ngày tạo**: 2026-11-15
 - **Trạng thái**: **Phần A APPROVED** (người dùng duyệt 2026-11-15) · **Phần A đã áp** ở T-100 (`CONTRACTS.md` mục 13–15,
-  §6 `Poi`); Phần B PROPOSED (duyệt trước T-102)
+  §6 `Poi`); **Phần B APPROVED** (người dùng duyệt 2026-11-15, đầu session T-102) · **Phần B đã áp** ở T-102
+  (`CONTRACTS.md` mục 14, 14a, 14b, §6 `PoiBrand`)
 - **Task áp**: Phần A → T-100; Phần B → T-102. **Task đã DONE bị ảnh hưởng**: CR-02 (snapshot OSM, mục 13–15), T-86
   (`nearby_pois` lấy từ cùng PoiService — nay có cả mall/công viên), mock MSW `/pois*`.
 

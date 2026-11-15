@@ -716,11 +716,29 @@ Khi có lỗi (status $\ge 400$):
 - **Thứ tự**: `score` giảm dần (trước CR-17: theo tên) để `limit` giữ quán nổi bật.
 - Mỗi phần tử là `Poi` (§6) với các trường CR-17 A: `kind`, `district`, `brand`, `brand_key`, `score` (0–100), `minzoom` (12–17).
 
-#### 14. Tìm kiếm POI không dấu (CR-02, CR-17 A)
+#### 14. Tìm kiếm POI không dấu (CR-02, CR-17 A, CR-17 B)
 - **Method & Path**: `GET /api/v1/pois/search?q={query}&lat={lat}&lng={lng}&limit={limit}`
 - **Auth**: Công khai.
 - Khớp không dấu trên tên + ẩm thực + brand. **Thứ tự** (CR-17 A): độ khớp tên (đầu tên/đủ từ → chứa chuỗi → chỉ khớp
   ẩm thực/brand) → khi có `lat,lng`: dải khoảng cách 3 km → `score` giảm dần → khoảng cách.
+- (CR-17 B) Tìm trong Postgres (`pg_trgm`) khi bảng `pois` đã nạp snapshot: thêm tầng cuối **khớp gần đúng** (gõ sai,
+  vd. "vincon" → Vincom; truy vấn ≥ 3 ký tự), trong tầng này: dải 3 km → độ giống → `score` → khoảng cách. Bảng chưa nạp
+  hoặc lỗi DB → tìm trong RAM (chỉ khớp chuỗi con). Hình dạng phản hồi không đổi (`Poi[]`).
+
+#### 14a. Chuỗi cửa hàng khớp truy vấn (CR-17 B)
+- **Method & Path**: `GET /api/v1/pois/brands?q={query}&lat={lat}&lng={lng}&limit={limit}` (`limit` 1–20, mặc định 5)
+- **Auth**: Công khai.
+- **Response 200 OK**: `PoiBrand[]` — `[{ "brand_key": "phuc-long-coffee-tea", "name": "Phuc Long Coffee & Tea", "count": 93, "nearest_km": 0.42 }]`
+- Chỉ chuỗi có **≥ 3 chi nhánh**. Khớp: `q` (không dấu) là **tiền tố** tên chuỗi (bỏ "the " đầu) hoặc gần đúng với số từ
+  đầu tương ứng (≥ 4 ký tự; "coffee" không khớp "Highlands Coffee"). Có `lat,lng`: `count` chỉ đếm chi nhánh trong
+  **60 km**, `nearest_km` = chi nhánh gần nhất; không có: đếm hết, `nearest_km = null`. `name` = tên chuỗi hay gặp nhất.
+  Thứ tự: khớp tiền tố trước gần đúng → `count` giảm dần → gần.
+
+#### 14b. Chi nhánh của một chuỗi (CR-17 B)
+- **Method & Path**: `GET /api/v1/pois/brands/{brand_key}?lat={lat}&lng={lng}&limit={limit}` (`limit` 1–500, mặc định 300)
+- **Auth**: Công khai.
+- **Response 200 OK**: `Poi[]` — có `lat,lng`: chi nhánh trong 60 km, **gần → xa**, kèm `distance_km`; không có: mọi chi
+  nhánh, `score` giảm dần. `brand_key` không tồn tại → `[]` (không 404).
 
 #### 15. Chi tiết một POI (CR-02, CR-17 A)
 - **Method & Path**: `GET /api/v1/pois/{external_id}`
@@ -1718,6 +1736,14 @@ export interface PoiSearchParams {
   lat?: number;
   lng?: number;
   limit?: number;
+}
+
+/** CR-17 B: `GET /pois/brands` (khai báo ở `frontend/src/services/api/poiApi.ts`). */
+export interface PoiBrand {
+  brand_key: string;
+  name: string;
+  count: number; // có lat/lng: chỉ trong 60 km
+  nearest_km: number | null;
 }
 
 export interface GoogleMatchRequest {

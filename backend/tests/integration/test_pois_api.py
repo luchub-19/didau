@@ -7,8 +7,16 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.api.v1.pois import get_poi_repository
 from app.main import app
 from app.services.poi_service import DEFAULT_DATA_DIR, PoiService, get_poi_service
+
+
+class RamOnlyRepo:
+    """Bảng `pois` "chưa nạp": các test ở file này kiểm đường tìm trong RAM (test Postgres: test_pois_db.py)."""
+
+    async def is_ready(self) -> bool:
+        return False
 
 RECORDS = [
     {
@@ -49,9 +57,11 @@ def _service(tmp_path: Path) -> PoiService:
 async def client(tmp_path: Path) -> AsyncGenerator[AsyncClient, None]:
     service = _service(tmp_path)
     app.dependency_overrides[get_poi_service] = lambda: service
+    app.dependency_overrides[get_poi_repository] = RamOnlyRepo
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.pop(get_poi_service, None)
+    app.dependency_overrides.pop(get_poi_repository, None)
 
 
 async def test_list_by_bbox_and_category(client: AsyncClient) -> None:
@@ -153,12 +163,14 @@ async def test_response_has_cr17_fields(tmp_path: Path) -> None:
         json.dump({"pois": [rec]}, fh, ensure_ascii=False)
     service = PoiService(data_dir=tmp_path, weekday=0)
     app.dependency_overrides[get_poi_service] = lambda: service
+    app.dependency_overrides[get_poi_repository] = RamOnlyRepo
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             body = (await ac.get("/api/v1/pois/search", params={"q": "vincom"})).json()[0]
             one = (await ac.get("/api/v1/pois/ovt:abc")).json()
     finally:
         app.dependency_overrides.pop(get_poi_service, None)
+        app.dependency_overrides.pop(get_poi_repository, None)
     for key in ("kind", "district", "brand", "brand_key", "score", "minzoom", "category", "address"):
         assert body[key] == rec[key]
     assert one["external_id"] == "ovt:abc"

@@ -1,7 +1,10 @@
 import gzip
+import hashlib
 import json
 import logging
 import math
+from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import lru_cache
@@ -28,6 +31,10 @@ LEGACY_GLOB = "pois_*.json.gz"  # snapshot OSM cũ, chỉ đọc khi thiếu fil
 DEFAULT_ATTRIBUTION = "© OpenStreetMap contributors (ODbL)"
 SEARCH_DISTANCE_BAND_KM = 3.0  # MAP-POI §5: khoảng cách thắng score khi chênh > 3 km
 _EXTRA_TAGS = ("phone", "website", "brand")
+BRAND_MIN_BRANCHES = 3  # CR-17 B: chuỗi có ≥ 3 chi nhánh mới có dòng "Xem N chi nhánh"
+BRAND_RADIUS_KM = 60.0  # có lat/lng: chỉ đếm/hiện chi nhánh cùng vùng (không kéo Hà Nội vào khi đang xem TP.HCM)
+BRAND_FUZZY_MIN_LEN = 4  # khớp gần đúng tên chuỗi chỉ khi gõ ≥ 4 ký tự (ít hơn thì trigram ra rác)
+LOAD_FORMAT = "pois-v1"  # đổi khi đổi cột bảng `pois` → lệnh nạp chạy lại dù snapshot không đổi
 
 
 def normalize_text(text: str) -> str:
@@ -57,6 +64,29 @@ class Poi:
     minzoom: int = 17
     norm_name: str = ""
     norm_text: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class BrandSummary:
+    """Một chuỗi cửa hàng khớp truy vấn (CR-17 B): `count` = số chi nhánh (trong `BRAND_RADIUS_KM` nếu có lat/lng)."""
+
+    brand_key: str
+    name: str
+    count: int
+    nearest_km: float | None = None
+
+
+def brand_heads(norm_brand: str) -> tuple[str, ...]:
+    """Các "đầu" của tên chuỗi để so tiền tố: "the coffee house" khớp cả "the cof…" lẫn "coffee h…"."""
+    if norm_brand.startswith("the "):
+        return norm_brand, norm_brand[4:]
+    return (norm_brand,)
+
+
+def brand_matches(norm_brand: str, query: str) -> bool:
+    """Truy vấn là tiền tố của tên chuỗi (bỏ "the " đầu). "coffee" KHÔNG khớp "highlands coffee" — dòng chuỗi chỉ
+    hiện khi người dùng gõ đúng tên chuỗi, không phải mọi chuỗi có chữ "coffee"."""
+    return any(head.startswith(query) for head in brand_heads(norm_brand))
 
 
 def _hours_for_today(raw: str | None, weekday: int) -> tuple[int | None, int | None]:
@@ -134,7 +164,9 @@ class PoiService:
         self._retired: dict[str, Poi] = {}
         self._grid: dict[tuple[int, int], list[Poi]] = {}
         self._words: dict[str, list[str]] = {}  # từ (không dấu) → external_id
+        self._brands: dict[str, list[Poi]] = {}  # brand_key → chi nhánh
         self.attribution: str = DEFAULT_ATTRIBUTION
+        self.fingerprint: str = ""  # sha256 các file snapshot + LOAD_FORMAT (lệnh nạp bảng `pois` so cái này)
         self._load(data_dir or DEFAULT_DATA_DIR)
 
     def _load(self, data_dir: Path) -> None:
@@ -143,9 +175,13 @@ class PoiService:
             files = sorted(data_dir.glob(SNAPSHOT_GLOB)) or sorted(data_dir.glob(LEGACY_GLOB))
         if not files:
             logger.warning("Không có snapshot POI trong %s; /pois sẽ trả rỗng.", data_dir)
+        digest = hashlib.sha256(LOAD_FORMAT.encode())
         for path in files:
-            with gzip.open(path, "rt", encoding="utf-8") as fh:
-                payload = json.load(fh)
+            raw = path.read_bytes()
+            digest.update(path.name.encode())
+            digest.update(raw)
+            payload = json.loads(gzip.decompress(raw))
+            del raw
             self.attribution = payload.get("metadata", {}).get("attribution", self.attribution)
             for rec in payload.get("pois", []):
                 poi = _build_poi(rec, self._weekday)
@@ -157,12 +193,15 @@ class PoiService:
                 self._grid.setdefault(self._cell(poi.lat, poi.lng), []).append(poi)
                 for word in set(poi.norm_text.split()):
                     self._words.setdefault(word, []).append(poi.external_id)
+                if poi.brand_key:
+                    self._brands.setdefault(poi.brand_key, []).append(poi)
             # Quán cũ đã mất khỏi nguồn: chỉ tra theo id (quán đã thêm vào phòng), không lên bản đồ/tìm kiếm
             for rec in payload.get("retired", []):
                 poi = _build_poi(rec, self._weekday)
                 if poi is not None and poi.external_id not in self._pois:
                     self._retired[poi.external_id] = poi
             del payload
+        self.fingerprint = digest.hexdigest()
 
     @staticmethod
     def _cell(lat: float, lng: float) -> tuple[int, int]:
@@ -170,6 +209,10 @@ class PoiService:
 
     def __len__(self) -> int:
         return len(self._pois)
+
+    def __iter__(self) -> Iterator[Poi]:
+        """Mọi quán lên bản đồ/tìm kiếm (không gồm `retired`) — nguồn của lệnh nạp bảng `pois`."""
+        return iter(self._pois.values())
 
     def get(self, external_id: str) -> Poi | None:
         """Tra theo id; id OSM đã gộp vào quán khác (alias) trả về quán đó."""
@@ -237,6 +280,46 @@ class PoiService:
         for _, _, _, dist, _, poi in scored[:limit]:
             results.append(replace(poi, distance_km=round(dist, 3)) if near is not None else poi)
         return results
+
+    def with_distance(self, poi: Poi, near: tuple[float, float] | None) -> Poi:
+        """Bản sao kèm `distance_km` tới `near` (không có `near` thì giữ nguyên)."""
+        if near is None:
+            return poi
+        dist = haversine_distance_km(near[0], near[1], poi.lat, poi.lng)
+        return replace(poi, distance_km=round(dist, 3))
+
+    def branches(self, brand_key: str, near: tuple[float, float] | None, limit: int) -> list[Poi]:
+        """Chi nhánh của một chuỗi, gần → xa (CR-17 B). Có `near`: chỉ trong `BRAND_RADIUS_KM`; không có: xếp score."""
+        pois = [self.with_distance(p, near) for p in self._brands.get(brand_key, ())]
+        if near is not None:
+            pois = [p for p in pois if (p.distance_km or 0.0) <= BRAND_RADIUS_KM]
+            pois.sort(key=lambda p: (p.distance_km or 0.0, p.external_id))
+        else:
+            pois.sort(key=_rank_key)
+        return pois[:limit]
+
+    def brands(self, q: str, near: tuple[float, float] | None, limit: int) -> list[BrandSummary]:
+        """Chuỗi khớp tiền tố tên (bản RAM, dùng khi bảng `pois` chưa nạp — không khớp gần đúng như bản Postgres).
+        Xếp: số chi nhánh giảm dần → gần nhất → brand_key."""
+        query = normalize_text(q)
+        if not query:
+            return []
+        out: list[BrandSummary] = []
+        for key, pois in self._brands.items():
+            names = Counter(p.brand for p in pois if p.brand)
+            if not names or not any(brand_matches(normalize_text(n), query) for n in names):
+                continue
+            nearest: float | None = None
+            count = len(pois)
+            if near is not None:
+                dists = [haversine_distance_km(near[0], near[1], p.lat, p.lng) for p in pois]
+                dists = [d for d in dists if d <= BRAND_RADIUS_KM]
+                count = len(dists)
+                nearest = round(min(dists), 3) if dists else None
+            if count >= BRAND_MIN_BRANCHES:
+                out.append(BrandSummary(key, names.most_common(1)[0][0], count, nearest))
+        out.sort(key=lambda b: (-b.count, b.nearest_km or 0.0, b.brand_key))
+        return out[:limit]
 
 
 def _match_tier(poi: Poi, query: str, tokens: list[str]) -> int:
