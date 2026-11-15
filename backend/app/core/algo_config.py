@@ -1,4 +1,4 @@
-"""Hằng số của Algorithm Engine (giai đoạn 6) — MỘT nơi cấu hình duy nhất.
+"""Hằng số của Algorithm Engine (giai đoạn 6, OMP giai đoạn 7) — MỘT nơi cấu hình duy nhất.
 
 Nguồn: `docs/phase6/ALGORITHMS.md` (bản đã chốt 2026-11-04, G1 qua). Đổi giá trị ở đây thì phải ghi vào
 `docs/phase6/PROGRESS.md` và cập nhật bảng tương ứng trong ALGORITHMS.md. Frontend có bản TS của phần ước
@@ -51,9 +51,18 @@ CENTER_COORD_DECIMALS = 3
 DISTRICT_TIE_KM = 1.5
 """Quận thứ hai chênh ≤ ngưỡng này so với quận thứ nhất thì nhãn gộp "Q3 – Phú Nhuận"."""
 
-# ── §4 ALGO-02 Hoà phiếu ──────────────────────────────────────────────────────────────────────────
-TIE_THRESHOLD_MIN = 2
-"""`C = { j : S_j ≤ min S + TIE_THRESHOLD_MIN }` — gần bằng tổng thì xét công bằng (người đi xa nhất)."""
+# ── ALGO-02 Hoà phiếu = Ordered Median của Sơn (docs/phase7/ALGORITHMS.md §2, thay gđ6 §4) ────────────
+OMP_LAMBDA = 0.5
+"""λ — hệ số công bằng: `w_r = 1 + λ·(r − 1)/(N − 1)` cho người xếp thứ r theo chi phí tăng dần (mặc định Sơn)."""
+
+OMP_K = 1.0
+"""k — luỹ thừa phạt cá nhân `cᵢ = dᵢ^k` (chặn dưới 1; mặc định Sơn, tuyến tính)."""
+
+OMP_PSI_EPS = 1e-9
+"""Sai số khi so Ψ / km để phá hoà (ALGORITHMS gđ7 §3)."""
+
+OMP_BRUTE_LIMIT = 60_000
+"""Trần số tổ hợp cho bộ giải thử hết (chỉ dùng đối chiếu trong test)."""
 
 # ── §5 ALGO-03 Sai số thời gian trên lịch ─────────────────────────────────────────────────────────
 PEAK_START_MIN = 16 * 60 + 30

@@ -63,14 +63,15 @@ async def get_group_center(
     "/tie-break/suggestion",
     response_model=TieSuggestion,
     status_code=status.HTTP_200_OK,
-    summary="Gợi ý hoà phiếu theo thời gian di chuyển (ALGO-02)",
+    summary="Gợi ý hoà phiếu bằng Ordered Median theo từng loại quán (ALGO-02, CR-15)",
 )
 async def get_tie_suggestion(
     room_id: UUID,
     current_member: Annotated[Member, Depends(get_current_member)],
     service: Annotated[AlgorithmService, Depends(get_algorithm_service)],
 ) -> TieSuggestion:
-    """`available:false` kèm `reason` (NO_TIE | NO_ORIGINS | NO_PLACE_COORDS) khi chưa có gợi ý."""
+    """Mỗi loại đang hoà một mục `suggestions`; `available:false` kèm `reason` (NO_TIE | NO_ORIGINS |
+    NO_PLACE_COORDS) khi chưa có gợi ý. Không có toạ độ thành viên (CR-11)."""
     ensure_room_access(current_member, room_id)
     return await service.tie_suggestion(room_id)
 

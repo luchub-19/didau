@@ -1,10 +1,14 @@
-"""ALGO-02 — Hoà phiếu theo thời gian di chuyển (ALGORITHMS §4). Hàm thuần: không DB, không mạng.
+"""ALGO-02 — Hoà phiếu bằng Ordered Median của Sơn (docs/phase7/ALGORITHMS.md §1, §6; CR-15). Hàm thuần.
 
-Service lo việc lấy dữ liệu và gọi estimator (Google nếu bật); ở đây chỉ có luật chọn:
-ứng viên hoà → S/M/D → chọn theo tập với ngưỡng 2' → xếp hạng bằng cách lặp.
-KHÔNG dùng `sort` với so sánh có ngưỡng: quan hệ "S gần bằng" không bắc cầu (60~62, 62~64, nhưng 60≁64).
+Service lo việc lấy dữ liệu và gọi estimator; ở đây chỉ có luật:
+- hoà = ≥ 2 quán cùng ĐIỂM (Muốn đi − Không) lớn nhất trong CÙNG loại quán (`tied_groups`);
+- người không tự chia sẻ vị trí bị loại (`member_origins`, không dùng điểm hẹn host);
+- mỗi loại hoà là một bài K = 1: `Nhà → quán → Nhà`, Ψ khứ hồi (`decide`, lõi ở `ordered_median`).
+
+`resolve_origins` (có lùi về điểm hẹn) chỉ còn cho ALGO-04 (gđ6 §1, không đổi ở gđ7).
 """
 
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,7 +16,8 @@ from enum import Enum
 from uuid import UUID
 
 from app.core import algo_config as cfg
-from app.domain.enums import PlaceStatus
+from app.domain.algorithms.ordered_median import omp_weights, rank_candidates
+from app.domain.enums import PlaceCategory, PlaceStatus
 from app.domain.patterns.itinerary.travel import Coord, Leg, TravelSource
 
 
@@ -32,7 +37,7 @@ class TieMember:
     member_id: UUID
     nickname: str
     origin: Coord
-    origin_source: OriginSource
+    origin_source: OriginSource = OriginSource.MEMBER
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,35 +48,63 @@ class TiePlace:
     upvotes: int
     created_at: datetime
     coord: Coord | None
+    category: PlaceCategory = PlaceCategory.OTHER
+    downvotes: int = 0
+
+    @property
+    def score(self) -> int:
+        return self.upvotes - self.downvotes
+
+
+@dataclass(frozen=True, slots=True)
+class TieGroup:
+    """Một loại quán đang hoà; `candidates` sắp theo (created_at, place_id)."""
+
+    category: PlaceCategory
+    candidates: tuple[TiePlace, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class RankedPlace:
     place_id: UUID
     rank: int
-    total_min: int  # S_j
-    max_min: int  # M_j
-    total_km: float  # D_j
+    psi: float
+    max_km: float  # người đi xa nhất (khứ hồi)
+    total_km: float  # cả nhóm (khứ hồi)
+    max_min: int  # phút khứ hồi của người đi lâu nhất
+
+
+@dataclass(frozen=True, slots=True)
+class MemberCost:
+    """Một thành viên ở quán đề xuất: km/phút khứ hồi, hạng theo chi phí (1 = gần nhất), trọng số w_r."""
+
+    member_id: UUID
+    nickname: str
+    km: float
+    minutes: int
+    rank: int
+    weight: float
 
 
 @dataclass(frozen=True, slots=True)
 class TieOutcome:
-    """Kết quả chọn. `matrix[i][j]` ứng với `members[i]` × `candidates[j]`; None ở cột quán thiếu toạ độ."""
-
+    category: PlaceCategory
     candidates: tuple[TiePlace, ...]
-    members: tuple[TieMember, ...]
-    matrix: tuple[tuple[Leg | None, ...], ...]
     ranking: tuple[RankedPlace, ...]
     unranked: tuple[UUID, ...]
     recommended_place_id: UUID | None
-    margin_vs_second_min: int | None
+    members: tuple[MemberCost, ...]
+    runner_up_psi: float | None
     estimated: bool
+    source: str
+    lam: float
+    k: float
 
 
 def resolve_origins(
     members: Sequence[tuple[UUID, str, Coord | None]], meeting_point: Coord | None
 ) -> tuple[list[TieMember], int]:
-    """`origin(member) = member.origin ?? điểm hẹn host ?? None`; thành viên None bị loại và được đếm (§1)."""
+    """ALGO-04 (gđ6 §1): `origin = vị trí riêng ?? điểm hẹn host ?? loại`; người bị loại được đếm."""
     out: list[TieMember] = []
     excluded = 0
     for member_id, nickname, own in members:
@@ -84,83 +117,142 @@ def resolve_origins(
     return out, excluded
 
 
-def tied_candidates(places: Sequence[TiePlace], *, ignore_accepted: bool = False) -> list[TiePlace]:
-    """Kích hoạt (§4): ≥2 quán chưa bị loại có cùng `upvotes` lớn nhất (>0) và chưa có quán ACCEPTED.
+def member_origins(members: Sequence[tuple[UUID, str, Coord | None]]) -> tuple[list[TieMember], int]:
+    """Hoà phiếu (gđ7 §1): chỉ người TỰ chia sẻ vị trí; người thiếu bị loại và được đếm (không dùng điểm hẹn)."""
+    return resolve_origins(members, None)
 
-    Trả [] nếu không hoà. Sắp theo (created_at, place_id) để kết quả không phụ thuộc thứ tự đầu vào.
-    `ignore_accepted` dùng khi host chốt (resolve): vẫn xếp hạng dù trong phòng đã có quán ACCEPTED.
+
+def tied_groups(places: Sequence[TiePlace], *, ignore_accepted: bool = False) -> list[TieGroup]:
+    """Kích hoạt (§6): trong từng loại, quán chưa REJECTED/VISITED, ≥ 2 quán cùng điểm lớn nhất, có hoạt động bỏ
+    phiếu trong loại, và loại chưa có quán ACCEPTED. Cùng luật với `TIE_AT_TOP` (`decision/trigger.py`).
+
+    `ignore_accepted` dùng khi host chốt (resolve): vẫn xếp hạng dù loại đã có quán ACCEPTED.
+    Trả các loại theo thứ tự khai báo của `PlaceCategory`; [] nếu không loại nào hoà.
     """
-    alive = [p for p in places if p.status not in (PlaceStatus.REJECTED, PlaceStatus.VISITED)]
-    if not ignore_accepted and any(p.status == PlaceStatus.ACCEPTED for p in alive):
-        return []
-    if not alive:
-        return []
-    top = max(p.upvotes for p in alive)
-    if top <= 0:
-        return []
-    tied = [p for p in alive if p.upvotes == top]
-    if len(tied) < 2:
-        return []
-    return sorted(tied, key=lambda p: (p.created_at, str(p.place_id)))
+    by_cat: dict[PlaceCategory, list[TiePlace]] = defaultdict(list)
+    for p in places:
+        if p.status not in (PlaceStatus.REJECTED, PlaceStatus.VISITED):
+            by_cat[p.category].append(p)
+    groups: list[TieGroup] = []
+    for cat in PlaceCategory:
+        alive = by_cat.get(cat, [])
+        if len(alive) < 2:
+            continue
+        if not ignore_accepted and any(p.status == PlaceStatus.ACCEPTED for p in alive):
+            continue
+        if not any(p.upvotes + p.downvotes > 0 for p in alive):
+            continue  # chưa ai bỏ phiếu: bằng 0 điểm không phải hoà có nghĩa
+        top = max(p.score for p in alive)
+        tied = [p for p in alive if p.score == top]
+        if len(tied) < 2:
+            continue
+        groups.append(TieGroup(cat, tuple(sorted(tied, key=lambda p: (p.created_at, str(p.place_id))))))
+    return groups
 
 
-def _select(rows: list[dict]) -> dict:
-    """Một bước chọn: C = {S ≤ min S + ngưỡng} → M nhỏ nhất → D nhỏ nhất → thêm sớm hơn → place_id."""
-    low = min(r["S"] for r in rows)
-    in_set = [r for r in rows if r["S"] <= low + cfg.TIE_THRESHOLD_MIN]
-    return min(in_set, key=lambda r: (r["M"], round(r["D"], 6), r["created_at"], str(r["id"])))
-
-
-def rank_by_travel(rows: Sequence[dict]) -> list[dict]:
-    """Xếp hạng bằng cách lặp `_select` trên tập còn lại. Mỗi dòng: `id, S, M, D, created_at`."""
-    remaining = list(rows)
-    ranked: list[dict] = []
-    while remaining:
-        best = _select(remaining)
-        ranked.append(best)
-        remaining = [r for r in remaining if r is not best]
-    return ranked
+def _source(legs: Sequence[Leg]) -> str:
+    """`ESTIMATE` nếu còn ô ước lượng; một nguồn duy nhất → tên nguồn; trộn nhiều nguồn thật → `MIXED`."""
+    sources = {leg.source for leg in legs}
+    if not sources or TravelSource.ESTIMATE in sources:
+        return TravelSource.ESTIMATE.value
+    if len(sources) == 1:
+        return next(iter(sources)).value
+    return "MIXED"
 
 
 def decide(
-    candidates: Sequence[TiePlace],
+    group: TieGroup,
     members: Sequence[TieMember],
-    matrix: Sequence[Sequence[Leg | None]],
+    to_place: Sequence[Sequence[Leg | None]],
+    to_home: Sequence[Sequence[Leg | None]],
+    *,
+    lam: float = cfg.OMP_LAMBDA,
+    k: float = cfg.OMP_K,
 ) -> TieOutcome:
-    """Từ ma trận (hàng = thành viên, cột = ứng viên theo thứ tự `candidates`) ra thứ hạng.
+    """Một bài K = 1. `to_place[i][j]` = `members[i]` → `group.candidates[j]`; `to_home[i][j]` = chiều ngược lại
+    (quán j → nhà người i) — KHÔNG giả định đối xứng. Ô None ở quán thiếu toạ độ.
 
-    Quán thiếu toạ độ (cột toàn None) không so được → nằm sau mọi quán xếp hạng được (theo thứ tự đầu vào,
-    tức `created_at`), không có S/M/D, không bao giờ được đề xuất.
+    Quán thiếu toạ độ (hoặc thiếu ô nào) không so được → nằm sau mọi quán xếp hạng được, không bao giờ được đề xuất.
+    `members` rỗng → không quán nào xếp hạng được.
     """
-    rows: list[dict] = []
-    unranked: list[UUID] = []
-    for j, place in enumerate(candidates):
-        legs = [matrix[i][j] for i in range(len(members))]
-        if place.coord is None or any(leg is None for leg in legs):
-            unranked.append(place.place_id)
-            continue
-        rows.append(
-            {
-                "id": place.place_id,
-                "S": sum(leg.minutes for leg in legs),
-                "M": max(leg.minutes for leg in legs),
-                "D": sum(leg.distance_km for leg in legs),
-                "created_at": place.created_at,
-            }
+    cands = group.candidates
+    rankable = [
+        j
+        for j, p in enumerate(cands)
+        if p.coord is not None
+        and members
+        and all(to_place[i][j] is not None and to_home[i][j] is not None for i in range(len(members)))
+    ]
+    unranked = tuple(p.place_id for j, p in enumerate(cands) if j not in rankable)
+    if not rankable:
+        return TieOutcome(
+            group.category, cands, (), unranked, None, (), None, True, TravelSource.ESTIMATE.value, lam, k
         )
-    ordered = rank_by_travel(rows)
-    ranking = tuple(
-        RankedPlace(r["id"], k + 1, r["S"], r["M"], round(r["D"], 3)) for k, r in enumerate(ordered)
+
+    # Nút của hàm khoảng cách: chỉ số thành viên ("m", i) và chỉ số quán ("p", j)
+    km: dict[tuple[tuple[str, int], tuple[str, int]], float] = {}
+    for i in range(len(members)):
+        for j in rankable:
+            km[("m", i), ("p", j)] = to_place[i][j].distance_km  # type: ignore[union-attr]
+            km[("p", j), ("m", i)] = to_home[i][j].distance_km  # type: ignore[union-attr]
+
+    def minutes(i: int, j: int) -> int:
+        return to_place[i][j].minutes + to_home[i][j].minutes  # type: ignore[union-attr]
+
+    evals = rank_candidates(
+        [("m", i) for i in range(len(members))],
+        [("p", j) for j in rankable],
+        lambda a, b: km[a, b],
+        lam=lam,
+        k=k,
+        tie_key=lambda node: (cands[node[1]].created_at, str(cands[node[1]].place_id)),
     )
-    margin = ranking[1].total_min - ranking[0].total_min if len(ranking) >= 2 else None
-    legs_used = [leg for row in matrix for leg in row if leg is not None]
+    ranking = tuple(
+        RankedPlace(
+            place_id=cands[ev.combo[0][1]].place_id,
+            rank=r + 1,
+            psi=round(ev.psi, 3),
+            max_km=round(ev.max_km, 3),
+            total_km=round(ev.total_km, 3),
+            max_min=max(minutes(i, ev.combo[0][1]) for i in range(len(members))),
+        )
+        for r, ev in enumerate(evals)
+    )
+
+    best = evals[0]
+    j_best = best.combo[0][1]
+    weights = omp_weights(len(members), lam)
+    # Hạng theo chi phí; bằng nhau → member_id để không phụ thuộc thứ tự đầu vào
+    order = sorted(range(len(members)), key=lambda i: (best.costs[i], str(members[i].member_id)))
+    member_costs = tuple(
+        MemberCost(
+            member_id=members[i].member_id,
+            nickname=members[i].nickname,
+            km=round(best.distances[i], 3),
+            minutes=minutes(i, j_best),
+            rank=r + 1,
+            weight=round(weights[r], 4),
+        )
+        for r, i in enumerate(order)
+    )
+    legs_used = [
+        leg
+        for grid in (to_place, to_home)
+        for i in range(len(members))
+        for j in rankable
+        if (leg := grid[i][j]) is not None
+    ]
+    source = _source(legs_used)
     return TieOutcome(
-        candidates=tuple(candidates),
-        members=tuple(members),
-        matrix=tuple(tuple(row) for row in matrix),
+        category=group.category,
+        candidates=cands,
         ranking=ranking,
-        unranked=tuple(unranked),
-        recommended_place_id=ranking[0].place_id if ranking else None,
-        margin_vs_second_min=margin,
-        estimated=any(leg.source is not TravelSource.GOOGLE for leg in legs_used),
+        unranked=unranked,
+        recommended_place_id=ranking[0].place_id,
+        members=member_costs,
+        runner_up_psi=ranking[1].psi if len(ranking) >= 2 else None,
+        estimated=source == TravelSource.ESTIMATE.value,
+        source=source,
+        lam=lam,
+        k=k,
     )

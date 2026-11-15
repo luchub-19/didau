@@ -484,7 +484,8 @@ Chỉ chặn ở frontend (lách được bằng gọi API trực tiếp).
 
 - **Người đề xuất**: Session T-93 (2026-11-14, efa7053a), theo `docs/phase7/ALGORITHMS.md` + quyết định `docs/phase7/PLAN.md` §1
 - **Ngày tạo**: 2026-11-14
-- **Trạng thái**: APPROVED (người dùng duyệt 2026-11-15, cùng 2 lệch MVP ở `docs/phase7/PLAN.md` §2)
+- **Trạng thái**: APPROVED (người dùng duyệt 2026-11-15, cùng 2 lệch MVP ở `docs/phase7/PLAN.md` §2) · **Phần A đã áp** vào
+  `CONTRACTS.md` (§1 `TRAVEL_TIME`, mục 8 resolve, mục 35, kiểu TS) ở T-94 (2026-11-15). Phần B chờ T-95.
 - **Task đã DONE bị ảnh hưởng**: T-86 (ALGO-02, `TieSuggestion`, resolve `TRAVEL_TIME`), T-89 (thẻ hoà phiếu + "Vì sao?"),
   T-84 (estimator), T-87/T-90 (ALGO-03/04 đổi nguồn km → số thay đổi), CR-12 phần 1.
 

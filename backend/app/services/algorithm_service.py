@@ -1,4 +1,4 @@
-"""Algorithm Engine: tâm nhóm (ALGO-01), hoà phiếu (ALGO-02), khả thi lịch (ALGO-03), ưu tiên quán (ALGO-04).
+"""Algorithm Engine: tâm nhóm (ALGO-01), hoà phiếu OMP (ALGO-02, gđ7), khả thi lịch (ALGO-03), ưu tiên quán (ALGO-04).
 
 Service lo phần có I/O (đọc phòng/thành viên/quán/phiếu/lịch, gọi estimator); luật tính nằm ở
 `app/domain/algorithms` (hàm thuần). Google (nếu bật qua `get_travel_estimator`) chỉ được gọi ở: gợi ý hoà phiếu
@@ -18,14 +18,16 @@ from app.core import algo_config as cfg
 from app.core.exceptions import RoomNotFoundError
 from app.core.time_utils import VIETNAM_TZ
 from app.domain.algorithms import (
+    TieGroup,
     TieMember,
     TieOutcome,
     TiePlace,
     UnavailableReason,
     compute_group_center,
     decide,
+    member_origins,
     resolve_origins,
-    tied_candidates,
+    tied_groups,
 )
 from app.domain.algorithms.feasibility import (
     PlanItem,
@@ -37,7 +39,7 @@ from app.domain.algorithms.feasibility import (
 )
 from app.domain.algorithms.group_center import within_radius
 from app.domain.algorithms.priority import PlacePriority, PriorityInput, rank_places
-from app.domain.enums import PlaceStatus
+from app.domain.enums import PlaceCategory, PlaceStatus
 from app.domain.models.member import Member
 from app.domain.models.place import Place
 from app.domain.models.room import Room
@@ -45,6 +47,7 @@ from app.domain.patterns.conflict_rule.rule import ConflictContext
 from app.domain.patterns.event_bus import DomainEvent, IEventBus
 from app.domain.patterns.itinerary.travel import (
     CachedEstimator,
+    Coord,
     Leg,
     TravelSource,
     get_travel_estimator,
@@ -57,13 +60,14 @@ from app.repositories import (
     IVoteRepository,
 )
 from app.schemas.algorithm import (
+    CategoryTieSuggestion,
     FeasibilityLeg,
     GroupCenterResponse,
     LatLng,
+    OmpParams,
     ScheduleFeasibility,
     TieCandidate,
-    TieLeg,
-    TieMemberInfo,
+    TieMemberCost,
     TieRanking,
     TieSuggestion,
 )
@@ -152,7 +156,8 @@ class AlgorithmService:
 
     @staticmethod
     def _origins(room: Room, members: list[Member]) -> tuple[list[TieMember], int]:
-        """`origin = vị trí riêng ?? điểm hẹn host ?? loại` (§1) cho các thành viên đang hoạt động."""
+        """ALGO-04: `origin = vị trí riêng ?? điểm hẹn host ?? loại` (gđ6 §1) cho các thành viên đang hoạt động.
+        Hoà phiếu (gđ7) KHÔNG dùng hàm này: chỉ người tự chia sẻ vị trí (`member_origins`)."""
         meeting = (
             (room.origin_lat, room.origin_lng)
             if room.origin_lat is not None and room.origin_lng is not None
@@ -173,10 +178,14 @@ class AlgorithmService:
             meeting,
         )
 
-    async def compute_tie(
+    async def compute_ties(
         self, room_id: UUID, *, ignore_accepted: bool = False
-    ) -> tuple[TieOutcome | None, UnavailableReason | None, int, list[TiePlace]]:
-        """(kết quả, lý do không có, số người bị loại, ứng viên hoà). Kết quả None khi không tính được."""
+    ) -> tuple[list[TieOutcome], UnavailableReason | None, int, list[TieGroup]]:
+        """OMP theo từng loại đang hoà (gđ7 §6): (kết quả từng loại, lý do không có, số người bị loại, nhóm hoà).
+
+        Kết quả rỗng khi không tính được (lý do khác None). Một loại không quán nào có toạ độ vẫn có mục trong kết
+        quả (ranking rỗng); lý do `NO_PLACE_COORDS` chỉ khi MỌI loại như vậy.
+        """
         room = await self._room(room_id)
         places = await self.place_repo.list_by_room(room_id)
         votes = await self.vote_repo.get_vote_summary_by_room(room_id)
@@ -184,98 +193,148 @@ class AlgorithmService:
             TiePlace(
                 place_id=p.id,
                 name=p.name,
-                status=p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(p.status),
+                status=_status(p),
                 upvotes=votes.get(p.id, {}).get("upvotes", 0),
+                downvotes=votes.get(p.id, {}).get("downvotes", 0),
                 created_at=p.created_at,
-                coord=(p.latitude, p.longitude)
+                coord=(float(p.latitude), float(p.longitude))
                 if p.latitude is not None and p.longitude is not None
                 else None,
+                category=_category(p),
             )
             for p in places
         ]
-        tied = tied_candidates(tie_places, ignore_accepted=ignore_accepted)
-        if not tied:
-            return None, UnavailableReason.NO_TIE, 0, []
+        groups = tied_groups(tie_places, ignore_accepted=ignore_accepted)
+        if not groups:
+            return [], UnavailableReason.NO_TIE, 0, []
 
-        members = [m for m in await self.member_repo.list_by_room(room_id) if m.is_active]
-        tie_members, excluded = self._origins(room, members)
-        if not tie_members:
-            return None, UnavailableReason.NO_ORIGINS, excluded, tied
-
-        rankable = [j for j, p in enumerate(tied) if p.coord is not None]
-        if not rankable:
-            return None, UnavailableReason.NO_PLACE_COORDS, excluded, tied
-
-        # Google (nếu bật) chỉ được gọi ở đây — sau khi đã chắc có hoà và đủ dữ liệu; lỗi → ước lượng
-        fetched = await get_travel_estimator().amatrix(
-            [m.origin for m in tie_members],
-            [tied[j].coord for j in rankable],  # type: ignore[misc]
-            self._depart_at(room),
+        tie_members, excluded = member_origins(
+            [
+                (
+                    m.id,
+                    m.nickname,
+                    (m.origin_lat, m.origin_lng)
+                    if m.origin_lat is not None and m.origin_lng is not None
+                    else None,
+                )
+                for m in await self.member_repo.list_by_room(room_id)
+                if m.is_active
+            ]
         )
-        matrix: list[list[Leg | None]] = [[None] * len(tied) for _ in tie_members]
-        for i, row in enumerate(fetched):
-            for col, j in enumerate(rankable):
-                matrix[i][j] = row[col]
-        return decide(tied, tie_members, matrix), None, excluded, tied
+        if not tie_members:
+            return [], UnavailableReason.NO_ORIGINS, excluded, groups
+
+        with_coords = list(
+            {p.place_id: p for g in groups for p in g.candidates if p.coord is not None}.values()
+        )
+        if not with_coords:
+            return [], UnavailableReason.NO_PLACE_COORDS, excluded, groups
+
+        # Google (nếu bật) chỉ được gọi ở đây — sau khi đã chắc có hoà và đủ dữ liệu; lỗi → ước lượng.
+        # Khứ hồi = hai lần hỏi đúng chiều (đi: nhà → quán, về: quán → nhà); không giả định đối xứng.
+        estimator = get_travel_estimator()
+        depart = self._depart_at(room)
+        origins = [m.origin for m in tie_members]
+        dests: list[Coord] = [p.coord for p in with_coords]  # type: ignore[misc]
+        go = await estimator.amatrix(origins, dests, depart)
+        back = await estimator.amatrix(dests, origins, depart)
+        col = {p.place_id: j for j, p in enumerate(with_coords)}
+
+        outcomes: list[TieOutcome] = []
+        for g in groups:
+            to_place: list[list[Leg | None]] = [
+                [go[i][col[p.place_id]] if p.place_id in col else None for p in g.candidates]
+                for i in range(len(tie_members))
+            ]
+            to_home: list[list[Leg | None]] = [
+                [back[col[p.place_id]][i] if p.place_id in col else None for p in g.candidates]
+                for i in range(len(tie_members))
+            ]
+            outcomes.append(decide(g, tie_members, to_place, to_home))
+        return outcomes, None, excluded, groups
 
     async def tie_suggestion(self, room_id: UUID) -> TieSuggestion:
-        outcome, reason, excluded, tied = await self.compute_tie(room_id)
-        base = {"threshold_min": cfg.TIE_THRESHOLD_MIN, "travel_mode": cfg.TRAVEL_MODE}
-        candidates = [TieCandidate(place_id=p.place_id, name=p.name, upvotes=p.upvotes) for p in tied]
-        if outcome is None:
-            return TieSuggestion(
-                available=False,
-                reason=reason.value if reason else None,
-                candidates=candidates,
-                excluded_member_count=excluded,
-                **base,
-            )
-        return TieSuggestion(
-            available=True,
-            candidates=candidates,
-            members=[
-                TieMemberInfo(
-                    member_id=m.member_id, nickname=m.nickname, origin_source=m.origin_source.value
+        outcomes, reason, excluded, groups = await self.compute_ties(room_id)
+        by_cat = {o.category: o for o in outcomes}
+        params = OmpParams(lambda_=cfg.OMP_LAMBDA, k=cfg.OMP_K)
+        suggestions: list[CategoryTieSuggestion] = []
+        for g in groups:
+            candidates = [
+                TieCandidate(
+                    place_id=p.place_id,
+                    name=p.name,
+                    upvotes=p.upvotes,
+                    downvotes=p.downvotes,
+                    score=p.score,
                 )
-                for m in outcome.members
-            ],
-            matrix=[
-                [
-                    None
-                    if leg is None
-                    else TieLeg(
-                        minutes=leg.minutes,
-                        distance_km=round(leg.distance_km, 3),
-                        source=leg.source.value,
+                for p in g.candidates
+            ]
+            o = by_cat.get(g.category)
+            if o is None:
+                suggestions.append(
+                    CategoryTieSuggestion(
+                        category=g.category.value,
+                        candidates=candidates,
+                        excluded_member_count=excluded,
+                        params=params,
                     )
-                    for leg in row
-                ]
-                for row in outcome.matrix
-            ],
-            ranking=[
-                TieRanking(
-                    place_id=r.place_id,
-                    rank=r.rank,
-                    total_min=r.total_min,
-                    max_min=r.max_min,
-                    total_km=r.total_km,
                 )
-                for r in outcome.ranking
-            ],
-            unranked_place_ids=list(outcome.unranked),
-            recommended_place_id=outcome.recommended_place_id,
-            margin_vs_second_min=outcome.margin_vs_second_min,
-            excluded_member_count=excluded,
-            estimated=outcome.estimated,
-            **base,
+                continue
+            suggestions.append(
+                CategoryTieSuggestion(
+                    category=g.category.value,
+                    candidates=candidates,
+                    recommended_place_id=o.recommended_place_id,
+                    ranking=[
+                        TieRanking(
+                            place_id=r.place_id,
+                            rank=r.rank,
+                            psi=r.psi,
+                            max_km=r.max_km,
+                            total_km=r.total_km,
+                            max_min=r.max_min,
+                        )
+                        for r in o.ranking
+                    ],
+                    members=[
+                        TieMemberCost(
+                            member_id=m.member_id,
+                            nickname=m.nickname,
+                            km=m.km,
+                            minutes=m.minutes,
+                            rank=m.rank,
+                            weight=m.weight,
+                        )
+                        for m in o.members
+                    ],
+                    runner_up_psi=o.runner_up_psi,
+                    excluded_member_count=excluded,
+                    estimated=o.estimated,
+                    source=o.source,
+                    params=params,
+                )
+            )
+        available = any(s.recommended_place_id is not None for s in suggestions)
+        if not available and reason is None:
+            reason = UnavailableReason.NO_PLACE_COORDS
+        return TieSuggestion(
+            available=available,
+            reason=None if available else reason.value if reason else None,
+            suggestions=suggestions,
         )
 
     async def travel_ranking(self, room_id: UUID) -> list[UUID]:
-        """Thứ hạng place_id (tốt → kém) cho `POST /voting/resolve` (tính lại ở server); [] nếu không có hoà."""
-        outcome, _, _, _ = await self.compute_tie(room_id, ignore_accepted=True)
-        if outcome is None:
-            return []
-        return [r.place_id for r in outcome.ranking] + list(outcome.unranked)
+        """Thứ hạng place_id cho `POST /voting/resolve {TRAVEL_TIME}` (tính lại Ψ ở server, không tin client).
+
+        Nối thứ hạng của từng loại hoà (tốt → kém, quán thiếu toạ độ cuối loại). Chiến lược nhóm theo (điểm, loại)
+        nên chỉ so hạng trong cùng một loại. [] nếu không có hoà / không ai có vị trí.
+        """
+        outcomes, _, _, _ = await self.compute_ties(room_id, ignore_accepted=True)
+        out: list[UUID] = []
+        for o in outcomes:
+            out.extend(r.place_id for r in o.ranking)
+            out.extend(o.unranked)
+        return out
 
     # ── ALGO-03 ───────────────────────────────────────────────────────────────────────────────
     async def schedule_feasibility(self, room_id: UUID) -> ScheduleFeasibility:
@@ -396,6 +455,14 @@ class AlgorithmService:
 
 def _status(p: Place) -> PlaceStatus:
     return p.status if isinstance(p.status, PlaceStatus) else PlaceStatus(str(p.status))
+
+
+def _category(p: Place) -> PlaceCategory:
+    raw = p.category if isinstance(p.category, PlaceCategory) else str(p.category or "OTHER")
+    try:
+        return PlaceCategory(raw)
+    except ValueError:
+        return PlaceCategory.OTHER
 
 
 def _place_coords(places: list[Place]) -> dict[str, tuple[float, float]]:

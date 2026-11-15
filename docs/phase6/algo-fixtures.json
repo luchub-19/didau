@@ -7,7 +7,8 @@
    "DETOUR_FACTOR": 1.3,
    "MOTORBIKE_KMH": 25,
    "BUFFER_MIN": 5,
-   "TIE_THRESHOLD_MIN": 2,
+   "OMP_LAMBDA": 0.5,
+   "OMP_K": 1.0,
    "MARGIN_MIN": 5,
    "PEAK_MARGIN_RATIO": 0.5,
    "OFFPEAK_MARGIN_RATIO": 0.25,
@@ -139,9 +140,54 @@
   "min_members": 2
  },
  "tie_break": {
+  "_note": "Giai đoạn 7 (docs/phase7/ALGORITHMS.md §2–§3, CR-15): Ordered Median của Sơn, K = 1. Km MỘT CHIỀU theo đúng chiều; khứ hồi dᵢ = đi + về; cᵢ = dᵢ^k; Ψ = Σ w_r·c₍r₎ với c tăng dần, w_r = 1 + λ·(r−1)/(N−1). Hoà Ψ (1e-9) → max dᵢ → Σ dᵢ → thêm sớm hơn. Bản gđ6 (ngưỡng 2′ theo phút) đã bỏ.",
+  "params": {
+   "lambda": 0.5,
+   "k": 1.0
+  },
+  "weights_cases": [
+   {
+    "n": 1,
+    "lambda": 0.5,
+    "expect": [
+     1.0
+    ]
+   },
+   {
+    "n": 3,
+    "lambda": 0.5,
+    "expect": [
+     1.0,
+     1.25,
+     1.5
+    ]
+   },
+   {
+    "n": 4,
+    "lambda": 1.0,
+    "expect": [
+     1.0,
+     1.3333333333,
+     1.6666666667,
+     2.0
+    ]
+   },
+   {
+    "n": 5,
+    "lambda": 0.0,
+    "expect": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ]
+   }
+  ],
   "doc_case": {
    "id": "TC-04",
-   "algo": "ALGO-02 (§4)",
+   "algo": "ALGO-02 OMP (gđ7 §2)",
+   "note": "Ca tài liệu đồ án (3 quán hoà 7 điểm, Bảo/Nam/Linh). Ma trận phút cũ của tài liệu là giả lập nên gđ7 tính lại bằng km ƯỚC LƯỢNG (Haversine × DETOUR_FACTOR) từ toạ độ points + toạ độ quán dưới đây, hai chiều. Vạn Hạnh Mall vẫn thắng: người xa nhất (Nam) 17,1 km khứ hồi thay vì 22,9.",
    "members": [
     "bao",
     "nam",
@@ -151,202 +197,246 @@
     {
      "id": "dinh_doc_lap",
      "name": "Dinh Độc Lập",
-     "upvotes": 7,
+     "score": 7,
      "created_order": 0,
-     "minutes": [
-      14,
-      19,
-      32
-     ]
+     "lat": 10.777,
+     "lng": 106.6953
     },
     {
      "id": "saigon_centre",
      "name": "Saigon Centre",
-     "upvotes": 7,
+     "score": 7,
      "created_order": 1,
-     "minutes": [
-      18,
-      14,
-      28
-     ]
+     "lat": 10.7733,
+     "lng": 106.7008
     },
     {
      "id": "van_hanh_mall",
      "name": "Vạn Hạnh Mall",
-     "upvotes": 7,
+     "score": 7,
      "created_order": 2,
-     "minutes": [
-      12,
-      25,
-      20
-     ]
+     "lat": 10.7706,
+     "lng": 106.6697
     }
    ],
-   "distance_km": {
-    "dinh_doc_lap": [
-     1,
-     1,
-     1
-    ],
-    "saigon_centre": [
-     1,
-     1,
-     1
-    ],
-    "van_hanh_mall": [
-     1,
-     1,
-     1
-    ]
-   },
    "expect": {
-    "S": {
-     "dinh_doc_lap": 65,
-     "saigon_centre": 60,
-     "van_hanh_mall": 57
+    "round_trip_km": {
+     "dinh_doc_lap": [
+      5.621,
+      9.15,
+      22.932
+     ],
+     "saigon_centre": [
+      6.171,
+      8.656,
+      24.754
+     ],
+     "van_hanh_mall": [
+      4.19,
+      16.392,
+      17.066
+     ]
     },
-    "M": {
-     "dinh_doc_lap": 32,
-     "saigon_centre": 28,
-     "van_hanh_mall": 25
+    "psi": {
+     "dinh_doc_lap": 51.457,
+     "saigon_centre": 54.122,
+     "van_hanh_mall": 50.278
+    },
+    "max_km": {
+     "dinh_doc_lap": 22.932,
+     "saigon_centre": 24.754,
+     "van_hanh_mall": 17.066
+    },
+    "total_km": {
+     "dinh_doc_lap": 37.704,
+     "saigon_centre": 39.581,
+     "van_hanh_mall": 37.647
     },
     "ranking": [
      "van_hanh_mall",
-     "saigon_centre",
-     "dinh_doc_lap"
+     "dinh_doc_lap",
+     "saigon_centre"
     ],
     "recommended_place_id": "van_hanh_mall",
-    "margin_vs_second_min": 3
+    "runner_up_psi": 51.457
    }
   },
-  "threshold_not_transitive": {
-   "id": "ALGO-02-threshold",
-   "note": "S = 60/62/64, ngưỡng 2: 60~62 và 62~64 nhưng 60≁64. C={60,62} → chọn M nhỏ nhất → p62 (M 30). Cài sai theo kiểu bắc cầu sẽ gom cả p64 (M 22) và chọn nhầm nó. Phần còn lại {p60,p64}: min S=60, C={p60} → hạng 2 p60, hạng 3 p64. Vì vậy KHÔNG dùng sort với so sánh có ngưỡng.",
-   "members": [
-    "a",
-    "b",
-    "c"
-   ],
-   "places": [
-    {
-     "id": "p60",
-     "upvotes": 5,
-     "created_order": 0,
-     "minutes": [
-      10,
-      10,
-      40
-     ],
-     "distance_km": [
-      3,
-      3,
-      3
-     ]
-    },
-    {
-     "id": "p62",
-     "upvotes": 5,
-     "created_order": 1,
-     "minutes": [
-      16,
-      16,
-      30
-     ],
-     "distance_km": [
-      3,
-      3,
-      3
-     ]
-    },
-    {
-     "id": "p64",
-     "upvotes": 5,
-     "created_order": 2,
-     "minutes": [
-      22,
-      21,
-      21
-     ],
-     "distance_km": [
-      3,
-      3,
-      3
-     ]
-    }
-   ],
-   "expect": {
-    "S": {
-     "p60": 60,
-     "p62": 62,
-     "p64": 64
-    },
-    "M": {
-     "p60": 40,
-     "p62": 30,
-     "p64": 22
-    },
-    "ranking": [
-     "p62",
-     "p60",
-     "p64"
-    ]
-   }
-  },
-  "tie_break_by_distance_then_created": {
-   "id": "ALGO-02-ties",
-   "note": "S và M bằng nhau → D nhỏ nhất; D bằng nhau nữa → quán thêm sớm hơn (created_order nhỏ).",
+  "asymmetric": {
+   "id": "ALGO-02-asym",
+   "note": "Đường một chiều: km đi ≠ km về. Chỉ nhìn chiều đi (hoặc đi × 2) chọn nhầm X; khứ hồi thật chọn Y. Lõi KHÔNG được giả định đối xứng.",
    "members": [
     "a",
     "b"
    ],
    "places": [
     {
-     "id": "far",
-     "upvotes": 3,
+     "id": "x",
      "created_order": 0,
-     "minutes": [
-      10,
-      10
+     "km_to": [
+      2,
+      2
      ],
-     "distance_km": [
-      5,
-      5
+     "km_back": [
+      6,
+      6
      ]
     },
     {
-     "id": "near_late",
-     "upvotes": 3,
-     "created_order": 2,
-     "minutes": [
-      10,
-      10
-     ],
-     "distance_km": [
-      4,
-      4
-     ]
-    },
-    {
-     "id": "near_early",
-     "upvotes": 3,
+     "id": "y",
      "created_order": 1,
-     "minutes": [
-      10,
-      10
-     ],
-     "distance_km": [
+     "km_to": [
       4,
       4
+     ],
+     "km_back": [
+      3,
+      3
      ]
     }
    ],
    "expect": {
+    "psi": {
+     "x": 20.0,
+     "y": 17.5
+    },
     "ranking": [
-     "near_early",
-     "near_late",
-     "far"
+     "y",
+     "x"
     ]
    }
+  },
+  "psi_ties": {
+   "id": "ALGO-02-ties",
+   "note": "Phá hoà §3. p_max/p_far: Ψ bằng 8,5 → max dᵢ nhỏ hơn thắng (p_max 4 < p_far 5). p_sum1/p_sum2 (N=3): Ψ = 15, max = 6 → tổng nhỏ hơn (11 < 11,2). same_late/same_early: giống hệt → thêm sớm hơn.",
+   "groups": [
+    {
+     "members": [
+      "a",
+      "b"
+     ],
+     "places": [
+      {
+       "id": "p_far",
+       "created_order": 0,
+       "km_to": [
+        0.5,
+        2.5
+       ],
+       "km_back": [
+        0.5,
+        2.5
+       ]
+      },
+      {
+       "id": "p_max",
+       "created_order": 1,
+       "km_to": [
+        1.25,
+        2
+       ],
+       "km_back": [
+        1.25,
+        2
+       ]
+      }
+     ],
+     "expect": {
+      "psi": {
+       "p_far": 8.5,
+       "p_max": 8.5
+      },
+      "ranking": [
+       "p_max",
+       "p_far"
+      ]
+     }
+    },
+    {
+     "members": [
+      "a",
+      "b",
+      "c"
+     ],
+     "places": [
+      {
+       "id": "p_sum2",
+       "created_order": 0,
+       "km_to": [
+        1,
+        1.6,
+        3
+       ],
+       "km_back": [
+        1,
+        1.6,
+        3
+       ]
+      },
+      {
+       "id": "p_sum1",
+       "created_order": 1,
+       "km_to": [
+        0.5,
+        2,
+        3
+       ],
+       "km_back": [
+        0.5,
+        2,
+        3
+       ]
+      }
+     ],
+     "expect": {
+      "psi": {
+       "p_sum2": 15.0,
+       "p_sum1": 15.0
+      },
+      "ranking": [
+       "p_sum1",
+       "p_sum2"
+      ]
+     }
+    },
+    {
+     "members": [
+      "a",
+      "b"
+     ],
+     "places": [
+      {
+       "id": "same_late",
+       "created_order": 2,
+       "km_to": [
+        1,
+        2
+       ],
+       "km_back": [
+        1,
+        2
+       ]
+      },
+      {
+       "id": "same_early",
+       "created_order": 1,
+       "km_to": [
+        1,
+        2
+       ],
+       "km_back": [
+        1,
+        2
+       ]
+      }
+     ],
+     "expect": {
+      "ranking": [
+       "same_early",
+       "same_late"
+      ]
+     }
+    }
+   ]
   }
  },
  "margin": {

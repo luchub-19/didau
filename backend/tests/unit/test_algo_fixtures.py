@@ -1,8 +1,8 @@
 """Đọc `docs/phase6/algo-fixtures.json` và kiểm các số chia sẻ với frontend (T-84).
 
-Phần ước lượng chạy bằng code thật (`HaversineTravelEstimator`). Các phần ALGO-01…04 chưa có code (T-85…T-87)
-nên ở đây chỉ có bản tham chiếu tối thiểu theo ALGORITHMS.md để chứng minh fixture tự nhất quán; T-85…T-87 thay
-bằng gọi code thật và giữ nguyên dữ liệu.
+Phần ước lượng chạy bằng code thật (`HaversineTravelEstimator`). Các phần ALGO-01…04 ở đây là bản tham chiếu tối
+thiểu theo ALGORITHMS.md để chứng minh fixture tự nhất quán (code thật chạy ở test_algo_t86/t87). Mục `tie_break`
+theo OMP gđ7 (docs/phase7/ALGORITHMS.md, T-94).
 """
 
 import json
@@ -33,18 +33,16 @@ def margin(eta: int, end_curr_min: int, on: date) -> int:
     return max(cfg.MARGIN_MIN, math.ceil(round(eta * ratio, 6)))
 
 
-def rank_by_tie_rule(matrix: dict[str, list[int]], dist: dict[str, list[float]], created: dict[str, int]):
-    """ALGO-02 (§4): lặp "tổng gần min trong ngưỡng → M nhỏ nhất → D nhỏ nhất → created"."""
-    remaining = dict.fromkeys(matrix)
-    ranking = []
-    while remaining:
-        s = {j: sum(matrix[j]) for j in remaining}
-        low = min(s.values())
-        cand = [j for j in remaining if s[j] <= low + cfg.TIE_THRESHOLD_MIN]
-        best = min(cand, key=lambda j: (max(matrix[j]), sum(dist[j]), created[j]))
-        ranking.append(best)
-        del remaining[best]
-    return ranking
+def omp_reference(round_trip: dict[str, list[float]], created: dict[str, int]) -> tuple[list[str], dict[str, float]]:
+    """Bản tham chiếu tối thiểu của OMP gđ7 (độc lập với `ordered_median.py`): k = 1, λ = OMP_LAMBDA."""
+    n = len(next(iter(round_trip.values())))
+    w = [1.0] if n == 1 else [1 + cfg.OMP_LAMBDA * r / (n - 1) for r in range(n)]
+    psi = {j: sum(a * b for a, b in zip(w, sorted(d), strict=True)) for j, d in round_trip.items()}
+    ranking = sorted(
+        round_trip,
+        key=lambda j: (round(psi[j], 9), round(max(round_trip[j]), 9), round(sum(round_trip[j]), 9), created[j]),
+    )
+    return ranking, psi
 
 
 def test_constants_in_fixture_match_algo_config():
@@ -76,30 +74,35 @@ def test_group_center_matches_fixture():
     assert len(g["members"]) == g["expect"]["member_count"]
 
 
-def _tie_inputs(case):
-    ids = [p["id"] for p in case["places"]]
-    minutes = {p["id"]: p["minutes"] for p in case["places"]}
-    created = {p["id"]: p["created_order"] for p in case["places"]}
-    dist = {p["id"]: p.get("distance_km", case.get("distance_km", {}).get(p["id"])) for p in case["places"]}
-    return ids, minutes, dist, created
+def _km_case(places: list[dict]) -> tuple[dict[str, list[float]], dict[str, int]]:
+    rt = {p["id"]: [a + b for a, b in zip(p["km_to"], p["km_back"], strict=True)] for p in places}
+    return rt, {p["id"]: p["created_order"] for p in places}
 
 
-@pytest.mark.parametrize("key", ["doc_case", "threshold_not_transitive", "tie_break_by_distance_then_created"])
-def test_tie_break_cases(key):
-    case = FX["tie_break"][key]
-    _, minutes, dist, created = _tie_inputs(case)
+def test_tie_break_doc_case_by_km():
+    """TC-04 (gđ7): km khứ hồi bằng ước lượng thật từ toạ độ fixture, Ψ theo bản tham chiếu."""
+    case = FX["tie_break"]["doc_case"]
+    est = HaversineTravelEstimator()
     exp = case["expect"]
+    rt = {}
     for p in case["places"]:
-        assert len(p["minutes"]) == len(case["members"])
-    if "S" in exp:
-        assert {j: sum(v) for j, v in minutes.items()} == exp["S"]
-        assert {j: max(v) for j, v in minutes.items()} == exp["M"]
-    ranking = rank_by_tie_rule(minutes, dist, created)
-    assert ranking == exp["ranking"]
-    if "recommended_place_id" in exp:
-        assert ranking[0] == exp["recommended_place_id"]
-        s = {j: sum(v) for j, v in minutes.items()}
-        assert s[ranking[1]] - s[ranking[0]] == exp["margin_vs_second_min"]
+        dest = (p["lat"], p["lng"])
+        rt[p["id"]] = [est.leg(coord(m), dest).distance_km + est.leg(dest, coord(m)).distance_km for m in case["members"]]
+        assert rt[p["id"]] == pytest.approx(exp["round_trip_km"][p["id"]], abs=TOL["distance_km"])
+    ranking, psi = omp_reference(rt, {p["id"]: p["created_order"] for p in case["places"]})
+    assert ranking == exp["ranking"] and ranking[0] == exp["recommended_place_id"]
+    assert psi == pytest.approx(exp["psi"], abs=TOL["distance_km"])
+    assert psi[ranking[1]] == pytest.approx(exp["runner_up_psi"], abs=TOL["distance_km"])
+
+
+def test_tie_break_km_cases():
+    groups = [FX["tie_break"]["asymmetric"], *FX["tie_break"]["psi_ties"]["groups"]]
+    for g in groups:
+        rt, created = _km_case(g["places"])
+        ranking, psi = omp_reference(rt, created)
+        assert ranking == g["expect"]["ranking"]
+        for j, v in g["expect"].get("psi", {}).items():
+            assert psi[j] == pytest.approx(v, abs=1e-9)
 
 
 @pytest.mark.parametrize("case", FX["margin"]["cases"], ids=lambda c: c["id"])

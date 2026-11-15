@@ -1,11 +1,11 @@
-"""Schema Algorithm Engine (CR-12 phần 1, CR-11): tâm nhóm + gợi ý hoà phiếu.
+"""Schema Algorithm Engine (CR-12, CR-15, CR-11): tâm nhóm + gợi ý hoà phiếu OMP + khả thi lịch.
 
 Không schema nào ở đây có toạ độ của thành viên (CR-11): `center` là tâm đã làm tròn 3 chữ số.
 """
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.poi import PoiResponse
 
@@ -29,53 +29,60 @@ class TieCandidate(BaseModel):
     place_id: UUID
     name: str
     upvotes: int
-
-
-class TieMemberInfo(BaseModel):
-    """Thành viên trong ma trận. Chỉ có nguồn xuất phát, KHÔNG có toạ độ."""
-
-    member_id: UUID
-    nickname: str
-    origin_source: str = Field(description="MEMBER | MEETING_POINT")
-
-
-class TieLeg(BaseModel):
-    minutes: int
-    distance_km: float
-    source: str = Field(description="ESTIMATE | GOOGLE")
+    downvotes: int = 0
+    score: int = Field(description="upvotes − downvotes (hoà theo điểm, CR-15)")
 
 
 class TieRanking(BaseModel):
-    """Một dòng xếp hạng. `total_min`=S, `max_min`=M (người đi xa nhất), `total_km`=D."""
+    """Một dòng xếp hạng OMP. Km là KHỨ HỒI (`Nhà → quán → Nhà`); `max_min` = phút khứ hồi của người đi lâu nhất."""
 
     place_id: UUID
     rank: int
-    total_min: int
-    max_min: int
+    psi: float = Field(description="Ψ = Σ w_r · c₍r₎ (nhỏ hơn = tốt hơn), làm tròn 3 số")
+    max_km: float
     total_km: float
+    max_min: int
+
+
+class TieMemberCost(BaseModel):
+    """Một thành viên ở quán đề xuất. KHÔNG có toạ độ (CR-11); km/phút là khứ hồi của chính người đó."""
+
+    member_id: UUID
+    nickname: str
+    km: float
+    minutes: int
+    rank: int = Field(description="Hạng theo chi phí tăng dần (1 = đi gần nhất)")
+    weight: float = Field(description="Trọng số w_r của hạng đó")
+
+
+class OmpParams(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    lambda_: float = Field(alias="lambda", description="λ — hệ số công bằng")
+    k: float = Field(description="k — luỹ thừa phạt cá nhân")
+
+
+class CategoryTieSuggestion(BaseModel):
+    """Một loại quán đang hoà (bài K = 1). `ranking` chỉ gồm quán so được; quán thiếu toạ độ không có dòng."""
+
+    category: str
+    candidates: list[TieCandidate]
+    recommended_place_id: UUID | None = None
+    ranking: list[TieRanking] = Field(default_factory=list)
+    members: list[TieMemberCost] = Field(default_factory=list)
+    runner_up_psi: float | None = None
+    excluded_member_count: int = 0
+    estimated: bool = True
+    source: str = Field(default="ESTIMATE", description="ESTIMATE | GOOGLE | VALHALLA | MIXED")
+    params: OmpParams
 
 
 class TieSuggestion(BaseModel):
-    """`GET /rooms/{id}/tie-break/suggestion` (ALGORITHMS §4).
-
-    `matrix[i][j]` = `members[i]` → `candidates[j]` (null ở quán thiếu toạ độ). `ranking` chỉ gồm quán so được;
-    quán thiếu toạ độ nằm trong `unranked_place_ids`. `margin_vs_second_min` = S(hạng 2) − S(hạng 1) và có
-    thể ≤ 0 khi hạng 1 thắng nhờ người đi xa nhất đỡ vất vả hơn (luật ngưỡng 2').
-    """
+    """`GET /rooms/{id}/tie-break/suggestion` (docs/phase7/ALGORITHMS.md §6, CR-15): mỗi loại hoà một mục."""
 
     available: bool
     reason: str | None = Field(default=None, description="NO_TIE | NO_ORIGINS | NO_PLACE_COORDS")
-    candidates: list[TieCandidate] = Field(default_factory=list)
-    members: list[TieMemberInfo] = Field(default_factory=list)
-    matrix: list[list[TieLeg | None]] = Field(default_factory=list)
-    ranking: list[TieRanking] = Field(default_factory=list)
-    unranked_place_ids: list[UUID] = Field(default_factory=list)
-    recommended_place_id: UUID | None = None
-    margin_vs_second_min: int | None = None
-    threshold_min: int
-    travel_mode: str
-    excluded_member_count: int = 0
-    estimated: bool = True
+    suggestions: list[CategoryTieSuggestion] = Field(default_factory=list)
 
 
 # ── CR-12 phần 2 (T-87) ──────────────────────────────────────────────────────────────────────────

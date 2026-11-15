@@ -85,7 +85,7 @@ Gợi ý kích hoạt tính năng Chọn hộ:
 
 ### 1.12. `TieBreakStrategyName` bổ sung (CR-02)
 - `GROUP_DECISION`: Phân định theo kết quả phiên Chọn hộ nhóm (Vòng quay / Swipe / Thang / Gợi ý 1 chạm).
-- `TRAVEL_TIME` (CR-12): Hoà phiếu theo thời gian di chuyển của cả nhóm (ALGO-02, `docs/phase6/ALGORITHMS.md` §4). **Mặc định của phòng mới** (`POST /rooms` bỏ trống `tie_break_strategy`); phòng cũ và cột DB giữ mặc định `EARLIEST_SUBMISSION`. Hoà tính theo số `upvotes` ở hạng đầu (không theo `score`); sáu chiến lược cũ vẫn hợp lệ.
+- `TRAVEL_TIME` (CR-12, CR-15): Hoà phiếu bằng Ordered Median (OMP) theo km khứ hồi của cả nhóm (ALGO-02, `docs/phase7/ALGORITHMS.md`; tên chiến lược giữ cho tương thích). **Mặc định của phòng mới** (`POST /rooms` bỏ trống `tie_break_strategy`); phòng cũ và cột DB giữ mặc định `EARLIEST_SUBMISSION`. Hoà tính theo **điểm** (`score` = upvotes − downvotes) ở hạng đầu **trong cùng loại quán** (CR-15; trước đó: số `upvotes`, cả phòng); sáu chiến lược cũ vẫn hợp lệ.
 
 ### 1.13. Mã lý do và tham số phục vụ song ngữ (Reason Codes & Conflict Params) (CR-06)
 Các mã chuẩn hoá và tham số cấu trúc để frontend hiển thị song ngữ VI/EN mà không phụ thuộc vào chuỗi tự do do backend sinh ra.
@@ -610,7 +610,7 @@ Khi có lỗi (status $\ge 400$):
   "tie_break_strategy": "MOST_UPVOTES"
 }
 ```
-- **`strategy: "TRAVEL_TIME"` (CR-12)**: server **tính lại** thứ hạng đi lại (mục 35) rồi chốt quán đứng đầu; mọi trường ngoài `strategy` và `max_accepted_places` đều bị bỏ qua, nên client không ép được kết quả. Hoà tính theo `upvotes` ở hạng đầu; quán không thuộc tập hoà xếp sau theo `upvotes` giảm dần rồi `created_at`. Không tính được thứ hạng (không ai có vị trí và phòng không có điểm hẹn, quán thiếu toạ độ) → lùi về "nhiều Muốn đi hơn → thêm sớm hơn". Google Routes (nếu bật) chỉ được gọi ở bước tính này.
+- **`strategy: "TRAVEL_TIME"` (CR-12, CR-15)**: server **tính lại** Ψ của từng loại đang hoà (mục 35, kể cả loại đã có quán `ACCEPTED`) rồi chốt; mọi trường ngoài `strategy` và `max_accepted_places` đều bị bỏ qua, nên client không ép được kết quả. Nhóm hoà = cùng `score` **và** cùng loại (`category`); trong nhóm xếp theo thứ hạng OMP (Ψ tăng dần), các nhóm xếp theo `score` giảm dần (cùng điểm khác loại: theo tên loại giảm dần). Quán ngoài tập hoà / không xếp hạng được xếp sau theo `upvotes` giảm dần rồi `created_at`. Không tính được thứ hạng (không ai tự chia sẻ vị trí, quán thiếu toạ độ) → lùi về "nhiều Muốn đi hơn → thêm sớm hơn". Luồng chốt giữ như cũ ở MVP (quán thắng ACCEPTED, còn lại REJECTED, phòng FINALIZED — `docs/phase7/PLAN.md` §2). Google Routes (nếu bật) chỉ được gọi ở bước tính này.
 - **Error Codes**: `FORBIDDEN_HOST_ONLY` (403), `INVALID_STRATEGY` (400).
 
 #### 9. Lấy danh sách lịch trình
@@ -846,32 +846,35 @@ Khi có lỗi (status $\ge 400$):
 - **Riêng tư**: phản hồi không bao giờ chứa toạ độ của từng thành viên.
 - **Error Codes**: `UNAUTHORIZED` (401, kể cả khi `room_id` không phải phòng của token), `ROOM_NOT_FOUND` (404).
 
-#### 35. Gợi ý hoà phiếu theo thời gian di chuyển (CR-12, ALGO-02)
+#### 35. Gợi ý hoà phiếu bằng Ordered Median (CR-12 → CR-15, ALGO-02)
 - **Method & Path**: `GET /api/v1/rooms/{room_id}/tie-break/suggestion`
 - **Auth**: Header `X-Member-Token: <token>` (thành viên của phòng)
-- **Response 200 OK** (`TieSuggestion`):
+- **Response 200 OK** (`TieSuggestion`, CR-15 — thay bản CR-12; bỏ `matrix`, `members.origin_source`, `unranked_place_ids`, `margin_vs_second_min`, `threshold_min`, `travel_mode`):
 ```json
 {
   "available": true,
   "reason": null,
-  "candidates": [ { "place_id": "…", "name": "Vạn Hạnh Mall", "upvotes": 7 } ],
-  "members": [ { "member_id": "…", "nickname": "Bảo", "origin_source": "MEMBER" } ],
-  "matrix": [ [ { "minutes": 12, "distance_km": 3.2, "source": "ESTIMATE" } ] ],
-  "ranking": [ { "place_id": "…", "rank": 1, "total_min": 57, "max_min": 25, "total_km": 9.6 } ],
-  "unranked_place_ids": [],
-  "recommended_place_id": "…",
-  "margin_vs_second_min": 3,
-  "threshold_min": 2,
-  "travel_mode": "TWO_WHEELER",
-  "excluded_member_count": 0,
-  "estimated": true
+  "suggestions": [
+    {
+      "category": "FOOD",
+      "candidates": [ { "place_id": "…", "name": "Vạn Hạnh Mall", "upvotes": 7, "downvotes": 0, "score": 7 } ],
+      "recommended_place_id": "…",
+      "ranking": [ { "place_id": "…", "rank": 1, "psi": 50.278, "max_km": 17.066, "total_km": 37.647, "max_min": 42 } ],
+      "members": [ { "member_id": "…", "nickname": "Bảo", "km": 4.19, "minutes": 12, "rank": 1, "weight": 1.0 } ],
+      "runner_up_psi": 51.457,
+      "excluded_member_count": 0,
+      "estimated": true,
+      "source": "ESTIMATE",
+      "params": { "lambda": 0.5, "k": 1.0 }
+    }
+  ]
 }
 ```
-- **Kích hoạt**: ≥ 2 quán chưa `REJECTED`/`VISITED` cùng có `upvotes` lớn nhất (> 0) và chưa có quán `ACCEPTED`; mọi quán bằng số đó là ứng viên (có thể > 3). Ngược lại `available:false`, `reason: "NO_TIE"` (không gọi estimator/Google).
-- **Xuất phát**: `origin(member) = member.origin ?? điểm hẹn host ?? loại`; `origin_source` = `MEMBER` | `MEETING_POINT`; thành viên bị loại được đếm ở `excluded_member_count`. Không ai có xuất phát → `available:false`, `reason: "NO_ORIGINS"` (vẫn có `candidates`). Mọi ứng viên thiếu toạ độ → `reason: "NO_PLACE_COORDS"`.
-- **Ma trận**: `matrix[i][j]` = `members[i]` → `candidates[j]`, xe máy, khởi hành lúc `room.start_minute` của `event_date`; `null` ở cột quán thiếu toạ độ (các quán đó nằm ở `unranked_place_ids`, không bao giờ được đề xuất, không có dòng ở `ranking`). `source` = `ESTIMATE` (Haversine) | `GOOGLE` (chỉ khi `PLACES_PROVIDER=google` + key; lỗi → `ESTIMATE` từng ô). `estimated` = true nếu còn chặng nào không phải `GOOGLE`.
-- **Xếp hạng**: S = `total_min` (tổng phút), M = `max_min` (người đi xa nhất), D = `total_km`. Tập `C = {S ≤ min S + 2}`; trong `C` chọn M nhỏ nhất → D nhỏ nhất → thêm sớm hơn; lặp trên phần còn lại để ra thứ hạng (không dùng sort có ngưỡng vì không bắc cầu). `margin_vs_second_min` = S(hạng 2) − S(hạng 1), **có thể ≤ 0** khi hạng 1 thắng nhờ M nhỏ hơn; `null` nếu chỉ có một quán xếp hạng được.
-- **Riêng tư**: không có toạ độ của ai. (`members[]` chỉ có id, biệt danh, nguồn xuất phát.)
+- **Kích hoạt (theo từng loại quán)**: trong một `category`, các quán chưa `REJECTED`/`VISITED`, ≥ 2 quán cùng `score` (upvotes − downvotes) lớn nhất, loại đó có ít nhất một phiếu, và loại chưa có quán `ACCEPTED`; mọi quán bằng điểm đó là ứng viên (có thể > 3). Mỗi loại hoà là một mục của `suggestions` (thứ tự khai báo `PlaceCategory`: FOOD, DRINK, ENTERTAINMENT, …). Không loại nào hoà → `{available:false, reason:"NO_TIE", suggestions:[]}` (không gọi estimator/Google). `NEAR_TIE` không kích hoạt.
+- **Xuất phát**: chỉ thành viên đang hoạt động **tự chia sẻ** vị trí (`members.origin_*`); **không** dùng điểm hẹn của host (khác CR-12). Người thiếu bị loại, đếm ở `excluded_member_count`. Không ai → `available:false`, `reason:"NO_ORIGINS"` (vẫn có `suggestions` với `candidates`, `ranking: []`). Mọi ứng viên của mọi loại thiếu toạ độ → `reason:"NO_PLACE_COORDS"`.
+- **Thuật toán (MVP K = 1)**: người i với quán s: `dᵢ = km(nhà_i → s) + km(s → nhà_i)` (hai chiều hỏi riêng, không giả định đối xứng), `cᵢ = dᵢ^k`, sắp c tăng dần, `Ψ = Σ w_r·c₍r₎` với `w_r = 1 + λ·(r−1)/(N−1)` (N = 1 → w = 1). Xếp Ψ tăng dần; hoà Ψ (sai số 1e-9) → `max_km` nhỏ hơn → `total_km` nhỏ hơn → quán thêm sớm hơn → `place_id`. Mặc định `λ = 0.5`, `k = 1` (`params`).
+- **Trường**: km là **khứ hồi**, làm tròn 3 số; `minutes` = phút đi + phút về của người đó; `max_min` = lớn nhất của các `minutes` ở quán đó. `members[]` là của **quán đề xuất**, sắp theo `rank` (1 = đi gần nhất), `weight` = w của hạng đó. Quán thiếu toạ độ có trong `candidates` nhưng không có dòng `ranking`, không bao giờ được đề xuất. `runner_up_psi` = Ψ hạng 2 (`null` nếu chỉ một quán xếp hạng được). `source` = `ESTIMATE` nếu còn ô ước lượng, ngược lại nguồn chung (`GOOGLE`; `VALHALLA` từ T-95) hoặc `MIXED`; `estimated` = `source == "ESTIMATE"`. Km khởi hành lúc `room.start_minute` của `event_date` (cả hai chiều).
+- **Riêng tư**: không có toạ độ của ai, không hình học đường đi (CR-11).
 - **Error Codes**: `UNAUTHORIZED` (401), `ROOM_NOT_FOUND` (404).
 
 #### 36. Tổng khả thi của lịch (CR-12 phần 2, ALGO-03)
@@ -1744,25 +1747,27 @@ export interface GroupCenterResponse {
 
 export type TravelSource = 'ESTIMATE' | 'GOOGLE';
 export type TieUnavailableReason = 'NO_TIE' | 'NO_ORIGINS' | 'NO_PLACE_COORDS';
-export interface TieCandidate { place_id: string; name: string; upvotes: number }
-export interface TieMemberInfo { member_id: string; nickname: string; origin_source: 'MEMBER' | 'MEETING_POINT' }
-export interface TieLeg { minutes: number; distance_km: number; source: TravelSource }
-export interface TieRanking { place_id: string; rank: number; total_min: number; max_min: number; total_km: number }
+// CR-15 (T-94): hoà phiếu OMP theo từng loại — thay TieMemberInfo/TieLeg/matrix của CR-12
+export interface TieCandidate { place_id: string; name: string; upvotes: number; downvotes: number; score: number }
+export interface TieRanking { place_id: string; rank: number; psi: number; max_km: number; total_km: number; max_min: number }
+export interface TieMemberCost { member_id: string; nickname: string; km: number; minutes: number; rank: number; weight: number }
+export interface CategoryTieSuggestion {
+  category: PlaceCategory;
+  candidates: TieCandidate[];
+  recommended_place_id: string | null;
+  ranking: TieRanking[]; // Ψ tăng dần; km khứ hồi
+  members: TieMemberCost[]; // của quán đề xuất, theo rank (1 = gần nhất)
+  runner_up_psi: number | null;
+  excluded_member_count: number;
+  estimated: boolean;
+  source: TravelSource | 'VALHALLA' | 'MIXED';
+  params: { lambda: number; k: number };
+}
 
 export interface TieSuggestion {
   available: boolean;
   reason: TieUnavailableReason | null;
-  candidates: TieCandidate[];
-  members: TieMemberInfo[];
-  matrix: (TieLeg | null)[][]; // [thành viên][ứng viên]
-  ranking: TieRanking[]; // S = total_min, M = max_min, D = total_km
-  unranked_place_ids: string[];
-  recommended_place_id: string | null;
-  margin_vs_second_min: number | null; // S(hạng 2) − S(hạng 1), có thể ≤ 0
-  threshold_min: number;
-  travel_mode: 'TWO_WHEELER';
-  excluded_member_count: number;
-  estimated: boolean;
+  suggestions: CategoryTieSuggestion[];
 }
 
 // Algorithm Engine (CR-12 phần 2, T-87) — frontend/src/types/models.ts + api.ts (mục 5, 36, §1.13 A)

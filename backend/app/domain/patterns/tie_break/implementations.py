@@ -1,6 +1,7 @@
 import hashlib
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from typing import Any
 from uuid import UUID
 
 from app.core.exceptions import InvalidStrategyError
@@ -147,12 +148,13 @@ class CategoryDiversityTieBreakStrategy(ITieBreakStrategy):
 
 
 class TravelTimeTieBreakStrategy(ITieBreakStrategy):
-    """ALGO-02 (CR-12): hòa phiếu theo thời gian di chuyển của cả nhóm.
+    """ALGO-02 (CR-15): hòa phiếu bằng Ordered Median (OMP) của Sơn, theo từng loại quán.
 
-    Chiến lược KHÔNG tự tính thời gian đi (cần DB/mạng): `VotingService` chạy `AlgorithmService` ở server rồi
-    đưa thứ hạng vào đây (`ranking` = place_id từ tốt → kém). Thiếu thứ hạng (vd. không ai có vị trí) thì lùi
-    về "nhiều Muốn đi hơn → thêm sớm hơn". Khác các chiến lược cũ: hòa tính theo `upvotes`, không theo `score`
-    (ALGORITHMS §0 câu 8), nên `group_key` trả `upvotes`.
+    Chiến lược KHÔNG tự tính Ψ (cần DB/mạng): `VotingService` chạy `AlgorithmService.travel_ranking` ở server rồi
+    đưa thứ hạng vào đây (`ranking` = place_id từ tốt → kém, nối theo từng loại). Thiếu thứ hạng (vd. không ai có
+    vị trí) thì lùi về "nhiều Muốn đi hơn → thêm sớm hơn". Hòa = cùng ĐIỂM (`score`) trong CÙNG loại
+    (docs/phase7/ALGORITHMS.md §6) nên `group_key` trả `(score, category)`: hai loại cùng điểm không trộn vào một
+    nhóm, thứ hạng chỉ được so trong một loại.
     """
 
     def __init__(self, ranking: Sequence[UUID] | None = None) -> None:
@@ -163,8 +165,9 @@ class TravelTimeTieBreakStrategy(ITieBreakStrategy):
         return TieBreakStrategyName.TRAVEL_TIME.value
 
     @staticmethod
-    def group_key(candidate: PlaceVoteSummary) -> int:
-        return candidate.upvotes
+    def group_key(candidate: PlaceVoteSummary) -> tuple[int, str]:
+        category = candidate.category
+        return candidate.score, category.value if isinstance(category, PlaceCategory) else str(category)
 
     def break_ties(
         self,
@@ -255,11 +258,11 @@ def resolve_voting_with_tie_break(
         return rejected, False
 
     # Gom nhóm theo điểm từ cao xuống thấp (mặc định `score`; chiến lược có thể đổi qua `group_key`,
-    # vd. TRAVEL_TIME tính hòa theo số "Muốn đi")
-    group_key: Callable[[PlaceVoteSummary], int] = getattr(
+    # vd. TRAVEL_TIME gom theo (điểm, loại) — CR-15; cùng điểm khác loại thì loại xếp theo tên giảm dần, ổn định)
+    group_key: Callable[[PlaceVoteSummary], Any] = getattr(
         strategy, "group_key", lambda c: c.score
     )
-    groups_by_score: dict[int, list[PlaceVoteSummary]] = defaultdict(list)
+    groups_by_score: dict[Any, list[PlaceVoteSummary]] = defaultdict(list)
     for c in candidates:
         groups_by_score[group_key(c)].append(c)
 

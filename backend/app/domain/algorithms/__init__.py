@@ -1,4 +1,4 @@
-"""Algorithm Engine giai đoạn 6 — hàm thuần (ALGORITHMS.md)."""
+"""Algorithm Engine giai đoạn 6 + OMP giai đoạn 7 — hàm thuần (docs/phase6, docs/phase7 ALGORITHMS.md)."""
 
 from app.domain.algorithms.feasibility import (
     LegAssessment,
@@ -11,6 +11,15 @@ from app.domain.algorithms.feasibility import (
     plan_feasibility,
 )
 from app.domain.algorithms.group_center import GroupCenter, compute_group_center
+from app.domain.algorithms.ordered_median import (
+    OmpEval,
+    omp_weights,
+    penalty,
+    psi,
+    rank_candidates,
+    solve_brute,
+    solve_dp,
+)
 from app.domain.algorithms.priority import (
     PlacePriority,
     PriorityInput,
@@ -19,21 +28,25 @@ from app.domain.algorithms.priority import (
     rank_places,
 )
 from app.domain.algorithms.tie_travel import (
+    MemberCost,
     OriginSource,
     RankedPlace,
+    TieGroup,
     TieMember,
     TieOutcome,
     TiePlace,
     UnavailableReason,
     decide,
-    rank_by_travel,
+    member_origins,
     resolve_origins,
-    tied_candidates,
+    tied_groups,
 )
 
 __all__ = [
     "GroupCenter",
     "LegAssessment",
+    "MemberCost",
+    "OmpEval",
     "OriginSource",
     "PlacePriority",
     "PlanFeasibility",
@@ -42,6 +55,7 @@ __all__ = [
     "PriorityLabel",
     "RankedPlace",
     "Risk",
+    "TieGroup",
     "TieMember",
     "TieOutcome",
     "TiePlace",
@@ -52,9 +66,15 @@ __all__ = [
     "consecutive_pairs",
     "decide",
     "margin_for",
+    "member_origins",
+    "omp_weights",
+    "penalty",
     "plan_feasibility",
-    "rank_by_travel",
+    "psi",
+    "rank_candidates",
     "rank_places",
     "resolve_origins",
-    "tied_candidates",
+    "solve_brute",
+    "solve_dp",
+    "tied_groups",
 ]

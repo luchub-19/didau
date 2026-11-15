@@ -1,4 +1,4 @@
-"""T-86: ALGO-01 tâm nhóm + ALGO-02 hoà phiếu — phần thuần (không DB, không mạng).
+"""T-86: ALGO-01 tâm nhóm; T-94: ALGO-02 hoà phiếu bằng OMP (gđ7) — phần thuần (không DB, không mạng).
 
 Chạy cùng `docs/phase6/algo-fixtures.json` với frontend. Tên test theo mã TC của tài liệu đồ án.
 """
@@ -13,16 +13,18 @@ import pytest
 
 from app.domain.algorithms import (
     OriginSource,
+    TieGroup,
     TieMember,
     TiePlace,
     compute_group_center,
     decide,
+    member_origins,
     resolve_origins,
-    tied_candidates,
+    tied_groups,
 )
 from app.domain.algorithms.group_center import area_label, load_districts, spherical_mean
-from app.domain.enums import PlaceStatus
-from app.domain.patterns.itinerary.travel import Leg
+from app.domain.enums import PlaceCategory, PlaceStatus
+from app.domain.patterns.itinerary.travel import HaversineTravelEstimator, Leg, TravelSource
 from app.domain.patterns.tie_break import (
     PlaceVoteSummary,
     TieBreakContext,
@@ -42,39 +44,6 @@ T0 = datetime(2026, 11, 8, 12, 0, tzinfo=UTC)
 
 def pt(name: str) -> tuple[float, float]:
     return PTS[name]["lat"], PTS[name]["lng"]
-
-
-def mk_members(n: int) -> list[TieMember]:
-    return [
-        TieMember(uuid4(), f"m{i}", (10.77, 106.70), OriginSource.MEMBER) for i in range(n)
-    ]
-
-
-def mk_places(spec: dict) -> list[TiePlace]:
-    """`spec`: id → (upvotes, created_order); toạ độ giả (ma trận cho sẵn nên không dùng)."""
-    return [
-        TiePlace(uuid4(), pid, PlaceStatus.PROPOSED, up, T0 + timedelta(minutes=order), (10.77, 106.70))
-        for pid, (up, order) in spec.items()
-    ]
-
-
-def matrix_for(case: dict, places: list[TiePlace], members: list[TieMember]):
-    by_name = {p.name: i for i, p in enumerate(places)}
-    cells: list[list[Leg | None]] = [[None] * len(places) for _ in members]
-    for spec in case["places"]:
-        j = by_name[spec["id"]]
-        dist = spec.get("distance_km") or case.get("distance_km", {}).get(spec["id"]) or [1] * len(members)
-        for i, minutes in enumerate(spec["minutes"]):
-            cells[i][j] = Leg(minutes, float(dist[i]))
-    return cells
-
-
-def run_case(case: dict):
-    places = mk_places({p["id"]: (p["upvotes"], p["created_order"]) for p in case["places"]})
-    members = mk_members(len(case["places"][0]["minutes"]))
-    outcome = decide(places, members, matrix_for(case, places, members))
-    names = {p.place_id: p.name for p in places}
-    return outcome, names
 
 
 # ── ALGO-01 ───────────────────────────────────────────────────────────────────────────────────────
@@ -137,118 +106,246 @@ def test_area_label_hn_and_far_city():
     assert far.available and far.area_label is None
 
 
-# ── ALGO-02 ───────────────────────────────────────────────────────────────────────────────────────
-def test_tc04_fixture_van_hanh_mall_wins_by_3():
-    outcome, names = run_case(FX["tie_break"]["doc_case"])
-    exp = FX["tie_break"]["doc_case"]["expect"]
-    assert [names[r.place_id] for r in outcome.ranking] == exp["ranking"]
-    assert names[outcome.recommended_place_id] == exp["recommended_place_id"]
-    assert outcome.margin_vs_second_min == exp["margin_vs_second_min"]
-    assert {names[r.place_id]: r.total_min for r in outcome.ranking} == exp["S"]
-    assert {names[r.place_id]: r.max_min for r in outcome.ranking} == exp["M"]
+# ── ALGO-02 = OMP (gđ7, CR-15) ───────────────────────────────────────────────────────────────────
+EST = HaversineTravelEstimator()
 
 
-def test_threshold_is_not_transitive():
-    case = FX["tie_break"]["threshold_not_transitive"]
-    outcome, names = run_case(case)
-    assert [names[r.place_id] for r in outcome.ranking] == case["expect"]["ranking"]
-    assert {names[r.place_id]: r.max_min for r in outcome.ranking} == case["expect"]["M"]
+def mk_members(names: list[str], coords: dict[str, tuple[float, float]] | None = None) -> list[TieMember]:
+    return [TieMember(uuid4(), n, (coords or {}).get(n, (10.77, 106.70))) for n in names]
 
 
-def test_ties_fall_through_to_distance_then_created():
-    case = FX["tie_break"]["tie_break_by_distance_then_created"]
-    outcome, names = run_case(case)
-    assert [names[r.place_id] for r in outcome.ranking] == case["expect"]["ranking"]
+def mk_place(
+    name: str,
+    score: int,
+    order: int,
+    *,
+    coord: tuple[float, float] | None = (10.77, 106.70),
+    category: PlaceCategory = PlaceCategory.FOOD,
+    status: PlaceStatus = PlaceStatus.PROPOSED,
+    down: int = 0,
+) -> TiePlace:
+    return TiePlace(
+        uuid4(), name, status, score + down, T0 + timedelta(minutes=order), coord, category, down
+    )
+
+
+def km_grids(case_places: list[dict], places: list[TiePlace], n: int):
+    """Ma trận km cho sẵn (fixture): `km_to[i]` = người i → quán, `km_back[i]` = quán → người i."""
+    spec = {p["id"]: p for p in case_places}
+    go = [[Leg(1, float(spec[p.name]["km_to"][i])) for p in places] for i in range(n)]
+    back = [[Leg(1, float(spec[p.name]["km_back"][i])) for p in places] for i in range(n)]
+    return go, back
+
+
+def run_km_case(members: list[str], case_places: list[dict]):
+    places = [mk_place(p["id"], 3, p["created_order"]) for p in case_places]
+    tm = mk_members(members)
+    go, back = km_grids(case_places, places, len(tm))
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), tm, go, back)
+    return out, {p.place_id: p.name for p in places}
+
+
+def geo_grids(members: list[TieMember], places: list[TiePlace]):
+    go = [[None if p.coord is None else EST.leg(m.origin, p.coord) for p in places] for m in members]
+    back = [[None if p.coord is None else EST.leg(p.coord, m.origin) for p in places] for m in members]
+    return go, back
+
+
+def doc_case():
+    case = FX["tie_break"]["doc_case"]
+    places = [
+        mk_place(p["id"], p["score"], p["created_order"], coord=(p["lat"], p["lng"])) for p in case["places"]
+    ]
+    members = mk_members(case["members"], {n: pt(n) for n in case["members"]})
+    return case, places, members
+
+
+def test_tc04_fixture_van_hanh_mall_still_wins_by_km():
+    """TC-04 tính lại bằng km khứ hồi (Haversine × 1,3): Vạn Hạnh Mall vẫn được đề xuất."""
+    case, places, members = doc_case()
+    go, back = geo_grids(members, places)
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(sorted(places, key=lambda p: p.created_at))), members, go, back)
+    names = {p.place_id: p.name for p in places}
+    exp = case["expect"]
+    assert [names[r.place_id] for r in out.ranking] == exp["ranking"]
+    assert names[out.recommended_place_id] == exp["recommended_place_id"]
+    for r in out.ranking:
+        n = names[r.place_id]
+        assert r.psi == pytest.approx(exp["psi"][n], abs=1e-3)
+        assert r.max_km == pytest.approx(exp["max_km"][n], abs=1e-3)
+        assert r.total_km == pytest.approx(exp["total_km"][n], abs=1e-3)
+    assert out.runner_up_psi == pytest.approx(exp["runner_up_psi"], abs=1e-3)
+    # thành viên ở quán đề xuất: km khứ hồi đúng fixture, hạng 1..3 theo km tăng dần, w = 1 / 1,25 / 1,5
+    km = dict(zip(case["members"], exp["round_trip_km"]["van_hanh_mall"], strict=True))
+    assert {m.nickname: m.km for m in out.members} == pytest.approx(km, abs=1e-3)
+    assert [m.rank for m in out.members] == [1, 2, 3]
+    assert [m.weight for m in out.members] == [1.0, 1.25, 1.5]
+    assert [m.km for m in out.members] == sorted(m.km for m in out.members)
+    assert out.estimated is True and out.source == "ESTIMATE"
+    assert (out.lam, out.k) == (0.5, 1.0)
+
+
+def test_tc04_round_trip_uses_both_directions():
+    """Bẫy T-94: trước T-95 leg() đối xứng nên khứ hồi = 2 × một chiều — nhưng lõi phải hỏi hai chiều."""
+    _, places, members = doc_case()
+    go, back = geo_grids(members, places)
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), members, go, back)
+    one_way = {p.place_id: [go[i][j].distance_km for i in range(3)] for j, p in enumerate(places)}
+    rec = out.recommended_place_id
+    assert sorted(m.km for m in out.members) == pytest.approx(sorted(2 * x for x in one_way[rec]), abs=1e-3)
+
+
+def test_asymmetric_km_case():
+    case = FX["tie_break"]["asymmetric"]
+    out, names = run_km_case(case["members"], case["places"])
+    assert [names[r.place_id] for r in out.ranking] == case["expect"]["ranking"]
+    assert {names[r.place_id]: r.psi for r in out.ranking} == case["expect"]["psi"]
+
+
+@pytest.mark.parametrize("g", range(len(FX["tie_break"]["psi_ties"]["groups"])))
+def test_psi_ties_fall_through_max_sum_created(g):
+    group = FX["tie_break"]["psi_ties"]["groups"][g]
+    out, names = run_km_case(group["members"], group["places"])
+    assert [names[r.place_id] for r in out.ranking] == group["expect"]["ranking"]
+    for name, value in group["expect"].get("psi", {}).items():
+        assert next(r.psi for r in out.ranking if names[r.place_id] == name) == pytest.approx(value, abs=1e-9)
+
+
+@pytest.mark.parametrize("key", ["asymmetric", "psi_ties"])
+def test_candidate_and_member_order_does_not_change_result(key):
+    groups = FX["tie_break"]["psi_ties"]["groups"] if key == "psi_ties" else [FX["tie_break"]["asymmetric"]]
+    for group in groups:
+        base = [mk_place(p["id"], 3, p["created_order"]) for p in group["places"]]
+        names = {p.place_id: p.name for p in base}
+        tm = mk_members(group["members"])
+        spec = {p["id"]: p for p in group["places"]}
+        baseline = None
+        for perm in itertools.permutations(base):
+            for mperm in itertools.permutations(range(len(tm))):
+                members = [tm[i] for i in mperm]
+                # hoán vị thành viên thì hàng km cũng phải đi theo người
+                go = [[Leg(1, float(spec[p.name]["km_to"][i])) for p in perm] for i in mperm]
+                back = [[Leg(1, float(spec[p.name]["km_back"][i])) for p in perm] for i in mperm]
+                out = decide(TieGroup(PlaceCategory.FOOD, tuple(perm)), members, go, back)
+                got = ([names[r.place_id] for r in out.ranking], [(m.nickname, m.rank) for m in out.members])
+                baseline = baseline or got
+                assert got == baseline
+
+
+def test_tc03_tie_is_by_score_per_category():
+    """TC-03: hoà theo ĐIỂM (Muốn đi − Không) trong cùng loại; > 2 quán hoà thì xét tất cả."""
+    a = mk_place("a", 3, 0)
+    b = mk_place("b", 3, 1, down=2)  # 5 Muốn đi − 2 Không = 3 điểm: vẫn hoà với a
+    c = mk_place("c", 1, 2)
+    drink1, drink2 = mk_place("d1", 2, 3, category=PlaceCategory.DRINK), mk_place("d2", 2, 4, category=PlaceCategory.DRINK)
+    groups = tied_groups([c, b, drink2, a, drink1])
+    assert [(g.category, [p.name for p in g.candidates]) for g in groups] == [
+        (PlaceCategory.FOOD, ["a", "b"]),
+        (PlaceCategory.DRINK, ["d1", "d2"]),
+    ]
+    many = [mk_place(f"p{i}", 4, i) for i in range(5)] + [mk_place("low", 2, 9)]
+    assert len(tied_groups(many)[0].candidates) == 5
+
+
+def test_same_score_in_different_categories_is_not_a_tie():
+    assert tied_groups([mk_place("food", 3, 0), mk_place("drink", 3, 1, category=PlaceCategory.DRINK)]) == []
+
+
+def test_more_upvotes_but_lower_score_is_not_tied():
+    """gđ6 hoà theo số Muốn đi; gđ7 theo điểm: 5↑2↓ (3 điểm) không hoà với 5↑0↓ (5 điểm)."""
+    assert tied_groups([mk_place("a", 5, 0), mk_place("b", 3, 1, down=2)]) == []
 
 
 @pytest.mark.parametrize(
-    "case_key", ["doc_case", "threshold_not_transitive", "tie_break_by_distance_then_created"]
-)
-def test_candidate_order_does_not_change_result(case_key):
-    case = FX["tie_break"][case_key]
-    base_places = mk_places({p["id"]: (p["upvotes"], p["created_order"]) for p in case["places"]})
-    members = mk_members(len(case["places"][0]["minutes"]))
-    baseline = None
-    for perm in itertools.permutations(base_places):
-        outcome = decide(list(perm), members, matrix_for(case, list(perm), members))
-        names = {p.place_id: p.name for p in base_places}
-        got = [names[r.place_id] for r in outcome.ranking]
-        baseline = baseline or got
-        assert got == baseline
-
-
-def test_tc03_two_places_tied_candidates_and_trigger_rules():
-    places = mk_places({"a": (3, 0), "b": (3, 1), "c": (1, 2)})
-    assert [p.name for p in tied_candidates(places)] == ["a", "b"]
-    # >3 quán hoà → xét tất cả
-    many = mk_places({f"p{i}": (4, i) for i in range(5)} | {"low": (2, 9)})
-    assert len(tied_candidates(many)) == 5
-
-
-@pytest.mark.parametrize(
-    "spec",
+    "places",
     [
-        {"only": (5, 0), "lower": (2, 1)},  # một quán dẫn đầu
-        {"a": (0, 0), "b": (0, 1)},  # hoà ở 0 phiếu: không phải hoà có nghĩa
-        {},
+        [("only", 5, 0), ("lower", 2, 1)],  # một quán dẫn đầu
+        [("a", 0, 0), ("b", 0, 1)],  # chưa ai bỏ phiếu: không phải hoà có nghĩa
+        [],
     ],
 )
-def test_no_tie_returns_empty(spec):
-    assert tied_candidates(mk_places(spec)) == []
+def test_no_tie_returns_empty(places):
+    assert tied_groups([mk_place(n, s, o) for n, s, o in places]) == []
 
 
-def test_accepted_place_blocks_trigger_but_not_resolve_and_rejected_is_ignored():
-    places = mk_places({"a": (3, 0), "b": (3, 1), "c": (3, 2)})
-    places[0] = TiePlace(
-        places[0].place_id, "a", PlaceStatus.ACCEPTED, 3, places[0].created_at, places[0].coord
-    )
-    places[2] = TiePlace(places[2].place_id, "c", PlaceStatus.REJECTED, 3, places[2].created_at, places[2].coord)
-    assert tied_candidates(places) == []
-    assert [p.name for p in tied_candidates(places, ignore_accepted=True)] == ["a", "b"]
+def test_zero_score_tie_counts_when_people_voted():
+    """1↑1↓ và 0 phiếu → cùng 0 điểm, có hoạt động bỏ phiếu → hoà (như TIE_AT_TOP)."""
+    groups = tied_groups([mk_place("a", 0, 0, down=1), mk_place("b", 0, 1)])
+    assert [p.name for p in groups[0].candidates] == ["a", "b"]
 
 
-def test_member_without_origin_takes_meeting_point_or_is_excluded():
+def test_accepted_place_blocks_its_category_only_and_rejected_is_ignored():
+    places = [
+        mk_place("a", 3, 0, status=PlaceStatus.ACCEPTED),
+        mk_place("b", 3, 1),
+        mk_place("c", 3, 2, status=PlaceStatus.REJECTED),
+        mk_place("v", 3, 3, status=PlaceStatus.VISITED),
+        mk_place("d1", 1, 4, category=PlaceCategory.DRINK),
+        mk_place("d2", 1, 5, category=PlaceCategory.DRINK),
+    ]
+    assert [g.category for g in tied_groups(places)] == [PlaceCategory.DRINK]
+    resolved = tied_groups(places, ignore_accepted=True)
+    assert [p.name for p in resolved[0].candidates] == ["a", "b"]
+
+
+def test_member_without_own_origin_is_excluded_no_meeting_point():
     a, b, c = uuid4(), uuid4(), uuid4()
     rows = [(a, "A", (10.78, 106.70)), (b, "B", None), (c, "C", None)]
-    members, excluded = resolve_origins(rows, (10.77, 106.69))
-    assert excluded == 0
-    assert [m.origin_source for m in members] == [
-        OriginSource.MEMBER,
-        OriginSource.MEETING_POINT,
-        OriginSource.MEETING_POINT,
-    ]
-    assert members[1].origin == (10.77, 106.69)
-    members, excluded = resolve_origins(rows, None)
+    members, excluded = member_origins(rows)
     assert [m.member_id for m in members] == [a] and excluded == 2
+    assert members[0].origin_source is OriginSource.MEMBER
+    # ALGO-04 vẫn lùi về điểm hẹn (gđ6 §1, không đổi)
+    members, excluded = resolve_origins(rows, (10.77, 106.69))
+    assert excluded == 0 and members[1].origin_source is OriginSource.MEETING_POINT
 
 
 def test_place_without_coords_is_unranked_and_never_recommended():
-    places = mk_places({"near": (3, 1), "nocoord": (3, 0)})
-    places[1] = TiePlace(places[1].place_id, "nocoord", PlaceStatus.PROPOSED, 3, places[1].created_at, None)
-    members = mk_members(2)
-    matrix = [[Leg(10, 2.0), None], [Leg(12, 2.5), None]]
-    outcome = decide(places, members, matrix)
-    assert outcome.recommended_place_id == places[0].place_id
-    assert outcome.unranked == (places[1].place_id,)
-    assert outcome.margin_vs_second_min is None
+    near = mk_place("near", 3, 1)
+    nocoord = mk_place("nocoord", 3, 0, coord=None)
+    members = mk_members(["a", "b"])
+    go = [[Leg(10, 2.0), None], [Leg(12, 2.5), None]]
+    back = [[Leg(10, 2.0), None], [Leg(12, 2.5), None]]
+    out = decide(TieGroup(PlaceCategory.FOOD, (near, nocoord)), members, go, back)
+    assert out.recommended_place_id == near.place_id
+    assert out.unranked == (nocoord.place_id,)
+    assert out.runner_up_psi is None
+    assert out.ranking[0].max_min == 24  # 12 đi + 12 về
 
 
-def test_estimated_flag_false_only_when_every_leg_is_google():
-    from app.domain.patterns.itinerary.travel import TravelSource
-
-    places = mk_places({"a": (3, 0), "b": (3, 1)})
-    members = mk_members(1)
-    g = [[Leg(5, 1.0, TravelSource.GOOGLE), Leg(6, 1.0, TravelSource.GOOGLE)]]
-    assert decide(places, members, g).estimated is False
-    mixed = [[Leg(5, 1.0, TravelSource.GOOGLE), Leg(6, 1.0)]]
-    assert decide(places, members, mixed).estimated is True
+def test_no_members_or_no_coords_gives_no_recommendation():
+    p, q = mk_place("p", 3, 0, coord=None), mk_place("q", 3, 1, coord=None)
+    out = decide(TieGroup(PlaceCategory.FOOD, (p, q)), [], [], [])
+    assert out.recommended_place_id is None and out.ranking == () and set(out.unranked) == {p.place_id, q.place_id}
 
 
-# ── Chiến lược TRAVEL_TIME ────────────────────────────────────────────────────────────────────────
-def _summary(name: str, up: int, down: int, order: int) -> PlaceVoteSummary:
+def test_single_member_weight_is_one():
+    p, q = mk_place("p", 3, 0), mk_place("q", 3, 1)
+    members = mk_members(["solo"])
+    go = [[Leg(5, 1.0), Leg(5, 3.0)]]
+    back = [[Leg(5, 1.5), Leg(5, 0.5)]]
+    out = decide(TieGroup(PlaceCategory.FOOD, (p, q)), members, go, back)
+    assert out.recommended_place_id == p.place_id  # 2,5 km < 3,5 km
+    assert [(m.rank, m.weight, m.km) for m in out.members] == [(1, 1.0, 2.5)]
+
+
+def test_source_and_estimated_flags():
+    p, q = mk_place("p", 3, 0), mk_place("q", 3, 1)
+    members = mk_members(["a"])
+    g = TravelSource.GOOGLE
+    all_google = [[Leg(5, 1.0, g), Leg(6, 1.0, g)]]
+    out = decide(TieGroup(PlaceCategory.FOOD, (p, q)), members, all_google, all_google)
+    assert (out.estimated, out.source) == (False, "GOOGLE")
+    mixed = [[Leg(5, 1.0, g), Leg(6, 1.0)]]
+    out = decide(TieGroup(PlaceCategory.FOOD, (p, q)), members, mixed, all_google)
+    assert (out.estimated, out.source) == (True, "ESTIMATE")
+
+
+# ── Chiến lược TRAVEL_TIME (resolve) ─────────────────────────────────────────────────────────────
+def _summary(name: str, up: int, down: int, order: int, category: PlaceCategory = PlaceCategory.FOOD) -> PlaceVoteSummary:
     return PlaceVoteSummary(
         place_id=uuid4(),
         name=name,
+        category=category,
         submitted_by_id=uuid4(),
         created_at=T0 + timedelta(minutes=order),
         upvotes=up,
@@ -257,9 +354,9 @@ def _summary(name: str, up: int, down: int, order: int) -> PlaceVoteSummary:
     )
 
 
-def test_strategy_follows_ranking_and_groups_by_upvotes_not_score():
-    # b có score thấp hơn a (nhiều downvote) nhưng cùng upvotes → vẫn hoà, xếp theo thứ hạng đi lại
-    a, b, c = _summary("a", 5, 0, 0), _summary("b", 5, 3, 1), _summary("c", 2, 0, 2)
+def test_strategy_follows_ranking_and_groups_by_score():
+    # b: 6↑3↓ = 3 điểm, a: 3↑0↓ = 3 điểm → hoà theo điểm, xếp theo thứ hạng OMP
+    a, b, c = _summary("a", 3, 0, 0), _summary("b", 6, 3, 1), _summary("c", 2, 0, 2)
     strategy = TravelTimeTieBreakStrategy([b.place_id, a.place_id])
     ctx = TieBreakContext(room_id=uuid4(), host_member_id=uuid4())
     resolved, applied = resolve_voting_with_tie_break([a, b, c], 1, strategy, ctx)
@@ -269,6 +366,29 @@ def test_strategy_follows_ranking_and_groups_by_upvotes_not_score():
         ("c", "REJECTED"),
     ]
     assert applied
+
+
+def test_strategy_same_upvotes_but_different_score_is_not_tied():
+    """gđ6 gom theo upvotes; gđ7 theo điểm → a (5 điểm) thắng b (2 điểm) dù thứ hạng OMP đặt b trước."""
+    a, b = _summary("a", 5, 0, 0), _summary("b", 5, 3, 1)
+    strategy = TravelTimeTieBreakStrategy([b.place_id, a.place_id])
+    resolved, applied = resolve_voting_with_tie_break(
+        [a, b], 1, strategy, TieBreakContext(room_id=uuid4(), host_member_id=uuid4())
+    )
+    assert resolved[0].name == "a" and not applied
+
+
+def test_strategy_groups_per_category():
+    """Cùng 3 điểm nhưng khác loại → hai nhóm riêng; thứ hạng chỉ so trong một loại."""
+    f1, f2 = _summary("f1", 3, 0, 0), _summary("f2", 3, 0, 1)
+    d1 = _summary("d1", 3, 0, 2, PlaceCategory.DRINK)
+    strategy = TravelTimeTieBreakStrategy([f2.place_id, f1.place_id, d1.place_id])
+    assert TravelTimeTieBreakStrategy.group_key(f1) == (3, "FOOD")
+    resolved, applied = resolve_voting_with_tie_break(
+        [d1, f1, f2], 3, strategy, TieBreakContext(room_id=uuid4(), host_member_id=uuid4())
+    )
+    names = [r.name for r in resolved]
+    assert names.index("f2") < names.index("f1") and applied
 
 
 def test_strategy_without_ranking_falls_back_to_upvotes_then_earliest():
