@@ -1,0 +1,532 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T07:56:27+00:00",
+  "title": "Design System: Hangoutplanner",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Coral Nhóm Mình",
+        "canonical": "oklch(70.7% 0.187 34.1)",
+        "tonalRamp": [
+          "oklch(15% 0.085 34)",
+          "oklch(26% 0.114 34)",
+          "oklch(38% 0.144 34)",
+          "oklch(49% 0.173 34)",
+          "oklch(61% 0.173 34)",
+          "oklch(72% 0.144 34)",
+          "oklch(84% 0.114 34)",
+          "oklch(95% 0.085 34)"
+        ],
+        "darkValue": "#FF6B4A"
+      },
+      "accent-text": {
+        "role": "primary",
+        "displayName": "Coral Mực",
+        "canonical": "oklch(56.0% 0.178 32.3)",
+        "tonalRamp": [
+          "oklch(15% 0.081 32)",
+          "oklch(26% 0.108 32)",
+          "oklch(38% 0.136 32)",
+          "oklch(49% 0.164 32)",
+          "oklch(61% 0.164 32)",
+          "oklch(72% 0.136 32)",
+          "oklch(84% 0.108 32)",
+          "oklch(95% 0.081 32)"
+        ],
+        "darkValue": "#FF8566"
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Giấy Đá",
+        "canonical": "oklch(98.5% 0.001 106.4)",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#141210"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Trang Trắng",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#1F1D1A"
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Đá Nhạt",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#292522"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Vạch Đá",
+        "canonical": "oklch(92.3% 0.003 48.7)",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#38332E"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Mực Đá",
+        "canonical": "oklch(21.6% 0.006 56.0)",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#F5F5F4"
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Mực Phụ",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#A8A29E"
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Mực Mờ",
+        "tonalRamp": [
+          "oklch(15% 0.004 56)",
+          "oklch(26% 0.005 56)",
+          "oklch(38% 0.006 56)",
+          "oklch(49% 0.007 56)",
+          "oklch(61% 0.007 56)",
+          "oklch(72% 0.006 56)",
+          "oklch(84% 0.005 56)",
+          "oklch(95% 0.004 56)"
+        ],
+        "darkValue": "#8C857F"
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Xanh Đã Chốt",
+        "canonical": "oklch(50.8% 0.105 165.6)",
+        "tonalRamp": [
+          "oklch(15% 0.048 166)",
+          "oklch(26% 0.064 166)",
+          "oklch(38% 0.080 166)",
+          "oklch(49% 0.097 166)",
+          "oklch(61% 0.097 166)",
+          "oklch(72% 0.080 166)",
+          "oklch(84% 0.064 166)",
+          "oklch(95% 0.048 166)"
+        ],
+        "darkValue": "#34D399"
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Hổ Phách Cảnh Báo",
+        "canonical": "oklch(55.5% 0.146 49.0)",
+        "tonalRamp": [
+          "oklch(15% 0.066 49)",
+          "oklch(26% 0.089 49)",
+          "oklch(38% 0.111 49)",
+          "oklch(49% 0.134 49)",
+          "oklch(61% 0.134 49)",
+          "oklch(72% 0.111 49)",
+          "oklch(84% 0.089 49)",
+          "oklch(95% 0.066 49)"
+        ],
+        "darkValue": "#FBBF24"
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Đỏ Lỗi",
+        "canonical": "oklch(50.5% 0.190 27.5)",
+        "tonalRamp": [
+          "oklch(15% 0.087 28)",
+          "oklch(26% 0.116 28)",
+          "oklch(38% 0.146 28)",
+          "oklch(49% 0.176 28)",
+          "oklch(61% 0.176 28)",
+          "oklch(72% 0.146 28)",
+          "oklch(84% 0.116 28)",
+          "oklch(95% 0.087 28)"
+        ],
+        "darkValue": "#F87171"
+      },
+      "info": {
+        "role": "status",
+        "displayName": "Xanh Gợi Ý",
+        "canonical": "oklch(50.0% 0.119 242.7)",
+        "tonalRamp": [
+          "oklch(15% 0.054 243)",
+          "oklch(26% 0.073 243)",
+          "oklch(38% 0.091 243)",
+          "oklch(49% 0.110 243)",
+          "oklch(61% 0.110 243)",
+          "oklch(72% 0.091 243)",
+          "oklch(84% 0.073 243)",
+          "oklch(95% 0.054 243)"
+        ],
+        "darkValue": "#38BDF8"
+      },
+      "stage-paper": {
+        "role": "stage",
+        "displayName": "Giấy Nắng",
+        "canonical": "oklch(96.6% 0.022 83.3)",
+        "tonalRamp": [
+          "oklch(15% 0.010 83)",
+          "oklch(26% 0.013 83)",
+          "oklch(38% 0.017 83)",
+          "oklch(49% 0.020 83)",
+          "oklch(61% 0.020 83)",
+          "oklch(72% 0.017 83)",
+          "oklch(84% 0.013 83)",
+          "oklch(95% 0.010 83)"
+        ],
+        "darkValue": "#1A1420"
+      },
+      "stage-sun": {
+        "role": "stage",
+        "displayName": "Hoa Sứ",
+        "canonical": "oklch(76.5% 0.159 78.4)",
+        "tonalRamp": [
+          "oklch(15% 0.072 78)",
+          "oklch(26% 0.097 78)",
+          "oklch(38% 0.122 78)",
+          "oklch(49% 0.147 78)",
+          "oklch(61% 0.147 78)",
+          "oklch(72% 0.122 78)",
+          "oklch(84% 0.097 78)",
+          "oklch(95% 0.072 78)"
+        ],
+        "darkValue": "#FFC94D"
+      },
+      "accent-soft": {
+        "role": "primary",
+        "darkValue": "#3A1F18"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Stage)",
+        "purpose": "Khẩu hiệu hero và tiêu đề lớn vùng Stage; Bricolage Grotesque."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Tiêu đề trang chủ phần Operate (desktop 44/52)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Tiêu đề màn/sheet."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Tiêu đề nhóm; tên quán ở chi tiết."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Chữ thường và ô nhập 16px."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Nhãn, nút md, chip, meta."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Thông tin phụ; cỡ nhỏ nhất cho phép."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 8px 24px rgb(28 25 23 / 0.12)",
+        "darkValue": "0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.08)",
+        "purpose": "Bóng duy nhất của Operate: sheet, toast, menu, panel nổi trên bản đồ."
+      },
+      {
+        "name": "stage-shadow-long",
+        "value": "14px -10px 32px rgb(107 74 54 / 0.18)",
+        "darkValue": "14px -10px 32px rgb(0 0 0 / 0.5)",
+        "purpose": "Chỉ Stage: bóng nắng dài một hướng (tây nam → đông bắc)."
+      },
+      {
+        "name": "scrim",
+        "value": "rgb(28 25 23 / 0.4)",
+        "darkValue": "rgb(0 0 0 / 0.6)",
+        "purpose": "Nền mờ đặc sau sheet, không blur."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Easing mặc định cho mọi chuyển trạng thái Operate."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.76, 0, 0.24, 1)",
+        "purpose": "Chuyển đổi đối xứng (đổi rộng cột)."
+      },
+      {
+        "name": "t-press",
+        "value": "120ms",
+        "purpose": "Nhấn: scale 0.97."
+      },
+      {
+        "name": "t-hover",
+        "value": "160ms",
+        "purpose": "Hover (chỉ khi có hover)."
+      },
+      {
+        "name": "t-ui",
+        "value": "220ms",
+        "purpose": "Đổi trạng thái UI, đổi rộng cột."
+      },
+      {
+        "name": "t-sheet",
+        "value": "320ms",
+        "purpose": "Sheet/dialog vào ra."
+      },
+      {
+        "name": "t-moment",
+        "value": "600ms",
+        "purpose": "Khoảnh khắc nhỏ có chủ đích."
+      },
+      {
+        "name": "ease-camera",
+        "value": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "purpose": "Stage: camera bản đồ, chuyển cảnh lớn."
+      },
+      {
+        "name": "ease-throw",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "Stage: thẻ bị quăng khi quẹt."
+      },
+      {
+        "name": "t-swipe",
+        "value": "280ms",
+        "purpose": "Stage: quẹt thẻ."
+      },
+      {
+        "name": "t-tab",
+        "value": "260ms",
+        "purpose": "Stage: chuyển tab."
+      },
+      {
+        "name": "t-fly",
+        "value": "520ms",
+        "purpose": "Stage: bay camera ngắn."
+      },
+      {
+        "name": "t-shot",
+        "value": "1400ms",
+        "purpose": "Stage: cảnh hero."
+      },
+      {
+        "name": "t-reveal",
+        "value": "1800ms",
+        "purpose": "Stage: reveal chốt quán."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Hành động chính duy nhất của bước: nền coral, chữ mực.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224 128a8 8 0 0 1-8 8h-80v80a8 8 0 0 1-16 0v-80H40a8 8 0 0 1 0-16h80V40a8 8 0 0 1 16 0v80h80a8 8 0 0 1 8 8Z\"/></svg><span>Thêm quán</span></button>",
+      "css": ".ds-btn-primary { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 20px; font-size: 14px; line-height: 20px; border-radius: 9999px; border: none; cursor: pointer; transition: transform 120ms cubic-bezier(0.22,1,0.36,1), background-color 160ms cubic-bezier(0.22,1,0.36,1), color 160ms cubic-bezier(0.22,1,0.36,1); background: rgb(var(--color-accent, 255 107 74)); color: rgb(var(--color-ink, 28 25 23)); font-weight: 600; } @media (hover: hover) { .ds-btn-primary:hover { background: rgb(var(--color-accent-hover, 242 92 60)); } } .ds-btn-primary:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Hành động phụ: nền đá nhạt, viền vạch đá.",
+      "html": "<button class=\"ds-btn-secondary\">Gửi link</button>",
+      "css": ".ds-btn-secondary { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 20px; font-size: 14px; line-height: 20px; border-radius: 9999px; border: none; cursor: pointer; transition: transform 120ms cubic-bezier(0.22,1,0.36,1), background-color 160ms cubic-bezier(0.22,1,0.36,1), color 160ms cubic-bezier(0.22,1,0.36,1); background: rgb(var(--color-surface-2, 245 245 244)); color: rgb(var(--color-ink, 28 25 23)); font-weight: 600; border: 1px solid rgb(var(--color-line, 231 229 228)); } @media (hover: hover) { .ds-btn-secondary:hover { background: rgb(var(--color-line, 231 229 228)); } } .ds-btn-secondary:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-btn-secondary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Hành động nhẹ, chỉ chữ.",
+      "html": "<button class=\"ds-btn-ghost\">Để sau</button>",
+      "css": ".ds-btn-ghost { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 20px; font-size: 14px; line-height: 20px; border-radius: 9999px; border: none; cursor: pointer; transition: transform 120ms cubic-bezier(0.22,1,0.36,1), background-color 160ms cubic-bezier(0.22,1,0.36,1), color 160ms cubic-bezier(0.22,1,0.36,1); background: transparent; color: rgb(var(--color-ink-2, 87 83 78)); font-weight: 500; } @media (hover: hover) { .ds-btn-ghost:hover { background: rgb(var(--color-surface-2, 245 245 244)); color: rgb(var(--color-ink, 28 25 23)); } } .ds-btn-ghost:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-btn-ghost:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Xoá, rời phòng: nền đỏ nhạt, chữ đỏ.",
+      "html": "<button class=\"ds-btn-danger\">Xoá quán</button>",
+      "css": ".ds-btn-danger { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 20px; font-size: 14px; line-height: 20px; border-radius: 9999px; border: none; cursor: pointer; transition: transform 120ms cubic-bezier(0.22,1,0.36,1), background-color 160ms cubic-bezier(0.22,1,0.36,1), color 160ms cubic-bezier(0.22,1,0.36,1); background: rgb(var(--color-danger-soft, 254 242 242)); color: rgb(var(--color-danger, 185 28 28)); font-weight: 600; border: 1px solid rgb(var(--color-danger, 185 28 28) / 0.2); } @media (hover: hover) { .ds-btn-danger:hover { background: rgb(var(--color-danger, 185 28 28) / 0.2); } } .ds-btn-danger:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-btn-danger:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Lọc loại quán, tag đánh giá; chọn = coral nhạt.",
+      "html": "<div class=\"ds-chip-row\"><button class=\"ds-chip\" aria-pressed=\"false\">Ăn uống</button><button class=\"ds-chip ds-chip--on\" aria-pressed=\"true\">Cà phê<span class=\"ds-chip-x\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31l-66.34 66.35a8 8 0 0 1-11.32-11.32L116.69 128 50.34 61.66a8 8 0 0 1 11.32-11.32L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z\"/></svg></span></button></div>",
+      "css": ".ds-chip-row { display: flex; gap: 8px; } .ds-chip { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 14px; border-radius: 9999px; border: 1px solid transparent; background: rgb(var(--color-surface-2, 245 245 244)); color: rgb(var(--color-ink-2, 87 83 78)); font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: transform 120ms cubic-bezier(0.22,1,0.36,1), background-color 160ms; } @media (hover: hover) { .ds-chip:hover { background: rgb(var(--color-line, 231 229 228)); } } .ds-chip:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-chip:active { transform: scale(0.97); } .ds-chip--on { background: rgb(var(--color-accent-soft, 255 241 236)); color: rgb(var(--color-accent-text, 199 62 38)); border-color: rgb(var(--color-accent, 255 107 74) / 0.2); font-weight: 600; } @media (hover: hover) { .ds-chip--on:hover { background: rgb(var(--color-accent-soft, 255 241 236)); } } .ds-chip-x { display: inline-flex; margin-left: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Thẻ quán: phẳng, bo 16, viền vạch đá; hover viền coral nhạt.",
+      "html": "<article class=\"ds-card\" tabindex=\"0\"><div class=\"ds-card-title\">Quán Bụi</div><div class=\"ds-card-meta\">Ăn uống · 1,2 km · 17:00–23:00</div></article>",
+      "css": ".ds-card { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: block; width: 280px; padding: 16px; border-radius: 16px; background: rgb(var(--color-surface, 255 255 255)); border: 1px solid rgb(var(--color-line, 231 229 228)); cursor: pointer; transition: border-color 160ms, background-color 160ms; } @media (hover: hover) { .ds-card:hover { border-color: rgb(var(--color-accent, 255 107 74) / 0.4); } } .ds-card:active { background: rgb(var(--color-surface-2, 245 245 244)); } .ds-card:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-card-title { font-size: 16px; line-height: 24px; font-weight: 600; color: rgb(var(--color-ink, 28 25 23)); } .ds-card-meta { margin-top: 4px; font-size: 14px; line-height: 20px; color: rgb(var(--color-ink-2, 87 83 78)); font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Nhãn phía trên, gợi ý bên dưới, focus viền coral mực.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Biệt danh</span><input class=\"ds-input\" value=\"Bảo\" /><span class=\"ds-field-hint\">Cả nhóm sẽ thấy tên này.</span></label>",
+      "css": ".ds-field { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: flex; flex-direction: column; width: 280px; } .ds-field-label { font-size: 14px; line-height: 20px; font-weight: 500; color: rgb(var(--color-ink, 28 25 23)); margin-bottom: 6px; } .ds-input { font-family: 'Be Vietnam Pro', system-ui, sans-serif; min-height: 44px; padding: 10px 14px; font-size: 16px; line-height: 24px; color: rgb(var(--color-ink, 28 25 23)); background: rgb(var(--color-surface, 255 255 255)); border: 1px solid rgb(var(--color-line, 231 229 228)); border-radius: 12px; outline: none; transition: border-color 160ms, box-shadow 160ms; } .ds-input::placeholder { color: rgb(var(--color-ink-3, 120 113 108)); } .ds-input:focus { border-color: rgb(var(--color-accent-text, 199 62 38)); box-shadow: 0 0 0 1px rgb(var(--color-accent-text, 199 62 38)); } .ds-field-hint { margin-top: 6px; font-size: 13px; line-height: 18px; color: rgb(var(--color-ink-3, 120 113 108)); }"
+    },
+    {
+      "name": "Segmented",
+      "kind": "nav",
+      "refersTo": "segmented",
+      "description": "Chọn một trong vài chế độ (theme, ngôn ngữ, tab nhỏ).",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-item ds-seg-item--on\" role=\"radio\" aria-checked=\"true\">Khám phá</button><button class=\"ds-seg-item\" role=\"radio\" aria-checked=\"false\">Kế hoạch</button></div>",
+      "css": ".ds-seg { font-family: 'Be Vietnam Pro', system-ui, sans-serif; display: inline-flex; align-items: center; padding: 4px; border-radius: 9999px; background: rgb(var(--color-surface-2, 245 245 244)); border: 1px solid rgb(var(--color-line, 231 229 228)); } .ds-seg-item { font-family: 'Be Vietnam Pro', system-ui, sans-serif; min-height: 36px; padding: 6px 16px; border: none; border-radius: 9999px; background: transparent; color: rgb(var(--color-ink-2, 87 83 78)); font-size: 14px; font-weight: 500; cursor: pointer; transition: transform 120ms cubic-bezier(0.22,1,0.36,1), color 160ms; } @media (hover: hover) { .ds-seg-item:hover { color: rgb(var(--color-ink, 28 25 23)); } } .ds-seg-item:focus-visible { outline: 2px solid rgb(var(--color-accent-text, 199 62 38)); outline-offset: 2px; } .ds-seg-item:active { transform: scale(0.97); } .ds-seg-item--on { background: rgb(var(--color-surface, 255 255 255)); color: rgb(var(--color-ink, 28 25 23)); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }"
+    },
+    {
+      "name": "Wordmark",
+      "kind": "custom",
+      "refersTo": "brand-mark-bg",
+      "description": "Logo chữ Hangoutplanner: bản full hai tầng và ô mark \"H.\".",
+      "html": "<div class=\"ds-wm-row\"><span class=\"ds-wm\" role=\"img\" aria-label=\"Hangoutplanner\"><span class=\"ds-wm-top\" aria-hidden=\"true\">Hangout</span><span class=\"ds-wm-sub\" aria-hidden=\"true\">PLANNER</span></span><span class=\"ds-mark\" role=\"img\" aria-label=\"Hangoutplanner\"><span aria-hidden=\"true\">H<b>.</b></span></span></div>",
+      "css": ".ds-wm-row { display: flex; align-items: center; gap: 24px; } .ds-wm { display: inline-flex; flex-direction: column; gap: 4px; } .ds-wm-top { font-family: 'Bricolage Grotesque', 'Be Vietnam Pro', system-ui, sans-serif; font-weight: 800; font-size: 28px; line-height: 0.9; letter-spacing: -0.025em; color: rgb(var(--color-ink, 28 25 23)); } .ds-wm-sub { font-family: 'Be Vietnam Pro', system-ui, sans-serif; font-weight: 700; font-size: 9.3px; line-height: 1; letter-spacing: 0.42em; margin-right: -0.42em; color: rgb(var(--color-accent-text, 199 62 38)); } .ds-mark { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 28%; background: rgb(var(--brand-mark-bg, 28 25 23)); box-shadow: inset 0 0 0 1px rgb(var(--brand-mark-ink, 250 250 249) / 0.2); font-family: 'Bricolage Grotesque', 'Be Vietnam Pro', system-ui, sans-serif; font-weight: 800; font-size: 20px; line-height: 1; letter-spacing: -0.02em; color: rgb(var(--brand-mark-ink, 250 250 249)); } .ds-mark b { color: rgb(var(--brand-mark-dot, 255 133 102)); font-weight: 800; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Người sắp xếp kín tiếng",
+    "overview": "Hangoutplanner là người bạn trong nhóm lo hết việc sắp xếp nhưng không bao giờ nói nhiều. Trong phòng, giao diện lùi về sau: nền xám ấm phẳng lặng, một họ chữ, bề mặt tách nhau bằng nấc màu thay vì đường kẻ hay bóng. Mỗi giai đoạn chỉ đưa ra đúng việc cần làm lúc đó với **một** nút coral. Phần còn lại (\"Vì sao?\", chi tiết quán, lịch đầy đủ) nằm sau một thao tác, sẵn đó khi người dùng hỏi tới, không bày sẵn ra màn hình.\n\nHệ chia làm hai vùng có chủ đích. **Operate** (mọi thứ lặp lại trong phòng: danh sách, bản đồ, lịch, form, sheet) phẳng, yên, quen tay, dày vừa đủ để quét nhanh trên điện thoại 360px. **Stage** (trang chủ bản đồ 3D, quẹt phiếu, reveal chốt quán, thẻ chuyến đi) là con phố nắng bên ngoài: giấy kem \"Sài Gòn nắng\", chữ display Bricolage Grotesque, một luồng ánh sáng chiều và bóng dài một hướng. Người sắp xếp chỉ lên tiếng ở vài khoảnh khắc nhóm thật sự nhớ. Xong là trở lại yên lặng.\n\nCái vui đến từ coral, chữ to rõ, lời văn tự nhiên và vài khoảnh khắc có chủ đích. Nó không đến từ emoji, gradient hay hiệu ứng rải khắp nơi. Bị loại rõ ràng: glass/blur trang trí, chữ gradient, eyebrow viết hoa giãn chữ, thẻ icon xếp hàng ba, emoji làm icon, màu xám lạnh trộn với xám ấm.",
+    "keyCharacteristics": [
+      "Một màu nhấn duy nhất (Coral Nhóm Mình) và nó luôn mang nghĩa \"lựa chọn của nhóm\".",
+      "Phẳng theo mặc định; độ sâu bằng nấc màu, bóng chỉ cho thứ thật sự nổi.",
+      "Một họ chữ trong phòng (Be Vietnam Pro); font display chỉ ở Stage.",
+      "Mobile-first, vùng chạm ≥ 44px, chữ tiếng Việt có dấu chồng luôn đủ khoảng dòng.",
+      "Dark mode ấm (\"không đen tuyệt đối\"), cùng hệ chứ không phải palette thứ hai; bản đồ luôn sáng."
+    ],
+    "rules": [
+      {
+        "name": "The Coral Means Us Rule",
+        "body": "Coral chỉ xuất hiện trên thứ thuộc về lựa chọn của nhóm hoặc hành động chính của bước. Nút coral thứ hai trên cùng một màn, hay coral để trang trí, là sai.",
+        "section": "colors"
+      },
+      {
+        "name": "The No White On Coral Rule",
+        "body": "Chữ trắng trên coral chỉ đạt 2.8:1 và bị cấm. Nút chính luôn là nền `accent` + chữ `ink` đậm 600.",
+        "section": "colors"
+      },
+      {
+        "name": "The Always-Light Map Rule",
+        "body": "Bản đồ và lớp quán (`PoiLayer.ts`) luôn dùng bảng màu sáng, kể cả khi app ở theme tối.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stacked Diacritics Rule",
+        "body": "Dấu chồng (Ể, Ỗ, Ậ) cao gần gấp đôi dấu thường. Line-height tiêu đề ≥ 1.25 (Stage ≥ 1.2 ở cỡ ≥ 48px), chữ thường ≥ 1.5. Không `leading-none`.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Eyebrow Rule",
+        "body": "Không có nhãn nhỏ VIẾT HOA giãn chữ trên tiêu đề. Tiêu đề mục dùng 15px đậm `ink-2`. Ngoại lệ duy nhất là dòng `PLANNER` trong logo chữ.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Viết hoa kiểu câu ở cả hai ngôn ngữ (\"Thêm quán\", \"Add a place\"). Mã phòng dùng `tabular-nums` + `letter-spacing: 0.08em`, không monospace. Mọi số đứng cạnh nhau dùng class `.num`.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Bề mặt đứng yên thì phẳng. Bóng chỉ dành cho thứ đang thật sự nằm trên thứ khác.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Stage-Only Light Rule",
+        "body": "Gradient (`--stage-sunlight`) và `backdrop-filter` (≤ 12px, sau chữ đè lên bản đồ hero) chỉ có ở Stage. Operate không có gradient, glow hay glass.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do đưa mọi màu qua token (`bg-surface`, `text-ink-2`, `rgb(var(--color-…))`) và khai báo màu tối ở **cả hai** khối dark trong `tokens.css`.",
+      "Do giữ đúng một nút coral mỗi bước. Mọi hành động khác là nút phụ, ghost hoặc liên kết.",
+      "Do đặt thông tin phụ sau một thao tác (\"Vì sao?\", chi tiết quán) thay vì trải sẵn ra màn hình.",
+      "Do đặt cảnh báo ngay trên thứ nó liên quan (mục lịch bị trùng, quán vượt giờ), không dùng banner ghim toàn trang.",
+      "Do kiểm mọi màn ở 360px bằng cả tiếng Việt lẫn tiếng Anh. Không đặt chiều rộng cố định cho chữ.",
+      "Do cho mỗi trạng thái đủ chữ + icon, không chỉ màu. Loading là skeleton đúng hình nội dung.",
+      "Do dùng motion token (`--t-press` 120 · `--t-hover` 160 · `--t-ui` 220 · `--t-sheet` 320 · `--t-moment` 600, `--ease-out`). Khi `prefers-reduced-motion` thì bỏ di chuyển/scale, giữ đổi màu và opacity."
+    ],
+    "donts": [
+      "Don't để chữ trắng trên coral, và đừng dùng coral cho thứ không phải lựa chọn của nhóm hay hành động chính.",
+      "Don't dùng gradient, glow, glass hay blur trang trí ở Operate. Đừng dùng chữ gradient ở bất kỳ đâu.",
+      "Don't để một thứ có cả viền 1px lẫn bóng. Đừng đặt bóng xám dưới mọi thẻ.",
+      "Don't dùng eyebrow VIẾT HOA giãn chữ, đánh số 01/02/03 trang trí, pill \"New/Beta\" hay hàng 3 thẻ icon giống hệt nhau.",
+      "Don't dùng emoji làm icon, monospace làm \"chất kỹ thuật\", hay điều hướng chỉ có icon.",
+      "Don't dùng `h-screen`, `transition: all`, bounce/elastic, hiệu ứng lặp vô hạn (shimmer, pulse, xoay mãi) hay `z-[9999]`.",
+      "Don't dùng modal cho việc làm được ngay tại chỗ (vote, lọc, đổi tab), hay `alert()`/`confirm()`.",
+      "Don't để file Operate import `gsap`, `motion/*`, `sound/*` hoặc `stage/*`. Hiệu ứng Stage ở lại trong Stage.",
+      "Don't đổi bản đồ sang bảng màu tối theo theme app."
+    ]
+  }
+}
