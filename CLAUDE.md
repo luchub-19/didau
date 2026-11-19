@@ -3,9 +3,10 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 8 "Vì sao? cho buổi demo" (T-106 → T-109) — G1 QUA 2026-11-19; trình bày thứ Hai 2026-11-23
+## Giai đoạn 8 "Vì sao? cho buổi demo" (T-106 → T-109) — T-109 XONG 2026-11-19, CHỜ G2 (người dùng tổng duyệt `DEMO.md` trên bản deploy); trình bày thứ Hai 2026-11-23
 Làm "Vì sao?" của thẻ hoà cho thầy thấy ý đồ OMP (công bằng cho người ở xa) trong ≤ 3′ chiếu laptop, không làm rối màn mặc định.
 - Plan, quyết định (13 mục), lý do tâm lý/sắp xếp, đặc tả panel: `docs/phase8/PLAN.md`. Tiến độ: `docs/phase8/PROGRESS.md`.
+  Kịch bản 3′ + zoom chốt (100 %) + "Nếu hỏng thì": `docs/phase8/DEMO.md`. Chưa push T-107/T-108 → deploy chưa có "Vì sao?" mới.
 - **Bẫy:** ca demo cũ (genz, omp) có OMP = cộng tổng km → T-106 phải dò ca mới trên km Valhalla. Thẻ đề xuất giữ nguyên;
   không tầng 3, không hiện Ψ/trọng số; không vẽ gì từ nhà người khác (CR-11). CR-19 APPROVED (áp ở T-107).
 

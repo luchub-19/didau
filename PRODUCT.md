@@ -13,8 +13,9 @@ web
   không ngồi khám phá giao diện.
 - **Host** (người tạo phòng): người duy nhất xác nhận đề xuất, chốt quán, quyết định khi hoà phiếu.
 - **Member** (người vào bằng mã/link): đề xuất quán, bình chọn, xem kế hoạch chung.
-- Người chấm đồ án và người xem demo **không** phải đối tượng thiết kế của app này. Phần trình bày thuật toán nằm ở
-  một web riêng do nhóm làm (cho buổi demo khác); app này đánh giá bằng đúng trải nghiệm thật của nhóm bạn.
+- Người chấm đồ án và người xem demo **không** phải đối tượng thiết kế của app này. Buổi demo trên lớp dùng chính nút
+  "Vì sao?" của thẻ hoà để cho thấy ý đồ thuật toán (công bằng cho người ở xa); không có chế độ trình chiếu riêng và không
+  thêm gì vào màn mặc định — app vẫn đánh giá bằng đúng trải nghiệm thật của nhóm bạn.
 
 ## Product Purpose
 
