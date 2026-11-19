@@ -230,6 +230,90 @@ function mockTieSuggestion(): TieSuggestion {
   return { available: true, reason: null, suggestions };
 }
 
+/* ---------- T-108: ca demo buổi trình bày (T-106, km Valhalla) cho dev ---------- */
+
+/** Bật bằng `localStorage.setItem('didau.mock.tieDemo', '1')` khi chạy `VITE_ENABLE_MOCK=true npm run dev`. */
+export const MOCK_TIE_DEMO_KEY = 'didau.mock.tieDemo';
+
+function tieDemoEnabled(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(MOCK_TIE_DEMO_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+const TIE_DEMO_PLACES: [id: string, name: string, address: string, lat: number, lng: number][] = [
+  ['demo-pizza', "Pizza 4P's Thiso Mall Sala", 'Thiso Mall Sala, An Lợi Đông, TP. Thủ Đức', 10.7713, 106.7224],
+  ['demo-haidilao', 'Haidilao Giga Mall', 'Giga Mall, Hiệp Bình Chánh, TP. Thủ Đức', 10.8277, 106.7213],
+  ['demo-dookki', 'Dookki SC VivoCity', 'SC VivoCity, Tân Phong, Quận 7', 10.7302, 106.7044],
+];
+let tieDemoSeeded = false;
+
+/** Cờ demo bật: phòng mẫu về giai đoạn hoà — 3 quán Ăn của T-106 cùng 3 điểm, chưa có lịch, chưa chốt. */
+function seedTieDemoOnce(): void {
+  if (tieDemoSeeded || !tieDemoEnabled()) return;
+  tieDemoSeeded = true;
+  const base = mockPlaces.find((p) => p.category === 'FOOD') ?? mockPlaces[0];
+  placesList = TIE_DEMO_PLACES.map(([id, name, address, latitude, longitude], i) => ({
+    ...base,
+    id,
+    name,
+    address,
+    latitude,
+    longitude,
+    category: 'FOOD',
+    status: 'VOTING',
+    upvotes: 3,
+    downvotes: 0,
+    score: 3,
+    current_user_vote: i === 1 ? 0 : 1,
+    created_at: `2026-11-19T10:0${i}:00Z`,
+  }));
+  scheduleList = [];
+  conflictsList = [];
+}
+
+/**
+ * Ca ĂN của T-106 (λ = 1, k = 2): OMP chọn Pizza 4P's Thiso, cộng tổng km chọn Haidilao (Xeko 74', thêm 14').
+ * Số quán (Ψ, tổng, xa nhất) lấy từ PROGRESS gđ8; km/phút từng người tới Pizza 4P's chỉ là số minh hoạ khớp tổng
+ * 68,2 km và Xuka 24,7 km/60'. "Nobita" mang id của người đang xem để thấy nhãn "(bạn)".
+ */
+export function mockTieDemo(myMemberId: string): TieSuggestion {
+  const ids = { nobita: myMemberId, doraemon: 'demo-doraemon', xuka: 'demo-xuka', xeko: 'demo-xeko' };
+  return {
+    available: true,
+    reason: null,
+    suggestions: [
+      {
+        category: 'FOOD',
+        candidates: [
+          { place_id: 'demo-pizza', name: "Pizza 4P's Thiso Mall Sala", upvotes: 3, downvotes: 0, score: 3 },
+          { place_id: 'demo-haidilao', name: 'Haidilao Giga Mall', upvotes: 3, downvotes: 0, score: 3 },
+          { place_id: 'demo-dookki', name: 'Dookki SC VivoCity', upvotes: 3, downvotes: 0, score: 3 },
+        ],
+        recommended_place_id: 'demo-pizza',
+        ranking: [
+          { place_id: 'demo-pizza', rank: 1, psi: 2291.6, max_km: 24.7, total_km: 68.2, max_min: 60, farthest_member_id: ids.xuka },
+          { place_id: 'demo-haidilao', rank: 2, psi: 2485.5, max_km: 30.4, total_km: 63.5, max_min: 74, farthest_member_id: ids.xeko },
+          { place_id: 'demo-dookki', rank: 3, psi: 4285.9, max_km: 38.7, total_km: 81.5, max_min: 94, farthest_member_id: ids.xuka },
+        ],
+        members: [
+          { member_id: ids.nobita, nickname: 'Nobita', km: 9.8, minutes: 26, rank: 1, weight: 1 },
+          { member_id: ids.doraemon, nickname: 'Doraemon', km: 13.9, minutes: 34, rank: 2, weight: 1.333 },
+          { member_id: ids.xeko, nickname: 'Xeko', km: 19.8, minutes: 50, rank: 3, weight: 1.667 },
+          { member_id: ids.xuka, nickname: 'Xuka', km: 24.7, minutes: 60, rank: 4, weight: 2 },
+        ],
+        runner_up_psi: 2485.5,
+        excluded_member_count: 0,
+        estimated: false,
+        source: 'VALHALLA',
+        params: { lambda: OMP_LAMBDA, k: OMP_K },
+      },
+    ],
+  };
+}
+
 /** Thứ hạng cho resolve TRAVEL_TIME: nối thứ hạng từng loại (như `travel_ranking` của backend). */
 function mockTravelRanking(): string[] {
   return mockTieSuggestion().suggestions.flatMap((x) => [
@@ -397,6 +481,7 @@ export function resetMockDb(): void {
   googleLinks.clear();
   decisionSessions.clear();
   decisionSwipes.clear();
+  tieDemoSeeded = false;
 }
 
 
@@ -566,6 +651,7 @@ export const handlers = [
 
   // 3. Lấy thông tin phòng
   http.get('*/api/v1/rooms/:roomId', ({ params }) => {
+    seedTieDemoOnce();
     const { roomId } = params;
     if (roomId !== currentRoom.id && roomId !== mockRoom.id) {
       return HttpResponse.json(
@@ -681,6 +767,7 @@ export const handlers = [
 
   // 5. Lấy danh sách địa điểm (CR-12: kèm `priority`; `?sort=priority` theo rank, quán bị loại xuống cuối)
   http.get('*/api/v1/rooms/:roomId/places', ({ request }) => {
+    seedTieDemoOnce();
     const pri = mockPriorities();
     const list = placesList.map((p) => ({ ...p, priority: pri.get(p.id) ?? null }));
     if (new URL(request.url).searchParams.get('sort') === 'priority') {
@@ -950,8 +1037,10 @@ export const handlers = [
 
   // 11c. Gợi ý hoà phiếu OMP theo loại (CR-15): cùng luật với backend, km khứ hồi ước lượng 25 km/h
   http.get('*/api/v1/rooms/:roomId/tie-break/suggestion', ({ request }) => {
-    if (!request.headers.get('X-Member-Token')) return unauthorized();
-    return HttpResponse.json(mockTieSuggestion(), { headers: versionHeaders() });
+    const token = request.headers.get('X-Member-Token');
+    if (!token) return unauthorized();
+    const body = tieDemoEnabled() ? mockTieDemo(memberForToken(token).id) : mockTieSuggestion();
+    return HttpResponse.json(body, { headers: versionHeaders() });
   }),
 
   // 11d. Tổng khả thi của lịch (ALGO-03, CR-12 phần 2)
@@ -1018,6 +1107,7 @@ export const handlers = [
 
   // 12. Lấy danh sách lịch trình
   http.get('*/api/v1/rooms/:roomId/schedule', () => {
+    seedTieDemoOnce();
     return HttpResponse.json(scheduleList);
   }),
 

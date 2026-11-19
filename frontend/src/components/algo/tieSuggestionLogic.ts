@@ -1,4 +1,4 @@
-// Hàm thuần của đề xuất hoà phiếu OMP (CR-15, T-96; không React): câu ngắn, bảng "Vì sao?", quán sẽ được chốt,
+// Hàm thuần của đề xuất hoà phiếu OMP (CR-15, T-96; không React): câu ngắn, biểu đồ "Vì sao?" (T-108), quán sẽ được chốt,
 // chữ ký làm mới. Mọi số lấy nguyên từ server — FE không tự tính Ψ hay cộng km.
 import type { CategoryTieSuggestion, Place, ResolveVotingRequest, Room, TieRanking, TieSuggestion } from '../../types';
 import type { Language } from '../../i18n/useLanguage';
@@ -11,11 +11,6 @@ const nf = (lang: Language, opts?: Intl.NumberFormatOptions) => new Intl.NumberF
 /** "57'" theo locale (số lớn có dấu nhóm). */
 export function formatMinutes(n: number, lang: Language = 'vi'): string {
   return `${nf(lang).format(Math.round(n))}'`;
-}
-
-/** Trọng số hạng: "×1,25" (VI) / "×1.25" (EN), tối đa 2 số lẻ. */
-export function formatWeight(w: number, lang: Language = 'vi'): string {
-  return `×${nf(lang, { maximumFractionDigits: 2 }).format(w)}`;
 }
 
 /** Gợi ý của một loại chỉ "dùng được" khi có quán đề xuất nằm trong `ranking`. */
@@ -43,7 +38,7 @@ export function tieDelta(s: CategoryTieSuggestion): TieDelta {
   return km > 0 ? { kind: 'total', km } : null;
 }
 
-/* ---------- Bảng "Vì sao?" (PLAN gđ7 §5.3: từng người, nói bằng lời, không chữ Ψ) ---------- */
+/* ---------- "Vì sao?" (PLAN gđ8 §5: hai biểu đồ thanh chung thước + câu đối chiếu với "cộng tổng km") ---------- */
 
 export interface TieWhyRow {
   memberId: string;
@@ -53,21 +48,18 @@ export interface TieWhyRow {
   minutes: number;
   /** km đi + về. */
   km: number;
-  rank: number;
-  weight: number;
 }
 
+/** Từng người tới quán đề xuất, xa → gần (phút, rồi km; bằng nhau giữ theo `rank` của server). */
 export function buildWhyRows(s: CategoryTieSuggestion, myMemberId?: string | null): TieWhyRow[] {
   return [...s.members]
-    .sort((a, b) => a.rank - b.rank)
+    .sort((a, b) => b.minutes - a.minutes || b.km - a.km || b.rank - a.rank)
     .map((m) => ({
       memberId: m.member_id,
       nickname: m.nickname,
       me: Boolean(myMemberId) && m.member_id === myMemberId,
       minutes: m.minutes,
       km: m.km,
-      rank: m.rank,
-      weight: m.weight,
     }));
 }
 
@@ -75,6 +67,8 @@ export interface TieCompareRow {
   placeId: string;
   name: string;
   recommended: boolean;
+  /** Quán mà phép "cộng tổng km" sẽ chọn — chỉ gắn khi khác quán đề xuất. */
+  minSum: boolean;
   maxMin: number;
   totalKm: number;
 }
@@ -82,12 +76,15 @@ export interface TieCompareRow {
 /** Các quán hoà theo thứ hạng (đề xuất đầu) + số quán thiếu toạ độ (không xếp hạng). */
 export function buildCompareRows(s: CategoryTieSuggestion): { rows: TieCompareRow[]; unranked: number } {
   const names = new Map(s.candidates.map((c) => [c.place_id, c.name]));
+  const pick = minSumPick(s);
+  const minSumId = pick && pick.place_id !== s.recommended_place_id ? pick.place_id : null;
   const rows = byRank(s)
     .filter((r) => names.has(r.place_id))
     .map((r) => ({
       placeId: r.place_id,
       name: names.get(r.place_id) ?? '',
       recommended: r.place_id === s.recommended_place_id,
+      minSum: r.place_id === minSumId,
       maxMin: r.max_min,
       totalKm: r.total_km,
     }));
@@ -95,21 +92,64 @@ export function buildCompareRows(s: CategoryTieSuggestion): { rows: TieCompareRo
   return { rows, unranked: s.candidates.filter((c) => !ranked.has(c.place_id)).length };
 }
 
-/** Câu "Vì sao?" theo k (T-99, CR-16): k = 1 cộng km, k = 2 bình phương (mặc định), khác → luỹ thừa k. */
-export const whyRuleKey = (
-  s: CategoryTieSuggestion,
-  lang: Language = 'vi',
-): { key: 'algo.tie.whyRule' | 'algo.tie.whyRuleSquared' | 'algo.tie.whyRulePow'; k: string } => {
-  const k = s.params.k;
-  const text = nf(lang, { maximumFractionDigits: 2 }).format(k);
-  if (Math.abs(k - 1) < 1e-9) return { key: 'algo.tie.whyRule', k: text };
-  if (Math.abs(k - 2) < 1e-9) return { key: 'algo.tie.whyRuleSquared', k: text };
-  return { key: 'algo.tie.whyRulePow', k: text };
-};
+/**
+ * Quán mà cách "cộng tổng km" (MinSum) sẽ chọn: `total_km` nhỏ nhất trong `ranking`, bằng nhau → `rank` nhỏ hơn.
+ * Chỉ xét quán có trong `candidates` (như biểu đồ). Không có quán xếp hạng → null.
+ */
+export function minSumPick(s: CategoryTieSuggestion): TieRanking | null {
+  const names = new Set(s.candidates.map((c) => c.place_id));
+  let best: TieRanking | null = null;
+  for (const r of byRank(s)) {
+    if (!names.has(r.place_id)) continue;
+    if (!best || r.total_km < best.total_km) best = r;
+  }
+  return best;
+}
 
-/** Trọng số của người xa nhất = 1 + λ (Sơn: w tăng đều từ 1 tới 1 + λ). Một người → 1. */
-export const farthestWeight = (s: CategoryTieSuggestion): number =>
-  s.members.length > 1 ? 1 + s.params.lambda : 1;
+/** Thước chung của cả panel (phút): 0 → max(max_min) các quán xếp hạng được; không có gì → 0. */
+export function barScale(s: CategoryTieSuggestion): number {
+  return s.ranking.reduce((m, r) => Math.max(m, r.max_min), 0);
+}
+
+/** Tỉ lệ thanh 0..1 trên thước chung; thước 0 → 0. */
+export const barRatio = (minutes: number, scale: number): number =>
+  scale > 0 ? Math.min(1, Math.max(0, minutes / scale)) : 0;
+
+export interface TieContrast {
+  placeId: string;
+  name: string;
+  /** Nickname người xa nhất ở quán cộng-tổng (CR-19); null khi server cũ thiếu `farthest_member_id`. */
+  who: string | null;
+  /** Phút đi + về của người xa nhất ở quán cộng-tổng. */
+  minutes: number;
+  /** Hơn quán đề xuất bao nhiêu phút (≤ 0 → câu không có "thêm"). */
+  extra: number;
+}
+
+/**
+ * Câu đối chiếu "Nếu chỉ cộng tổng km, máy sẽ chọn Y: X phải đi 74', thêm 14'" (PLAN gđ8 §5). Chỉ có khi quán
+ * cộng-tổng khác quán đề xuất. Tên tra theo `farthest_member_id` trong `members` (mặc định `s.members`: server đã
+ * gửi nickname của đúng tập người được tính ở mọi quán).
+ */
+export function contrastLine(
+  s: CategoryTieSuggestion,
+  members: readonly { member_id: string; nickname: string }[] = s.members,
+): TieContrast | null {
+  if (!hasRecommendation(s)) return null;
+  const pick = minSumPick(s);
+  const rec = s.ranking.find((r) => r.place_id === s.recommended_place_id);
+  if (!pick || !rec || pick.place_id === rec.place_id) return null;
+  const who = pick.farthest_member_id
+    ? (members.find((m) => m.member_id === pick.farthest_member_id)?.nickname ?? null)
+    : null;
+  return {
+    placeId: pick.place_id,
+    name: s.candidates.find((c) => c.place_id === pick.place_id)?.name ?? '',
+    who,
+    minutes: pick.max_min,
+    extra: pick.max_min - rec.max_min,
+  };
+}
 
 /* ---------- Quán mà nút chốt sẽ chốt thật ---------- */
 

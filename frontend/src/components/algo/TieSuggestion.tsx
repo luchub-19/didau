@@ -1,6 +1,7 @@
 // Đề xuất hoà phiếu OMP (CR-15, T-96; PLAN gđ7 §5). Nằm trong `TieBlock`. Không có gì tự động (quyết định 8):
 // mỗi loại đang hoà một thẻ "Chọn X sẽ tốt hơn · <con số>", chỉ host bấm chốt; ai muốn hiểu thì mở "Vì sao?".
-//  - `TieWhyBody`: nội dung "Vì sao?" — bảng từng người (đi + về, km, tính nặng), so với quán cùng hoà, không chữ Ψ.
+//  - `TieWhyBody`: nội dung "Vì sao?" (T-108, PLAN gđ8 §5) — câu luật · thanh "người xa nhất" từng quán · câu đối
+//    chiếu với "cộng tổng km" · thanh từng người tới quán đề xuất; mọi thanh chung một thước, không Ψ/trọng số.
 //  - `CategoryTieCard`: thẻ của một loại.
 //  - `TieSuggestionView`: phần hiển thị thuần (mọi trạng thái), test bằng markup.
 //  - `TieSuggestionCard`: nối store + API; tự làm mới khi phiếu / vị trí đổi, giữ bản cũ tới khi có bản mới.
@@ -21,16 +22,16 @@ import { usePlaceStore } from '../../store/usePlaceStore';
 import { useRoomStore } from '../../store/useRoomStore';
 import {
   TIE_RESOLVE_PAYLOAD,
+  barRatio,
+  barScale,
   buildCompareRows,
   buildWhyRows,
-  farthestWeight,
+  contrastLine,
   formatMinutes,
-  formatWeight,
   hasRecommendation,
   lockTarget,
   tieDelta,
   tieRefreshKey,
-  whyRuleKey,
 } from './tieSuggestionLogic';
 
 const linkBtn =
@@ -41,7 +42,64 @@ function useCategoryLabel() {
   return (c: string) => t((CATEGORY_METADATA[c as keyof typeof CATEGORY_METADATA] ?? CATEGORY_METADATA.OTHER).labelKey);
 }
 
-/* ---------- "Vì sao?" ---------- */
+/* ---------- "Vì sao?" (PLAN gđ8 §5) ---------- */
+
+/**
+ * Thanh "mọc" một lần khi panel mở (≤ `--t-ui`, `--ease-out`). Trạng thái mặc định là thanh đã đủ dài, chỉ chạy
+ * Web Animations khi trình duyệt hỗ trợ và người dùng không bật giảm chuyển động — thiếu JS vẫn thấy đủ biểu đồ.
+ */
+function useGrowBars(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || typeof window === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+    const css = getComputedStyle(document.documentElement);
+    const duration = parseFloat(css.getPropertyValue('--t-ui')) || 220;
+    const easing = css.getPropertyValue('--ease-out').trim() || 'ease-out';
+    const anims = Array.from(root.querySelectorAll<HTMLElement>('[data-bar]')).flatMap((el) =>
+      typeof el.animate === 'function'
+        ? [el.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration, easing })]
+        : [],
+    );
+    return () => anims.forEach((x) => x.cancel());
+  }, [ref]);
+}
+
+/** Một hàng: chữ (tên + nhãn | phút + phụ) ở trên, thanh chung thước ở dưới. Thanh `aria-hidden`, chữ đủ nghĩa. */
+const BarRow: React.FC<{
+  label: React.ReactNode;
+  minutes: number;
+  extra?: React.ReactNode;
+  ratio: number;
+  highlight?: boolean;
+  testId: string;
+  data?: Record<string, string | boolean>;
+}> = ({ label, minutes, extra, ratio, highlight = false, testId, data }) => {
+  const { t } = useTranslation();
+  const { lang } = useLanguage();
+  return (
+    <li data-testid={testId} {...Object.fromEntries(Object.entries(data ?? {}).map(([k, v]) => [`data-${k}`, String(v)]))}>
+      <div className="flex items-baseline justify-between gap-x-3">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-label text-ink">{label}</div>
+        <div className="shrink-0 whitespace-nowrap text-right">
+          <span aria-hidden="true" className="num text-label font-semibold text-ink">
+            {formatMinutes(minutes, lang)}
+          </span>
+          <span className="sr-only">{t('algo.tie.minutesSr', { count: Math.round(minutes) })}</span>
+          {extra}
+        </div>
+      </div>
+      <div aria-hidden="true" className="mt-1 h-2">
+        <div
+          data-bar=""
+          data-ratio={ratio.toFixed(3)}
+          className={`h-full min-w-1 origin-left rounded-chip ${highlight ? 'bg-accent' : 'bg-ink-3'}`}
+          style={{ width: `${(ratio * 100).toFixed(1)}%` }}
+        />
+      </div>
+    </li>
+  );
+};
 
 export const TieWhyBody: React.FC<{ suggestion: CategoryTieSuggestion; myMemberId?: string | null }> = ({
   suggestion: s,
@@ -49,78 +107,116 @@ export const TieWhyBody: React.FC<{ suggestion: CategoryTieSuggestion; myMemberI
 }) => {
   const { t } = useTranslation();
   const { lang } = useLanguage();
+  const ref = useRef<HTMLDivElement>(null);
+  useGrowBars(ref);
   const rows = buildWhyRows(s, myMemberId);
   const { rows: compare, unranked } = buildCompareRows(s);
+  const scale = barScale(s);
+  const contrast = contrastLine(s);
   const recName = s.candidates.find((c) => c.place_id === s.recommended_place_id)?.name ?? '';
-  const th = 'py-1.5 pr-2 text-left font-semibold text-ink-2';
-  const td = 'py-1.5 pr-2 tabular-nums text-ink';
+  const h4 = 'text-label font-semibold text-ink-2';
 
   return (
-    <div data-testid="tie-why">
-      <p className="text-label leading-normal text-ink-2" data-testid="tie-why-rule">
-        {s.members.length > 1
-          ? (() => {
-              const { key, k } = whyRuleKey(s, lang);
-              return t(key, { weight: formatWeight(farthestWeight(s), lang), k });
-            })()
-          : t('algo.tie.whyRuleOne')}
+    <div ref={ref} data-testid="tie-why" data-scale={scale}>
+      <p className="text-label leading-normal text-ink" data-testid="tie-why-rule">
+        {t(s.members.length > 1 ? 'algo.tie.whyRuleFar' : 'algo.tie.whyRuleOne')}
       </p>
-      {rows.length > 0 && (
-        <div className="-mx-1 mt-2 overflow-x-auto px-1" data-testid="tie-why-scroll">
-          <table className="w-full border-collapse text-caption" aria-label={t('algo.tie.tableLabel', { name: recName })}>
-            <thead>
-              <tr>
-                <th scope="col" className={th}>{t('algo.tie.colMember')}</th>
-                <th scope="col" className={th}>{t('algo.tie.colTrip')}</th>
-                <th scope="col" className={th}>{t('algo.tie.colKm')}</th>
-                <th scope="col" className={`${th} pr-0`}>{t('algo.tie.colWeight')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.memberId} className="border-t border-line" data-testid="tie-why-row" data-me={r.me}>
-                  <th scope="row" className={`py-1.5 pr-2 text-left text-ink ${r.me ? 'font-semibold' : 'font-normal'}`}>
-                    {r.nickname}
-                    {r.me && <span className="ml-1 font-normal text-ink-2">{t('algo.tie.me')}</span>}
-                  </th>
-                  <td className={td}>{formatMinutes(r.minutes, lang)}</td>
-                  <td className={td}>{formatDistance(r.km, lang)}</td>
-                  <td className={`${td} pr-0 text-ink-2`}>{formatWeight(r.weight, lang)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {compare.length > 1 && (
-        <div className="mt-3" data-testid="tie-why-compare">
-          <p className="text-caption font-semibold text-ink-2">{t('algo.tie.compareTitle')}</p>
-          <ul className="mt-1 space-y-1">
+        <section className="mt-4" data-testid="tie-why-compare">
+          <h4 className={h4}>{t('algo.tie.chartTitle')}</h4>
+          <ul className="mt-2 space-y-2.5">
             {compare.map((c) => (
-              <li
+              <BarRow
                 key={c.placeId}
-                data-testid="tie-why-compare-row"
-                data-recommended={c.recommended}
-                className={`flex flex-wrap items-baseline gap-x-2 rounded-field px-2 py-1 text-caption ${c.recommended ? 'bg-accent-soft' : ''}`}
-              >
-                <span className="font-semibold text-ink">{c.name}</span>
-                {c.recommended && (
-                  <span className="inline-flex items-center gap-1 text-accent-text">
-                    <Check size={12} weight="bold" aria-hidden="true" />
-                    {t('algo.tie.recommended')}
-                  </span>
-                )}
-                <span className="tabular-nums text-ink-2">
-                  {t('algo.tie.compareRow', { max: formatMinutes(c.maxMin, lang), km: formatDistance(c.totalKm, lang) })}
-                </span>
-              </li>
+                testId="tie-why-compare-row"
+                data={{ recommended: c.recommended, minsum: c.minSum }}
+                minutes={c.maxMin}
+                ratio={barRatio(c.maxMin, scale)}
+                highlight={c.recommended}
+                label={
+                  <>
+                    <span className={`break-words ${c.recommended ? 'font-semibold' : ''}`}>{c.name}</span>
+                    {c.recommended && (
+                      <span className="inline-flex items-center gap-0.5 text-caption font-semibold text-accent-text">
+                        <Check size={12} weight="bold" aria-hidden="true" />
+                        {t('algo.tie.recommended')}
+                      </span>
+                    )}
+                    {c.minSum && (
+                      <span className="text-caption text-ink-2" data-testid="tie-why-minsum-tag">
+                        {t('algo.tie.minSumTag')}
+                      </span>
+                    )}
+                  </>
+                }
+              />
             ))}
           </ul>
-        </div>
+          {contrast ? (
+            <p className="mt-3 text-label leading-normal text-ink" data-testid="tie-why-contrast" data-named={Boolean(contrast.who)}>
+              {t('algo.tie.contrastLead', { name: contrast.name })}{' '}
+              <span className="font-semibold">
+                {t(
+                  contrast.who
+                    ? contrast.extra > 0
+                      ? 'algo.tie.contrastWho'
+                      : 'algo.tie.contrastWhoNoExtra'
+                    : contrast.extra > 0
+                      ? 'algo.tie.contrastAnon'
+                      : 'algo.tie.contrastAnonNoExtra',
+                  {
+                    who: contrast.who ?? '',
+                    minutes: formatMinutes(contrast.minutes, lang),
+                    extra: formatMinutes(contrast.extra, lang),
+                  },
+                )}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-2 text-caption text-ink-2" data-testid="tie-why-same">
+              {t('algo.tie.sameAsMinSum')}
+            </p>
+          )}
+        </section>
       )}
+
+      {rows.length > 0 && (
+        <section className="mt-4" data-testid="tie-why-members">
+          <h4 className={`${h4} break-words`}>{t('algo.tie.membersTitle', { name: recName })}</h4>
+          <ul className="mt-2 space-y-2.5">
+            {rows.map((r, i) => (
+              <BarRow
+                key={r.memberId}
+                testId="tie-why-row"
+                data={{ me: r.me }}
+                minutes={r.minutes}
+                ratio={barRatio(r.minutes, scale)}
+                extra={
+                  <span className="num text-caption text-ink-2">
+                    <span aria-hidden="true"> · </span>
+                    {formatDistance(r.km, lang)}
+                  </span>
+                }
+                label={
+                  <>
+                    <span className={`break-words ${r.me ? 'font-semibold' : ''}`}>{r.nickname}</span>
+                    {r.me && <span className="text-caption text-ink-2">{t('algo.tie.me')}</span>}
+                    {i === 0 && rows.length > 1 && (
+                      <span className="text-caption text-ink-2" data-testid="tie-why-farthest">
+                        {t('algo.tie.farthestTag')}
+                      </span>
+                    )}
+                  </>
+                }
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {unranked > 0 && (
-        <p className="mt-2 text-caption text-ink-2" data-testid="tie-why-unranked">
+        <p className="mt-3 text-caption text-ink-2" data-testid="tie-why-unranked">
           {t('algo.tie.unranked', { count: unranked })}
         </p>
       )}
@@ -242,6 +338,7 @@ export const CategoryTieCard: React.FC<CategoryTieCardProps> = ({
           // Neo vào thẻ (article `relative`) thay vì vào liên kết: cột danh sách hẹp nên popover 20rem neo ở giữa bị cắt
           className="!static"
           placement="bottom"
+          size="lg"
           data-testid="tie-why-panel"
         >
           <TieWhyBody suggestion={s} myMemberId={myMemberId} />

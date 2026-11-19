@@ -17,14 +17,11 @@ import {
   activeRecommendedIds,
   buildCompareRows,
   buildWhyRows,
-  farthestWeight,
   formatMinutes,
-  formatWeight,
   hasRecommendation,
   lockTarget,
   tieDelta,
   tieRefreshKey,
-  whyRuleKey,
 } from '../components/algo/tieSuggestionLogic';
 import { decodePolyline, encodePolyline } from '../components/algo/polyline';
 import { buildRouteFeatures } from '../components/algo/RouteLayer';
@@ -139,9 +136,9 @@ describe('tieSuggestionLogic', () => {
     expect(tieDelta(food({ ranking: same }))).toBeNull();
   });
 
-  it('buildWhyRows theo hạng, đánh dấu chính mình; buildCompareRows theo hạng + số quán thiếu toạ độ', () => {
+  it('buildWhyRows xa → gần (T-108), đánh dấu chính mình; buildCompareRows theo hạng + số quán thiếu toạ độ', () => {
     const rows = buildWhyRows(food({ members: [...food().members].reverse() }), 'm2');
-    expect(rows.map((r) => r.nickname)).toEqual(['Bảo', 'Lan', 'Hà']);
+    expect(rows.map((r) => r.nickname)).toEqual(['Hà', 'Lan', 'Bảo']);
     expect(rows.map((r) => r.me)).toEqual([false, true, false]);
     const { rows: cmp, unranked } = buildCompareRows(
       food({ candidates: [...food().candidates, { place_id: 'p4', name: 'X', upvotes: 7, downvotes: 0, score: 7 }] }),
@@ -151,11 +148,7 @@ describe('tieSuggestionLogic', () => {
     expect(unranked).toBe(1);
   });
 
-  it('farthestWeight = 1 + λ (một người → 1); định dạng số theo locale; payload chốt chỉ có chiến lược', () => {
-    expect(farthestWeight(food())).toBe(1.5);
-    expect(farthestWeight(food({ members: [food().members[0]] }))).toBe(1);
-    expect(formatWeight(1.25, 'vi')).toBe('×1,25');
-    expect(formatWeight(1.5, 'en')).toBe('×1.5');
+  it('định dạng phút theo locale; payload chốt chỉ có chiến lược', () => {
     expect(formatMinutes(1234, 'vi')).toBe("1.234'");
     expect(TIE_RESOLVE_PAYLOAD).toEqual({ strategy: 'TRAVEL_TIME', max_accepted_places: 1 });
   });
@@ -416,65 +409,15 @@ describe('TieSuggestionView', () => {
       expect(html({ isHost: false })).toContain('Waiting for the host to lock it in');
       const why = renderToStaticMarkup(<TieWhyBody suggestion={food()} myMemberId="m2" />);
       expect(why).toContain('(you)');
-      expect(why).toContain('×1.5');
       expect(why).toContain('4.2 km');
+      expect(why).toContain('If we only added up the km');
     } finally {
       await i18n.changeLanguage('vi');
     }
   });
 });
 
-describe('TieWhyBody ("Vì sao?", §5.3)', () => {
-  it('bảng từng người theo hạng (đi + về, km, tính nặng), nói bằng lời, không Ψ', () => {
-    const out = renderToStaticMarkup(<TieWhyBody suggestion={food()} myMemberId="m2" />);
-    expect(out).toContain('người xa nhất ×1,5');
-    expect(out).not.toMatch(/Ψ|psi|50[.,]278/i);
-    expect(count(out, 'data-testid="tie-why-row"')).toBe(3);
-    expect(out).toMatch(/Bảo.*Lan.*Hà/s);
-    expect(out).toContain('data-me="true"');
-    expect(out).toContain('(bạn)');
-    expect(out).toContain("12'");
-    expect(out).toContain('4,2 km');
-    expect(out).toContain('×1,25');
-    expect(out).toContain('overflow-x-auto');
-  });
-
-  it('T-99 (CR-16): câu luật theo k — k = 2 nói "bình phương", k khác 1/2 nói luỹ thừa; VI + EN', async () => {
-    const sq = food({ params: { lambda: 1, k: 2 } });
-    expect(whyRuleKey(food()).key).toBe('algo.tie.whyRule');
-    expect(whyRuleKey(sq).key).toBe('algo.tie.whyRuleSquared');
-    expect(whyRuleKey(food({ params: { lambda: 1, k: 1.5 } }), 'vi')).toEqual({ key: 'algo.tie.whyRulePow', k: '1,5' });
-    const vi = renderToStaticMarkup(<TieWhyBody suggestion={sq} />);
-    expect(vi).toContain('bình phương');
-    expect(vi).toContain('gấp bốn');
-    expect(vi).toContain('nhân thêm ×2');
-    expect(vi).not.toMatch(/Ψ|psi/i);
-    expect(renderToStaticMarkup(<TieWhyBody suggestion={food({ params: { lambda: 1, k: 3 } })} />)).toContain('luỹ thừa 3');
-    await i18n.changeLanguage('en');
-    try {
-      const out = renderToStaticMarkup(<TieWhyBody suggestion={sq} />);
-      expect(out).toContain('square it');
-      expect(out).toContain('also counts ×2');
-    } finally {
-      await i18n.changeLanguage('vi');
-    }
-  });
-
-  it('so với quán cùng hoà: đề xuất tô nhấn, xa nhất + tổng km; thiếu toạ độ và người bị loại được ghi', () => {
-    const s = food({
-      candidates: [...food().candidates, { place_id: 'p4', name: 'Quán X', upvotes: 7, downvotes: 0, score: 7 }],
-      excluded_member_count: 2,
-    });
-    const out = renderToStaticMarkup(<TieWhyBody suggestion={s} />);
-    expect(count(out, 'data-testid="tie-why-compare-row"')).toBe(3);
-    expect(out).toContain('data-recommended="true"');
-    expect(out).toContain('bg-accent-soft');
-    expect(out).toContain("xa nhất 42' · tổng 37,6 km");
-    expect(out).toContain('1 quán chưa có toạ độ nên không xếp hạng');
-    expect(out).toContain('2 người chưa chia sẻ vị trí nên không được tính.');
-    expect(out).not.toContain('data-me="true"');
-  });
-
+describe('TieWhyBody ("Vì sao?") — chi tiết ở algo_t108', () => {
   it('nhãn nguồn giữ như cũ + thêm Valhalla / lẫn (§5.6)', () => {
     expect(vi.algo.why.sourceEstimate).toBe('Ước lượng · xe máy');
     expect(vi.algo.why.sourceValhalla).toBe('Valhalla · xe máy');
