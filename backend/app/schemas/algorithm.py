@@ -42,6 +42,9 @@ class TieRanking(BaseModel):
     max_km: float
     total_km: float
     max_min: int
+    farthest_member_id: UUID = Field(
+        description="Người có km khứ hồi lớn nhất ở quán này (CR-19); chỉ id, nickname lấy từ danh sách thành viên phòng"
+    )
 
 
 class TieMemberCost(BaseModel):

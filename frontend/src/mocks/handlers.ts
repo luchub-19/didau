@@ -212,6 +212,7 @@ function mockTieSuggestion(): TieSuggestion {
         max_km: round3(e.max_km),
         total_km: round3(e.total_km),
         max_min: Math.max(...e.people.map((x) => x.minutes)),
+        farthest_member_id: e.people.filter((x) => x.km === e.max_km).map((x) => x.m.id).sort()[0],
       })),
       members: best
         ? best.people.map((x, i) => ({ member_id: x.m.id, nickname: x.m.nickname, km: round3(x.km), minutes: x.minutes, rank: i + 1, weight: round3(w(i + 1)) }))

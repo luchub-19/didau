@@ -72,6 +72,7 @@ class RankedPlace:
     max_km: float  # người đi xa nhất (khứ hồi)
     total_km: float  # cả nhóm (khứ hồi)
     max_min: int  # phút khứ hồi của người đi lâu nhất
+    farthest_member_id: UUID  # người tạo ra max_km ở quán này (CR-19); bằng km → member_id nhỏ hơn (chuỗi)
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +216,10 @@ def decide(
             max_km=round(ev.max_km, 3),
             total_km=round(ev.total_km, 3),
             max_min=max(minutes(i, ev.combo[0][1]) for i in range(len(members))),
+            farthest_member_id=min(
+                (members[i] for i in range(len(members)) if ev.distances[i] == ev.max_km),
+                key=lambda m: str(m.member_id),
+            ).member_id,
         )
         for r, ev in enumerate(evals)
     )

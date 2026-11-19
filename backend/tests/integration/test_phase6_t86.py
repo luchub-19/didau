@@ -354,6 +354,7 @@ def test_tc03_tc04_three_way_tie_suggests_van_hanh_mall(client: TestClient, esti
     assert [c["place_id"] for c in sug["candidates"]] == [ids[p["id"]] for p in DOC["places"]]
     assert {c["score"] for c in sug["candidates"]} == {3}
     exp = DOC["expect"]
+    member_ids = {m["member_id"] for m in sug["members"]}
     assert sug["recommended_place_id"] == ids["van_hanh_mall"]
     assert [r["place_id"] for r in sug["ranking"]] == [ids[n] for n in exp["ranking"]]
     for r in sug["ranking"]:
@@ -363,6 +364,7 @@ def test_tc03_tc04_three_way_tie_suggests_van_hanh_mall(client: TestClient, esti
         assert r["psi"] == pytest.approx(exp["psi"][name], rel=5e-3)
         assert r["max_km"] == pytest.approx(exp["max_km"][name], abs=0.05)
         assert r["max_min"] > 0
+        assert r["farthest_member_id"] in member_ids  # CR-19: chỉ id, không toạ độ
     assert sug["runner_up_psi"] == pytest.approx(exp["runner_up_psi"], rel=5e-3)
     assert sug["excluded_member_count"] == 2  # V4, V5
     assert [m["rank"] for m in sug["members"]] == [1, 2, 3]

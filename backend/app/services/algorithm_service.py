@@ -295,6 +295,7 @@ class AlgorithmService:
                             max_km=r.max_km,
                             total_km=r.total_km,
                             max_min=r.max_min,
+                            farthest_member_id=r.farthest_member_id,
                         )
                         for r in o.ranking
                     ],

@@ -312,6 +312,8 @@ export interface TieRanking {
   max_km: number;
   total_km: number;
   max_min: number;
+  /** CR-19: người đi xa nhất ở quán này; nickname tra từ danh sách thành viên phòng. Tuỳ chọn ở type: backend Render chưa deploy thì thiếu → câu không tên. */
+  farthest_member_id?: string;
 }
 
 /** Một người với quán đề xuất: km/phút đi + về, `rank` 1 = gần nhất, `weight` = trọng số của hạng đó. */

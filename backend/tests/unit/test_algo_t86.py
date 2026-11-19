@@ -409,3 +409,41 @@ def test_old_strategies_still_group_by_score():
         [a, b], 1, MostUpvotesTieBreakStrategy(), TieBreakContext(room_id=uuid4(), host_member_id=uuid4())
     )
     assert resolved[0].name == "a" and not applied  # score khác nhau → không phải hoà
+
+
+# ── CR-19: người xa nhất của từng quán ───────────────────────────────────────────────────────────
+def test_cr19_farthest_member_per_ranking_row_doc_case():
+    """Fixture 4 người: mỗi dòng ranking gọi đúng người có km khứ hồi lớn nhất ở quán đó."""
+    _, places, members = doc_case()
+    go, back = geo_grids(members, places)
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), members, go, back)
+    col = {p.place_id: j for j, p in enumerate(places)}
+    assert len(out.ranking) == len(places)
+    for r in out.ranking:
+        j = col[r.place_id]
+        km = [go[i][j].distance_km + back[i][j].distance_km for i in range(len(members))]
+        assert r.farthest_member_id == members[km.index(max(km))].member_id
+        assert round(max(km), 3) == r.max_km
+
+
+def test_cr19_farthest_tie_picks_smaller_member_id():
+    ids = sorted(uuid4() for _ in range(3))
+    # đưa thành viên vào theo thứ tự đảo để thấy kết quả không phụ thuộc thứ tự đầu vào
+    members = [TieMember(ids[2], "C", (10.77, 106.70)), TieMember(ids[0], "A", (10.77, 106.70)),
+               TieMember(ids[1], "B", (10.77, 106.70))]
+    places = [mk_place("P", 3, 0)]
+    go = [[Leg(1, 5.0)], [Leg(1, 5.0)], [Leg(1, 2.0)]]
+    back = [[Leg(1, 5.0)], [Leg(1, 5.0)], [Leg(1, 2.0)]]
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), members, go, back)
+    assert out.ranking[0].farthest_member_id == min(ids[2], ids[0], key=str)
+
+
+def test_cr19_unranked_place_has_no_row():
+    """Quán thiếu toạ độ không có dòng ranking → không có farthest_member_id."""
+    members = mk_members(["A", "B"])
+    places = [mk_place("P", 3, 0), mk_place("Q", 3, 1, coord=None)]
+    go = [[Leg(1, 3.0), None], [Leg(1, 4.0), None]]
+    back = [[Leg(1, 3.0), None], [Leg(1, 4.0), None]]
+    out = decide(TieGroup(PlaceCategory.FOOD, tuple(places)), members, go, back)
+    assert [r.place_id for r in out.ranking] == [places[0].place_id]
+    assert out.ranking[0].farthest_member_id == members[1].member_id

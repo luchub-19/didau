@@ -611,7 +611,7 @@ kết quả tìm không phân biệt được chi nhánh; icon của bản đồ
 
 - **Người đề xuất**: session plan gđ8, 2026-11-19 (người dùng chọn "gọi tên người xa nhất, sửa backend")
 - **Ngày tạo**: 2026-11-19
-- **Trạng thái**: **APPROVED** (người dùng duyệt ở cổng G1, 2026-11-19) · chưa áp — áp ở T-107
+- **Trạng thái**: **APPLIED** (duyệt ở G1 2026-11-19; áp ở T-107, 2026-11-19)
 - **Task áp**: T-107. **Task dùng**: T-108 (câu đối chiếu trong "Vì sao?").
 
 ### 1. Vấn đề
