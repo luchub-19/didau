@@ -606,3 +606,23 @@ kết quả tìm không phân biệt được chi nhánh; icon của bản đồ
   (`searchCenter(room, me, mapCenter)`). Toạ độ của mình chỉ đi kèm truy vấn, không hiển thị (CR-11 giữ nguyên).
 - Vào phòng mà chưa chia sẻ nơi xuất phát → Sheet "Chia sẻ nơi bạn xuất phát" **bắt buộc với mọi thành viên** (không X/Esc/
   bấm nền/kéo xuống), chia sẻ bằng GPS hoặc tìm một địa điểm; lưu xong mới dùng phòng. Không đổi API.
+
+## CR-19: Người xa nhất của từng quán trong gợi ý hoà (`ranking[].farthest_member_id`)
+
+- **Người đề xuất**: session plan gđ8, 2026-11-19 (người dùng chọn "gọi tên người xa nhất, sửa backend")
+- **Ngày tạo**: 2026-11-19
+- **Trạng thái**: **PROPOSED** — chờ cổng G1 (`docs/phase8/PROGRESS.md`)
+- **Task áp**: T-107. **Task dùng**: T-108 (câu đối chiếu trong "Vì sao?").
+
+### 1. Vấn đề
+"Vì sao?" mới (gđ8 PLAN §5) cần câu "Nếu chỉ cộng tổng km, máy sẽ chọn Y: **Xuka** phải đi 62′, thêm 14′". `ranking[]`
+(CONTRACTS mục 35) chỉ có `max_km`/`max_min`, không cho biết **ai** là người xa nhất ở quán Y; `members[]` chỉ có cho quán đề xuất.
+
+### 2. Đề xuất
+- Thêm `farthest_member_id: string` vào mỗi dòng `ranking[]` = thành viên được tính có km khứ hồi lớn nhất ở quán đó;
+  bằng km → `member_id` nhỏ hơn. Trường cũ giữ nguyên, Ψ và thứ tự không đổi.
+- Frontend tra nickname từ danh sách thành viên phòng; thiếu trường → câu không tên.
+
+### 3. Riêng tư (CR-11)
+Chỉ thêm id thành viên, không toạ độ hay hình học. Lộ thêm: mọi người trong phòng biết ai đi xa nhất **tới từng quán
+đang hoà** (hiện đã biết phút từng người tới quán đề xuất qua `members[]`). Không suy ra được vị trí.

@@ -3,6 +3,12 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
+## Giai đoạn 8 "Vì sao? cho buổi demo" (T-106 → T-109) — PLAN XONG 2026-11-19, CHỜ G1; trình bày thứ Hai 2026-11-23
+Làm "Vì sao?" của thẻ hoà cho thầy thấy ý đồ OMP (công bằng cho người ở xa) trong ≤ 3′ chiếu laptop, không làm rối màn mặc định.
+- Plan, quyết định (13 mục), lý do tâm lý/sắp xếp, đặc tả panel: `docs/phase8/PLAN.md`. Tiến độ: `docs/phase8/PROGRESS.md`.
+- **Bẫy:** ca demo cũ (genz, omp) có OMP = cộng tổng km → T-106 phải dò ca mới trên km Valhalla. Thẻ đề xuất giữ nguyên;
+  không tầng 3, không hiện Ψ/trọng số; không vẽ gì từ nhà người khác (CR-11). CR-19 PROPOSED — T-107 chờ G1.
+
 ## Giai đoạn 7 "Thuật toán OMP của Sơn" (T-93 → T-97 MVP) — T-93 XONG, G1 QUA 2026-11-15; hạn MVP thứ Hai 2026-11-16
 Thay ALGO-02 bằng Ordered Median (OMP) của Sơn (nhánh orphan `origin/feat/tie-breaker` — đọc bằng `git show`, KHÔNG merge),
 giải bằng DP; km từ Valhalla tự host (xe máy) + cache DB, lùi về ước lượng; vẽ đường của mình + đường giữa các quán.
