@@ -12,6 +12,8 @@ export const GLOBE_TOKENS = [
   '--stage-accent-text',
   '--stage-sun',
   '--stage-sky',
+  '--stage-leaf',
+  '--stage-brick',
 ] as const;
 
 export interface GlobePalette {
@@ -31,8 +33,12 @@ export interface GlobePalette {
   rimAlpha: number;
   /** Vệt phản chiếu. */
   spec: RGB;
-  /** Chấm TP.HCM. */
+  /** Chấm TP.HCM / ghim. */
   accent: RGB;
+  /** Lõi ghim + viền chấm bạn bè. */
+  paper: RGB;
+  /** 4 chấm bạn bè (T-113): sky, leaf, sun, brick — hình minh hoạ, không mang dữ liệu. */
+  friends: readonly [RGB, RGB, RGB, RGB];
 }
 
 /** Giá trị token khi `getPropertyValue` trả rỗng (khớp tokens.css; chỉ để cầu không vỡ nếu thiếu token). */
@@ -44,6 +50,8 @@ const FALLBACK: Record<'light' | 'dark', Record<(typeof GLOBE_TOKENS)[number], s
     '--stage-accent-text': '184 58 34',
     '--stage-sun': '233 164 0',
     '--stage-sky': '31 111 168',
+    '--stage-leaf': '59 122 58',
+    '--stage-brick': '168 72 42',
   },
   dark: {
     '--stage-paper': '26 20 32',
@@ -52,6 +60,8 @@ const FALLBACK: Record<'light' | 'dark', Record<(typeof GLOBE_TOKENS)[number], s
     '--stage-accent-text': '255 143 112',
     '--stage-sun': '255 201 77',
     '--stage-sky': '134 189 232',
+    '--stage-leaf': '147 197 139',
+    '--stage-brick': '232 145 107',
   },
 };
 
@@ -89,6 +99,7 @@ export function readGlobePalette(read: (token: string) => string, dark: boolean)
   const sun = tok('--stage-sun');
   const sky = tok('--stage-sky');
   const accent = tok('--stage-accent-text');
+  const friends = [sky, tok('--stage-leaf'), sun, tok('--stage-brick')] as const;
   if (dark) {
     return {
       dark,
@@ -102,6 +113,8 @@ export function readGlobePalette(read: (token: string) => string, dark: boolean)
       rimAlpha: 0.55,
       spec: ink,
       accent,
+      paper,
+      friends,
     };
   }
   return {
@@ -116,6 +129,8 @@ export function readGlobePalette(read: (token: string) => string, dark: boolean)
     rimAlpha: 0.32,
     spec: [255, 255, 255],
     accent,
+    paper,
+    friends,
   };
 }
 

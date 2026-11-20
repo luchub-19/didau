@@ -22,12 +22,31 @@ import {
   GLOBE_SPEED_FULL,
   GLOBE_SPEED_SLOW,
   GLOBE_START_LON,
+  globeFrame,
   globeLonAt,
   isGlobeOnScreen,
   markGlobeOnScreen,
   resetGlobeClock,
   setGlobeSpeed,
+  signalGlobe,
 } from '../stage/hero/globe/clock';
+import {
+  advance,
+  FAST_SEEK_MS,
+  GLOBE_PARK,
+  initialChoreo,
+  isStill,
+  normLon,
+  PIN_TOTAL,
+  pinPose,
+  planSeek,
+  RUSH,
+  seekDistance,
+  seekDurationMs,
+  seekVelocity,
+  type ChoreoEvents,
+  type ChoreoState,
+} from '../stage/hero/globe/choreo';
 
 describe('T-110: bitmask đất liền', () => {
   it('giải RLE đủ 360×180 ô, tỉ lệ đất hợp lý (~29 % bề mặt, ô vuông độ nên cao hơn)', () => {
@@ -279,5 +298,200 @@ describe('T-111: đèn thành phố', () => {
     const lit = Array.from(a.hash).filter((h) => h < CITY_FRACTION).length / a.count;
     expect(lit).toBeGreaterThan(0.12);
     expect(lit).toBeLessThan(0.25);
+  });
+});
+
+// ——— T-113: biên đạo ———
+const EV = (style = false, tiles = false, ready = false): ChoreoEvents => ({ style, tiles, ready });
+/** Khoảng cách góc nhỏ nhất (độ) giữa hai kinh độ. */
+const lonGap = (a: number, b: number) => Math.abs(normLon(a - b));
+
+/** Chạy `advance` với bước `dt` cho tới khi `stop` hoặc quá `maxMs`; ghi lại từng khung. */
+function play(s0: ChoreoState, ev: (t: number) => ChoreoEvents, stop: (s: ChoreoState) => boolean, dt = 1000 / 30, maxMs = 10_000) {
+  const frames: { t: number; s: ChoreoState }[] = [];
+  let s = s0;
+  for (let t = 0; t <= maxMs; t += dt) {
+    s = advance(s, dt, ev(t));
+    frames.push({ t, s });
+    if (stop(s)) break;
+  }
+  return frames;
+}
+
+describe('T-113: quay về TP.HCM (seek)', () => {
+  it('quãng quay luôn theo chiều Trái Đất quay, ≥ 100°, thời lượng clamp(0,8 + dist/360, 1,1, 2,0) s', () => {
+    for (const lon of [-180, -60, 0, 20, 106.7, 110, 150, 179]) {
+      const d = seekDistance(lon);
+      expect(d).toBeGreaterThanOrEqual(100);
+      expect(d).toBeLessThan(460);
+      expect(lonGap(lon - d, GLOBE_PARK.lon)).toBeLessThan(1e-9);
+      const ms = seekDurationMs(d);
+      expect(ms).toBeGreaterThanOrEqual(1100);
+      expect(ms).toBeLessThanOrEqual(2000);
+    }
+    expect(seekDurationMs(100)).toBe(1100);
+    expect(seekDurationMs(360)).toBe(1800);
+    expect(seekDurationMs(450)).toBe(2000);
+  });
+
+  it.each([-170, -45, 0, 20, 100, 107, 140])('xuất phát ở %s°: dừng đúng 106,7°E / 10,8°N, không quay ngược, xong trong 1,1–2,0 s', (lon0) => {
+    const frames = play(initialChoreo(lon0, 22, GLOBE_SPEED_FULL), () => EV(true), (s) => s.phase === 'parked');
+    const end = frames[frames.length - 1].s;
+    expect(end.phase).toBe('parked');
+    expect(lonGap(end.lon, 106.7)).toBeLessThan(0.5);
+    expect(Math.abs(end.lat - 10.8)).toBeLessThan(0.5);
+    // kinh độ tâm nhìn chỉ giảm (dlon ≤ 0 từng khung, trừ khung cuối đặt đúng toạ độ)
+    for (let i = 1; i < frames.length - 1; i++) expect(frames[i].s.lon).toBeLessThanOrEqual(frames[i - 1].s.lon + 1e-9);
+    const seekMs = frames.filter((f) => f.s.phase === 'seek').length * (1000 / 30);
+    expect(seekMs).toBeGreaterThanOrEqual(1100 - 34);
+    expect(seekMs).toBeLessThanOrEqual(2000 + 34);
+  });
+
+  it('vận tốc lúc bắt đầu seek khớp vận tốc xoay (không khựng), cả full lẫn lite', () => {
+    for (const speed of [GLOBE_SPEED_FULL, GLOBE_SPEED_SLOW]) {
+      const seek = planSeek(20, 22, speed, false);
+      expect(seekVelocity(seek, 0)).toBeCloseTo(speed, 6);
+      expect(seekVelocity(seek, 1)).toBeCloseTo(0, 6);
+      // đo bằng khung thật: 1 ms quay đều rồi 1 ms đầu của seek
+      const spun = advance(initialChoreo(20, 22, speed), 1, EV());
+      const started = advance(spun, 0, EV(true));
+      const first = advance(started, 1, EV(true));
+      expect((spun.lon - first.lon) / 0.001).toBeCloseTo(speed, 0);
+      expect(20 - spun.lon).toBeCloseTo(speed / 1000, 9);
+    }
+  });
+
+  it('`tiles` tới trước khi dừng: ghim chờ tới lúc `parked` mới bắt đầu', () => {
+    const frames = play(initialChoreo(0, 22, GLOBE_SPEED_FULL), () => EV(true, true), (s) => s.phase === 'pin');
+    const phases = [...new Set(frames.map((f) => f.s.phase))];
+    expect(phases).toEqual(['seek', 'parked', 'pin']);
+    const pin = frames[frames.length - 1].s;
+    expect(pin.pinT).toBe(0);
+    expect(pin.friends).toBe(true);
+  });
+
+  it('chưa `ready` thì đứng ở ghim mãi (gợn sóng lặp), không tự kết thúc', () => {
+    const frames = play(initialChoreo(0, 22, GLOBE_SPEED_FULL), () => EV(true, true), () => false, 1000 / 30, 8000);
+    const last = frames[frames.length - 1].s;
+    expect(last.phase).toBe('pin');
+    expect(last.pinT).toBeGreaterThan(PIN_TOTAL);
+    expect(isStill(last, false)).toBe(false); // còn gợn sóng ⇒ vẫn vẽ
+    expect(isStill(last, true)).toBe(true); // lite: đứng yên ⇒ bỏ vẽ
+    expect(isStill({ ...last, phase: 'parked' }, false)).toBe(true);
+  });
+});
+
+describe('T-113: ghim, bản đồ xong (rush) và mạng rất nhanh', () => {
+  it('`ready` trong lúc ghim: phần còn lại chạy ×2,6 rồi `done`', () => {
+    let s: ChoreoState = { ...initialChoreo(GLOBE_PARK.lon, GLOBE_PARK.lat, 45), phase: 'pin', pinT: 400 };
+    let ms = 0;
+    while (s.phase !== 'done' && ms < 5000) {
+      s = advance(s, 10, EV(true, true, true));
+      ms += 10;
+    }
+    expect(s.phase).toBe('done');
+    expect(ms).toBeLessThanOrEqual(Math.ceil((PIN_TOTAL - 400) / RUSH / 10) * 10);
+    expect(s.friends).toBe(true);
+  });
+
+  it('`ready` khi đang xoay (chưa kịp quay về): quay nhanh ≤ 500 ms, không quay ngược, bỏ chấm bạn bè, xong ngay khi dừng', () => {
+    for (const lon0 of [-100, 0, 20, 107, 110]) {
+      const frames = play(initialChoreo(lon0, 22, GLOBE_SPEED_FULL), () => EV(true, true, true), (s) => s.phase === 'done', 10);
+      const end = frames[frames.length - 1];
+      expect(end.s.phase).toBe('done');
+      expect(end.s.friends).toBe(false);
+      expect(end.t).toBeLessThanOrEqual(FAST_SEEK_MS + 20);
+      expect(lonGap(end.s.lon, 106.7)).toBeLessThan(0.5);
+      for (let i = 1; i < frames.length - 1; i++) expect(frames[i].s.lon).toBeLessThanOrEqual(frames[i - 1].s.lon + 1e-9);
+      expect(frames.some((f) => f.s.phase === 'pin')).toBe(false);
+    }
+  });
+
+  it('`ready` giữa lúc seek dài: phần còn lại rút về ≤ 500 ms, giữ vận tốc (không khựng), vẫn dừng đúng TP.HCM', () => {
+    let s = advance(initialChoreo(20, 22, GLOBE_SPEED_FULL), 0, EV(true));
+    const dur = (s.seek as NonNullable<ChoreoState['seek']>).durMs;
+    expect(dur).toBeGreaterThan(1500);
+    for (let t = 0; t < 300; t += 10) s = advance(s, 10, EV(true));
+    const vBefore = seekVelocity(s.seek!, s.seek!.p);
+    const lonBefore = s.lon;
+    s = advance(s, 0, EV(true, true, true)); // lập lại, chưa đi
+    expect(s.lon).toBeCloseTo(lonBefore, 9);
+    expect(seekVelocity(s.seek!, 0)).toBeCloseTo(vBefore, 6);
+    expect(s.seek!.durMs).toBeLessThanOrEqual(FAST_SEEK_MS);
+    let ms = 0;
+    let prev = s.lon;
+    while (s.phase !== 'done' && ms < 2000) {
+      s = advance(s, 10, EV(true, true, true));
+      if (s.phase === 'seek') expect(s.lon).toBeLessThanOrEqual(prev + 1e-9);
+      prev = s.lon;
+      ms += 10;
+    }
+    expect(ms).toBeLessThanOrEqual(FAST_SEEK_MS + 20);
+    expect(lonGap(s.lon, 106.7)).toBeLessThan(0.5);
+    expect(s.friends).toBe(false);
+  });
+
+  it('seek gần xong khi `ready` tới (còn < 500 ms) thì giữ nguyên đường cũ', () => {
+    let s = advance(initialChoreo(20, 22, GLOBE_SPEED_FULL), 0, EV(true));
+    const plan = s.seek!;
+    for (let t = 0; t < plan.durMs - 300; t += 10) s = advance(s, 10, EV(true));
+    const next = advance(s, 10, EV(true, true, true));
+    expect(next.seek!.durMs).toBe(plan.durMs);
+    expect(next.seek!.fromLon).toBe(plan.fromLon);
+  });
+
+  it('dáng ghim: nảy rồi đứng (full), hiện thẳng không nảy (lite / nhánh nhanh)', () => {
+    expect(pinPose(0, false).lift).toBe(0);
+    expect(pinPose(175, false).bounce).toBeGreaterThan(0);
+    expect(pinPose(350, false)).toMatchObject({ lift: 1 });
+    expect(pinPose(350, false).bounce).toBeCloseTo(0, 9);
+    expect(pinPose(0, true)).toEqual({ bounce: 0, lift: 1, pulse: 1 });
+  });
+});
+
+describe('T-113: biên đạo trong đồng hồ chung', () => {
+  afterEach(() => resetGlobeClock());
+
+  it('còn xoay thì góc = đồng hồ giải tích; `style` tới ⇒ seek bắt đầu đúng góc đang đứng (không nhảy)', () => {
+    setGlobeSpeed(GLOBE_SPEED_FULL, 0);
+    signalGlobe('code', 0);
+    expect(globeFrame(1000).phase).toBe('spin');
+    expect(globeFrame(1000).lon).toBeCloseTo(globeLonAt(1000), 9);
+    signalGlobe('style', 1500);
+    const f = globeFrame(1500);
+    expect(f.phase).toBe('seek');
+    expect(lonGap(f.lon, globeLonAt(1500))).toBeLessThan(1e-9);
+    // hai instance gọi cùng thời điểm không đếm thời gian hai lần
+    const a = globeFrame(1600).lon;
+    expect(globeFrame(1600).lon).toBeCloseTo(a, 9);
+  });
+
+  it('đi hết: style → tiles → ready ⇒ done; quay lại trang chủ (mốc lùi) ⇒ xoay lại từ TP.HCM', () => {
+    setGlobeSpeed(GLOBE_SPEED_FULL, 0);
+    signalGlobe('loading', 0);
+    signalGlobe('code', 100);
+    signalGlobe('style', 200);
+    signalGlobe('tiles', 1000);
+    let t = 200;
+    let f = globeFrame(t);
+    while (f.phase !== 'pin' && t < 5000) f = globeFrame((t += 33));
+    expect(f.phase).toBe('pin');
+    signalGlobe('ready', t);
+    while (f.phase !== 'done' && t < 8000) f = globeFrame((t += 33));
+    expect(f.phase).toBe('done');
+    signalGlobe('loading', t + 10);
+    const again = globeFrame(t + 10);
+    expect(again.phase).toBe('spin');
+    expect(lonGap(again.lon, GLOBE_PARK.lon)).toBeLessThan(1e-6);
+    expect(globeFrame(t + 1010).lon).toBeCloseTo(normLon(GLOBE_PARK.lon - 45), 6);
+  });
+});
+
+describe('T-113: màu chấm bạn bè', () => {
+  it('4 chấm = sky, leaf, sun, brick của theme đang dùng', () => {
+    const r = reader(sections.light);
+    const pal = readGlobePalette(r, false);
+    expect(pal.friends).toEqual(['--stage-sky', '--stage-leaf', '--stage-sun', '--stage-brick'].map((t) => parseRgbToken(r(t))));
+    expect(readGlobePalette(() => '', true).friends[1]).toEqual([147, 197, 139]);
   });
 });

@@ -11,13 +11,25 @@ import {
   shadeLevel,
   type GlobePalette,
 } from './palette';
-import { GLOBE_SPEED_FULL, GLOBE_SPEED_SLOW, GLOBE_TILT_DEG, globeLonAt, setGlobeSpeed } from './clock';
+import { GLOBE_SPEED_FULL, GLOBE_SPEED_SLOW, globeFrame, setGlobeSpeed } from './clock';
+import {
+  FRIENDS,
+  friendPose,
+  isStill,
+  normLon,
+  pinPose,
+  ripplePhases,
+  trailAlpha,
+  type ChoreoState,
+} from './choreo';
 import { buildDots, D2R, GLOBE_HCM, projectInto, viewOf, type GlobeDots, type Projected } from './projection';
 
 export interface GlobeCanvasProps {
   /** `lite` / reduced-motion: 20 s một vòng, 15 fps. */
   slow: boolean;
   className?: string;
+  /** Biên đạo vừa xong (pha `done`, T-113): gọi một lần cho mỗi instance. */
+  onStoryEnd?: () => void;
 }
 
 // Chấm đất gom theo (dải độ sâu z) × (mức sáng lambert) ⇒ tối đa BANDS·LEVELS path đất + 2 path đèn thành phố mỗi khung.
@@ -34,8 +46,10 @@ const CITY_ALPHA = [0.55, 0.95];
  * 50 %/50 % + translate) để chứa quầng khí quyển, nên tổ tiên gần nhất phải là `position: relative` quanh đúng cầu. Đổi cỡ thì rải lại chấm + vẽ lại hai lớp tĩnh; đổi theme
  * (`data-theme` / `prefers-color-scheme`) thì đọc lại màu và vẽ lại.
  */
-export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className }) => {
+export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className, onStoryEnd }) => {
   const ref = useRef<HTMLCanvasElement>(null);
+  const endRef = useRef(onStoryEnd);
+  endRef.current = onStoryEnd;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -52,6 +66,8 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className }) => 
     let colors: string[] = [];
     let accent = rgbCss(pal.accent);
     let cityColor = '';
+    let paper = rgbCss(pal.paper);
+    let friendColors = pal.friends.map(rgbCss);
     // Lớp tĩnh vẽ một lần (xem lighting.ts): dưới chấm đất / trên chấm đất.
     const back = document.createElement('canvas');
     const front = document.createElement('canvas');
@@ -75,6 +91,8 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className }) => 
       colors = levelColors(pal);
       accent = rgbCss(pal.accent);
       cityColor = pal.night ? rgbCss(pal.night) : '';
+      paper = rgbCss(pal.paper);
+      friendColors = pal.friends.map(rgbCss);
     };
 
     const paintStatic = () => {
@@ -113,11 +131,108 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className }) => 
       paintStatic();
     };
 
-    const draw = () => {
+    // Ghim + 4 chấm bạn bè bay theo cung bậc hai về ghim + gợn sóng (mock T-113). Toạ độ px CSS, tâm ghim (x, y).
+    const drawPin = (f: ChoreoState, x: number, y: number, R: number) => {
+      const t = f.pinT;
+      if (f.friends) {
+        const head = Math.max(2.6, R * 0.04);
+        const ta = trailAlpha(t);
+        FRIENDS.forEach((off, i) => {
+          const { u, e } = friendPose(i, t, slow);
+          if (u <= 0) return; // chưa bay
+          if (slow) {
+            // lite/reduced: không bay, hiện thẳng sát ghim cho tới lúc "nhập" vào ghim
+            if (u >= 1) return;
+            ctx.fillStyle = friendColors[i];
+            ctx.strokeStyle = paper;
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.arc(x + off[0] * head * 1.6, y + off[1] * head * 1.6, head, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            return;
+          }
+          const x0 = x + off[0] * R * 0.95;
+          const y0 = y + off[1] * R * 0.95;
+          const mx = (x0 + x) / 2;
+          const my = Math.min(y0, y) - R * 0.32;
+          const bx = (k: number) => (1 - k) * (1 - k) * x0 + 2 * (1 - k) * k * mx + k * k * x;
+          const by = (k: number) => (1 - k) * (1 - k) * y0 + 2 * (1 - k) * k * my + k * k * y;
+          // Vệt nét đứt sau đầu chấm (dài 0,55 cung); chấm đã tới thì vệt còn mờ dần tới TRAIL_FADE.
+          if (ta > 0) {
+            ctx.strokeStyle = friendColors[i];
+            ctx.lineWidth = 1.6;
+            ctx.globalAlpha = ta;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            const tail = Math.max(0, e - 0.55);
+            ctx.moveTo(bx(tail), by(tail));
+            for (let k = tail + 0.04; k < e; k += 0.04) ctx.lineTo(bx(k), by(k));
+            ctx.lineTo(bx(e), by(e));
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+          }
+          if (u >= 1) return; // đã nhập vào ghim
+          ctx.fillStyle = friendColors[i];
+          ctx.strokeStyle = paper;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.arc(bx(e), by(e), head, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        // Gợn sóng lặp trong lúc chờ bản đồ (không có ở lite/reduced và khi đã xong).
+        if (!slow && f.phase === 'pin') {
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 1.5;
+          for (const w of ripplePhases(t)) {
+            ctx.globalAlpha = 0.5 * (1 - w);
+            ctx.beginPath();
+            ctx.arc(x, y, 4 + w * R * 0.38, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+      const pose = pinPose(t, slow || !f.friends);
+      const hgt = Math.max(13, R * 0.2) * pose.lift;
+      const tipY = y - pose.bounce;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 1, 4, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const hr = Math.max(5, R * 0.075) * pose.pulse;
+      const hy = tipY - hgt;
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.moveTo(x, tipY);
+      ctx.quadraticCurveTo(x - hr * 1.05, hy + hr * 0.6, x - hr, hy);
+      ctx.arc(x, hy, hr, Math.PI, 0);
+      ctx.quadraticCurveTo(x + hr * 1.05, hy + hr * 0.6, x, tipY);
+      ctx.fill();
+      ctx.fillStyle = paper;
+      ctx.beginPath();
+      ctx.arc(x, hy, hr * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    // Khung tĩnh (dừng ở VN chờ tiles, hoặc đã xong) đã vẽ một lần ⇒ bỏ vẽ; `force` cho đổi cỡ / đổi theme.
+    let drewStill = false;
+    let ended = false;
+    const draw = (force = false) => {
       if (!size) return;
+      const f = globeFrame();
+      if (f.phase === 'done' && !ended) {
+        ended = true;
+        endRef.current?.();
+      }
+      const still = isStill(f, slow);
+      if (still && drewStill && !force) return;
+      drewStill = still;
       const R = size / 2;
       const C = R * GLOBE_HALO;
-      const view = viewOf(globeLonAt(), GLOBE_TILT_DEG);
+      const view = viewOf(normLon(f.lon), f.lat);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(back, 0, 0);
@@ -176,7 +291,9 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className }) => 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       projectInto(p, hcm.s, hcm.c, hcm.l, view);
-      if (p.z > 0) {
+      if ((f.phase === 'pin' || f.phase === 'done') && p.z > 0.05) {
+        drawPin(f, C + R * p.x, C - R * p.y, R);
+      } else if (p.z > 0) {
         ctx.globalAlpha = 0.4 + 0.6 * p.z;
         ctx.fillStyle = accent;
         ctx.beginPath();
@@ -210,14 +327,14 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({ slow, className }) => 
     const onTheme = () => {
       refreshPalette();
       paintStatic();
-      draw();
+      draw(true);
     };
 
     resize();
-    draw();
+    draw(true);
     sync();
 
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { resize(); draw(); }) : null;
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { resize(); draw(true); }) : null;
     if (canvas.parentElement) ro?.observe(canvas.parentElement);
     const io =
       typeof IntersectionObserver !== 'undefined'
