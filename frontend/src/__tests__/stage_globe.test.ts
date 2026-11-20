@@ -2,6 +2,21 @@ import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { GLOBE_MASK_H, GLOBE_MASK_RLE, GLOBE_MASK_W } from '../stage/hero/globe/mask';
 import { advanceStage, isPendingStage, nextStage, ringProgress, statusKey, type GlobeState } from '../stage/hero/globe/progress';
+import {
+  CITY_FRACTION,
+  GLOBE_LEVELS,
+  GLOBE_LIGHT,
+  GLOBE_TOKENS,
+  isCityLight,
+  lambert,
+  levelColors,
+  parseRgbToken,
+  readGlobePalette,
+  shadeLevel,
+  type RGB,
+} from '../stage/hero/globe/palette';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { buildDots, decodeMask, dotStepDeg, GLOBE_HCM, isLand, project } from '../stage/hero/globe/projection';
 import {
   GLOBE_SPEED_FULL,
@@ -161,5 +176,108 @@ describe('T-112: mốc tải và vòng tiến độ', () => {
     expect((['loading', 'code', 'style', 'tiles'] as const).every(isPendingStage)).toBe(true);
     expect(isPendingStage('ready')).toBe(false);
     expect(isPendingStage('failed')).toBe(false);
+  });
+});
+
+// ——— T-111: ánh sáng, khí quyển, đèn thành phố ———
+const tokensCss = readFileSync(fileURLToPath(new URL('../styles/tokens.css', import.meta.url)), 'utf8');
+const darkAt = tokensCss.indexOf(':root[data-theme="dark"]');
+const mediaAt = tokensCss.indexOf('@media (prefers-color-scheme: dark)');
+// Ba đoạn: theme sáng (trước khối dark), theme tối khai báo tay, theme tối theo hệ điều hành.
+const sections = { light: tokensCss.slice(0, darkAt), dark: tokensCss.slice(darkAt, mediaAt), system: tokensCss.slice(mediaAt) };
+const reader = (css: string) => (name: string) => css.match(new RegExp(`${name}:\\s*([0-9 ]+);`))?.[1] ?? '';
+const lum = (c: RGB) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+
+describe('T-111: bảng màu đọc từ token Stage', () => {
+  it('cả hai theme khai báo đủ token cầu cần, đều là bộ ba RGB hợp lệ', () => {
+    for (const [name, css] of Object.entries(sections)) {
+      for (const tok of GLOBE_TOKENS) {
+        expect(parseRgbToken(reader(css)(tok)), `${tok} @ ${name}`).not.toBeNull();
+      }
+    }
+  });
+
+  it('theme tối theo hệ điều hành khớp theme tối khai báo tay (cầu không lệch màu giữa hai đường)', () => {
+    for (const tok of GLOBE_TOKENS) expect(reader(sections.system)(tok)).toBe(reader(sections.dark)(tok));
+  });
+
+  it('sáng: không đèn thành phố, đất lấy từ ink-2; tối: có đèn màu --stage-sun, biển tối hơn, đất sáng hơn', () => {
+    const light = readGlobePalette(reader(sections.light), false);
+    const dark = readGlobePalette(reader(sections.dark), true);
+    expect(light.night).toBeNull();
+    expect(light.land).toEqual(parseRgbToken(reader(sections.light)('--stage-ink-2')));
+    expect(dark.night).toEqual(parseRgbToken(reader(sections.dark)('--stage-sun')));
+    expect(lum(dark.seaDark)).toBeLessThan(lum(light.seaDark));
+    expect(lum(dark.land)).toBeGreaterThan(lum(light.land));
+    for (const pal of [light, dark]) expect(lum(pal.landLit)).toBeGreaterThan(lum(pal.land) - 1);
+  });
+
+  it('token trống/hỏng thì lùi về giá trị mặc định của theme, không ném lỗi', () => {
+    const pal = readGlobePalette(() => 'không phải màu', true);
+    expect(pal.night).toEqual([255, 201, 77]);
+    expect(parseRgbToken('300 1 1')).toBeNull();
+    expect(parseRgbToken('1 2')).toBeNull();
+    expect(parseRgbToken(' 233 164 0 ')).toEqual([233, 164, 0]);
+  });
+});
+
+describe('T-111: lambert và lượng tử hoá mức sáng', () => {
+  it('hướng nắng chuẩn hoá, nằm phía trên-trái và hướng về người xem', () => {
+    expect(Math.hypot(...GLOBE_LIGHT)).toBeCloseTo(1, 6);
+    expect(GLOBE_LIGHT[0]).toBeLessThan(0);
+    expect(GLOBE_LIGHT[1]).toBeGreaterThan(0);
+    expect(GLOBE_LIGHT[2]).toBeGreaterThan(0);
+    expect(lambert(...GLOBE_LIGHT)).toBeCloseTo(1, 6);
+    expect(lambert(-GLOBE_LIGHT[0], -GLOBE_LIGHT[1], -GLOBE_LIGHT[2])).toBeCloseTo(-1, 6);
+  });
+
+  it('shadeLevel trả đúng số mức, đơn điệu, chạm cả hai đầu', () => {
+    expect(GLOBE_LEVELS).toBeLessThanOrEqual(6);
+    for (const levels of [3, GLOBE_LEVELS]) {
+      const seen = new Set<number>();
+      let prev = -1;
+      for (let lam = -1; lam <= 1.0001; lam += 0.005) {
+        const k = shadeLevel(lam, levels);
+        expect(k).toBeGreaterThanOrEqual(0);
+        expect(k).toBeLessThan(levels);
+        expect(k).toBeGreaterThanOrEqual(prev);
+        prev = k;
+        seen.add(k);
+      }
+      expect(seen.size).toBe(levels);
+    }
+    expect(shadeLevel(-5)).toBe(0);
+    expect(shadeLevel(5)).toBe(GLOBE_LEVELS - 1);
+  });
+
+  it('levelColors trả đúng số màu, từ màu tối đến màu hứng nắng', () => {
+    const pal = readGlobePalette(reader(sections.dark), true);
+    const colors = levelColors(pal);
+    expect(colors).toHaveLength(GLOBE_LEVELS);
+    expect(new Set(colors).size).toBe(GLOBE_LEVELS);
+    const first = colors[0].match(/\d+/g)!.map(Number);
+    const last = colors[GLOBE_LEVELS - 1].match(/\d+/g)!.map(Number);
+    expect(first[0]).toBeLessThan(last[0]);
+  });
+});
+
+describe('T-111: đèn thành phố', () => {
+  const dark = readGlobePalette(reader(sections.dark), true);
+  const light = readGlobePalette(reader(sections.light), false);
+
+  it('chỉ ở theme tối và phía đêm; phía sáng không đèn', () => {
+    expect(isCityLight(dark, 0.01, -0.5)).toBe(true);
+    expect(isCityLight(dark, 0.01, 0.5)).toBe(false);
+    expect(isCityLight(light, 0.01, -0.5)).toBe(false);
+    expect(isCityLight(dark, CITY_FRACTION + 0.01, -0.5)).toBe(false);
+  });
+
+  it('chọn theo hash tất định: chấm dựng hai lần cho cùng tập đèn, tỉ lệ ≈ 18 %', () => {
+    const a = buildDots(84);
+    const b = buildDots(84);
+    expect(Array.from(a.hash)).toEqual(Array.from(b.hash));
+    const lit = Array.from(a.hash).filter((h) => h < CITY_FRACTION).length / a.count;
+    expect(lit).toBeGreaterThan(0.12);
+    expect(lit).toBeLessThan(0.25);
   });
 });
