@@ -1,244 +1,267 @@
-# Hangoutplanner (repo: Di Dau) - Ứng Dụng Lập Kế Hoạch Đi Chơi Nhóm Realtime
+<p align="center">
+  <a href="https://didau-omega.vercel.app">
+    <img src="frontend/public/favicon.svg" width="72" alt="Logo Hangout Planner">
+  </a>
+</p>
 
-> **"Cuối tuần này đi đâu?"** — Ứng dụng giải quyết bài toán muôn thuở của các nhóm bạn khi lên kế hoạch đi chơi, ăn uống. Hỗ trợ xác thực không mật khẩu (Anonymous-first), tự động phân loại quán thông minh, bỏ phiếu realtime, phân định hòa phiếu đa chiến lược, sắp xếp lịch trình kéo thả và phát hiện xung đột thời gian thực.
+<h1 align="center">Hangout Planner</h1>
 
----
+<p align="center">
+  Lên kế hoạch đi chơi cho cả nhóm trong một phòng realtime.<br>
+  Khi hoà phiếu, chọn quán công bằng nhất cho người ở xa nhất.
+</p>
 
-## 🌟 Tính Năng Nổi Bật
+<p align="center">
+  <a href="https://didau-omega.vercel.app">Dùng thử</a> ·
+  <a href="docs/phase7/ALGORITHMS.md">Thuật toán</a> ·
+  <a href="docs/CONTRACTS.md">API</a> ·
+  <a href="docs/DEPLOY.md">Triển khai</a>
+</p>
 
-1. **Anonymous-First Authentication**:
-   - Tham gia phòng ngay lập tức chỉ với nickname và mã phòng 6 ký tự (`DIDAU8`).
-   - Tự động sinh `member_token` bảo mật lưu trong trình duyệt. Không yêu cầu đăng ký/đăng nhập.
-   - Phân quyền rõ ràng: Người tạo là `HOST`, người tham gia là `MEMBER`.
+<br>
 
-2. **Gợi Ý Quán & Tự Động Phân Loại Danh Mục (PlaceCategoryDetector)**:
-   - Tự động nhận diện danh mục (`FOOD`, `DRINK`, `ENTERTAINMENT`, `SHOPPING`, `SIGHTSEEING`, `ACCOMMODATION`, `OTHER`) từ tên quán, địa chỉ hoặc URL ShopeeFood/Google Maps.
-   - Nhập thời gian mở cửa, chi phí dự kiến, link địa điểm và ghi chú.
+![Trang chủ Hangout Planner: bản đồ 3D TP.HCM](docs/proposal/mvp/screens/01-trang-chu.jpg)
 
-3. **Bình Chọn & Đồng Bộ Realtime (WebSocket + EventBus)**:
-   - Upvote (+1) và Downvote (-1) hiển thị điểm số tức thì qua WebSocket cho tất cả thành viên.
-   - Trạng thái trực tuyến (Live indicator) và heartbeat giữ kết nối ổn định.
+> [!NOTE]
+> Backend chạy gói miễn phí của Render, nên lần mở đầu tiên có thể mất khoảng một phút để máy chủ khởi động.
 
-4. **Phân Định Hòa Phiếu Đa Chiến Lược (TieBreakStrategy Pattern)**:
-   - Dành riêng cho `HOST` khi các địa điểm hòa điểm:
-     - `EARLIEST_SUBMISSION`: Ưu tiên địa điểm được đề xuất sớm nhất.
-     - `MOST_UPVOTES`: Ưu tiên địa điểm có nhiều lượt vote thuận (+1) nhất.
-     - `CREATOR_PRIORITY`: Ưu tiên đề xuất của Host hoặc thành viên chỉ định.
-     - `CATEGORY_DIVERSITY`: Ưu tiên đa dạng hóa thể loại (Ăn uống, Cà phê, Vui chơi).
-     - `RANDOM`: Bốc thăm ngẫu nhiên công bằng.
-   - Chốt các địa điểm thắng cuộc sang trạng thái `ACCEPTED`.
+## Giới thiệu
 
-5. **Trục Lịch Trình Kéo Thả (Drag-and-Drop Schedule Builder)**:
-   - Trục thời gian trực quan theo giờ trong ngày (`09:00 - 10:30`,...).
-   - Kéo thả sắp xếp lại thứ tự ưu tiên hoặc dùng phím điều hướng nhanh.
-   - Hỗ trợ lịch trình nhiều ngày (`day_offset`).
+"Tối nay đi đâu?" thường kéo dài cả buổi trong nhóm chat: người gửi link quán, người thả tim, rồi hai quán bằng phiếu
+và không ai muốn quyết. Hangout Planner gom việc đó vào một phòng chung. Cả nhóm cùng đề xuất quán, bình chọn, chốt,
+xếp lịch rồi gửi kế hoạch. Mọi thay đổi hiện ngay trên máy của mọi người.
 
-6. **Động Cơ Phát Hiện Xung Đột Thông Minh (ConflictDetectionEngine)**:
-   - Phân cấp màu sắc cảnh báo: `CRITICAL` (Đỏ), `ERROR` (Cam), `WARNING` (Vàng).
-   - Luật xung đột:
-     - `TIME_OVERLAP`: Trùng lặp khung giờ giữa 2 địa điểm trong cùng ngày.
-     - `TRAVEL_TIME`: Thời gian nghỉ giữa 2 chặng ít hơn thời gian di chuyển (tính theo khoảng cách Haversine).
-     - `OPENING_HOURS`: Lên lịch ngoài khung giờ mở cửa của quán.
-     - `DUPLICATE_PLACE`: Địa điểm trùng tên (>90%) hoặc vị trí quá gần (<50m).
-     - `BUDGET_THRESHOLD`: Tổng chi phí dự kiến vượt ngân sách nhóm đề ra.
+Không cần tài khoản. Chủ phòng gửi mã 6 ký tự hoặc link qua Zalo/Messenger, bạn bè vào bằng một nickname và chia sẻ
+nơi xuất phát. Trang phòng đổi bố cục theo từng bước và chỉ hiện những gì cần làm lúc đó.
 
----
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>1 · Tìm quán</b><br>
+      <sub>Khoảng 70 000 quán thật ở TP.HCM và Hà Nội ngay trên bản đồ, gộp chi nhánh cùng thương hiệu.</sub>
+      <br><br>
+      <img src="docs/phase8/screens/t109/1366-z100-01-phong.png" alt="Danh sách quán và bản đồ">
+    </td>
+    <td width="50%" valign="top">
+      <b>2 · Bình chọn</b><br>
+      <sub>Phiếu bầu, người đang xem và con trỏ của bạn bè cập nhật tức thì. Khi hoà, app đưa ra một đề xuất.</sub>
+      <br><br>
+      <img src="docs/phase8/screens/t109/1366-z100-02-hoa-realtime.png" alt="Hoà phiếu và thẻ đề xuất">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>3 · Chốt</b><br>
+      <sub>Chỉ chủ phòng chốt quán. Cả phòng thấy kết quả cùng lúc, kèm đường đi, chia sẻ và thêm vào lịch.</sub>
+      <br><br>
+      <img src="docs/phase8/screens/t109/1366-z100-05-chot.png" alt="Màn chốt quán">
+    </td>
+    <td width="50%" valign="top">
+      <b>4 · Xếp lịch và gửi</b><br>
+      <sub>Kéo quán vào lịch, kéo giãn để đổi giờ, theo dõi ngân sách, xuất kế hoạch gửi nhóm.</sub>
+      <br><br>
+      <img src="docs/proposal/mvp/screens/07-ke-hoach-sau-chot.jpg" alt="Lịch chung của nhóm">
+    </td>
+  </tr>
+</table>
 
-## 🏗️ Kiến Trúc Hệ Thống
+<p align="center">
+  <sub>
+    Xem chuyển động:
+    <a href="docs/phase4/screens/final/hero-1440.gif">trang chủ</a> ·
+    <a href="docs/phase5/screens/final/flow-4-steps-1440.gif">các bước trên desktop</a> ·
+    <a href="docs/phase4/screens/final/swipe-1440.gif">quẹt thẻ bỏ phiếu</a> ·
+    <a href="docs/phase5/screens/final/flow-mobile-explore-detail-vote-500.gif">trên điện thoại</a>
+  </sub>
+</p>
+
+## Phá hoà công bằng
+
+Bốc thăm hay "ai đề xuất trước" không quan tâm ai phải đi bao xa. Chọn quán có tổng quãng đường cả nhóm ít nhất thì tốt
+hơn, nhưng vẫn có thể bắt một người đi rất xa để những người còn lại đỡ vài cây số.
+
+Hangout Planner dùng **Ordered Median Problem (OMP)**. Với mỗi quán đang hoà, app tính quãng đường khứ hồi của từng
+người, bình phương lên (k = 2), xếp tăng dần rồi nhân với trọng số tăng dần (λ = 1). Nhờ vậy người đi xa nhất được tính
+nặng nhất. Quãng đường lấy từ máy chủ định tuyến **Valhalla** tự host với hồ sơ xe máy và được lưu cache trong Postgres.
+Khi không gọi được Valhalla, app lùi về ước lượng (đường chim bay × hệ số uốn lượn).
+
+<img src="docs/phase8/screens/t109/1366-z100-04-vi-sao.png" alt="Bảng Vì sao? so sánh thời gian đi của người xa nhất">
+
+Trong ví dụ trên, ba quán cùng 3 phiếu và bốn người xuất phát từ Q.1, Bình Thạnh, Thủ Đức, Q.7:
+
+| Quán | Người xa nhất đi + về | |
+| :--- | --: | :--- |
+| **Pizza 4P's Thiso Mall Sala** | **60′** | đề xuất |
+| Haidilao Giga Mall | 74′ | tổng km cả nhóm ít nhất |
+| Dookki SC VivoCity | 94′ | |
+
+Nếu chỉ cộng tổng km, máy sẽ chọn Haidilao và người xa nhất phải đi thêm 14 phút. Màn mặc định chỉ hiện một câu ngắn
+"người xa nhất bớt 14′". Bảng chi tiết nằm sau nút **Vì sao?**.
+
+- **Bộ giải.** Quy hoạch động theo lớp cho lộ trình nhiều chặng. Trên 20 bộ dữ liệu mô phỏng, kết quả khớp vét cạn ở mọi
+  case vét cạn chạy được. Case lớn nhất có 3,3 × 10¹² tổ hợp và được giải trong khoảng 4 ms. Số đo và cách tái lập nằm ở
+  [`ALGORITHMS.md` §9](docs/phase7/ALGORITHMS.md).
+- **Người quyết là người.** Máy chỉ đề xuất, chủ phòng bấm chốt. Chồng giờ hay thiếu giờ trên lịch chỉ được cảnh báo,
+  app không tự sửa.
+- **Riêng tư.** Không phản hồi API nào chứa toạ độ của thành viên khác. Mỗi người chỉ thấy đường đi của chính mình.
+
+## Tính năng
+
+- **Phòng không cần tài khoản.** Vào bằng nickname và mã 6 ký tự. Có hai vai trò: chủ phòng và thành viên.
+- **Realtime.** Phiếu bầu, danh sách quán, lịch, người đang xem và con trỏ trên bản đồ được đồng bộ qua WebSocket.
+- **Bản đồ quán.** Bản đồ vector MapLibre với lớp quán thay cho POI nền. Tìm kiếm mờ tiếng Việt, lọc theo 7 loại quán,
+  xem chi tiết quán và đường đi của mình.
+- **Lịch chung.** Lịch kéo thả trong khung giờ của phòng (mặc định 17:00–23:00), có ghi chú và ngân sách mỗi người.
+  App cảnh báo khi chồng giờ hoặc không đủ thời gian di chuyển giữa hai chặng.
+- **Xuất kế hoạch.** Ảnh PNG, văn bản kèm emoji, tệp `.ics` hoặc link.
+- **Giao diện.** Song ngữ Việt/Anh, theme sáng/tối/theo máy. Điện thoại dùng hai tab, desktop dùng ba cột. Trang chủ 3D
+  tự hạ cấp theo sức máy và tôn trọng `prefers-reduced-motion`.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/phase5/screens/final/gather-500-light-vi.webp" alt="Tìm quán trên điện thoại"></td>
+    <td width="33%"><img src="docs/phase5/screens/final/vote-500-dark-en.webp" alt="Bình chọn, theme tối, tiếng Anh"></td>
+    <td width="33%"><img src="docs/phase6/screens/T-82/card-light-vi-8stops-1080x1350.webp" alt="Ảnh kế hoạch xuất ra"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Điện thoại · sáng · tiếng Việt</sub></td>
+    <td align="center"><sub>Điện thoại · tối · tiếng Anh</sub></td>
+    <td align="center"><sub>Ảnh kế hoạch gửi nhóm</sub></td>
+  </tr>
+</table>
+
+## Bắt đầu nhanh
+
+Cần Docker và Docker Compose.
+
+```bash
+git clone https://github.com/From-haven/Hangout-planner.git && cd Hangout-planner
+SEED_DEMO=true docker compose up --build
+```
+
+Ứng dụng chạy ở http://localhost:5173, tài liệu API (Swagger) ở http://localhost:8000/docs. Backend tự chạy migration,
+nạp bảng tìm quán và tạo phòng mẫu **`DIDAU8`**.
+
+Để dựng phòng có sẵn ca hoà phiếu như ví dụ ở trên:
+
+```bash
+cd backend && poetry install
+poetry run python ../scripts/seed_demo_genz.py http://localhost:8000 --frontend http://localhost:5173
+```
+
+Script in ra mã phòng và cách vào phòng bằng từng thành viên. Số phút trong ví dụ chỉ khớp khi có Valhalla
+([`VALHALLA.md`](docs/phase7/VALHALLA.md)); không có Valhalla thì app dùng ước lượng.
+
+<details>
+<summary><b>Biến môi trường</b></summary>
+<br>
+
+| Biến | Mặc định | Ý nghĩa |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/didau` | Kết nối Postgres |
+| `PLACES_PROVIDER` | `osm` | `osm` hoặc `google` (cần key, luôn có đường lùi về OSM) |
+| `VALHALLA_URL`, `VALHALLA_KEY` | trống | Máy chủ định tuyến. Bỏ trống thì chỉ đọc cache và ước lượng |
+| `SEED_DEMO` | `false` | Tạo phòng mẫu `DIDAU8` khi khởi động |
+
+Danh sách đầy đủ ở [`backend/.env.example`](backend/.env.example) và [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+</details>
+
+<details>
+<summary><b>Kiểm thử</b></summary>
+<br>
+
+```bash
+docker compose up -d db                                   # test tích hợp dùng Postgres thật
+cd backend  && poetry run ruff check . && poetry run pytest
+cd frontend && npm run lint && npm test && npm run build
+```
+
+Test không gọi mạng thật: backend mock `httpx`, frontend dùng MSW. Smoke test đầu-cuối trên backend đang chạy:
+
+```bash
+cd backend && poetry run python ../scripts/smoke_test.py http://localhost:8000 http://localhost:5173 osm
+```
+
+</details>
+
+## Công nghệ
+
+| | |
+| :--- | :--- |
+| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · Zustand · MapLibre GL · Motion · i18next |
+| **Backend** | Python 3.11+ · FastAPI · SQLAlchemy 2 (async) · Alembic · WebSocket |
+| **Dữ liệu** | PostgreSQL 15 (`pg_trgm`) · Overture Maps · OpenStreetMap |
+| **Định tuyến** | Valhalla tự host (xe máy), cache trong bảng `travel_legs` |
+| **Kiểm thử** | pytest · Ruff · Vitest · MSW |
+| **Triển khai** | Vercel (frontend) · Render (backend) · Docker Compose (local) |
 
 ```text
-├── backend/                  # FastAPI 0.115 + SQLAlchemy 2.0 Async + PostgreSQL + Alembic
-│   ├── app/
-│   │   ├── api/v1/           # REST Routers & WebSocket Endpoint
-│   │   ├── core/             # Database connection, exceptions, security, seed.py
-│   │   ├── domain/           # Models, Enums, Value Objects & Patterns
-│   │   │   ├── patterns/     # CategoryDetector, TieBreak, ConflictRule, EventBus
-│   │   │   └── phase2_interfaces/ # ABC Interfaces cho Phase 2 (Route, External, Split)
-│   │   ├── repositories/     # Data Access Layer (SQLAlchemy Async Repositories)
-│   │   └── services/         # Application Services & WebSocket Broadcaster
-│   └── tests/                # 313 Automated Tests (Unit + Integration)
-├── frontend/                 # React 18 + TypeScript + Vite + TailwindCSS + Zustand
-│   ├── src/
-│   │   ├── components/       # UI (Common, Room, Places, Voting, Schedule, Conflicts)
-│   │   ├── hooks/            # useRoom, useWebSocket, useMinuteFormat
-│   │   ├── services/         # API Client (Axios), WSClient, Storage
-│   │   ├── store/            # Zustand Stores (Room, Place, Schedule, Conflict)
-│   │   ├── mocks/            # Mock Service Worker (MSW v2) cho isolated dev
-│   │   └── pages/            # HomePage, RoomPage
-│   └── src/__tests__/        # 47 Automated Tests (Vitest + React DOM Server)
-└── docker-compose.yml        # Orchestration đầy đủ (PostgreSQL 15, Backend, Frontend)
+Trình duyệt (React + MapLibre)
+   │  REST /api/v1  ·  WebSocket /ws/rooms/{room_id}
+   ▼
+FastAPI ── PostgreSQL (phòng, phiếu, lịch, pois, travel_legs)
+   │
+   └── Valhalla (km xe máy; không gọi được thì ước lượng)
 ```
 
----
+Backend chia lớp theo hướng `api → services → domain → repositories`. Thuật toán phá hoà, cảnh báo lịch và phân loại quán
+nằm ở `backend/app/domain/patterns/`. Chi tiết ở [`ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## 🚀 Khởi Chạy Nhanh Bằng 1 Lệnh Duy Nhất
+<details>
+<summary><b>Cấu trúc thư mục</b></summary>
+<br>
 
-Yêu cầu: Đã cài đặt **Docker** và **Docker Compose**.
-
-```bash
-docker compose up --build
+```text
+backend/
+  app/api/v1/          REST và WebSocket
+  app/domain/          model, enum, thuật toán (patterns/decision: OMP, cảnh báo lịch)
+  app/services/        nghiệp vụ, định tuyến, phát sự kiện realtime
+  app/repositories/    truy cập dữ liệu (SQLAlchemy async)
+  alembic/             migration
+  tests/
+frontend/
+  src/room/            trang phòng: danh sách, bản đồ, lịch, "Vì sao?"
+  src/stage/           trang chủ 3D và các khoảnh khắc chuyển động
+  src/i18n/locales/    chuỗi giao diện tiếng Việt và tiếng Anh
+  src/mocks/           MSW cho phát triển và kiểm thử
+scripts/               dựng dữ liệu quán, seed phòng demo, benchmark OMP, làm ấm cache đường
+docs/                  kiến trúc, hợp đồng API, đặc tả thuật toán, nhật ký từng giai đoạn
 ```
 
-Sau khi khởi chạy:
-- **Frontend App**: [http://localhost:5173](http://localhost:5173)
-- **Backend API Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **PostgreSQL Database**: `localhost:5432` (`didau` / `postgres` / `postgres`)
+</details>
 
----
+## Tài liệu
 
-## 🌱 Nạp Dữ Liệu Mẫu (Seed Data)
+| Tài liệu | Nội dung |
+| :--- | :--- |
+| [`docs/phase7/ALGORITHMS.md`](docs/phase7/ALGORITHMS.md) | Đặc tả OMP, bộ giải DP, nguồn km, số đo |
+| [`docs/CONTRACTS.md`](docs/CONTRACTS.md) | Hợp đồng REST, schema, sự kiện WebSocket |
+| [`docs/CHANGE_REQUESTS.md`](docs/CHANGE_REQUESTS.md) | Các thay đổi hợp đồng đã duyệt |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Triển khai Vercel + Render, chế độ Google |
+| [`PRODUCT.md`](PRODUCT.md) | Người dùng, nguyên tắc sản phẩm, giới hạn |
 
-Hệ thống cung cấp sẵn script seed dữ liệu mẫu khởi tạo phòng `DIDAU8` (điểm hẹn Q.1, khung giờ 17:00–23:00) với 3 thành viên, 7 địa điểm (5 thêm tay + 2 quán OSM có `external_id` thật), hai quán OSM hòa 3 phiếu ở đầu bảng để demo "🎲 Chọn hộ", và 1 mục lịch trình mẫu:
+## Đồ án
 
-```bash
-# Chạy trong container backend:
-docker exec didau_backend python -m app.core.seed
+Đồ án môn **Tư duy tính toán** (Computational Thinking), Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM.
 
-# Hoặc nếu chạy backend cục bộ (Poetry):
-cd backend && poetry run python -m app.core.seed
-```
+- Giảng viên hướng dẫn:
+- Lớp:
+- Học kỳ:
 
-### Thông tin phòng mẫu sau khi Seed:
-- **Mã phòng tham gia**: `DIDAU8`
-- **Host (HoangNam)**: Token `a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d`
-- **Thành viên 2 (ThuTrang)**: Token `b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e`
-- **Thành viên 3 (MinhKhoa)**: Token `c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f`
+| Họ tên | MSSV |
+| :--- | :--- |
+| | |
+| | |
+| | |
+| | |
 
----
+## Giấy phép và ghi công
 
-## 🎬 Kịch Bản Demo Kiểm Thử End-to-End (2 Cửa Sổ Trình Duyệt)
+Mã nguồn phát hành theo giấy phép [MIT](LICENSE).
 
-1. **Bước 1 (Mở 2 Tab)**:
-   - **Tab 1 (Cửa sổ thường)**: Mở [http://localhost:5173](http://localhost:5173) -> Nhập mã phòng `DIDAU8` và nickname `HoangNam` (hoặc tạo phòng mới).
-   - **Tab 2 (Cửa sổ ẩn danh)**: Mở [http://localhost:5173](http://localhost:5173) -> Chọn **"Tham gia phòng"** -> Nhập mã phòng `DIDAU8` và nickname `ThuTrang`.
-2. **Bước 2 (Gợi ý quán & Tự nhận diện category)**:
-   - Trên Tab 1, bấm **"Gợi ý quán"** -> Nhập tên quán: `Trà Sữa Koi Thé`.
-   - Hệ thống tự động phát hiện danh mục `DRINK` (Đồ uống) và thẻ địa điểm xuất hiện trên cả 2 màn hình tức thì.
-3. **Bước 3 (Bỏ phiếu realtime)**:
-   - Tab 1 bấm nút Upvote (+1) tại một địa điểm bất kỳ.
-   - Tab 2 ngay lập tức nhảy điểm số theo thời gian thực qua WebSocket mà không cần reload trang.
-4. **Bước 4 (Host chốt TieBreak)**:
-   - Tab 1 (Host) bấm nút **"Chốt vote"** -> Chọn chiến lược phân định (ví dụ: `Most Upvotes` hoặc `Earliest Submission`) -> Bấm xác nhận.
-   - Các địa điểm thắng cuộc được chuyển sang trạng thái `ACCEPTED` (Đã chốt ⭐).
-5. **Bước 5 (Xếp lịch trình & Báo xung đột)**:
-   - Chuyển sang tab **"Lịch trình chuyến đi"** -> Bấm **"Xếp lịch mới"**.
-   - Chọn quán và đặt giờ trùng với một địa điểm đang có (ví dụ: `09:30 - 10:30`).
-   - Thanh **ConflictAlertBanner màu đỏ** (`CRITICAL`) xuất hiện ghim đầu trang cảnh báo trùng giờ.
-   - Bấm **"Chi tiết"** để xem phân tích xung đột và điều chỉnh lại giờ để banner tự động giải tỏa.
-
----
-
-## 🗺️ Giai đoạn 2: Bản đồ, Chọn hộ & Tự lên lịch
-
-Với phòng `DIDAU8` sau khi seed:
-1. Tab **🗺️ Bản đồ**: chọn một quán trên bản đồ (dữ liệu OSM, không cần key) → **+ Thêm vào lựa chọn**.
-2. Hai quán dẫn đầu đang hòa → banner **🎲 Chọn hộ** hiện ra → Host quay **Vòng quay**; mọi tab dừng cùng một ô (kết quả do server tính theo `seed`).
-3. Bấm **✨ Lên lịch giúp tôi** → xem lộ trình nháp → Host **Áp dụng lịch trình**; không còn xung đột.
-4. Mở một quán → viết **review nội bộ** (sao, tag, bình luận ≤ 280 ký tự).
-
-Chế độ `google` (tuỳ chọn) bật bằng biến môi trường `PLACES_PROVIDER=google` + key; xem [docs/DEPLOY.md](docs/DEPLOY.md) mục 6. Không đặt key thì ứng dụng không gửi request nào tới `googleapis.com`.
-
-```bash
-# Ví dụ: chạy chế độ google với docker compose (cần key thật)
-PLACES_PROVIDER=google GOOGLE_MAPS_SERVER_KEY=... VITE_GOOGLE_MAPS_BROWSER_KEY=... docker compose up --build
-```
-
----
-
-## 🎨 Giai đoạn 3: Làm lại giao diện & Song ngữ (UI Redesign & i18n)
-
-1. **Hệ thống Design Token & Theme**:
-   - Palette màu tối giản, ấm áp: Họ xám ấm (`stone`), màu nhấn san hô (`#FF6B4A` coral) đại diện cho lựa chọn của nhóm, 7 cặp màu danh mục trực quan đạt tương phản ≥3:1.
-   - Hỗ trợ **Chế độ Tối (Dark Mode)** tự nhiên: Nền `#141210`, thẻ `#1F1D1A`, chữ đạt tương phản WCAG AAA (15.4:1–17.1:1). Nút primary tự điều chỉnh màu chữ để đạt 6.6:1 (không dùng chữ trắng trên coral).
-   - Tùy chọn 3 chế độ: *Theo máy* (hệ điều hành), *Sáng*, *Tối* tại tab Nhóm hoặc tự nhận diện theo `prefers-color-scheme`.
-
-2. **Song ngữ Tiếng Việt & English**:
-   - Chuyển đổi ngôn ngữ tức thì qua nút `LanguageSwitcher` trên thanh tiêu đề hoặc cài đặt trong tab Nhóm.
-   - Toàn bộ nhãn, danh mục, thông báo lỗi kỹ thuật, lý do thuật toán chọn hộ và cảnh báo xung đột lịch trình được bản địa hóa và định dạng chuẩn qua `Intl` (tiền tệ VND/USD, khoảng cách m/km, ngày giờ, số ít/số nhiều).
-
-3. **Trải Nghiệm Di Động & Chuyển Động (Mobile-First & Motion)**:
-   - Thanh tab dưới 56px hỗ trợ safe-area, tự ẩn khi mở bàn phím ảo, vạch chọn trượt chuyển tab mượt mà.
-   - Bottom Sheet trượt từ đáy màn hình thay thế modal truyền thống, hỗ trợ vuốt xuống để đóng, phím `Esc` và bẫy focus khép kín chuẩn A11y.
-   - Hoạt ảnh phản hồi bấm (`pressable`), nảy số vote tức thì, quét màu khi chốt quán (`ACCEPTED`), hiệu ứng lộ diện kết quả chọn hộ. Tự động tắt hoạt ảnh khi bật `prefers-reduced-motion`.
-
-## 🎬 Giai đoạn 4: "Sân khấu" (bản đồ 3D, quẹt thẻ, reveal, hiện diện)
-
-Một khoảnh khắc mỗi màn, phần còn lại nhanh và yên. Luật thiết kế: `docs/phase4/DESIGN.md`; kịch bản demo 2 phút:
-`docs/phase4/DEMO.md`.
-
-| | 1440px VI | 1440px EN | 500px VI | 500px EN |
-| :--- | :--- | :--- | :--- | :--- |
-| Trang chủ: phim 5 cảnh trên bản đồ 3D TP.HCM | ![](docs/phase4/screens/final/hero-1440-vi.jpg) | ![](docs/phase4/screens/final/hero-1440-en.jpg) | ![](docs/phase4/screens/final/hero-500-vi.jpg) | ![](docs/phase4/screens/final/hero-500-en.jpg) |
-| Quẹt thẻ bỏ phiếu | ![](docs/phase4/screens/final/swipe-1440-vi.jpg) | ![](docs/phase4/screens/final/swipe-1440-en.jpg) | ![](docs/phase4/screens/final/swipe-500-vi.jpg) | ![](docs/phase4/screens/final/swipe-500-en.jpg) |
-| Reveal chốt quán (mọi máy cùng lúc) | ![](docs/phase4/screens/final/reveal-1440-vi.jpg) | ![](docs/phase4/screens/final/reveal-1440-en.jpg) | ![](docs/phase4/screens/final/reveal-500-vi.jpg) | ![](docs/phase4/screens/final/reveal-500-en.jpg) |
-| Chuyển tab (thẻ quán bay sang bản đồ) | ![](docs/phase4/screens/final/tab-1440-vi.jpg) | ![](docs/phase4/screens/final/tab-1440-en.jpg) | ![](docs/phase4/screens/final/tab-500-vi.jpg) | ![](docs/phase4/screens/final/tab-500-en.jpg) |
-
-Chuyển động: [phim hero](docs/phase4/screens/final/hero-1440.gif) ·
-[quẹt thẻ](docs/phase4/screens/final/swipe-1440.gif) · [reveal](docs/phase4/screens/final/reveal-1440-en.gif) ·
-[chuyển tab](docs/phase4/screens/final/tab-1440-dark.gif) · [hiện diện](docs/phase4/screens/T-63-presence-1440-dark.gif).
-
-- **Ba mức chuyển động** tự chọn theo máy: `full` (tòa nhà 3D, camera theo cuộn), `lite` (máy yếu hoặc < 40 fps 2 s),
-  `static` (`prefers-reduced-motion`, không WebGL): poster + chữ. Thử bằng `?motion=off|lite|slow`.
-- **Âm thanh** tổng hợp WebAudio (không file), tắt mặc định, nút loa ở header trang chủ và tab Nhóm.
-- **Hiện diện realtime** (CR-08): avatar người đang xem trên thẻ/ghim, con trỏ bạn bè trên bản đồ (≥1024px).
-- Hiệu năng (T-64): JS vào 185,8 kB gzip, hero ~90 fps ở 1440px, LCP ≈ 0,33 s (cache lạnh), CLS ≈ 0 — bảng đủ ở `docs/phase4/DESIGN.md` §6.
-
----
-
-## 🧭 Giai đoạn 5: "Không gian phòng" (trang phòng 3 cột, bố cục theo giai đoạn)
-
-Trang phòng thiết kế lại: desktop 3 cột (danh sách | bản đồ | Kế hoạch), mobile 2 tab, bố cục đổi theo 4 bước
-(Tìm quán → Bình chọn → Chốt kèo → Gửi lịch), trang chi tiết quán, ngân sách cả buổi, avatar nhân vật, tạo phòng một màn.
-Luật thiết kế + số đo cuối: `docs/phase5/DESIGN.md` (§13); kịch bản demo 2 phút: `docs/phase5/DEMO.md`; ảnh: `docs/phase5/screens/final/`.
-
-| Màn | 1440 sáng (VI) | 500 tối (EN) |
-| :--- | :--- | :--- |
-| ① Tìm quán | ![](docs/phase5/screens/final/gather-1440-light-vi.webp) | ![](docs/phase5/screens/final/gather-500-dark-en.webp) |
-| ② Bình chọn | ![](docs/phase5/screens/final/vote-1440-light-vi.webp) | ![](docs/phase5/screens/final/vote-500-dark-en.webp) |
-| ④ Gửi lịch | ![](docs/phase5/screens/final/send-1440-light-vi.webp) | ![](docs/phase5/screens/final/send-500-dark-en.webp) |
-
-- Hiệu năng (T-75): entry 201,99 kB gzip, LCP phòng ≈ 0,25 s, CLS tải trang 0,008; CLS khi đổi giai đoạn do máy khác vẫn còn (xem DESIGN §13).
-- Còn chờ người dùng: cổng G2 (dùng thử) và G3 (duyệt ảnh + demo); việc backend phát sinh: `docs/phase5/BACKEND-NOTES.md`.
-
-## 🧪 Kiểm Thử Tự Động (Automated Testing)
-
-Toàn bộ hệ thống đạt độ phủ kiểm thử 100% các tiêu chí hợp đồng:
-
-### 1. Backend Tests (523 Tests Pass)
-```bash
-# Chạy trong container Docker:
-docker exec didau_backend poetry run pytest -v
-
-# Hoặc chạy trên máy host:
-cd backend
-poetry run pytest -v
-```
-
-### 2. Frontend Tests (567 Tests Pass across 35 suites)
-```bash
-cd frontend
-npm test
-npm run lint
-npm run build
-```
-
-### 3. Smoke Test End-to-End (cần backend đang chạy)
-Tạo phòng, thêm quán OSM, hòa phiếu, Chọn hộ bằng vòng quay (2 client WebSocket phải nhận cùng góc dừng), tự lên lịch + áp dụng, kiểm tra không có xung đột nặng, review nội bộ:
-```bash
-cd backend
-poetry run python ../scripts/smoke_test.py http://localhost:8000 http://localhost:5173 osm
-# Chế độ google: chạy backend với PLACES_PROVIDER=google rồi đổi tham số cuối thành google
-```
-
----
-
-## 📄 Bản Quyền & Giấy Phép
-
-Dự án phát triển mã nguồn mở theo chuẩn kiến trúc Clean / Onion Architecture.
-Toàn bộ đặc tả API, Schema và sự kiện WebSocket tuân thủ chặt chẽ tài liệu [docs/CONTRACTS.md](docs/CONTRACTS.md).
-
-### Ghi công (credits)
-- **Avatar nhân vật**: bộ ["Thumbs"](https://www.dicebear.com/styles/thumbs/) của DiceBear (Florian Körner), tác phẩm
-  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (phạm vi công cộng, không bắt buộc ghi công; vẫn ghi ở đây).
-  Mã `@dicebear/core` và `@dicebear/thumbs` theo giấy phép MIT. Hình được sinh ngay trên máy từ seed lưu trong `avatar_url`;
-  ứng dụng **không** gọi `api.dicebear.com`.
+- Bản đồ: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, [OpenFreeMap](https://openfreemap.org),
+  [OpenMapTiles](https://openmaptiles.org).
+- Dữ liệu quán: [Overture Maps Foundation](https://overturemaps.org) và OpenStreetMap.
+- Định tuyến: [Valhalla](https://github.com/valhalla/valhalla).
+- Avatar: bộ [Thumbs](https://www.dicebear.com/styles/thumbs/) của DiceBear (CC0 1.0), sinh ngay trên máy từ seed.
