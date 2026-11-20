@@ -244,6 +244,9 @@ describe('T-59: mức chuyển động → thành phần hero', () => {
   });
 });
 
+type GlobeStateT = import('../stage/hero/HeroGlobe').GlobeState;
+type GlobeStatusKey = import('../stage/hero/globe/progress').GlobeStatusKey;
+
 describe('T-83: quả địa cầu tải bản đồ', () => {
   afterEach(() => setMotionOverride(null));
 
@@ -252,8 +255,41 @@ describe('T-83: quả địa cầu tải bản đồ', () => {
     const html = renderToStaticMarkup(<HeroGlobe state="loading" delayMs={0} tier="lite" />);
     expect(html).toContain('data-hero-globe');
     expect(html).toContain('role="status"');
-    expect(html).toContain(i18n.t('hero.globeLoading', { lng: 'vi' }));
-    expect(i18n.t('hero.globeLoading', { lng: 'en' })).toBe('Building the 3D map…');
+    expect(html).toContain(i18n.t('hero.globe.start', { lng: 'vi' }));
+    expect(i18n.t('hero.globe.start', { lng: 'en' })).toBe('Loading the map…');
+  });
+
+  it('T-112: mỗi mốc ra đúng chữ VI/EN và đúng mốc vòng tiến độ', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    const cases: [GlobeStateT, GlobeStatusKey, string, string][] = [
+      ['loading', 'hero.globe.start', 'Loading the map…', '0.000'],
+      ['code', 'hero.globe.code', 'Styling the map…', '0.220'],
+      ['style', 'hero.globe.style', 'Loading streets…', '0.480'],
+      ['tiles', 'hero.globe.tiles', 'Raising 3D buildings…', '0.760'],
+      ['ready', 'hero.globe.ready', 'Here we are!', '1.000'],
+    ];
+    for (const [state, key, en, ring] of cases) {
+      const html = renderToStaticMarkup(<HeroGlobe state={state} delayMs={0} tier="lite" />);
+      expect(html).toContain(i18n.t(key, { lng: 'vi' }));
+      expect(i18n.t(key, { lng: 'en' })).toBe(en);
+      expect(i18n.t(key, { lng: 'vi' })).not.toBe(key);
+      expect(html).toContain(`data-globe-ring="${ring}"`);
+    }
+  });
+
+  it('T-112: vòng tiến độ aria-hidden, chỉ có một dòng role=status', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    const html = renderToStaticMarkup(<HeroGlobe state="style" delayMs={0} tier="full" />);
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+    expect(html).toMatch(/<div aria-hidden="true"[^>]*>.*<svg[^>]*data-globe-ring/);
+  });
+
+  it('T-112: các mốc code/style/tiles vẫn hiện cầu (cầu chỉ gỡ ở ready/failed)', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    for (const state of ['code', 'style', 'tiles'] as const) {
+      expect(renderToStaticMarkup(<HeroGlobe state={state} delayMs={0} tier="full" />)).toContain('data-hero-globe');
+    }
+    expect(renderToStaticMarkup(<HeroGlobe state="style" tier="full" />)).not.toContain('data-hero-globe'); // trước 300 ms
   });
 
   it('không có globe khi ready/failed, trước 300 ms, hoặc mức static', async () => {
@@ -268,7 +304,7 @@ describe('T-83: quả địa cầu tải bản đồ', () => {
     const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
     const html = renderToStaticMarkup(<HeroGlobe state="loading" delayMs={0} tier="full" />);
     expect(html).toMatch(/<canvas[^>]*aria-hidden="true"/);
-    expect(html).not.toContain('<svg');
+    expect(html).not.toContain('<path'); // không còn dải đất SVG (chỉ còn vòng tiến độ T-112)
   });
 
   it('T-110: instance thứ hai hiện ngay khi instance trước còn trên màn (không chớp 300 ms)', async () => {

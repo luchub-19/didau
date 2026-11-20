@@ -1,6 +1,7 @@
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { GLOBE_MASK_H, GLOBE_MASK_RLE, GLOBE_MASK_W } from '../stage/hero/globe/mask';
+import { advanceStage, isPendingStage, nextStage, ringProgress, statusKey, type GlobeState } from '../stage/hero/globe/progress';
 import { buildDots, decodeMask, dotStepDeg, GLOBE_HCM, isLand, project } from '../stage/hero/globe/projection';
 import {
   GLOBE_SPEED_FULL,
@@ -122,5 +123,43 @@ describe('T-110: đồng hồ chung (nối hai instance)', () => {
     expect(isGlobeOnScreen()).toBe(true);
     b();
     expect(isGlobeOnScreen()).toBe(false);
+  });
+});
+
+describe('T-112: mốc tải và vòng tiến độ', () => {
+  it('mốc đúng PLAN §4.1: 0 / 22 / 48 / 76 / 100 %', () => {
+    expect(['loading', 'code', 'style', 'tiles', 'ready'].map((s) => ringProgress(s as GlobeState, false))).toEqual([0, 0.22, 0.48, 0.76, 1]);
+  });
+
+  it('nhích dần nhưng không bao giờ vượt/đạt mốc kế khi chưa tới mốc', () => {
+    for (const s of ['loading', 'code', 'style', 'tiles'] as const) {
+      const next = nextStage(s)!;
+      const creep = ringProgress(s, true);
+      expect(creep).toBeGreaterThan(ringProgress(s, false));
+      expect(creep).toBeLessThan(ringProgress(next, false));
+    }
+    expect(ringProgress('ready', true)).toBe(1);
+    expect(ringProgress('failed', true)).toBe(0);
+  });
+
+  it('khoá chữ theo mốc; failed/loading dùng dòng bắt đầu', () => {
+    expect(statusKey('loading')).toBe('hero.globe.start');
+    expect(statusKey('code')).toBe('hero.globe.code');
+    expect(statusKey('tiles')).toBe('hero.globe.tiles');
+    expect(statusKey('ready')).toBe('hero.globe.ready');
+  });
+
+  it('advanceStage chỉ đi tới; ready/failed là cuối', () => {
+    expect(advanceStage('code', 'style')).toBe('style');
+    expect(advanceStage('tiles', 'style')).toBe('tiles'); // callback tới lệch thứ tự
+    expect(advanceStage('style', 'tiles')).toBe('tiles');
+    expect(advanceStage('ready', 'tiles')).toBe('ready');
+    expect(advanceStage('failed', 'style')).toBe('failed');
+  });
+
+  it('isPendingStage: cầu còn cần hiện ở mọi mốc trước ready', () => {
+    expect((['loading', 'code', 'style', 'tiles'] as const).every(isPendingStage)).toBe(true);
+    expect(isPendingStage('ready')).toBe(false);
+    expect(isPendingStage('failed')).toBe(false);
   });
 });

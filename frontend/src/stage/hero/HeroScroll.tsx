@@ -10,6 +10,7 @@ import { duration, easing, getTimeScale, motionAttrs, resolvePreset, stageLog } 
 import { HeroActions, type HeroActionsProps } from './HeroActions';
 import { HeroCaption } from './HeroCaption';
 import { HeroGlobe } from './HeroGlobe';
+import { advanceStage, type GlobeState } from './globe/progress';
 import { HeroPoster } from './HeroPoster';
 import type { HeroMapHandle } from './HeroMap';
 import { cameraAt, duskAt, HERO_SHOTS, reachedStops, routeProgressAt, shotIndexAt, type HeroShot } from './shots';
@@ -42,7 +43,8 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
   const progressRef = useRef(0);
   const skipUntilRef = useRef(0);
   const [shotIndex, setShotIndex] = useState(0);
-  const [mapState, setMapState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  // Mốc tải của bản đồ (gđ9 T-112). HeroScroll mount = 'code' (chunk đã về); fallback của Hero giữ 'loading'.
+  const [mapState, setMapState] = useState<GlobeState>('code');
   const [panelHeight, setPanelHeight] = useState(0);
   // Số chặng đường nối đã vẽ tới (đổi 3 lần trong cả phim, không render lại mỗi khung)
   const [reached, setReached] = useState(0);
@@ -202,6 +204,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
                 bottomInset={panelHeight}
                 reached={reached}
                 playIntro={playIntro}
+                onProgress={(stage) => setMapState((cur) => advanceStage(cur, stage))}
                 onReady={() => setMapState('ready')}
                 onFail={() => setMapState('failed')}
               />

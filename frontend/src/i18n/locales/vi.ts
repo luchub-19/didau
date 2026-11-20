@@ -1142,7 +1142,13 @@ export const vi = {
   hero: {
     sectionLabel: 'Giới thiệu: một buổi tối ở trung tâm TP.HCM',
     posterAlt: 'Bản đồ trung tâm TP.HCM nhìn từ trên cao, nắng chiều',
-    globeLoading: 'Đang dựng bản đồ 3D…',
+    globe: {
+      start: 'Đang tải bản đồ…',
+      code: 'Đang dựng kiểu bản đồ…',
+      style: 'Đang tải đường phố…',
+      tiles: 'Đang dựng toà nhà 3D…',
+      ready: 'Tới nơi rồi!',
+    },
     skip: 'Bỏ qua',
     planLabel: 'Lịch mẫu cho một buổi tối',
     pinLabel: '{{stop}}: {{name}}, xem giờ và địa chỉ',

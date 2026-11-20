@@ -1144,7 +1144,13 @@ export const en: Messages = {
   hero: {
     sectionLabel: 'Intro: one evening in central Ho Chi Minh City',
     posterAlt: 'Aerial map of central Ho Chi Minh City in the late afternoon sun',
-    globeLoading: 'Building the 3D map…',
+    globe: {
+      start: 'Loading the map…',
+      code: 'Styling the map…',
+      style: 'Loading streets…',
+      tiles: 'Raising 3D buildings…',
+      ready: 'Here we are!',
+    },
     skip: 'Skip intro',
     planLabel: 'Sample plan for one evening',
     pinLabel: '{{stop}}: {{name}}, show time and address',

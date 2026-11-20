@@ -21,6 +21,7 @@ import {
   type MotionTier,
 } from '../../motion';
 import { MapPin } from '../../components/ui/Icon';
+import type { MapStage } from './globe/progress';
 import {
   HERO_SHOTS,
   HERO_STOPS,
@@ -56,6 +57,8 @@ export interface HeroMapProps {
   onReady: () => void;
   /** Style lỗi/quá chậm → giữ poster. */
   onFail: (reason: string) => void;
+  /** Mốc tải thật (gđ9 T-112): 'style' ở `map.on('load')`, 'tiles' khi prewarm xong; `onReady` vẫn là mốc cuối. */
+  onProgress?: (stage: MapStage) => void;
 }
 
 const BUILDING_LAYER = 'building-3d';
@@ -214,7 +217,7 @@ function setInteractive(map: MapLibreMap, on: boolean): void {
   else map.cooperativeGestures.disable();
 }
 
-export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotIndex, bottomInset, reached, playIntro, onReady, onFail }, ref) => {
+export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotIndex, bottomInset, reached, playIntro, onReady, onFail, onProgress }, ref) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -224,8 +227,8 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
   const prewarmingRef = useRef(true);
   // Mức lúc khởi tạo (đổi mức sau đó do effect riêng xử lý, không dựng lại bản đồ)
   const initialTierRef = useRef(tier);
-  const callbacks = useRef({ onReady, onFail });
-  callbacks.current = { onReady, onFail };
+  const callbacks = useRef({ onReady, onFail, onProgress });
+  callbacks.current = { onReady, onFail, onProgress };
   const [loaded, setLoaded] = useState(false);
   const [pinHosts, setPinHosts] = useState<HTMLElement[]>([]);
   // Camera cuối cùng HeroScroll yêu cầu + độ lệch bearing của cú xoay mở màn (cộng vào khi jumpTo)
@@ -344,9 +347,11 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
         }),
       );
       setLoaded(true);
+      callbacks.current.onProgress?.('style');
       void prewarm().then(() => {
         if (disposed) return;
         prewarmingRef.current = false;
+        callbacks.current.onProgress?.('tiles');
         const introMs = resolvePreset('hero.intro', initialTierRef.current).durationMs;
         const orbit = playIntroRef.current && introMs > 0;
         if (orbit) orbitOffsetRef.current = -INTRO_ORBIT_DEG;
