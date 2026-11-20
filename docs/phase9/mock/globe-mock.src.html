@@ -1,0 +1,601 @@
+<title>Hangoutplanner Globe Loader</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<style>
+/* Bố cục: một "sân khấu" giả hero ở trên, bảng điều khiển + dòng thời gian tải ở dưới, ghi chú từng nâng cấp cuối trang. */
+:root {
+  --bg: #F7F1E6;
+  --surface: #FFFDF8;
+  --line: #E6D9C3;
+  --fg: #2B1B12;
+  --fg-2: #6B4A36;
+  --accent: #B83A22;
+  --accent-soft: #F6DCCF;
+  --font-display: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
+  --font-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15101B; --surface: #1F1826; --line: #352A3D; --fg: #FBEFE0; --fg-2: #CDB6A4;
+    --accent: #FF8F70; --accent-soft: #3B2330; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15101B; --surface: #1F1826; --line: #352A3D; --fg: #FBEFE0; --fg-2: #CDB6A4;
+  --accent: #FF8F70; --accent-soft: #3B2330; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(26px, 4vw, 36px); font-weight: 700; }
+h2 { font-size: 20px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+p { margin: 0; }
+.lede { color: var(--fg-2); max-width: 68ch; }
+
+/* ——— Sân khấu: token Stage của app (giấy nắng / chạng vạng) ——— */
+.stage {
+  --s-paper: 251 243 228; --s-paper-2: 243 227 199; --s-ink: 43 27 18; --s-ink-2: 107 74 54; --s-accent: 184 58 34;
+  position: relative; height: clamp(380px, 56vw, 500px); border-radius: 18px; overflow: hidden;
+  background: rgb(var(--s-paper)); border: 1px solid var(--line); isolation: isolate;
+}
+.stage[data-stage="dark"] {
+  --s-paper: 26 20 32; --s-paper-2: 39 29 44; --s-ink: 251 239 224; --s-ink-2: 205 182 164; --s-accent: 255 143 112;
+}
+.stage::before {
+  /* poster mờ phía sau, như HeroPoster đang làm */
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background:
+    linear-gradient(115deg, rgb(255 107 74 / 0.18) 0%, rgb(233 164 0 / 0.14) 45%, transparent 75%),
+    repeating-linear-gradient(102deg, rgb(var(--s-ink) / 0.035) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(12deg, rgb(var(--s-ink) / 0.035) 0 2px, transparent 2px 58px);
+}
+.stage[data-stage="dark"]::before {
+  background:
+    linear-gradient(115deg, rgb(255 107 74 / 0.16) 0%, rgb(124 58 140 / 0.14) 50%, transparent 80%),
+    repeating-linear-gradient(102deg, rgb(var(--s-ink) / 0.04) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(12deg, rgb(var(--s-ink) / 0.04) 0 2px, transparent 2px 58px);
+}
+.stage-copy {
+  position: absolute; left: 24px; bottom: 22px; z-index: 6; color: rgb(var(--s-ink)); max-width: 46%;
+}
+.stage-copy b { display: block; font-family: var(--font-display); font-size: clamp(20px, 3vw, 30px); line-height: 1.1; }
+.stage-copy span { font-size: 13px; color: rgb(var(--s-ink-2)); }
+.fauxmap { position: absolute; inset: 0; z-index: 1; opacity: 0; width: 100%; height: 100%; display: block; }
+.globe-slot {
+  position: absolute; left: 50%; top: 40%; z-index: 5; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
+}
+.globe-box { position: relative; }
+.globe-box canvas { display: block; }
+.ring { position: absolute; inset: 0; overflow: visible; }
+.status {
+  font-size: 13px; font-weight: 600; color: rgb(var(--s-ink-2)); background: rgb(var(--s-paper) / 0.82);
+  border-radius: 999px; padding: 4px 12px; white-space: nowrap; transition: opacity 300ms var(--ease-out);
+}
+.strip { position: relative; border-radius: 50%; overflow: hidden; border: 1px solid rgb(var(--s-ink) / 0.12); background: rgb(var(--s-paper-2)); }
+.strip-track { display: flex; width: 448px; animation: strip-spin 8s linear infinite; }
+.strip-track.slow { animation-duration: 20s; }
+.strip-shade { position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.35), transparent 45%), radial-gradient(circle at 70% 75%, rgb(var(--s-ink) / 0.28), transparent 65%); }
+@keyframes strip-spin { from { transform: translate3d(0,0,0); } to { transform: translate3d(-224px,0,0); } }
+.stage-tag {
+  position: absolute; top: 14px; left: 14px; z-index: 6; font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: rgb(var(--s-ink-2)); background: rgb(var(--s-paper) / 0.85); padding: 3px 10px; border-radius: 999px;
+}
+.stage-metric {
+  position: absolute; top: 14px; right: 14px; z-index: 6; font-size: 12px; font-variant-numeric: tabular-nums;
+  color: rgb(var(--s-ink-2)); background: rgb(var(--s-paper) / 0.85); padding: 3px 10px; border-radius: 999px;
+}
+
+/* ——— Điều khiển ——— */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-2); min-width: 92px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; color: var(--fg); font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 6px; font-size: 13px; cursor: pointer; user-select: none; background: transparent; color: var(--fg); font-family: inherit; }
+.chip .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--line); color: var(--fg-2); }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.chip[aria-pressed="true"] .n { background: var(--accent); color: var(--surface); }
+.chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.play { border: 0; border-radius: 10px; background: var(--accent); color: var(--surface); font: inherit; font-weight: 600; padding: 8px 16px; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+
+/* ——— Dòng thời gian tải ——— */
+.tl { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.tl-step { border-top: 3px solid var(--line); padding-top: 8px; font-size: 12.5px; color: var(--fg-2); min-width: 0; }
+.tl-step b { display: block; color: var(--fg); font-size: 13px; }
+.tl-step .t { font-variant-numeric: tabular-nums; }
+.tl-step.on { border-top-color: var(--accent); }
+.tl-step.now b { color: var(--accent); }
+
+/* ——— Ghi chú ——— */
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.note { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.note .hd { display: flex; gap: 10px; align-items: baseline; }
+.note .num { font-family: var(--font-display); font-weight: 700; color: var(--accent); font-size: 18px; }
+.note p { color: var(--fg-2); font-size: 14px; }
+.note .cost { font-size: 12.5px; color: var(--fg); }
+@media (max-width: 640px) {
+  .stage-copy { max-width: 70%; left: 16px; bottom: 16px; }
+  .tl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .label { min-width: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .strip-track { animation-duration: 20s; } }
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>Quả cầu tải bản đồ: bản xem thử</h1>
+    <p class="lede">Mô phỏng hero lúc bản đồ 3D đang tải. Bật/tắt từng nâng cấp (1–5) để thấy mỗi cái góp gì, đổi tốc độ mạng để thấy
+      chuỗi chuyển động bám theo tiến độ tải thật. Dữ liệu lục địa: Natural Earth 110m, lưới 0,5°.</p>
+  </header>
+
+  <section class="stage" id="stage" data-stage="light" aria-label="Sân khấu mô phỏng hero">
+    <canvas class="fauxmap" id="fauxmap" aria-hidden="true"></canvas>
+    <span class="stage-tag" id="stageTag">Hero · đang tải</span>
+    <span class="stage-metric" id="metric">—</span>
+    <div class="globe-slot" id="slot">
+      <div class="globe-box" id="globeBox">
+        <canvas id="globe" aria-hidden="true"></canvas>
+        <svg class="ring" id="ring" aria-hidden="true"><circle id="ringTrack" fill="none"></circle><circle id="ringBar" fill="none" stroke-linecap="round"></circle></svg>
+      </div>
+      <div class="strip" id="strip" hidden aria-hidden="true">
+        <div class="strip-track" id="stripTrack"></div>
+        <div class="strip-shade"></div>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite">Đang dựng bản đồ 3D…</p>
+    </div>
+    <div class="stage-copy"><b>Rủ cả nhóm, chốt quán trong 5 phút.</b><span>Khối chữ hero (giữ nguyên, chỉ để canh bố cục)</span></div>
+  </section>
+
+  <section class="panel" aria-label="Điều khiển">
+    <div class="row">
+      <button class="play" id="play" type="button">▶ Phát lại</button>
+      <span class="label">Mạng</span>
+      <div class="seg" id="speed">
+        <button type="button" data-v="fast">Nhanh</button>
+        <button type="button" data-v="mid" aria-pressed="true">4G</button>
+        <button type="button" data-v="slow">3G chậm</button>
+        <button type="button" data-v="hold">Đứng ở xoay</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">Nâng cấp</span>
+      <div class="chips" id="chips">
+        <button type="button" class="chip" data-k="sphere" aria-pressed="true"><span class="n">1</span>Cầu thật (chấm bi)</button>
+        <button type="button" class="chip" data-k="light" aria-pressed="true"><span class="n">2</span>Ánh sáng · khí quyển</button>
+        <button type="button" class="chip" data-k="story" aria-pressed="true"><span class="n">3</span>Dừng ở VN · ghim · hội tụ</button>
+        <button type="button" class="chip" data-k="dive" aria-pressed="true"><span class="n">4</span>Lao xuống bản đồ</button>
+        <button type="button" class="chip" data-k="progress" aria-pressed="true"><span class="n">5</span>Tiến độ thật</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">Đường kính</span>
+      <div class="seg" id="size">
+        <button type="button" data-v="112">112 px (hiện tại)</button>
+        <button type="button" data-v="168" aria-pressed="true">168 px</button>
+        <button type="button" data-v="220">220 px</button>
+      </div>
+      <span class="label">Sân khấu</span>
+      <div class="seg" id="stheme">
+        <button type="button" data-v="light">Giấy nắng</button>
+        <button type="button" data-v="dark">Chạng vạng</button>
+      </div>
+    </div>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="reduced"> Giảm chuyển động (mức <code>lite</code> / reduced-motion)</label>
+      <label class="check"><input type="checkbox" id="cap" checked> Tăng tốc phần kể chuyện (×2,6) khi bản đồ đã xong</label>
+    </div>
+    <div class="tl" id="tl" aria-label="Các mốc tải bản đồ">
+      <div class="tl-step" data-e="code"><b>Tải mã bản đồ</b><span class="t">—</span> · xoay nhanh</div>
+      <div class="tl-step" data-e="style"><b>Dựng kiểu bản đồ</b><span class="t">—</span> · giảm tốc về VN</div>
+      <div class="tl-step" data-e="tiles"><b>Tải đường phố</b><span class="t">—</span> · ghim + hội tụ</div>
+      <div class="tl-step" data-e="ready"><b>Toà nhà 3D xong</b><span class="t">—</span> · lao xuống</div>
+      <div class="tl-step" data-e="shown"><b>Bản đồ hiện</b><span class="t">—</span> · quả cầu gỡ</div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2>Mỗi nâng cấp tốn gì</h2>
+    <div class="notes">
+      <div class="note"><div class="hd"><span class="num">1</span><h3>Cầu thật (chấm bi)</h3></div>
+        <p>Chiếu trực giao từng chấm đất lên canvas mỗi khung; mép cầu tự dồn chấm nên thấy cong. Thay cho dải SVG trượt ngang.</p>
+        <p class="cost">Bitmask 1° ≈ 1,4 kB gzip. Phải sửa luật gđ6 §7 "chỉ transform" vì canvas vẽ lại mỗi khung (khoá 30 fps, dừng khi ẩn).</p></div>
+      <div class="note"><div class="hd"><span class="num">2</span><h3>Ánh sáng · khí quyển</h3></div>
+        <p>Chấm sáng tối theo hướng nắng (góc trên trái), rìa tối, vệt phản chiếu, quầng khí quyển ngoài viền. Chạng vạng: phía đêm có đèn thành phố.</p>
+        <p class="cost">Chỉ thêm vài gradient mỗi khung; gần như không tốn.</p></div>
+      <div class="note"><div class="hd"><span class="num">3</span><h3>Dừng ở VN · ghim · hội tụ</h3></div>
+        <p>Khi kiểu bản đồ xong, cầu giảm tốc và dừng đúng TP.HCM; khi đường phố về, ghim cam nảy lên và 4 chấm bạn bè bay về một điểm.</p>
+        <p class="cost">Chấm bạn bè là hình minh hoạ cố định, không phải vị trí thật (không đụng CR-11).</p></div>
+      <div class="note"><div class="hd"><span class="num">4</span><h3>Lao xuống bản đồ</h3></div>
+        <p>Lúc bản đồ sẵn sàng, cầu phóng to vào ghim rồi tan, bản đồ hiện ra từ hơi nhoè. Cảm giác đi từ vũ trụ xuống Sài Gòn.</p>
+        <p class="cost">Chỉ <code>transform</code> + <code>opacity</code> + <code>filter</code> 1,4 s (= <code>--t-shot</code>). Cảnh đầu của bản đồ nên mở ở TP.HCM để khớp.</p></div>
+      <div class="note"><div class="hd"><span class="num">5</span><h3>Tiến độ thật</h3></div>
+        <p>Vòng tiến độ quanh cầu và dòng trạng thái đổi theo 4 mốc tải thật. Đây cũng là "xương sống" kéo các bước 3 và 4.</p>
+        <p class="cost">Cần <code>HeroMap</code> báo thêm mốc <code>style</code>/<code>tiles</code> (hiện chỉ có loading/ready/failed).</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  // ——— Bitmask đất liền 720×360 (0,5°), bit i = hàng*720 + cột, hàng 0 = 90°N ———
+  const B64 = '__MASK__';
+  const raw = atob(B64); const MASK = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) MASK[i] = raw.charCodeAt(i);
+  const isLand = (lat, lon) => {
+    let col = Math.floor((lon + 180) / 0.5); col = ((col % 720) + 720) % 720;
+    const row = Math.min(359, Math.max(0, Math.floor((90 - lat) / 0.5)));
+    const i = row * 720 + col; return (MASK[i >> 3] >> (i & 7)) & 1;
+  };
+  const D2R = Math.PI / 180;
+  const HCM = { lat: 10.78, lon: 106.7 };
+
+  const PAL = {
+    light: { seaLit: '#E7EFEF', seaDark: '#B4CAD6', land: [107, 74, 54], landLit: [150, 98, 64], night: null,
+      atmo: 'rgba(31,111,168,', rim: 'rgba(43,27,18,', spec: 'rgba(255,255,255,', accent: '#B83A22', paper: '#FBF3E4', flatSea: '#F3E3C7',
+      friends: ['#1F6FA8', '#3B7A3A', '#E9A400', '#A8482A'], ring: 'rgba(107,74,54,0.18)' },
+    dark: { seaLit: '#3A3152', seaDark: '#120D18', land: [120, 100, 110], landLit: [230, 205, 186], night: [255, 201, 77],
+      atmo: 'rgba(134,189,232,', rim: 'rgba(0,0,0,', spec: 'rgba(255,240,225,', accent: '#FF8F70', paper: '#1A1420', flatSea: '#271D2C',
+      friends: ['#86BDE8', '#93C58B', '#FFC94D', '#E8916B'], ring: 'rgba(205,182,164,0.2)' },
+  };
+
+  // ——— Trạng thái tuỳ chọn ———
+  const opt = { sphere: true, light: true, story: true, dive: true, progress: true, size: 168, speed: 'mid', reduced: false, cap: true,
+    stage: (matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light') || document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' };
+  const PROFILES = { fast: { code: 250, style: 550, tiles: 900, ready: 1200 }, mid: { code: 600, style: 1500, tiles: 2600, ready: 3400 },
+    slow: { code: 1500, style: 3600, tiles: 6000, ready: 7800 }, hold: null };
+  const PROG = { code: 0.22, style: 0.48, tiles: 0.76, ready: 1 };
+  const STATUS = { start: 'Đang tải bản đồ…', code: 'Đang dựng kiểu bản đồ…', style: 'Đang tải đường phố…', tiles: 'Đang dựng toà nhà 3D…', ready: 'Tới nơi rồi!' };
+  const FRIENDS = [[-0.62, -0.5], [0.66, -0.36], [-0.5, 0.52], [0.58, 0.5]]; // lệch theo bán kính, chỉ minh hoạ
+
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage'), canvas = $('globe'), ctx = canvas.getContext('2d'), box = $('globeBox');
+  const fm = $('fauxmap'), fctx = fm.getContext('2d');
+  const ring = $('ring'), ringTrack = $('ringTrack'), ringBar = $('ringBar'), statusEl = $('status');
+  const strip = $('strip'), stripTrack = $('stripTrack'), metric = $('metric'), tag = $('stageTag');
+
+  // Dải SVG cũ (giống HeroGlobe hiện tại) để so
+  const LAND_PATH = 'M12 24L40 18L85 16L105 24L122 36L128 44L112 48L104 56L98 64L85 66L78 62L72 72L85 80L94 76L82 66L70 56L52 60L40 48L25 36ZM130 14L160 10L158 26L140 30ZM100 80L112 78L128 92L135 100L125 118L112 140L108 150L103 130L98 105ZM172 40L190 28L240 20L300 22L350 30L340 45L320 55L300 62L292 80L286 78L278 66L262 82L255 70L238 62L226 56L205 52L190 55L176 50ZM172 58L200 54L225 58L232 72L222 90L218 110L208 125L198 122L192 100L180 84L170 72ZM300 108L326 102L340 112L336 126L316 130L302 122Z';
+  const stripSvg = '<svg viewBox="0 0 360 180" width="224" height="112" style="flex-shrink:0;display:block"><path d="' + LAND_PATH + '" fill="rgb(var(--s-ink-2) / 0.55)"/><circle cx="286.7" cy="79.2" r="4" fill="rgb(var(--s-accent))"/></svg>';
+  stripTrack.innerHTML = stripSvg + stripSvg;
+
+  // ——— Chấm đất theo kích thước ———
+  let dots = [], R = 0, S = 0, dpr = 1;
+  function buildDots() {
+    R = opt.size / 2; S = opt.size + 72; // chừa chỗ quầng + vòng tiến độ
+    const step = Math.max(1, Math.min(4, 3.1 / (R * D2R)));
+    dots = [];
+    for (let lat = -84 + step / 2; lat < 84; lat += step) {
+      const n = Math.max(1, Math.round((360 * Math.cos(lat * D2R)) / step));
+      for (let i = 0; i < n; i++) {
+        const lon = -180 + ((i + 0.5) * 360) / n;
+        if (isLand(lat, lon)) {
+          const h = Math.sin(lat * 12.9898 + lon * 78.233) * 43758.5453; // hash tất định cho đèn đêm
+          dots.push({ sl: Math.sin(lat * D2R), cl: Math.cos(lat * D2R), lon: lon * D2R, city: (h - Math.floor(h)) < 0.18 });
+        }
+      }
+    }
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = S * dpr; canvas.height = S * dpr; canvas.style.width = S + 'px'; canvas.style.height = S + 'px';
+    box.style.width = S + 'px'; box.style.height = S + 'px'; box.style.margin = '-36px';
+    ring.setAttribute('viewBox', `0 0 ${S} ${S}`); ring.setAttribute('width', S); ring.setAttribute('height', S);
+    const rr = R + 14;
+    for (const c of [ringTrack, ringBar]) { c.setAttribute('cx', S / 2); c.setAttribute('cy', S / 2); c.setAttribute('r', rr); c.setAttribute('stroke-width', 3); }
+    ringBar.setAttribute('transform', `rotate(-90 ${S / 2} ${S / 2})`);
+    ringBar.style.strokeDasharray = String(2 * Math.PI * rr);
+    strip.style.transform = `scale(${opt.size / 112})`; strip.style.width = '112px'; strip.style.height = '112px';
+    strip.style.margin = `${(opt.size - 112) / 2}px`;
+  }
+
+  // ——— Chiếu trực giao ———
+  function project(sl, cl, lon, lon0, sp0, cp0) {
+    const dl = lon - lon0, cdl = Math.cos(dl);
+    const z = sp0 * sl + cp0 * cl * cdl; // cos khoảng cách góc tới tâm nhìn
+    return { x: cl * Math.sin(dl), y: cp0 * sl - sp0 * cl * cdl, z };
+  }
+  const L = (() => { const v = [-0.55, 0.5, 0.67]; const m = Math.hypot(...v); return v.map((a) => a / m); })();
+  const mix = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)})`;
+  const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+  const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const clamp01 = (t) => Math.max(0, Math.min(1, t));
+
+  // ——— Vòng đời một lượt phát ———
+  let run;
+  function reset() {
+    for (const a of document.getAnimations()) if (a.effect && [box, fm, statusEl, ring, strip].includes(a.effect.target)) a.cancel();
+    run = { t: 0, lon0: 20, lat0: 22, phase: 'spin', ev: {}, seek: null, pinT: 0, diveT: 0, shownAt: null, prog: 0, last: null, storySp: 1 };
+    box.style.opacity = '1'; fm.style.opacity = '0'; statusEl.style.opacity = '1'; ring.style.opacity = '1';
+    statusEl.textContent = opt.progress ? STATUS.start : 'Đang dựng bản đồ 3D…';
+    tag.textContent = 'Hero · đang tải'; metric.textContent = '—';
+    for (const el of document.querySelectorAll('.tl-step')) { el.classList.remove('on', 'now'); el.querySelector('.t').textContent = '—'; }
+    applyMode();
+  }
+  function applyMode() {
+    const useSphere = opt.sphere;
+    canvas.hidden = !useSphere; strip.hidden = useSphere;
+    ring.style.display = opt.progress ? '' : 'none';
+    stripTrack.classList.toggle('slow', opt.reduced);
+    for (const c of document.querySelectorAll('.chip')) {
+      const k = c.dataset.k;
+      if (k === 'light' || k === 'story') c.disabled = !useSphere;
+    }
+    stage.dataset.stage = opt.stage;
+    const p = PAL[opt.stage];
+    ringTrack.setAttribute('stroke', p.ring); ringBar.setAttribute('stroke', p.accent);
+    drawMap();
+  }
+
+  function fire(name) {
+    run.ev[name] = run.t;
+    const el = document.querySelector(`.tl-step[data-e="${name}"]`);
+    if (el) { el.classList.add('on'); el.querySelector('.t').textContent = (run.t / 1000).toFixed(2) + ' s'; }
+    for (const s of document.querySelectorAll('.tl-step')) s.classList.toggle('now', s === el);
+    if (opt.progress && STATUS[name]) statusEl.textContent = STATUS[name];
+    if (name === 'ready' && opt.cap) run.storySp = 2.6;
+  }
+
+  function startSeek() {
+    const cur = ((run.lon0 % 360) + 360) % 360, target = HCM.lon;
+    let dist = (((cur - target) % 360) + 360) % 360; // xoay theo chiều lon0 giảm (như Trái Đất thật)
+    if (dist < 100) dist += 360;
+    const D = Math.min(2.0, Math.max(1.1, 0.8 + dist / 360)) * 1000;
+    const omega = opt.reduced ? 18 : 45;
+    run.seek = { from: run.lon0, dist, D, p: 0, lat: run.lat0, m0: (omega * D) / 1000 };
+    run.phase = 'seek';
+  }
+  function startDive() {
+    run.phase = 'dive'; run.diveT = 0;
+    const DUR = 1400, pin = pinXY();
+    const dive = opt.dive && !opt.reduced;
+    if (dive && opt.sphere) {
+      box.style.transformOrigin = `${pin ? pin.x : S / 2}px ${pin ? pin.y : S / 2}px`;
+      box.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 1, offset: 0.35 }, { transform: 'scale(16)', opacity: 0 }],
+        { duration: DUR, easing: 'cubic-bezier(0.55, 0, 0.6, 1)', fill: 'forwards' });
+      fm.animate([{ opacity: 0, transform: 'scale(1.18)', filter: 'blur(8px)' }, { opacity: 0, offset: 0.35, transform: 'scale(1.14)', filter: 'blur(8px)' }, { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }],
+        { duration: DUR, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+    } else {
+      box.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DUR, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+      if (!opt.sphere) strip.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DUR, fill: 'forwards' });
+      fm.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+    }
+    statusEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, delay: 300, fill: 'forwards' });
+    ring.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: 'forwards' });
+  }
+
+  function pinXY() {
+    const sp0 = Math.sin(run.lat0 * D2R), cp0 = Math.cos(run.lat0 * D2R);
+    const p = project(Math.sin(HCM.lat * D2R), Math.cos(HCM.lat * D2R), HCM.lon * D2R, run.lon0 * D2R, sp0, cp0);
+    if (p.z <= 0.05) return null;
+    return { x: S / 2 + R * p.x, y: S / 2 - R * p.y, z: p.z };
+  }
+
+  const PIN_TOTAL = 1150; // ghim 0–350 ms, 4 chấm bay 150 → 1150 ms
+  function step(now) {
+    if (run.last == null) run.last = now;
+    const dt = Math.min(50, now - run.last); run.last = now; run.t += dt;
+    const prof = PROFILES[opt.speed];
+    if (prof) for (const k of ['code', 'style', 'tiles', 'ready']) if (run.ev[k] == null && run.t >= prof[k]) fire(k);
+    const omega = opt.reduced ? 18 : 45; // độ/giây: 8 s hoặc 20 s một vòng
+    const story = opt.story && opt.sphere;
+    const sp = run.storySp;
+
+    if (run.phase === 'spin') {
+      run.lon0 -= omega * dt / 1000;
+      if (story && run.ev.style != null) startSeek();
+      else if (!story && run.ev.ready != null) startDive();
+    } else if (run.phase === 'seek') {
+      const s = run.seek; s.p = clamp01(s.p + (dt * sp) / s.D);
+      const u = s.p, h10 = u * u * u - 2 * u * u + u, h01 = -2 * u * u * u + 3 * u * u;
+      run.lon0 = s.from - (h10 * s.m0 + h01 * s.dist);
+      run.lat0 = s.lat + (HCM.lat - s.lat) * easeInOut(u);
+      if (s.p >= 1) { run.lon0 = HCM.lon; run.lat0 = HCM.lat; run.phase = 'parked'; }
+    } else if (run.phase === 'parked') {
+      if (run.ev.tiles != null) { run.phase = 'pin'; run.pinT = 0; }
+    } else if (run.phase === 'pin') {
+      run.pinT += dt * sp;
+      if (run.pinT >= PIN_TOTAL && run.ev.ready != null) startDive();
+    } else if (run.phase === 'dive') {
+      run.diveT += dt;
+      if (run.diveT >= 1400 && run.shownAt == null) {
+        run.shownAt = run.t; fire('shown'); run.phase = 'done'; tag.textContent = 'Hero · bản đồ 3D';
+        const extra = run.shownAt - 1400 - run.ev.ready;
+        metric.textContent = `Bản đồ chờ thêm ${Math.max(0, Math.round(extra))} ms so với bây giờ`;
+      }
+    }
+    if (run.phase !== 'done') {
+      metric.textContent = run.ev.ready == null ? `${(run.t / 1000).toFixed(1)} s` : metric.textContent;
+      if (run.ev.ready != null && run.phase !== 'dive' && run.phase !== 'done') metric.textContent = `Bản đồ đã xong, đang chờ cầu ${Math.round(run.t - run.ev.ready)} ms`;
+    }
+
+    // tiến độ: nhích dần về mốc kế, không bao giờ tự tới mốc
+    const done = ['ready', 'tiles', 'style', 'code'].find((k) => run.ev[k] != null);
+    const base = done ? PROG[done] : 0;
+    const next = { undefined: PROG.code, code: PROG.style, style: PROG.tiles, tiles: PROG.ready, ready: 1 }[done];
+    const since = run.t - (done ? run.ev[done] : 0);
+    const goal = base + (next - base) * 0.7 * (1 - Math.exp(-since / 1800));
+    run.prog += (goal - run.prog) * Math.min(1, dt / 160);
+    const C = 2 * Math.PI * (R + 14);
+    ringBar.style.strokeDashoffset = String(C * (1 - run.prog));
+
+    if (opt.sphere && run.phase !== 'done') draw();
+    requestAnimationFrame(step);
+  }
+
+  function draw() {
+    const p = PAL[opt.stage];
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+    const cx = S / 2, cy = S / 2;
+    const lit = opt.light;
+
+    // quầng khí quyển
+    if (lit) {
+      const g = ctx.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.28);
+      g.addColorStop(0, p.atmo + '0.42)'); g.addColorStop(0.35, p.atmo + '0.16)'); g.addColorStop(1, p.atmo + '0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.28, 0, Math.PI * 2); ctx.fill();
+    }
+    // biển
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+    if (lit) {
+      const g = ctx.createRadialGradient(cx + L[0] * R * 0.5, cy - L[1] * R * 0.5, R * 0.1, cx, cy, R * 1.05);
+      g.addColorStop(0, p.seaLit); g.addColorStop(1, p.seaDark); ctx.fillStyle = g;
+    } else ctx.fillStyle = p.flatSea;
+    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+
+    // chấm đất
+    const lon0 = run.lon0 * D2R, sp0 = Math.sin(run.lat0 * D2R), cp0 = Math.cos(run.lat0 * D2R);
+    const r0 = Math.max(0.9, Math.min(1.9, R / 52));
+    for (const d of dots) {
+      const q = project(d.sl, d.cl, d.lon, lon0, sp0, cp0);
+      if (q.z <= 0) continue;
+      const x = cx + R * q.x, y = cy - R * q.y;
+      const rad = r0 * (0.45 + 0.55 * Math.sqrt(q.z));
+      let fill, alpha = 0.35 + 0.65 * q.z;
+      if (lit) {
+        const lam = q.x * L[0] + q.y * L[1] + q.z * L[2];
+        if (p.night && lam < -0.05 && d.city) { fill = `rgb(${p.night.join(',')})`; alpha = Math.min(1, 0.5 + -lam); }
+        else fill = mix(p.land, p.landLit, clamp01(0.15 + lam * 0.95));
+      } else fill = `rgb(${p.land.join(',')})`;
+      ctx.globalAlpha = alpha; ctx.fillStyle = fill;
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    if (lit) {
+      // phía tối + rìa tối
+      const sh = ctx.createRadialGradient(cx + L[0] * R * 0.7, cy - L[1] * R * 0.7, R * 0.2, cx, cy, R * 1.15);
+      sh.addColorStop(0, p.rim + '0)'); sh.addColorStop(0.6, p.rim + '0.05)'); sh.addColorStop(1, p.rim + (opt.stage === 'dark' ? '0.55)' : '0.32)'));
+      ctx.fillStyle = sh; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+      // vệt phản chiếu
+      const sx = cx + L[0] * R * 0.48, sy = cy - L[1] * R * 0.48;
+      const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 0.42);
+      sg.addColorStop(0, p.spec + '0.38)'); sg.addColorStop(1, p.spec + '0)');
+      ctx.fillStyle = sg; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+    }
+    ctx.restore();
+    // viền
+    ctx.lineWidth = 1; ctx.strokeStyle = lit ? p.atmo + '0.55)' : 'rgba(43,27,18,0.12)';
+    ctx.beginPath(); ctx.arc(cx, cy, R - 0.5, 0, Math.PI * 2); ctx.stroke();
+
+    // TP.HCM: chấm thường, hoặc ghim + hội tụ
+    const pin = pinXY();
+    if (!pin) return;
+    const story = opt.story;
+    const pinPhase = story && (run.phase === 'pin' || run.phase === 'dive');
+    if (!pinPhase) {
+      ctx.globalAlpha = 0.4 + 0.6 * pin.z; ctx.fillStyle = p.accent;
+      ctx.beginPath(); ctx.arc(pin.x, pin.y, Math.max(2.5, r0 * 1.8), 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      return;
+    }
+    const t = run.pinT;
+    // chấm bạn bè bay về
+    FRIENDS.forEach((f, i) => {
+      const st = 150 + i * 90, u = clamp01((t - st) / 650);
+      if (u <= 0) return;
+      const x0 = pin.x + f[0] * R * 0.95, y0 = pin.y + f[1] * R * 0.95;
+      const mx = (x0 + pin.x) / 2, my = Math.min(y0, pin.y) - R * 0.32;
+      const e = opt.reduced ? 1 : easeInOut(u);
+      const bez = (k) => ({ x: (1 - k) * (1 - k) * x0 + 2 * (1 - k) * k * mx + k * k * pin.x, y: (1 - k) * (1 - k) * y0 + 2 * (1 - k) * k * my + k * k * pin.y });
+      // vệt
+      ctx.strokeStyle = p.friends[i]; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.85 * (1 - clamp01((t - 1100) / 400));
+      ctx.setLineDash([3, 3]); ctx.beginPath();
+      const tail = Math.max(0, e - 0.55);
+      for (let k = tail; k <= e + 0.001; k += 0.04) { const b = bez(Math.min(k, e)); k === tail ? ctx.moveTo(b.x, b.y) : ctx.lineTo(b.x, b.y); }
+      ctx.stroke(); ctx.setLineDash([]);
+      // đầu
+      const hd = bez(e); ctx.globalAlpha = u >= 1 ? 0 : 1; ctx.fillStyle = p.friends[i];
+      ctx.beginPath(); ctx.arc(hd.x, hd.y, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = p.paper; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+    // gợn sóng (lặp khi đang chờ)
+    if (!opt.reduced) {
+      for (const off of [0, 800]) {
+        const w = ((t + off) % 1600) / 1600;
+        ctx.strokeStyle = p.accent; ctx.globalAlpha = 0.5 * (1 - w); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(pin.x, pin.y, 4 + w * R * 0.38, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // ghim: nảy lên rồi đứng, nhịp nhẹ khi 4 chấm tới
+    const u = clamp01(t / 350), bounce = opt.reduced ? 0 : Math.sin(u * Math.PI) * (1 - u) * 10;
+    const arrive = clamp01((t - 800) / 350), pulse = 1 + 0.35 * Math.sin(arrive * Math.PI);
+    const hgt = Math.max(13, R * 0.2) * (opt.reduced ? 1 : easeOut(u));
+    const tipX = pin.x, tipY = pin.y - bounce;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(pin.x, pin.y + 1, 4, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    const hr = Math.max(5, R * 0.075) * pulse;
+    const hx = tipX, hy = tipY - hgt;
+    ctx.fillStyle = p.accent;
+    ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.quadraticCurveTo(hx - hr * 1.05, hy + hr * 0.6, hx - hr, hy);
+    ctx.arc(hx, hy, hr, Math.PI, 0); ctx.quadraticCurveTo(hx + hr * 1.05, hy + hr * 0.6, tipX, tipY); ctx.fill();
+    ctx.fillStyle = p.paper; ctx.beginPath(); ctx.arc(hx, hy, hr * 0.42, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ——— Bản đồ giả (thay cho bản đồ 3D thật, chỉ để thấy chuyển cảnh) ———
+  function drawMap() {
+    const w = stage.clientWidth, h = stage.clientHeight, k = Math.min(2, devicePixelRatio || 1);
+    fm.width = w * k; fm.height = h * k; fctx.setTransform(k, 0, 0, k, 0, 0);
+    const dark = opt.stage === 'dark';
+    const C = dark ? { bg: '#221A2A', block: '#2C2335', road: '#4A3D52', major: '#6B5870', river: '#2E4E6B', park: '#2F4A33', label: '#CDB6A4' }
+      : { bg: '#F6EAD3', block: '#EEDCBC', road: '#FFFDF6', major: '#F2C27A', river: '#A9CBDF', park: '#C9DDB3', label: '#6B4A36' };
+    fctx.fillStyle = C.bg; fctx.fillRect(0, 0, w, h);
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    fctx.save(); fctx.translate(w / 2, h * 0.4); fctx.rotate(-0.21);
+    for (let gx = -w; gx < w; gx += 46) for (let gy = -h; gy < h; gy += 38) {
+      const r = rnd(); fctx.fillStyle = r < 0.08 ? C.park : C.block;
+      fctx.fillRect(gx + 4, gy + 4, 38 + (r < 0.04 ? 46 : 0), 30);
+    }
+    fctx.restore();
+    fctx.strokeStyle = C.river; fctx.lineWidth = 26; fctx.lineCap = 'round';
+    fctx.beginPath(); fctx.moveTo(w * 0.62, -20); fctx.bezierCurveTo(w * 0.78, h * 0.25, w * 0.55, h * 0.45, w * 0.72, h * 0.62);
+    fctx.bezierCurveTo(w * 0.86, h * 0.78, w * 0.8, h * 0.92, w * 0.95, h + 20); fctx.stroke();
+    fctx.strokeStyle = C.major; fctx.lineWidth = 7;
+    for (const [a, b, c, d] of [[0, h * 0.55, w, h * 0.3], [w * 0.2, 0, w * 0.42, h], [0, h * 0.85, w * 0.7, h * 0.62]]) { fctx.beginPath(); fctx.moveTo(a, b); fctx.lineTo(c, d); fctx.stroke(); }
+    const pal = PAL[opt.stage], cx = w / 2, cy = h * 0.4;
+    [[-110, -40], [130, -60], [-90, 80], [120, 70]].forEach(([dx, dy], i) => {
+      fctx.setLineDash([5, 5]); fctx.strokeStyle = pal.friends[i]; fctx.lineWidth = 2.5;
+      fctx.beginPath(); fctx.moveTo(cx + dx, cy + dy); fctx.quadraticCurveTo(cx + dx / 2, cy + dy / 2 - 30, cx, cy); fctx.stroke(); fctx.setLineDash([]);
+      fctx.fillStyle = pal.friends[i]; fctx.beginPath(); fctx.arc(cx + dx, cy + dy, 9, 0, Math.PI * 2); fctx.fill();
+      fctx.strokeStyle = C.road; fctx.lineWidth = 2.5; fctx.stroke();
+    });
+    fctx.fillStyle = pal.accent; fctx.beginPath(); fctx.arc(cx, cy - 18, 11, Math.PI, 0); fctx.lineTo(cx, cy); fctx.closePath(); fctx.fill();
+    fctx.fillStyle = pal.paper; fctx.beginPath(); fctx.arc(cx, cy - 18, 4.5, 0, Math.PI * 2); fctx.fill();
+    fctx.fillStyle = C.label; fctx.font = '600 12px "Be Vietnam Pro", system-ui, sans-serif'; fctx.textAlign = 'center';
+    fctx.fillText('(bản đồ 3D thật hiện ở đây)', cx, cy + 22);
+  }
+
+  // ——— Điều khiển ———
+  function seg(id, key, cast = (v) => v) {
+    const el = $(id);
+    const sync = () => { for (const b of el.querySelectorAll('button')) b.setAttribute('aria-pressed', String(String(opt[key]) === b.dataset.v)); };
+    el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; opt[key] = cast(b.dataset.v); sync(); if (key === 'size') buildDots(); reset(); });
+    sync();
+  }
+  seg('speed', 'speed'); seg('size', 'size', Number); seg('stheme', 'stage');
+  $('chips').addEventListener('click', (e) => {
+    const c = e.target.closest('.chip'); if (!c || c.disabled) return;
+    const k = c.dataset.k; opt[k] = !opt[k]; c.setAttribute('aria-pressed', String(opt[k])); reset();
+  });
+  $('reduced').addEventListener('change', (e) => { opt.reduced = e.target.checked; reset(); });
+  $('cap').addEventListener('change', (e) => { opt.cap = e.target.checked; reset(); });
+  $('play').addEventListener('click', reset);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { opt.reduced = true; $('reduced').checked = true; }
+  addEventListener('resize', () => drawMap());
+
+  buildDots(); reset(); requestAnimationFrame(step);
+})();
+</script>

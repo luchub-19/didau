@@ -488,11 +488,3 @@
     transform: none !important;
   }
 }
-
-/* Quả địa cầu tải bản đồ (stage/hero/HeroGlobe): chỉ trượt transform, một vòng 8 s */
-@keyframes hero-globe-spin {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(-224px, 0, 0); }
-}
-.hero-globe-track { animation: hero-globe-spin 8s linear infinite; will-change: transform; }
-.hero-globe-track.hero-globe-slow { animation-duration: 20s; }

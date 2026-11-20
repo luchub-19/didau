@@ -263,4 +263,21 @@ describe('T-83: quả địa cầu tải bản đồ', () => {
     expect(renderToStaticMarkup(<HeroGlobe state="loading" tier="lite" />)).not.toContain('data-hero-globe');
     expect(renderToStaticMarkup(<HeroGlobe state="loading" delayMs={0} tier="static" />)).not.toContain('data-hero-globe');
   });
+
+  it('T-110: vẽ bằng canvas (không còn dải SVG), aria-hidden', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    const html = renderToStaticMarkup(<HeroGlobe state="loading" delayMs={0} tier="full" />);
+    expect(html).toMatch(/<canvas[^>]*aria-hidden="true"/);
+    expect(html).not.toContain('<svg');
+  });
+
+  it('T-110: instance thứ hai hiện ngay khi instance trước còn trên màn (không chớp 300 ms)', async () => {
+    const { HeroGlobe } = await import('../stage/hero/HeroGlobe');
+    const { markGlobeOnScreen, resetGlobeClock } = await import('../stage/hero/globe/clock');
+    const unmark = markGlobeOnScreen(); // fallback của Hero đang hiện
+    expect(renderToStaticMarkup(<HeroGlobe state="loading" tier="lite" />)).toContain('data-hero-globe');
+    unmark();
+    expect(renderToStaticMarkup(<HeroGlobe state="loading" tier="lite" />)).not.toContain('data-hero-globe');
+    resetGlobeClock();
+  });
 });

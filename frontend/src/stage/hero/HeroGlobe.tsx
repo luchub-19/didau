@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motionAttrs, type MotionTier } from '../../motion';
-import { GLOBE_HCM, GLOBE_LAND_PATH, GLOBE_VIEW } from './globe-land';
+import { GlobeCanvas } from './globe/GlobeCanvas';
+import { isGlobeOnScreen, markGlobeOnScreen } from './globe/clock';
 
 export type GlobeState = 'loading' | 'ready' | 'failed';
 
@@ -15,21 +16,19 @@ export interface HeroGlobeProps {
 
 const FADE_MS = 1400; // = --t-shot
 
-const Strip: React.FC = () => (
-  <svg viewBox={`0 0 ${GLOBE_VIEW.w} ${GLOBE_VIEW.h}`} width={224} height={112} className="shrink-0 block" aria-hidden="true" focusable="false">
-    <path d={GLOBE_LAND_PATH} fill="rgb(var(--stage-ink-2) / 0.55)" />
-    <circle cx={GLOBE_HCM.x} cy={GLOBE_HCM.y} r={4} fill="rgb(var(--stage-accent-text))" />
-  </svg>
-);
-
 /**
- * Quả địa cầu xoay lúc bản đồ 3D đang tải (DESIGN gđ6 §7). Chỉ trượt `transform` (composite).
- * Hiện sau `delayMs`; `ready` → mờ dần rồi gỡ; `failed` → gỡ ngay.
+ * Quả địa cầu xoay lúc bản đồ 3D đang tải (gđ9 PLAN §4): canvas chấm bi chiếu trực giao (`globe/GlobeCanvas`),
+ * đường kính 120 px (mobile) / 168 px (md+), góc xoay theo đồng hồ chung nên hai instance (fallback → HeroScroll) nối liền.
+ * Hiện sau `delayMs`; `ready` → mờ dần rồi gỡ; `failed` → gỡ ngay; `static` → không vẽ.
  */
 export const HeroGlobe: React.FC<HeroGlobeProps> = ({ state, delayMs = 300, tier = 'full' }) => {
   const { t } = useTranslation();
-  const [shown, setShown] = useState(delayMs <= 0);
+  // Instance trước (fallback của Hero) đang hiện ⇒ hiện ngay để nối liền, không chờ delayMs.
+  const [shown, setShown] = useState(() => delayMs <= 0 || (state === 'loading' && isGlobeOnScreen()));
   const [gone, setGone] = useState(false);
+  const visible = tier !== 'static' && shown && !gone && state !== 'failed';
+
+  useEffect(() => (visible ? markGlobeOnScreen() : undefined), [visible]);
 
   useEffect(() => {
     if (state !== 'loading' || shown) return;
@@ -43,7 +42,7 @@ export const HeroGlobe: React.FC<HeroGlobeProps> = ({ state, delayMs = 300, tier
     return () => clearTimeout(id);
   }, [state, shown]);
 
-  if (tier === 'static' || !shown || gone || state === 'failed') return null;
+  if (!visible) return null;
   const leaving = state === 'ready';
   const slow = tier === 'lite' || (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
@@ -56,21 +55,9 @@ export const HeroGlobe: React.FC<HeroGlobeProps> = ({ state, delayMs = 300, tier
     >
       <div
         aria-hidden="true"
-        className="relative h-[88px] w-[88px] md:h-[112px] md:w-[112px] rounded-full overflow-hidden border border-[rgb(var(--stage-ink)/0.12)] bg-[rgb(var(--stage-paper-2))]"
+        className="relative h-[120px] w-[120px] md:h-[168px] md:w-[168px] rounded-full border border-[rgb(var(--stage-ink)/0.12)]"
       >
-        <div className="origin-top-left scale-[0.7857] md:scale-100">
-          <div className={`hero-globe-track flex w-[448px] ${slow ? 'hero-globe-slow' : ''}`}>
-            <Strip />
-            <Strip />
-          </div>
-        </div>
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle at 32% 28%, rgb(255 255 255 / 0.35), transparent 45%), radial-gradient(circle at 70% 75%, rgb(var(--stage-ink) / 0.28), transparent 65%)',
-          }}
-        />
+        <GlobeCanvas slow={slow} className="rounded-full" />
       </div>
       <p role="status" className="text-label font-semibold text-[rgb(var(--stage-ink-2))] bg-[rgb(var(--stage-paper)/0.8)] rounded-full px-3 py-1">
         {t('hero.globeLoading')}

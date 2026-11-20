@@ -3,6 +3,11 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
+## Giai đoạn 9 "Quả cầu tải bản đồ" (T-110 → T-115) — plan 2026-11-21, G1 QUA 2026-11-21 (chọn đúng 6 đề xuất PLAN §5); T-110 XONG
+Làm lại quả cầu ở hero trang chủ (chỉ landing page): chấm bi thật → ánh sáng → mốc tải thật → dừng ở VN + hội tụ → lao xuống bản đồ.
+- Plan, đặc tả, câu hỏi G1: `docs/phase9/PLAN.md`. Tiến độ: `docs/phase9/PROGRESS.md`. Mock: `docs/phase9/mock/` + link trong PLAN.
+- **Bẫy:** cầu hiện ở 2 instance (fallback `Hero` rồi `HeroScroll`) ⇒ cần đồng hồ chung; bản đồ không được hiện muộn quá trần G1.
+
 ## Giai đoạn 8 "Vì sao? cho buổi demo" (T-106 → T-109) — T-109 XONG 2026-11-19, CHỜ G2 (người dùng tổng duyệt `DEMO.md` trên bản deploy); trình bày thứ Hai 2026-11-23
 Làm "Vì sao?" của thẻ hoà cho thầy thấy ý đồ OMP (công bằng cho người ở xa) trong ≤ 3′ chiếu laptop, không làm rối màn mặc định.
 - Plan, quyết định (13 mục), lý do tâm lý/sắp xếp, đặc tả panel: `docs/phase8/PLAN.md`. Tiến độ: `docs/phase8/PROGRESS.md`.
