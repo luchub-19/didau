@@ -10,6 +10,7 @@ import { duration, easing, getTimeScale, motionAttrs, resolvePreset, stageLog } 
 import { HeroActions, type HeroActionsProps } from './HeroActions';
 import { HeroCaption } from './HeroCaption';
 import { HeroGlobe } from './HeroGlobe';
+import { introDelayMs, MAP_DIVE_KEYFRAMES, playDive, type GlobeExit } from './globe/exit';
 import { advanceStage, type GlobeState } from './globe/progress';
 import { HeroPoster } from './HeroPoster';
 import type { HeroMapHandle } from './HeroMap';
@@ -45,6 +46,10 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
   const [shotIndex, setShotIndex] = useState(0);
   // Mốc tải của bản đồ (gđ9 T-112). HeroScroll mount = 'code' (chunk đã về); fallback của Hero giữ 'loading'.
   const [mapState, setMapState] = useState<GlobeState>('code');
+  // Cầu rời sân khấu theo cách nào (T-114): lớp bản đồ hiện theo mốc này, không theo `ready` thô. HeroGlobe báo muộn nhất
+  // GLOBE_STORY_CAP_MS sau `ready` (hạn chót cứng). `diveDone` = lao xuống xong ⇒ bỏ lớp animation (hết filter) + mở màn xoay.
+  const [exit, setExit] = useState<GlobeExit | null>(null);
+  const [diveDone, setDiveDone] = useState(false);
   const [panelHeight, setPanelHeight] = useState(0);
   // Số chặng đường nối đã vẽ tới (đổi 3 lần trong cả phim, không render lại mỗi khung)
   const [reached, setReached] = useState(0);
@@ -136,6 +141,31 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
 
   const textMs = duration('moment');
   const textEase = easing('out');
+  const shotMs = duration('shot');
+
+  const onGlobeExit = useCallback((mode: GlobeExit) => setExit((cur) => cur ?? mode), []);
+  useEffect(() => {
+    if (!exit) return;
+    const wait = introDelayMs(exit, { shot: shotMs, moment: textMs });
+    if (wait <= 0) {
+      mapRef.current?.startIntro();
+      return;
+    }
+    const id = setTimeout(() => {
+      setDiveDone(true);
+      // Khung sau: gỡ cầu + bỏ lớp animation của bản đồ diễn ra ở khung này, mở màn xoay bắt đầu ở khung kế (không dồn một khung)
+      requestAnimationFrame(() => mapRef.current?.startIntro());
+    }, wait);
+    return () => clearTimeout(id);
+  }, [exit, shotMs, textMs]);
+  const diving = exit === 'dive' && !diveDone;
+  // Lao xuống xong ⇒ huỷ animation (hết lớp filter); kiểu nền đã là trạng thái cuối (opacity 1) nên không nhảy.
+  const mapLayerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!diving) return;
+    const anim = playDive(mapLayerRef.current, MAP_DIVE_KEYFRAMES, shotMs, textEase);
+    return () => anim?.cancel();
+  }, [diving, shotMs, textEase]);
 
   return (
     <section ref={sectionRef} aria-label={t('hero.sectionLabel')} data-hero-tier={tier}>
@@ -190,10 +220,12 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
         {mapState !== 'failed' && (
           <div
             {...motionAttrs('hero.shot')}
+            ref={mapLayerRef}
             className="absolute inset-0"
             style={{
-              opacity: mapState === 'ready' ? 1 : 0,
-              transition: `opacity ${textMs}ms ${textEase}`,
+              opacity: exit ? 1 : 0,
+              // Lao xuống: transition của opacity sẽ đè animation (thứ tự cascade) ⇒ tắt
+              transition: exit === 'dive' ? 'none' : `opacity ${textMs}ms ${textEase}`,
             }}
           >
             <Suspense fallback={null}>
@@ -212,7 +244,7 @@ const HeroScroll: React.FC<HeroScrollProps> = ({ tier, header, ...actions }) => 
           </div>
         )}
 
-        <HeroGlobe state={mapState} tier={tier} />
+        <HeroGlobe state={mapState} tier={tier} onExit={onGlobeExit} />
         <div ref={sunlightRef} aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'var(--stage-sunlight)' }} />
       </div>
     </section>

@@ -488,3 +488,11 @@
     transform: none !important;
   }
 }
+
+/* Quả địa cầu lao xuống bản đồ (gđ9 T-114): phần phóng to cầu + bản đồ hiện ra chạy bằng WAAPI (`stage/hero/globe/exit.ts`,
+   easing cho cả chuỗi). Ở đây chỉ có vòng tiến độ tắt trước, dòng trạng thái tắt sau một nhịp (như mock). */
+@keyframes hero-globe-out {
+  to { opacity: 0; }
+}
+.hero-globe-out { animation: hero-globe-out var(--t-ui) var(--ease-out) forwards; }
+.hero-globe-out--late { animation-duration: var(--t-sheet); animation-delay: var(--t-ui); }

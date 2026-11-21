@@ -41,6 +41,11 @@ export interface HeroMapHandle {
   setDusk(dusk: number): void;
   /** Tiến độ vẽ đường nối 3 chặng 0..1 (routeProgressAt). */
   setRoute(fraction: number): void;
+  /**
+   * Cho phép chạy mở màn xoay (gđ9 T-114): HeroScroll gọi khi cầu lao xuống xong (hoặc ngay lúc hiện bản đồ nếu không lao
+   * xuống). Chạy tối đa một lần, chỉ sau `onReady`; gọi trước `onReady` thì mở màn chạy ngay khi `onReady`.
+   */
+  startIntro(): void;
 }
 
 export interface HeroMapProps {
@@ -235,6 +240,8 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
   const lastCamRef = useRef<Camera | null>(null);
   const orbitOffsetRef = useRef(0);
   const playIntroRef = useRef(playIntro);
+  // Cổng mở màn: HeroScroll mở (startIntro), bản đồ sẵn sàng (idle) ⇒ chạy khi cả hai đã có
+  const introRef = useRef<{ allowed: boolean; run: (() => void) | null }>({ allowed: false, run: null });
   // Giá trị đã lượng tử hoá: chỉ đụng style khi đổi thật (setLight/setSky/setData không gọi mỗi khung)
   const duskRef = useRef(0);
   const routeRef = useRef(0);
@@ -275,6 +282,13 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
       if (q === routeRef.current) return;
       routeRef.current = q;
       mapRef.current?.getSource<maplibregl.GeoJSONSource>(ROUTE_SOURCE)?.setData(stopsRoute(q));
+    },
+    startIntro() {
+      const gate = introRef.current;
+      gate.allowed = true;
+      const run = gate.run;
+      gate.run = null;
+      run?.();
     },
   }));
 
@@ -358,8 +372,15 @@ export const HeroMap = forwardRef<HeroMapHandle, HeroMapProps>(({ tier, shotInde
         map.jumpTo(withOrbit(pendingRef.current ?? lastCamRef.current ?? first));
         pendingRef.current = null;
         map.once('idle', () => {
+          if (orbit) {
+            const gate = introRef.current;
+            gate.run = () => startOrbit(introMs);
+            if (gate.allowed) {
+              gate.run = null;
+              startOrbit(introMs);
+            }
+          }
           callbacks.current.onReady();
-          if (orbit) startOrbit(introMs);
         });
       });
     });

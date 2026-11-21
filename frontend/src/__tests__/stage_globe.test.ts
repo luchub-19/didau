@@ -17,6 +17,17 @@ import {
 } from '../stage/hero/globe/palette';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import {
+  exitDelayMs,
+  GLOBE_DIVE_KEYFRAMES,
+  GLOBE_STORY_CAP_MS,
+  globeExitMode,
+  introDelayMs,
+  MAP_DIVE_KEYFRAMES,
+  playDive,
+  revealTimeline,
+  type GlobeExit,
+} from '../stage/hero/globe/exit';
 import { buildDots, decodeMask, dotStepDeg, GLOBE_HCM, isLand, project } from '../stage/hero/globe/projection';
 import {
   GLOBE_SPEED_FULL,
@@ -493,5 +504,106 @@ describe('T-113: màu chấm bạn bè', () => {
     const pal = readGlobePalette(r, false);
     expect(pal.friends).toEqual(['--stage-sky', '--stage-leaf', '--stage-sun', '--stage-brick'].map((t) => parseRgbToken(r(t))));
     expect(readGlobePalette(() => '', true).friends[1]).toEqual([147, 197, 139]);
+  });
+});
+
+describe('T-114: lao xuống bản đồ, hạn chót cứng', () => {
+  afterEach(() => resetGlobeClock());
+  const MS = { shot: 1400, moment: 600 };
+
+  /**
+   * Chạy đồng hồ chung theo khung 33 ms (30 fps) với các mốc ở thời điểm cho trước (ms); trả trễ (ms, sau `ready`) tới lúc
+   * biên đạo `done`, hoặc null nếu rAF dừng (`frozenAfterReady`: tab ẩn ngay khi `ready`).
+   */
+  function storyEnd(at: { style: number; tiles: number; ready: number }, frozenAfterReady = false): number | null {
+    setGlobeSpeed(GLOBE_SPEED_FULL, 0);
+    signalGlobe('code', 0);
+    const sent = new Set<string>();
+    for (let t = 0; t < at.ready + 5000; t += 33) {
+      for (const k of ['style', 'tiles', 'ready'] as const) {
+        if (!sent.has(k) && t >= at[k]) {
+          signalGlobe(k, t);
+          sent.add(k);
+        }
+      }
+      if (frozenAfterReady && sent.has('ready')) return null;
+      if (globeFrame(t).phase === 'done') return Math.max(0, t - at.ready);
+    }
+    return null;
+  }
+
+  it('cách rời: cầu chưa hiện ⇒ none, lite ⇒ fade (không lao xuống), full ⇒ dive', () => {
+    expect(globeExitMode(false, false)).toBe('none');
+    expect(globeExitMode(false, true)).toBe('none');
+    expect(globeExitMode(true, true)).toBe('fade');
+    expect(globeExitMode(true, false)).toBe('dive');
+  });
+
+  it('trễ rời không bao giờ quá trần; kể xong sớm thì rời sớm; none = ngay ở ready', () => {
+    expect(exitDelayMs('dive', null)).toBe(GLOBE_STORY_CAP_MS);
+    expect(exitDelayMs('dive', 5000)).toBe(GLOBE_STORY_CAP_MS);
+    expect(exitDelayMs('dive', 120)).toBe(120);
+    expect(exitDelayMs('fade', -5)).toBe(0);
+    expect(exitDelayMs('none', 400)).toBe(0);
+  });
+
+  const cases: [string, { style: number; tiles: number; ready: number }, boolean][] = [
+    ['Slow 4G (đo T-112): style 11,6 s · tiles 14,8 s · ready 15,7 s', { style: 0, tiles: 3200, ready: 4100 }, false],
+    ['Fast 4G: style 2,9 s · tiles 5,7 s · ready 6,3 s', { style: 0, tiles: 2800, ready: 3400 }, false],
+    ['ready ngay sau tiles (ghim mới bắt đầu ⇒ rush)', { style: 0, tiles: 2500, ready: 2533 }, false],
+    ['ready lúc còn đang quay về (seek dài)', { style: 0, tiles: 300, ready: 300 }, false],
+    ['mạng rất nhanh: ready cùng lúc style (từ spin)', { style: 0, tiles: 0, ready: 0 }, false],
+    ['tab ẩn ngay lúc ready (rAF dừng, không có onStoryEnd)', { style: 0, tiles: 3000, ready: 3900 }, true],
+  ];
+  for (const [name, at, frozen] of cases) {
+    it(`mọi nhánh giữ trần — ${name}`, () => {
+      const end = storyEnd(at, frozen);
+      for (const exit of ['dive', 'fade'] as GlobeExit[]) {
+        const tl = revealTimeline(exit, end, MS);
+        expect(tl.leaveAt).toBeLessThanOrEqual(GLOBE_STORY_CAP_MS);
+        // So với trước T-113 (cầu mờ `--t-shot` ngay ở ready), bản đồ hiện xong muộn hơn tối đa đúng trần
+        expect(tl.mapDoneAt - MS.shot).toBeLessThanOrEqual(GLOBE_STORY_CAP_MS);
+        expect(tl.introAt).toBeGreaterThanOrEqual(tl.leaveAt);
+      }
+      if (!frozen) expect(end).not.toBeNull();
+    });
+  }
+
+  it('Slow 4G: biên đạo kể xong trước trần (không phải chờ hạn chót) nhờ rush', () => {
+    const end = storyEnd({ style: 0, tiles: 3200, ready: 3233 });
+    expect(end).not.toBeNull();
+    expect(end as number).toBeLessThan(GLOBE_STORY_CAP_MS);
+  });
+
+  it('`failed` giữa chừng / ready trước 300 ms: không chờ gì, bản đồ hiện như trước gđ9', () => {
+    const tl = revealTimeline(globeExitMode(false, false), 300, MS);
+    expect(tl).toEqual({ leaveAt: 0, mapDoneAt: MS.moment, introAt: 0, globeGoneAt: 0 });
+  });
+
+  it('intro orbit không chạy trước khi lao xuống xong; lite/none thì không có lao xuống để chờ', () => {
+    for (const end of [0, 250, null]) {
+      const tl = revealTimeline('dive', end, MS);
+      expect(tl.introAt).toBe(tl.mapDoneAt);
+      expect(tl.introAt - tl.leaveAt).toBe(MS.shot);
+      expect(tl.globeGoneAt).toBe(tl.mapDoneAt);
+    }
+    expect(introDelayMs('dive', MS)).toBe(MS.shot);
+    expect(introDelayMs('fade', MS)).toBe(0);
+    expect(introDelayMs('none', MS)).toBe(0);
+  });
+
+  it('keyframes lao xuống chỉ dùng transform / opacity / filter (composite); cầu ×16 rồi tan, bản đồ từ nhoè về rõ', () => {
+    for (const kf of [GLOBE_DIVE_KEYFRAMES, MAP_DIVE_KEYFRAMES]) {
+      for (const k of kf) for (const p of Object.keys(k)) expect(['transform', 'opacity', 'filter', 'offset']).toContain(p);
+      expect(kf[1].offset).toBe(0.35);
+    }
+    expect(GLOBE_DIVE_KEYFRAMES.at(-1)).toMatchObject({ transform: 'scale(16)', opacity: 0 });
+    expect(MAP_DIVE_KEYFRAMES[0]).toMatchObject({ opacity: 0, transform: 'scale(1.18)', filter: 'blur(8px)' });
+    expect(MAP_DIVE_KEYFRAMES.at(-1)).toMatchObject({ opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' });
+    expect(playDive(null, GLOBE_DIVE_KEYFRAMES, 1400, 'linear')).toBeNull(); // không có phần tử / WAAPI ⇒ bỏ qua
+    const css = readFileSync(fileURLToPath(new URL('../styles/motion.css', import.meta.url)), 'utf8');
+    const m = /@keyframes hero-globe-out \{([\s\S]*?)\n\}/.exec(css);
+    expect(m).not.toBeNull();
+    expect([...(m as RegExpExecArray)[1].matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1])).toEqual(['opacity']);
   });
 });
