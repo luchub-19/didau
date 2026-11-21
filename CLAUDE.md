@@ -3,10 +3,10 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
-## Giai đoạn 9 "Quả cầu tải bản đồ" (T-110 → T-115) — plan 2026-11-21, G1 QUA 2026-11-21 (chọn đúng 6 đề xuất PLAN §5); T-110 XONG
-Làm lại quả cầu ở hero trang chủ (chỉ landing page): chấm bi thật → ánh sáng → mốc tải thật → dừng ở VN + hội tụ → lao xuống bản đồ.
-- Plan, đặc tả, câu hỏi G1: `docs/phase9/PLAN.md`. Tiến độ: `docs/phase9/PROGRESS.md`. Mock: `docs/phase9/mock/` + link trong PLAN.
-- **Bẫy:** cầu hiện ở 2 instance (fallback `Hero` rồi `HeroScroll`) ⇒ cần đồng hồ chung; bản đồ không được hiện muộn quá trần G1.
+## Giai đoạn 9 "Quả cầu tải bản đồ" (T-110 → T-115) — T-115 XONG 2026-11-21, CHỜ G2 (người dùng xem bản build thật, quyết trần trễ + sửa khoá 30 fps)
+Quả cầu chấm bi ở hero trang chủ (chỉ landing page): ánh sáng, mốc tải thật, dừng ở VN + hội tụ, lao xuống bản đồ. Luật cuối + số đo: `docs/phase9/DESIGN.md`; plan: `PLAN.md`; tiến độ: `PROGRESS.md`; ảnh: `docs/phase9/screens/`.
+- **Bẫy:** cầu ở 2 instance (fallback `Hero` rồi `HeroScroll`) ⇒ đồng hồ chung `globe/clock.ts`. Bộ khoá 30 fps của `GlobeCanvas` đang vẽ **60 fps** (đo T-115, DESIGN §3), sửa 1 dòng — chưa làm.
+- Bản đồ hiện xong +1 233 ms sau `ready`: giữ trần G1 theo định nghĩa PLAN §4.2 nhưng chậm hơn code trước gđ9 +850 ms (> 600) — G2 quyết.
 
 ## Giai đoạn 8 "Vì sao? cho buổi demo" (T-106 → T-109) — T-109 XONG 2026-11-19, CHỜ G2 (người dùng tổng duyệt `DEMO.md` trên bản deploy); trình bày thứ Hai 2026-11-23
 Làm "Vì sao?" của thẻ hoà cho thầy thấy ý đồ OMP (công bằng cho người ở xa) trong ≤ 3′ chiếu laptop, không làm rối màn mặc định.

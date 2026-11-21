@@ -127,17 +127,8 @@ Thứ tự một màn: avatar + "Đổi nhân vật" + biệt danh · tên buổ
   lại tự động. (Câu hỏi mở G1 #1 vẫn có thể đổi nút chính.)
 - Bước ③ (`lock`, lịch trống): nút chính "Xếp lịch tự động"; gợi ý kéo thả ở giữa lưới.
 
-## 7. Quả địa cầu tải bản đồ (Stage, `stage/hero/HeroGlobe.tsx`)
-- Hiện khi: chunk `HeroScroll` đang tải (trong fallback của `Hero`) **hoặc** `mapState === 'loading'`; chỉ sau 300 ms
-  (tải nhanh thì không nháy). Ẩn: `ready` (mờ dần cùng lúc bản đồ hiện, `--t-shot`), `failed` (ẩn ngay, poster ở lại).
-  Mức `static`: không có (không tải bản đồ).
-- Vị trí giữa màn (phía trên khối chữ hero trên mobile, không che CTA), đường kính 112px (mobile 88px), dưới là dòng
-  `role="status"` "Đang dựng bản đồ 3D…" / "Building the 3D map…".
-- Cách vẽ: hình tròn `overflow:hidden` chứa dải lục địa SVG (equirectangular, đơn giản hoá, ≤3 kB gzip) lặp 2 lần, trượt
-  ngang vô tận bằng CSS `transform` (một vòng 8 s, `linear`); phủ gradient tròn tạo khối cầu + vệt sáng; viền mảnh
-  `--stage-ink` 12%. Màu biển/đất từ token `--stage-*`. Có thể đặt một chấm cam ở vị trí TP.HCM.
-- `prefers-reduced-motion` / mức `lite`: vòng 20 s; không có thêm hiệu ứng nào khác.
-- Kiểm vì sao poster trông "mờ mờ đứng yên" (lớp phủ/độ mờ nào); nếu là lớp phủ có chủ đích thì giữ, địa cầu đặt trên.
+## 7. Quả địa cầu tải bản đồ
+Đã thay ở giai đoạn 9 (T-115): luật cuối + số đo ở `docs/phase9/DESIGN.md`.
 
 ## 8. Giao diện thuật toán (mạch B; công thức ở `ALGORITHMS.md`)
 ### Nguyên tắc chung (tài liệu đồ án §1.3: hỗ trợ, giải thích được, không làm gián đoạn)
