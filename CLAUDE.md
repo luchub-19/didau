@@ -3,6 +3,11 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
+## Giai đoạn 10 "Ảnh quán" (T-116 → T-121) — PLAN lập 2026-11-21, CHỜ G0 (duyệt plan); làm sau buổi trình bày 2026-11-23
+Thẻ quán chưa có ảnh (snapshot 44 226 quán không có ảnh; 38 tuyển chọn T-70 có 0 file). Tầng ảnh: tuyển chọn → nguồn mở có ghi công → ảnh thương hiệu → bản đồ thu nhỏ (luôn có).
+Plan + nguồn đã loại: `docs/phase10/PLAN.md`; tiến độ: `docs/phase10/PROGRESS.md`.
+- **Bẫy:** không ảnh người dùng, không cào FB/Foody, không ảnh AI, không Place Photos API ở thẻ; Google chỉ UI Kit ở trang chi tiết (đã code). Ảnh CC-BY-SA phải hiện ghi công.
+
 ## Giai đoạn 9 "Quả cầu tải bản đồ" (T-110 → T-115) — T-115 XONG 2026-11-21, CHỜ G2 (người dùng xem bản build thật, quyết trần trễ + sửa khoá 30 fps)
 Quả cầu chấm bi ở hero trang chủ (chỉ landing page): ánh sáng, mốc tải thật, dừng ở VN + hội tụ, lao xuống bản đồ. Luật cuối + số đo: `docs/phase9/DESIGN.md`; plan: `PLAN.md`; tiến độ: `PROGRESS.md`; ảnh: `docs/phase9/screens/`.
 - **Bẫy:** cầu ở 2 instance (fallback `Hero` rồi `HeroScroll`) ⇒ đồng hồ chung `globe/clock.ts`. Bộ khoá 30 fps của `GlobeCanvas` đang vẽ **60 fps** (đo T-115, DESIGN §3), sửa 1 dòng — chưa làm.
