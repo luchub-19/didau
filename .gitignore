@@ -75,3 +75,7 @@ curated-inbox/*
 
 # Tài liệu đồ án (docx của nhóm, không đưa lên repo)
 docs/proposal/
+
+# Script host demo cục bộ (máy cá nhân, không đưa lên repo)
+scripts/host_local.sh
+scripts/host_local/
