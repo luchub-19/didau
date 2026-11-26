@@ -119,6 +119,24 @@
   --t-shot: 1400ms;
   --t-reveal: 1800ms;
 
+  /* ===== Landing "Sài Gòn về đêm" (giai đoạn 11, docs/phase11/PLAN.md §4.2). Chỉ landing dùng. =====
+     Landing luôn tối (một cảnh cố định) nên chỉ khai báo ở :root, KHÔNG lặp lại trong khối dark.
+     Tương phản đo trên --night. */
+  --night: 22 17 28;               /* #16111C nền đêm */
+  --night-2: 32 25 38;             /* #201926 khối phụ, nút trên nền đêm */
+  --night-3: 43 34 51;             /* #2B2233 hover, núm đang chọn */
+  --night-line: 61 50 71;          /* #3D3247 viền, ngăn cách */
+  --night-moon: 244 236 226;       /* #F4ECE2 chữ chính (15.9:1) */
+  --night-moon-2: 194 180 196;     /* #C2B4C4 chữ phụ (9.4:1) */
+  --night-moon-3: 154 140 158;     /* #9A8C9E chữ mờ (5.9:1) */
+  --lamp: 242 181 68;              /* #F2B544 đèn natri: chữ nhấn trên đêm (10.1:1) và nền dải số đo */
+  --lamp-ink: 42 26 12;            /* #2A1A0C chữ trên nền lamp (9.2:1) */
+  --lamp-ink-2: 90 59 23;          /* #5A3B17 chữ phụ trên nền lamp (5.5:1) */
+  --coral-on-dark: 255 133 102;    /* #FF8566 coral làm chữ/viền focus trên đêm (7.8:1) */
+  --house-1: 36 27 46;             /* #241B2E nhà ống phố đêm */
+  --house-2: 44 34 56;             /* #2C2238 */
+  --house-3: 30 23 38;             /* #1E1726 */
+
   /* ===== Không gian phòng (giai đoạn 5, docs/phase5/DESIGN.md §2) ===== */
   --ws-left: 400px;          /* cột danh sách ≥1280, giai đoạn ②③④ */
   --ws-left-gather: 560px;   /* cột danh sách ≥1280, giai đoạn ① */

@@ -39,6 +39,20 @@ colors:
   stage-sky: "#1F6FA8"
   stage-leaf: "#3B7A3A"
   stage-brick: "#A8482A"
+  night: "#16111C"
+  night-2: "#201926"
+  night-3: "#2B2233"
+  night-line: "#3D3247"
+  night-moon: "#F4ECE2"
+  night-moon-2: "#C2B4C4"
+  night-moon-3: "#9A8C9E"
+  lamp: "#F2B544"
+  lamp-ink: "#2A1A0C"
+  lamp-ink-2: "#5A3B17"
+  coral-on-dark: "#FF8566"
+  house-1: "#241B2E"
+  house-2: "#2C2238"
+  house-3: "#1E1726"
 typography:
   display:
     fontFamily: "Bricolage Grotesque, Be Vietnam Pro, system-ui, sans-serif"
@@ -174,7 +188,7 @@ thao tác, sẵn đó khi người dùng hỏi tới, không bày sẵn ra màn 
 Hệ chia làm hai vùng có chủ đích. **Operate** (mọi thứ lặp lại trong phòng: danh sách, bản đồ, lịch, form, sheet) phẳng,
 yên, quen tay, dày vừa đủ để quét nhanh trên điện thoại 360px. **Stage** (trang chủ bản đồ 3D, quẹt phiếu, reveal chốt
 quán, thẻ chuyến đi) là con phố nắng bên ngoài: giấy kem "Sài Gòn nắng", chữ display Bricolage Grotesque, một luồng ánh
-sáng chiều và bóng dài một hướng. Người sắp xếp chỉ lên tiếng ở vài khoảnh khắc nhóm thật sự nhớ. Xong là trở lại yên lặng.
+sáng chiều và bóng dài một hướng. Người sắp xếp chỉ lên tiếng ở vài khoảnh khắc nhóm thật sự nhớ. Xong là trở lại yên lặng. Một ngoại lệ có tên của Stage là landing `/` ("Sài Gòn về đêm"): cảnh phố đêm cố định, luôn tối, chỉ dành cho người mới tới; cửa sổ app bên trong vẫn là giao diện sáng của app.
 
 Cái vui đến từ coral, chữ to rõ, lời văn tự nhiên và vài khoảnh khắc có chủ đích. Nó không đến từ emoji, gradient hay
 hiệu ứng rải khắp nơi. Bị loại rõ ràng: glass/blur trang trí, chữ gradient, eyebrow viết hoa giãn chữ, thẻ icon xếp hàng
@@ -225,6 +239,15 @@ trắng lẫn soft.
 - Màu phố làm màu phụ, mỗi cảnh tối đa 1: **Hoa Sứ** (`stage-sun`, ở theme sáng chỉ làm mảng/ánh sáng, 1.95:1, không làm
   chữ), **Trời Trưa** (`stage-sky`, đường đi/nước), **Lá Me** (`stage-leaf`), **Gạch Bưu Điện** (`stage-brick`).
 
+### Landing "Sài Gòn về đêm" (chỉ file thuộc `frontend/src/landing`)
+Một cảnh cố định, luôn tối, không theo `data-theme`; token chỉ khai báo ở `:root` (không lặp trong khối dark). Chi tiết, số đo và
+luật chuyển động: `docs/phase11/DESIGN.md`.
+- **Đêm** (`night` `#16111C` nền, `night-2`/`night-3` khối phụ và hover, `night-line` viền) và **Trăng** (`night-moon` chữ chính 15.9:1,
+  `night-moon-2` chữ phụ 9.4:1, `night-moon-3` chữ mờ 5.9:1, chỉ chữ ≥ 12px).
+- **Đèn Natri** (`lamp` `#F2B544`): chữ nhấn trên đêm (10.1:1) và nền dải số đo; chữ trên dải đó chỉ dùng `lamp-ink` (9.2:1) /
+  `lamp-ink-2` (5.5:1). `coral-on-dark` (`#FF8566`, 7.8:1) cho viền focus và chữ nhấn trên đêm; hành động chính vẫn là `accent`
+  với chữ `ink`. `house-1/2/3` chỉ để vẽ nhà ống phố đêm (trang trí, `aria-hidden`).
+
 ### Dark mode
 Áp qua `:root[data-theme="dark"]` và khối `prefers-color-scheme: dark` guard bằng `:not([data-theme="light"])`. Hai
 khối phải giống hệt nhau. Nền `#141210`, surface `#1F1D1A`, surface-2 `#292522`, line `#38332E`, ink `#F5F5F4`, ink-2
@@ -239,7 +262,9 @@ coral thứ hai trên cùng một màn, hay coral để trang trí, là sai.
 **The No White On Coral Rule.** Chữ trắng trên coral chỉ đạt 2.8:1 và bị cấm. Nút chính luôn là nền `accent` + chữ `ink`
 đậm 600.
 
-**The Always-Light Map Rule.** Bản đồ và lớp quán (`PoiLayer.ts`) luôn dùng bảng màu sáng, kể cả khi app ở theme tối.
+**The Always-Light Map Rule.** Bản đồ và lớp quán (`PoiLayer.ts`) luôn dùng bảng màu sáng, kể cả khi app ở theme tối và cả trên nền đêm của landing.
+
+**The Night Window Rule.** Landing là ngoại lệ có tên của vùng Stage: nền đêm cố định (`night-*`, `lamp-*`), nhưng cửa sổ app bên trong luôn dùng token sáng của app. Operate không mượn token đêm; landing không đọc token app tối.
 
 ## Typography
 
@@ -386,3 +411,5 @@ emoji, không ký tự unicode làm icon.
 - **Don't** dùng modal cho việc làm được ngay tại chỗ (vote, lọc, đổi tab), hay `alert()`/`confirm()`.
 - **Don't** để file Operate import `gsap`, `motion/*`, `sound/*` hoặc `stage/*`. Hiệu ứng Stage ở lại trong Stage.
 - **Don't** đổi bản đồ sang bảng màu tối theo theme app.
+- **Don't** để landing import `stage/hero/*` hoặc `gsap`, ghim/scrub khi cuộn, hay dựng quá một WebGL context gắn DOM cùng lúc
+  (`docs/phase11/DESIGN.md` §4).

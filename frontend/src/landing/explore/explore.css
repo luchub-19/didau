@@ -1,0 +1,689 @@
+/* ★ Hoà phiếu tự chơi (gđ11 T-128). Chuẩn thị giác: mock v3 `.tie-sec .explore .map-card .board .seg .verdict`.
+   Bản đồ + bảng là "cửa sổ app" nên ép token sáng (PLAN §3 mục 5), phần còn lại theo đêm. Chuyển động theo PLAN §4.5:
+   điểm rơi 520 ms, thanh + avatar 520 ms, khung chọn trượt 360 ms; mức static thì không trượt/không rơi. */
+
+.landing {
+  --tie-t-move: 520ms;
+  --tie-t-frame: 360ms;
+}
+
+/* ---------- Dàn 4 bạn dưới phụ đề ---------- */
+.tie-cast {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.tie-cast li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgb(var(--night-moon-2));
+  background: rgb(var(--night-3));
+  border-radius: 9999px;
+  padding: 4px 14px 4px 4px;
+}
+
+.tie-cast img {
+  border-radius: 9999px;
+}
+
+.tie-explore {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 24px;
+  margin-top: 48px;
+  align-items: stretch;
+}
+
+/* ---------- Bản đồ ---------- */
+.tie-map-card {
+  position: relative;
+  min-height: 560px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #f3efe6;
+  box-shadow: 0 40px 80px -24px rgb(0 0 0 / 0.6);
+  isolation: isolate;
+}
+
+/* 2 lớp: thắng `.maplibregl-map { position: relative }` của MapLibre (bẫy T-125) */
+.tie-map-card .tie-map-live {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 600ms var(--landing-ease);
+}
+
+.tie-map-card[data-phase='live'] .tie-map-live {
+  opacity: 1;
+}
+
+.tie-map-card[data-phase='paper'] .tie-map-live,
+.tie-map-card[data-phase='failed'] .tie-map-live {
+  cursor: crosshair;
+}
+
+.tie-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.tie-area,
+.tie-friend,
+.tie-place,
+.tie-leg-min {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.tie-area {
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, var(--area) 0 40%, transparent 100%);
+  opacity: 0.45;
+}
+
+.tie-legs {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.tie-legs line {
+  stroke: #78716c;
+  stroke-width: 2;
+  stroke-dasharray: 5 6;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.tie-legs line[data-sel] {
+  stroke: rgb(255 107 74);
+  stroke-width: 4;
+  opacity: 1;
+}
+
+.tie-friend {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  /* tâm avatar ở toạ độ quận, nhãn nằm dưới */
+  transform: translate(-50%, -17px);
+}
+
+.tie-friend img {
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 3px #fff,
+    0 6px 14px -4px rgb(28 25 23 / 0.5);
+}
+
+.tie-friend span {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgb(28 25 23);
+  background: rgb(255 255 255 / 0.92);
+  border-radius: 9999px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.tie-place {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background: #fff;
+  color: rgb(28 25 23);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 6px 14px -6px rgb(28 25 23 / 0.55);
+  transition:
+    background-color var(--landing-t-bar) var(--landing-ease),
+    border-color var(--landing-t-bar) var(--landing-ease);
+}
+
+/* Tâm chấm quán (viền 2 + đệm 3 + nửa chấm 10 = 15px) đúng toạ độ; nhãn chìa sang một bên (labelSide) */
+.tie-place[data-side='right'] {
+  transform: translate(-15px, -50%);
+}
+
+.tie-place[data-side='left'] {
+  flex-direction: row-reverse;
+  padding: 3px 3px 3px 9px;
+  transform: translate(calc(-100% + 15px), -50%);
+}
+
+.tie-place-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgb(255 107 74);
+  color: rgb(28 25 23);
+}
+
+.tie-place[data-sel] {
+  z-index: 3;
+  background: rgb(255 241 236);
+  border-color: rgb(255 107 74);
+}
+
+.tie-leg-min {
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 9999px;
+  background: #fff;
+  color: rgb(87 83 78);
+  box-shadow: 0 2px 8px -3px rgb(28 25 23 / 0.4);
+  white-space: nowrap;
+}
+
+.tie-leg-min[data-sel] {
+  background: rgb(255 107 74);
+  color: rgb(28 25 23);
+}
+
+/* Điểm "Bạn": tâm avatar đúng toạ độ (dịch lên nửa avatar), nhãn dưới */
+.tie-you {
+  position: absolute;
+  z-index: 4;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  transform: translate(-50%, -22px);
+  border-radius: 9999px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tie-you:active {
+  cursor: grabbing;
+}
+
+.tie-you:focus-visible {
+  outline: 3px solid rgb(28 25 23);
+  outline-offset: 4px;
+}
+
+.tie-you-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.tie-you img {
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 3px rgb(255 107 74),
+    0 0 0 6px #fff,
+    0 10px 20px -6px rgb(28 25 23 / 0.55);
+}
+
+.tie-you-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(28 25 23);
+  background: rgb(255 107 74);
+  border-radius: 9999px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.tie-you-in[data-drop] {
+  animation: tie-drop var(--tie-t-move) var(--landing-ease);
+}
+
+@keyframes tie-drop {
+  0% {
+    transform: translateY(-28px);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Hộp "Bạn ở quận nào?" */
+.tie-ask {
+  position: absolute;
+  z-index: 3;
+  left: 14px;
+  right: 14px;
+  top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  color: rgb(28 25 23);
+  box-shadow: 0 10px 24px -12px rgb(28 25 23 / 0.45);
+}
+
+.tie-ask-q {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tie-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tie-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.tie-chips button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 9999px;
+  border: 1px solid rgb(231 229 228);
+  background: rgb(245 245 244);
+  color: rgb(87 83 78);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--landing-t-bar) var(--landing-ease),
+    color var(--landing-t-bar) var(--landing-ease),
+    border-color var(--landing-t-bar) var(--landing-ease);
+}
+
+.tie-chips button[aria-pressed='true'] {
+  background: rgb(255 241 236);
+  color: rgb(199 62 38);
+  border-color: rgb(199 62 38 / 0.3);
+}
+
+@media (hover: hover) {
+  .tie-chips button:hover {
+    border-color: rgb(120 113 108);
+    color: rgb(28 25 23);
+  }
+}
+
+.tie-chips button:focus-visible {
+  outline: 2px solid rgb(199 62 38);
+  outline-offset: 2px;
+}
+
+.tie-ask-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgb(120 113 108);
+}
+
+.tie-privacy {
+  position: absolute;
+  z-index: 3;
+  left: 14px;
+  bottom: 14px;
+  /* chừa nút +/− và ghi công thu gọn ở góc phải */
+  max-width: calc(100% - 28px - 48px);
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgb(28 25 23 / 0.88);
+  color: rgb(250 250 249);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tie-privacy svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 1px;
+}
+
+.tie-map-card .maplibregl-ctrl-bottom-right {
+  z-index: 3;
+}
+
+/* ---------- Cột phải: công tắc, lời kết luận, bảng ---------- */
+.tie-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.tie-seg {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 5px;
+  border-radius: 9999px;
+  background: rgb(var(--night));
+  border: 1px solid rgb(var(--night-line));
+}
+
+.tie-seg-knob {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc(50% - 5px);
+  border-radius: 9999px;
+  background: rgb(var(--night-moon));
+  transition: transform var(--tie-t-frame) var(--landing-ease);
+}
+
+.tie-seg[data-mode='far'] .tie-seg-knob {
+  transform: translateX(100%);
+}
+
+.tie-seg button {
+  position: relative;
+  z-index: 1;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: rgb(var(--night-moon-2));
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color var(--landing-t-bar) var(--landing-ease);
+}
+
+.tie-seg button[aria-pressed='true'] {
+  color: rgb(var(--night));
+}
+
+.tie-verdict {
+  min-height: 8.5em;
+}
+
+.tie-pick {
+  font-family: var(--stage-font-display);
+  font-weight: 800;
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: rgb(var(--night-moon));
+}
+
+.tie-pick[data-swap] {
+  animation: landing-rise var(--tie-t-frame) var(--landing-ease);
+}
+
+.tie-why {
+  margin-top: 10px;
+  font-size: 16px;
+  color: rgb(var(--night-moon-2));
+}
+
+.tie-why strong {
+  color: rgb(var(--lamp));
+  font-weight: 700;
+}
+
+.tie-board {
+  border-radius: 18px;
+  padding: 20px;
+  background: rgb(250 250 249);
+  color: rgb(28 25 23);
+}
+
+.tie-board-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tie-board-head h3 {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.tie-board-head span {
+  font-size: 12px;
+  /* ink-2: ở ≤ 960px đầu bảng nằm dưới bóng của thẻ bản đồ, ink-3 chỉ đạt 3,5–4,2:1 (T-130) */
+  color: rgb(87 83 78);
+}
+
+.tie-rows {
+  --row-h: 68px;
+  position: relative;
+  margin-top: 10px;
+}
+
+.tie-rows ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tie-sel-frame {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: 0;
+  height: var(--row-h);
+  border-radius: 12px;
+  background: rgb(255 241 236);
+  transform: translateY(calc(var(--sel, 0) * var(--row-h)));
+  transition: transform var(--tie-t-frame) var(--landing-ease);
+}
+
+.tie-row {
+  position: relative;
+  z-index: 1;
+  height: var(--row-h);
+  display: grid;
+  align-content: center;
+  gap: 6px;
+}
+
+.tie-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tie-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(87 83 78);
+  transition: color var(--landing-t-bar) var(--landing-ease);
+}
+
+.tie-row[data-sel] .tie-row-name {
+  color: rgb(28 25 23);
+}
+
+.tie-row-km {
+  flex: none;
+  font-size: 12px;
+  color: rgb(120 113 108);
+  white-space: nowrap;
+}
+
+/* Hàng đang chọn có nền san hô nhạt (#FFF1EC): ink-3 chỉ đạt 4,35:1 ở 12px (axe, T-130) → ink-2 */
+.tie-row[data-sel] .tie-row-km {
+  color: rgb(87 83 78);
+}
+
+.tie-track {
+  position: relative;
+  height: 30px;
+  border-radius: 8px;
+  background: rgb(245 245 244);
+  overflow: hidden;
+}
+
+.tie-row[data-sel] .tie-track {
+  background: #fff;
+}
+
+.tie-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 8px;
+  background: #d6d3d1;
+  transition:
+    width var(--tie-t-move) var(--landing-ease),
+    background-color var(--landing-t-bar) var(--landing-ease);
+}
+
+.tie-row[data-sel] .tie-fill {
+  background: rgb(255 107 74);
+}
+
+.tie-who {
+  position: absolute;
+  top: 3px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(28 25 23);
+  white-space: nowrap;
+  transform: translateX(calc(-100% - 6px));
+  transition: left var(--tie-t-move) var(--landing-ease);
+}
+
+.tie-who img {
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.tie-who[data-you] img {
+  box-shadow: 0 0 0 2px rgb(255 107 74);
+}
+
+.tie-row[data-sel] .tie-who[data-you] img {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.tie-board-note {
+  margin-top: 10px;
+  min-height: 4.4em;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgb(120 113 108);
+}
+
+/* ---------- Màn hẹp ---------- */
+@media (max-width: 960px) {
+  .tie-explore {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 36px;
+  }
+
+  .tie-map-card {
+    min-height: 520px;
+  }
+
+  /* Màn hẹp: công tắc + lời kết luận lên TRÊN bản đồ, để chọn chip xong vẫn thấy đề xuất đổi; bảng ở dưới.
+     Lời kết luận giữ chỗ đủ câu dài nhất (farYou + diff) để bản đồ không nhảy dưới ngón tay. */
+  .tie-side {
+    display: contents;
+  }
+
+  .tie-seg {
+    order: 1;
+  }
+
+  .tie-verdict {
+    order: 2;
+    min-height: 13.5em;
+  }
+
+  .tie-map-card {
+    order: 3;
+  }
+
+  .tie-board {
+    order: 4;
+  }
+
+  .tie-explore {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Bốn quận sát nhau ở khổ hẹp: chỉ còn avatar trên bản đồ, "Tên · Quận" đã có ở dàn bạn phía trên */
+  .tie-friend span {
+    display: none;
+  }
+
+  .tie-friend {
+    transform: translate(-50%, -50%);
+  }
+
+  .tie-seg button {
+    padding: 0 8px;
+    font-size: 13.5px;
+  }
+
+  .tie-board {
+    padding: 16px;
+  }
+}
+
+/* ---------- Giảm chuyển động (useMotionTier 'static') ---------- */
+.landing[data-tier='static'] .tie-you-in[data-drop],
+.landing[data-tier='static'] .tie-pick[data-swap] {
+  animation: none;
+}
+
+.landing[data-tier='static'] .tie-fill,
+.landing[data-tier='static'] .tie-who,
+.landing[data-tier='static'] .tie-sel-frame,
+.landing[data-tier='static'] .tie-seg-knob,
+.landing[data-tier='static'] .tie-map-live,
+.landing[data-tier='static'] .tie-place,
+.landing[data-tier='static'] .tie-chips button {
+  transition: none;
+}

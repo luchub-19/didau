@@ -1,0 +1,928 @@
+/* Hero landing (T-125): phố đêm, bốn bạn hội tụ, cửa sổ phòng mẫu luôn sáng, bản đồ mini.
+   Chuẩn thị giác: docs/phase11/comps/landing-v3.html (.hero, .street, .rider, .app*, .rpin). Nhịp: PLAN §4.5.
+   Mức static (data-tier trên .landing): chỉ đổi opacity, không trượt/nảy/scale. */
+
+.landing {
+  /* Nhịp riêng của hero, tên biến thay cho số rời trong component */
+  --hero-t-lamp: 1100ms;
+  --hero-t-lamp-delay: 300ms;
+  --hero-t-win: 600ms;
+  --hero-t-glow: 500ms;
+  --hero-t-tag: 400ms;
+  --hero-t-try-delay: 2300ms;
+  --hero-t-pop: 360ms;
+  --hero-t-bump: 380ms;
+  --hero-t-stamp: 620ms;
+  --hero-t-sheet: 360ms;
+  --hero-t-bar: 700ms;
+}
+
+/* ---------- Khung hero ---------- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: calc(-1 * var(--landing-top-h));
+  padding-top: 104px;
+}
+
+/* Hai quầng sáng ấm: đèn natri sau cửa sổ app, coral từ lòng đường (mock v3 .hero::before) */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(55% 45% at 72% 40%, rgb(var(--lamp) / 0.16), rgb(var(--lamp) / 0) 70%),
+    radial-gradient(40% 30% at 50% 100%, rgb(var(--color-accent) / 0.12), rgb(var(--color-accent) / 0) 70%);
+}
+
+.hero-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+@media (min-width: 961px) {
+  .hero {
+    padding-top: 112px;
+  }
+  .hero-grid {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 13fr);
+    gap: 48px;
+  }
+}
+
+.hero-try {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgb(var(--night-moon-3));
+  animation: landing-rise var(--landing-t-rise) var(--landing-ease) var(--hero-t-try-delay) both;
+}
+
+/* ---------- Phố đêm ---------- */
+.hero-street {
+  position: relative;
+  z-index: 1;
+  height: 190px;
+  pointer-events: none;
+}
+
+@media (min-width: 961px) {
+  .hero-street {
+    height: 230px;
+    margin-top: -64px;
+  }
+}
+
+.hero-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-glow {
+  opacity: 0;
+  transition: opacity var(--hero-t-glow) var(--landing-ease);
+}
+
+.hero-win {
+  opacity: 0.15;
+  transition: opacity var(--hero-t-win) var(--landing-ease);
+}
+
+.hero-street[data-lit='true'] .hero-glow,
+.hero-street[data-lit='true'] .hero-win.on {
+  opacity: 1;
+}
+
+/* ---------- Bốn bạn hội tụ ---------- */
+.hero-riders {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  height: 96px;
+}
+
+.hero-rider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 92px;
+  height: 92px;
+  will-change: transform;
+}
+
+.hero-scooter {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 92px;
+  height: 56px;
+  overflow: visible;
+}
+
+/* Màn ≤ 480px: khoảng dừng chỉ ~82px nên thu xe lại; dùng `scale` (độc lập với transform mà WAAPI đang chạy) */
+@media (max-width: 480px) {
+  .hero-rider {
+    scale: 0.82;
+    transform-origin: 50% 100%;
+  }
+}
+
+.hero-rider[data-rev] .hero-scooter {
+  transform: scaleX(-1);
+}
+
+.hero-rider-av {
+  position: absolute;
+  left: 30px;
+  bottom: 44px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgb(var(--night));
+}
+
+.hero-rider[data-rev] .hero-rider-av {
+  left: 24px;
+}
+
+.hero-rider-tag {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  font: 600 11.5px/1 var(--stage-font-body, 'Be Vietnam Pro', system-ui, sans-serif);
+  color: rgb(var(--night-moon));
+  background: rgb(var(--night) / 0.85);
+  border: 1px solid rgb(var(--night-line));
+  border-radius: 9999px;
+  padding: 5px 9px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--hero-t-tag) var(--landing-ease);
+  transition-delay: calc(var(--i, 0) * 80ms);
+}
+
+.hero-riders[data-arrived='true'] .hero-rider-tag {
+  opacity: 1;
+}
+
+/* ---------- Cửa sổ app: luôn sáng (PLAN §3 mục 5) ---------- */
+.hero-app {
+  /* Ép bảng màu sáng của app dù theme app đang tối (giá trị = :root sáng trong styles/tokens.css) */
+  color-scheme: light;
+  --color-bg: 250 250 249;
+  --color-surface: 255 255 255;
+  --color-surface-2: 245 245 244;
+  --color-line: 231 229 228;
+  --color-ink: 28 25 23;
+  --color-ink-2: 87 83 78;
+  --color-ink-3: 120 113 108;
+  --color-accent: 255 107 74;
+  --color-accent-hover: 242 92 60;
+  --color-accent-soft: 255 241 236;
+  --color-accent-text: 199 62 38;
+  --color-success: 4 120 87;
+  --color-success-soft: 236 253 245;
+  --color-cat-food: 194 65 12;
+  --color-cat-food-soft: 255 247 237;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-ink));
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow:
+    0 40px 80px -24px rgb(0 0 0 / 0.65),
+    0 12px 24px -12px rgb(0 0 0 / 0.5);
+  animation: hero-lamp-on var(--hero-t-lamp) var(--landing-ease) var(--hero-t-lamp-delay) both;
+}
+
+@media (max-width: 960px) {
+  .hero-app {
+    max-width: 440px;
+  }
+}
+
+@keyframes hero-lamp-on {
+  from {
+    opacity: 0.3;
+    filter: brightness(0.45) saturate(0.6);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+.hero-app :focus-visible {
+  outline-color: rgb(var(--color-accent-text));
+}
+
+.hero-app-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgb(var(--color-line));
+  background: rgb(var(--color-bg));
+}
+
+.hero-app-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.hero-app-chip {
+  flex: none;
+  border-radius: 9999px;
+  background: rgb(var(--color-surface-2));
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgb(var(--color-ink-2));
+}
+
+.hero-presence {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 6px;
+  flex: none;
+}
+
+.hero-presence img {
+  width: 26px;
+  height: 26px;
+  margin-left: -7px;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--color-bg));
+  background: #fff;
+}
+
+.hero-app-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 961px) {
+  .hero-app-body {
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 440px;
+  }
+}
+
+@media (min-width: 1081px) {
+  .hero-app-body {
+    grid-template-columns: 262px minmax(0, 1fr);
+  }
+}
+
+/* ---------- Panel ---------- */
+.hero-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgb(var(--color-bg));
+}
+
+@media (min-width: 961px) {
+  .hero-panel {
+    border-right: 1px solid rgb(var(--color-line));
+  }
+}
+
+.hero-card {
+  border: 1px solid rgb(var(--color-line));
+  border-radius: 14px;
+  padding: 12px;
+  background: rgb(var(--color-surface));
+}
+
+.hero-card-head {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.hero-card-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: rgb(var(--color-ink-3));
+}
+
+.hero-sugg {
+  margin-top: 10px;
+  border-radius: 12px;
+  padding: 10px;
+  background: rgb(var(--color-surface-2));
+}
+
+.hero-sugg-title {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.hero-sugg-meta {
+  font-size: 12px;
+  color: rgb(var(--color-ink-2));
+}
+
+/* Chốt: coral + chữ mực (cấm chữ trắng trên coral); 44px để chạm được trên điện thoại */
+.hero-chot {
+  margin-top: 9px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9999px;
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-ink));
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background-color var(--t-hover) var(--landing-ease),
+    transform var(--t-press) var(--landing-ease);
+}
+
+.hero-chot:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  .hero-chot:hover {
+    background: rgb(var(--color-accent-hover));
+  }
+}
+
+.hero-linkbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: rgb(var(--color-accent-text));
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hero-caret {
+  transition: transform var(--landing-t-bar) var(--landing-ease);
+}
+
+.hero-linkbtn[aria-expanded='true'] .hero-caret {
+  transform: rotate(180deg);
+}
+
+/* "Vì sao?" mở tại chỗ bằng grid-rows (không đo chiều cao) */
+.hero-why {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--hero-t-sheet) var(--landing-ease);
+}
+
+.hero-why[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+.hero-why > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.hero-why[data-open='false'] > div {
+  visibility: hidden;
+}
+
+.hero-why-in {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.hero-why-rule {
+  font-size: 11.5px;
+  color: rgb(var(--color-ink-2));
+}
+
+.hero-mini {
+  display: grid;
+  grid-template-columns: 5.6em minmax(0, 1fr) 2.6em;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+}
+
+.hero-mini-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: rgb(var(--color-surface));
+  overflow: hidden;
+}
+
+.hero-mini-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #a8a29e;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform var(--hero-t-bar) var(--landing-ease);
+}
+
+.hero-why[data-open='true'] .hero-mini-track i {
+  transform: none;
+  transition-delay: 120ms;
+}
+
+.hero-mini[data-best] .hero-mini-track i {
+  background: rgb(var(--color-accent));
+}
+
+.hero-mini-v {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--color-ink-2));
+}
+
+/* Thẻ trượt vào khi trạng thái đổi do thao tác */
+.hero-swap {
+  animation: hero-swap-in var(--hero-t-sheet) var(--landing-ease);
+}
+
+@keyframes hero-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Đã chốt: khoảnh khắc chính của cửa sổ — dấu tích 620 ms rồi chữ rise so le 60 ms */
+.hero-locked {
+  text-align: center;
+  background: rgb(var(--color-accent-soft));
+  border-color: rgb(var(--color-accent-text) / 0.2);
+  padding: 18px 12px 10px;
+}
+
+.hero-stamp {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-ink));
+  animation: hero-stamp var(--hero-t-stamp) var(--landing-ease) both;
+}
+
+@keyframes hero-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.6) rotate(-12deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(0);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.hero-locked-badge,
+.hero-locked-name,
+.hero-locked-sub,
+.hero-locked .hero-linkbtn {
+  animation: landing-rise 500ms var(--landing-ease) both;
+}
+
+.hero-locked-badge {
+  margin-top: 10px;
+  font-weight: 700;
+  font-size: 12.5px;
+  color: rgb(var(--color-accent-text));
+  animation-delay: 180ms;
+}
+
+.hero-locked-name {
+  margin-top: 2px;
+  font: 800 19px/1.25 var(--stage-font-display);
+  letter-spacing: -0.01em;
+  animation-delay: 240ms;
+}
+
+.hero-locked-sub {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: rgb(var(--color-ink-2));
+  animation-delay: 300ms;
+}
+
+.hero-locked .hero-linkbtn {
+  animation-delay: 380ms;
+}
+
+/* ---------- Dòng quán ---------- */
+.hero-places {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-place {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid rgb(var(--color-line));
+  border-radius: 12px;
+  padding: 7px 8px;
+  background: rgb(var(--color-surface));
+  transition:
+    border-color var(--landing-t-bar) var(--landing-ease),
+    opacity var(--landing-t-bar) var(--landing-ease);
+}
+
+.hero-place[data-tone='hot'],
+.hero-place[data-hot] {
+  border-color: rgb(var(--color-accent-text) / 0.45);
+}
+
+.hero-place[data-tone='faded'] {
+  opacity: 0.45;
+}
+
+.hero-place-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--color-cat-food-soft));
+  color: rgb(var(--color-cat-food));
+}
+
+.hero-place-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.hero-place-meta {
+  display: block;
+  font-size: 11px;
+  color: rgb(var(--color-ink-3));
+}
+
+.hero-tag {
+  display: inline-block;
+  margin-top: 3px;
+  border-radius: 9999px;
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgb(var(--color-accent-text));
+  background: rgb(var(--color-accent-soft));
+}
+
+.hero-heart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgb(var(--color-ink-3));
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--landing-t-bar) var(--landing-ease),
+    color var(--landing-t-bar) var(--landing-ease);
+}
+
+.hero-heart[aria-pressed='true'] {
+  color: rgb(var(--color-accent-text));
+  background: rgb(var(--color-accent-soft));
+}
+
+.hero-heart:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .hero-heart:not(:disabled):hover {
+    background: rgb(var(--color-surface-2));
+    color: rgb(var(--color-ink));
+  }
+  .hero-heart[aria-pressed='true']:not(:disabled):hover {
+    background: rgb(var(--color-accent-soft));
+    color: rgb(var(--color-accent-text));
+  }
+}
+
+.hero-heart [data-pop] {
+  animation: hero-pop var(--hero-t-pop) var(--landing-ease);
+}
+
+@keyframes hero-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* ---------- Bản đồ mini ---------- */
+.hero-map {
+  position: relative;
+  display: none;
+  overflow: hidden;
+  background: #f3efe6;
+}
+
+@media (min-width: 961px) {
+  .hero-map {
+    display: block;
+  }
+}
+
+.hero-map-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.hero-map-frame {
+  position: absolute;
+  inset: 0;
+}
+
+/* Sau khi chụp: khung giữ đúng kích thước lúc chụp, căn giữa; khung app đổi cỡ chỉ cắt/để lộ mép giấy */
+.hero-map-frame[data-fixed] {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* MapLibre gắn `.maplibregl-map { position: relative }` lên khung: selector hai lớp để thắng, nếu không khung cao 0 */
+.hero-map-box .hero-map-live {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity var(--hero-t-glow) var(--landing-ease);
+}
+
+.hero-map-box[data-phase='live'] .hero-map-live {
+  opacity: 1;
+}
+
+.hero-map-box:not([data-phase='live']) .hero-map-live {
+  visibility: hidden;
+}
+
+.hero-map-snap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+}
+
+.hero-map-box[data-phase='snap'] .hero-map-snap {
+  display: block;
+}
+
+.hero-map-attrib {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  z-index: 2;
+  font-size: 10px;
+  color: rgb(var(--color-ink-2));
+  background: rgb(255 255 255 / 0.7);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.hero-map-chip {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: rgb(var(--color-ink));
+  color: rgb(var(--color-bg));
+}
+
+/* Ghim quán (HTML, không phải Marker): căn giữa vào toạ độ đã project */
+.hero-pin {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--landing-t-bar) var(--landing-ease);
+}
+
+.hero-pin[data-hot] {
+  z-index: 2;
+}
+
+.hero-pin-in {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 4px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background: #fff;
+  color: rgb(var(--color-ink));
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px -4px rgb(28 25 23 / 0.45);
+  transition:
+    background-color var(--landing-t-bar) var(--landing-ease),
+    transform var(--landing-t-bar) var(--landing-ease);
+}
+
+.hero-pin-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-ink));
+}
+
+.hero-pin[data-hot] .hero-pin-in {
+  transform: scale(1.1);
+}
+
+.hero-pin[data-state='faded'] {
+  opacity: 0.4;
+}
+
+.hero-pin[data-state='done'] .hero-pin-dot {
+  background: rgb(var(--color-success));
+  color: #fff;
+}
+
+.hero-pin-in[data-bump] {
+  animation: hero-pop var(--hero-t-bump) var(--landing-ease);
+}
+
+/* ---------- Toast "Xeko vừa vào phòng" ---------- */
+.hero-toast {
+  position: absolute;
+  right: 12px;
+  top: 58px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
+  box-shadow: 0 10px 24px -10px rgb(28 25 23 / 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity var(--landing-t-bar) var(--landing-ease),
+    transform var(--landing-t-bar) var(--landing-ease);
+}
+
+.hero-toast[data-show='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Màn hẹp (không có bản đồ): toast nằm đáy cửa sổ, không che thẻ hoà ngay dưới thanh trên */
+@media (max-width: 960px) {
+  .hero-toast {
+    top: auto;
+    bottom: 12px;
+    right: 12px;
+    transform: translateY(6px);
+  }
+}
+
+.hero-toast img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* ---------- Mức static / giảm chuyển động: chỉ opacity ---------- */
+.landing[data-tier='static'] .hero-app {
+  animation-name: landing-fade;
+}
+
+.landing[data-tier='static'] .hero-try {
+  animation-name: landing-fade;
+  animation-delay: 0ms;
+}
+
+.landing[data-tier='static'] .hero-glow,
+.landing[data-tier='static'] .hero-win,
+.landing[data-tier='static'] .hero-rider-tag {
+  transition: none;
+}
+
+.landing[data-tier='static'] .hero-swap,
+.landing[data-tier='static'] .hero-locked-badge,
+.landing[data-tier='static'] .hero-locked-name,
+.landing[data-tier='static'] .hero-locked-sub,
+.landing[data-tier='static'] .hero-locked .hero-linkbtn,
+.landing[data-tier='static'] .hero-stamp {
+  animation-name: landing-fade;
+}
+
+.landing[data-tier='static'] .hero-heart [data-pop],
+.landing[data-tier='static'] .hero-pin-in[data-bump] {
+  animation: none;
+}
+
+.landing[data-tier='static'] .hero-mini-track i,
+.landing[data-tier='static'] .hero-why,
+.landing[data-tier='static'] .hero-toast,
+.landing[data-tier='static'] .hero-pin-in {
+  transition: none;
+}
+
+.landing[data-tier='static'] .hero-toast {
+  transform: none;
+}
+
+.landing[data-tier='static'] .hero-chot:active {
+  transform: none;
+}

@@ -53,6 +53,28 @@ export default {
         'cat-shopping-soft': 'rgb(var(--color-cat-shopping-soft) / <alpha-value>)',
         'cat-other': 'rgb(var(--color-cat-other) / <alpha-value>)',
         'cat-other-soft': 'rgb(var(--color-cat-other-soft) / <alpha-value>)',
+
+        // Landing "Sài Gòn về đêm" (gđ11, docs/phase11/PLAN.md §4.2): chỉ dùng trong frontend/src/landing/**
+        night: {
+          DEFAULT: 'rgb(var(--night) / <alpha-value>)',
+          2: 'rgb(var(--night-2) / <alpha-value>)',
+          3: 'rgb(var(--night-3) / <alpha-value>)',
+          line: 'rgb(var(--night-line) / <alpha-value>)',
+          moon: 'rgb(var(--night-moon) / <alpha-value>)',
+          'moon-2': 'rgb(var(--night-moon-2) / <alpha-value>)',
+          'moon-3': 'rgb(var(--night-moon-3) / <alpha-value>)',
+        },
+        lamp: {
+          DEFAULT: 'rgb(var(--lamp) / <alpha-value>)',
+          ink: 'rgb(var(--lamp-ink) / <alpha-value>)',
+          'ink-2': 'rgb(var(--lamp-ink-2) / <alpha-value>)',
+        },
+        'coral-on-dark': 'rgb(var(--coral-on-dark) / <alpha-value>)',
+        house: {
+          1: 'rgb(var(--house-1) / <alpha-value>)',
+          2: 'rgb(var(--house-2) / <alpha-value>)',
+          3: 'rgb(var(--house-3) / <alpha-value>)',
+        },
       },
       fontFamily: {
         sans: ['"Be Vietnam Pro"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],

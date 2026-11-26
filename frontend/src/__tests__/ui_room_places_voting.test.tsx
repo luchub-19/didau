@@ -382,9 +382,9 @@ describe('T-20: Frontend UI - Realtime Voting & Host TieBreak Modal', () => {
 });
 
 describe('Page Integration & App Routing', () => {
-  it('HomePage render khẩu hiệu hero và hai nút chính (T-59 thay trang chủ cũ)', () => {
+  it('HomePage render tiêu đề landing và hai nút chính (T-124 thay hero gđ4)', () => {
     const html = renderToStaticMarkup(<HomePage onNavigateToRoom={() => {}} />);
-    expect(html).toContain('Đi đâu? Rồi đi đâu nữa?');
+    expect(html).toContain('Tối nay đi đâu?');
     expect(html).toContain('Tạo phòng');
     expect(html).toContain('Nhập mã');
   });
@@ -399,7 +399,7 @@ describe('Page Integration & App Routing', () => {
 
   it('App render mặc định vào HomePage', () => {
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Đi đâu? Rồi đi đâu nữa?');
+    expect(html).toContain('Tối nay đi đâu?');
   });
 });
 

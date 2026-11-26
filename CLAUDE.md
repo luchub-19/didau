@@ -3,6 +3,14 @@
 Mỗi session CLI làm **đúng 1 task** (T-xx), rồi bàn giao qua file tiến độ của giai đoạn. Session sau không nhớ gì
 ngoài repo, nên mọi quyết định phát sinh phải ghi vào docs, không chỉ nói trong chat.
 
+## Giai đoạn 11 "Landing" (T-122 → T-130) — T-130 XONG 2026-11-26, G2 QUA 2026-11-26; còn chờ quyết xoá code cũ + deploy + quét QR bằng điện thoại thật
+Trang chủ `/` = landing "Sài Gòn về đêm" (`frontend/src/landing/**`): hero + phòng mẫu bấm được → nhóm chat rối → ảnh Bùi Viện → 4 bước →
+★ bạn là người thứ 5 kéo điểm trên bản đồ (OMP port + lưới Valhalla tính sẵn) → số đo 20 case → kết + QR. Số đo + luật cuối + 6 lỗi đã sửa:
+`docs/phase11/DESIGN.md`; danh sách việc người dùng + code cũ đề xuất xoá: `docs/phase11/PROGRESS.md` mục "Cổng G2"; plan: `PLAN.md`; script đo: `screens/T-130-cdp.mjs`.
+- **Bẫy:** cuộn tự nhiên (không ghim/scrub); không bịa số; CR-11; tối đa 1 WebGL context gắn DOM (bản đồ mới phải qua `createLandingMap` + `whenMapsReleased`);
+  không chèn/gỡ phần tử trong luồng sau khi vẽ (CLS), không opacity cho chữ nhỏ (axe); landing không import `stage/hero/*`/gsap; marker MapLibre: đừng ghi đè `className`.
+- T-129 vẫn DOING chỉ vì chưa ai quét QR bằng điện thoại thật; chưa commit gđ11 (người dùng quyết).
+
 ## Giai đoạn 10 "Ảnh quán" (T-116 → T-121) — PLAN lập 2026-11-21, CHỜ G0 (duyệt plan); làm sau buổi trình bày 2026-11-23
 Thẻ quán chưa có ảnh (snapshot 44 226 quán không có ảnh; 38 tuyển chọn T-70 có 0 file). Tầng ảnh: tuyển chọn → nguồn mở có ghi công → ảnh thương hiệu → bản đồ thu nhỏ (luôn có).
 Plan + nguồn đã loại: `docs/phase10/PLAN.md`; tiến độ: `docs/phase10/PROGRESS.md`.

@@ -1,0 +1,171 @@
+/* Landing "Sài Gòn về đêm" (gđ11, docs/phase11/PLAN.md §4.2, §4.5). Chỉ chứa thứ Tailwind không diễn đạt gọn:
+   lề an toàn, cỡ chữ display, thanh đỉnh, núm VI/EN và ngữ pháp chuyển động một lần.
+   Landing luôn tối: mọi màu lấy từ --night-* / --lamp-* (không đổi theo data-theme). Cửa sổ app bên trong
+   (T-125, T-127) tự ép token sáng. */
+
+.landing {
+  color-scheme: dark;
+  /* Thời lượng của ngữ pháp chuyển động landing (PLAN §4.5): tên biến, không viết số rời trong component */
+  --landing-t-rise: 760ms;
+  --landing-t-bar: var(--t-ui);
+  --landing-t-top: 360ms;
+  --landing-stagger: 90ms;
+  --landing-ease: var(--ease-out);
+  --landing-gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --landing-gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  --landing-top-h: 73px;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: rgb(var(--night-line)) rgb(var(--night));
+}
+
+.landing ::selection {
+  background: rgb(var(--lamp));
+  color: rgb(var(--lamp-ink));
+}
+
+.landing :focus-visible {
+  outline: 2px solid rgb(var(--coral-on-dark));
+  outline-offset: 3px;
+}
+
+/* Dải vàng đèn đường (số đo): chọn chữ và viền focus đổi sang mực đèn để còn thấy trên nền lamp */
+.landing-on-lamp ::selection {
+  background: rgb(var(--lamp-ink));
+  color: rgb(var(--lamp));
+}
+
+.landing-on-lamp :focus-visible {
+  outline-color: rgb(var(--lamp-ink));
+}
+
+.landing h1,
+.landing h2,
+.landing h3 {
+  text-wrap: balance;
+}
+
+.landing h2 {
+  scroll-margin-top: calc(var(--landing-top-h) + 24px);
+}
+
+.landing-wrap {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-left: var(--landing-gutter-l);
+  padding-right: var(--landing-gutter-r);
+}
+
+/* Chữ display: Bricolage 800, line-height ≥ 1.2 để dấu chồng tiếng Việt không chạm dòng trên */
+.landing-h1,
+.landing-h2 {
+  font-family: var(--stage-font-display);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.landing-h1 {
+  font-size: clamp(40px, 4.6vw, 64px);
+}
+
+.landing-h2 {
+  font-size: clamp(34px, 4.6vw, 60px);
+}
+
+/* ---------- Thanh đỉnh ---------- */
+.landing-top {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: var(--z-tabbar);
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color var(--landing-t-top) var(--landing-ease),
+    border-color var(--landing-t-top) var(--landing-ease);
+}
+
+.landing-top[data-scrolled='true'] {
+  background: rgb(var(--night) / 0.94);
+  border-bottom-color: rgb(var(--night-line));
+}
+
+/* SoundToggle của app dùng token app (surface-2/line/ink): đổi nghĩa token ngay tại cụm nút để nó mặc áo đêm,
+   không sửa component dùng chung. Modal mở từ đây portal ra body nên không bị ảnh hưởng. */
+.landing-top-actions {
+  --color-surface-2: var(--night-2);
+  --color-line: var(--night-line);
+  --color-ink: var(--night-moon);
+}
+
+.landing-top-create {
+  transition:
+    opacity var(--landing-t-bar) var(--landing-ease),
+    transform var(--landing-t-bar) var(--landing-ease),
+    background-color var(--t-hover) var(--landing-ease);
+}
+
+.landing-top-create[data-show='false'] {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+/* Núm VI/EN trượt dưới nút đang chọn */
+.landing-lang-knob {
+  transition: transform var(--landing-t-bar) var(--landing-ease);
+}
+
+.landing-lang[data-lang='en'] .landing-lang-knob {
+  transform: translateX(44px);
+}
+
+/* ---------- Ngữ pháp "hiện một lần" (useReveal / hero intro) ---------- */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes landing-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Chỉ ẩn khi phần tử đang ở dưới màn hình lúc tải (useOnceInView trả 'waiting') */
+[data-reveal='waiting'] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+[data-reveal='entered'] {
+  animation: landing-rise var(--landing-t-rise) var(--landing-ease) both;
+}
+
+/* Chữ hero lên theo dòng lúc tải trang (1 lần); mức static chỉ đổi opacity */
+.landing-intro {
+  animation: landing-rise var(--landing-t-rise) var(--landing-ease) both;
+  animation-delay: calc(var(--i, 0) * var(--landing-stagger));
+}
+
+.landing[data-tier='static'] .landing-intro,
+.landing[data-tier='static'] [data-reveal='entered'] {
+  animation-name: landing-fade;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-top-create,
+  .landing-lang-knob {
+    transition-duration: 1ms;
+  }
+}

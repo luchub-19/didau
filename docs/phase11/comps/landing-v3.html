@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hangoutplanner về đêm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Bố cục: phố đêm vẽ tay ôm đáy hero, cửa sổ app + bản đồ THẬT (luôn sáng) là vật sáng nhất; dàn 4 nhân vật xuyên suốt.
+   Chuyển động: mở màn "bốn bạn hội tụ" một lần; còn lại chỉ phản hồi thao tác. */
+:root {
+  color-scheme: dark;
+  --night: #16111C; --night-2: #201926; --night-3: #2B2233; --night-line: #3D3247;
+  --moon: #F4ECE2; --moon-2: #C2B4C4; --moon-3: #9A8C9E;
+  --lamp: #F2B544; --lamp-ink: #2A1A0C; --lamp-ink-2: #5A3B17;
+  --coral: #FF6B4A; --coral-hover: #F25C3C; --coral-on-dark: #FF8566;
+  --paper: #FAFAF9; --paper-2: #F5F5F4; --paper-line: #E7E5E4;
+  --ink: #1C1917; --ink-2: #57534E; --ink-3: #78716C;
+  --accent-soft: #FFF1EC; --accent-text: #C73E26; --success: #047857; --cat-food: #C2410C;
+  --house-1: #241B2E; --house-2: #2C2238; --house-3: #1E1726;
+  --display: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
+  --body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-press: 120ms; --t-ui: 220ms; --t-sheet: 360ms; --t-moment: 600ms;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+* { box-sizing: border-box; }
+html { background: var(--night); }
+body { margin: 0; background: var(--night); color: var(--moon); font-family: var(--body); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; scrollbar-color: var(--night-line) var(--night); }
+::selection { background: var(--lamp); color: var(--lamp-ink); }
+a { color: inherit; text-underline-offset: 4px; }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--coral-on-dark); outline-offset: 3px; border-radius: 8px; }
+.app :focus-visible, .board :focus-visible { outline-color: var(--accent-text); }
+.num { font-variant-numeric: tabular-nums; }
+h1, h2, h3, h4 { text-wrap: balance; margin: 0; }
+h2 { scroll-margin-top: 96px; }
+p { margin: 0; }
+.wrap { width: 100%; max-width: 1240px; margin: 0 auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+.av-img { border-radius: 50%; display: block; background: #fff; }
+
+/* ---------- Nút ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 12px 26px; border-radius: 9999px; border: 0; font: 600 16px/1.2 var(--body); cursor: pointer; text-decoration: none; white-space: nowrap; transition: background-color 160ms var(--ease-out), transform var(--t-press) var(--ease-out), border-color 160ms var(--ease-out); }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--coral); color: var(--night); }
+.btn-ghost { background: transparent; color: var(--moon); border: 1px solid var(--night-line); }
+.btn-sm { min-height: 44px; padding: 10px 18px; font-size: 14px; }
+.icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 9999px; border: 1px solid var(--night-line); background: var(--night-2); color: var(--moon-2); cursor: pointer; transition: color var(--t-ui) var(--ease-out), background-color var(--t-ui) var(--ease-out); }
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn[aria-pressed="true"] { color: var(--lamp); }
+@media (hover: hover) { .btn-primary:hover { background: var(--coral-hover); } .btn-ghost:hover, .icon-btn:hover { border-color: var(--moon-3); background: var(--night-3); } }
+
+/* ---------- Thanh đỉnh ---------- */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 1px solid transparent; transition: background-color var(--t-sheet) var(--ease-out), border-color var(--t-sheet) var(--ease-out); }
+.top.scrolled { background: rgb(22 17 28 / 0.94); border-bottom-color: var(--night-line); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px; }
+.wordmark { display: inline-flex; flex-direction: column; line-height: 1; text-decoration: none; }
+.wordmark b { font: 800 26px/1 var(--display); letter-spacing: -0.025em; color: var(--moon); }
+.wordmark i { font: 700 8.7px/1 var(--body); font-style: normal; letter-spacing: 0.42em; color: var(--coral-on-dark); margin-top: 5px; }
+.top-actions { display: flex; align-items: center; gap: 8px; }
+.top-create { opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out), background-color 160ms var(--ease-out); }
+.top.show-cta .top-create { opacity: 1; transform: none; pointer-events: auto; }
+.lang { display: inline-flex; padding: 4px; border-radius: 9999px; background: var(--night-2); border: 1px solid var(--night-line); position: relative; }
+.lang button { position: relative; z-index: 1; min-height: 34px; width: 42px; border: 0; border-radius: 9999px; background: transparent; color: var(--moon-2); font: 600 13px/1 var(--body); cursor: pointer; transition: color var(--t-ui) var(--ease-out); }
+.lang button[aria-pressed="true"] { color: var(--moon); }
+.lang .knob { position: absolute; top: 4px; left: 4px; width: 42px; height: 34px; border-radius: 9999px; background: var(--night-3); transition: transform var(--t-ui) var(--ease-out); }
+.lang[data-lang="en"] .knob { transform: translateX(42px); }
+
+/* ---------- Hero + phố đêm ---------- */
+.hero { position: relative; overflow: hidden; isolation: isolate; margin-top: -73px; padding-top: 112px; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -2; background: radial-gradient(55% 45% at 72% 40%, rgb(242 181 68 / 0.16), rgb(242 181 68 / 0) 70%), radial-gradient(40% 30% at 50% 100%, rgb(255 107 74 / 0.12), rgb(255 107 74 / 0) 70%); }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 13fr); gap: 48px; align-items: start; position: relative; z-index: 2; }
+.hero h1 { font: 800 clamp(40px, 4.6vw, 64px)/1.2 var(--display); letter-spacing: -0.025em; color: var(--moon); }
+.hero h1 .ln { display: block; }
+.hero h1 .hl { color: var(--lamp); }
+.hero .lede { margin-top: 24px; font-size: 19px; line-height: 1.6; color: var(--moon-2); max-width: 30em; }
+.hero .lede strong { color: var(--moon); font-weight: 600; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+.resume { margin-top: 18px; font-size: 14px; color: var(--moon-3); }
+.resume a { color: var(--moon-2); }
+.try { margin-top: 24px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--moon-3); }
+.try svg { width: 18px; height: 18px; color: var(--lamp); flex: none; }
+.intro .ln, .intro .lede, .intro .cta-row, .intro .resume, .intro .try { animation: rise 760ms var(--ease-out) both; }
+.intro .ln + .ln { animation-delay: 90ms; }
+.intro .lede { animation-delay: 200ms; } .intro .cta-row { animation-delay: 280ms; } .intro .resume { animation-delay: 340ms; } .intro .try { animation-delay: 2300ms; }
+.intro .app { animation: lampOn 1100ms 300ms var(--ease-out) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes lampOn { from { opacity: 0.3; filter: brightness(0.45) saturate(0.6); } to { opacity: 1; filter: none; } }
+
+/* Phố đêm: dãy nhà ống, bảng hiệu, đèn đường, lòng đường; xe chạy trên lòng đường */
+.street { position: relative; height: 230px; margin-top: -64px; z-index: 1; pointer-events: none; }
+.street svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.street .glow { opacity: 0; transition: opacity 500ms var(--ease-out); }
+.street.lit .glow { opacity: 1; }
+.street .win { opacity: 0.15; transition: opacity 600ms var(--ease-out); }
+.street.lit .win.on { opacity: 1; }
+.riders { position: absolute; left: 0; right: 0; bottom: 30px; height: 96px; }
+.rider { position: absolute; bottom: 0; width: 92px; height: 92px; will-change: transform; }
+.rider svg { position: absolute; left: 0; bottom: 0; width: 92px; height: 56px; overflow: visible; }
+.rider img { position: absolute; left: 30px; bottom: 44px; width: 38px; height: 38px; box-shadow: 0 0 0 2px var(--night); }
+.rider.rev svg { transform: scaleX(-1); }
+.rider.rev img { left: 24px; }
+.rider .tag { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%); font: 600 11.5px/1 var(--body); color: var(--moon); background: rgb(22 17 28 / 0.85); border: 1px solid var(--night-line); border-radius: 9999px; padding: 5px 9px; white-space: nowrap; opacity: 0; transition: opacity 400ms var(--ease-out); }
+.riders.arrived .tag { opacity: 1; }
+.riders.arrived .rider:nth-child(2) .tag { transition-delay: 80ms; } .riders.arrived .rider:nth-child(3) .tag { transition-delay: 160ms; } .riders.arrived .rider:nth-child(4) .tag { transition-delay: 240ms; }
+
+/* ---------- Cửa sổ app (luôn sáng) ---------- */
+.app { background: var(--paper); color: var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 40px 80px -24px rgb(0 0 0 / 0.65), 0 12px 24px -12px rgb(0 0 0 / 0.5); font-size: 13px; line-height: 1.45; position: relative; }
+.app-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--paper-line); background: var(--paper); min-height: 50px; }
+.mark { width: 26px; height: 26px; border-radius: 7px; background: var(--ink); color: var(--paper); display: grid; place-items: center; font: 800 14px/1 var(--display); position: relative; flex: none; }
+.mark::after { content: ""; position: absolute; right: 4px; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: #FF8566; }
+.app-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.code { font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; color: var(--ink-2); background: var(--paper-2); border-radius: 9999px; padding: 3px 9px; }
+.steps { margin-left: auto; display: flex; gap: 2px; flex: none; }
+.step-pill { font: 600 11.5px/1 var(--body); padding: 7px 10px; border-radius: 9999px; color: var(--ink-3); white-space: nowrap; border: 0; background: transparent; transition: background-color var(--t-ui) var(--ease-out), color var(--t-ui) var(--ease-out); }
+button.step-pill { cursor: pointer; min-height: 30px; }
+.step-pill.done { color: var(--success); }
+.step-pill.now { background: var(--accent-soft); color: var(--accent-text); }
+@media (hover: hover) { button.step-pill:not(.now):hover { background: var(--paper-2); color: var(--ink); } }
+.presence { display: flex; align-items: center; margin-left: auto; padding-left: 6px; }
+.presence img { width: 26px; height: 26px; border: 2px solid var(--paper); margin-left: -7px; }
+.presence .on { position: relative; }
+.app-body { display: grid; grid-template-columns: 262px minmax(0, 1fr); min-height: 440px; }
+.panel { padding: 12px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--paper-line); background: var(--paper); }
+.card { border: 1px solid var(--paper-line); border-radius: 14px; padding: 12px; background: #fff; }
+.card-head { font-weight: 700; font-size: 13.5px; }
+.card-sub { color: var(--ink-3); font-size: 11.5px; margin-top: 2px; }
+.sugg { margin-top: 10px; background: var(--paper-2); border-radius: 12px; padding: 10px; }
+.sugg-title { font-weight: 700; font-size: 13px; }
+.sugg-meta { color: var(--ink-2); font-size: 12px; }
+.chot { margin-top: 9px; width: 100%; min-height: 40px; border: 0; border-radius: 9999px; background: var(--coral); color: var(--ink); font: 600 13px/1 var(--body); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: background-color 160ms var(--ease-out), transform var(--t-press) var(--ease-out); }
+.chot:active { transform: scale(0.97); }
+@media (hover: hover) { .chot:hover { background: var(--coral-hover); } }
+.linkbtn { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 4px; min-height: 34px; border: 0; background: transparent; color: var(--accent-text); font: 600 12px/1 var(--body); cursor: pointer; border-radius: 9999px; }
+.linkbtn svg { width: 12px; height: 12px; transition: transform var(--t-ui) var(--ease-out); }
+.linkbtn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.why-box { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--t-sheet) var(--ease-out); }
+.why-box.open { grid-template-rows: 1fr; }
+.why-box > div { overflow: hidden; min-height: 0; }
+.why-in { padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.why-rule { font-size: 11.5px; color: var(--ink-2); }
+.mini { display: grid; grid-template-columns: 5.6em minmax(0, 1fr) 2.4em; gap: 6px; align-items: center; font-size: 11px; }
+.mini .t { height: 8px; border-radius: 9999px; background: #fff; overflow: hidden; }
+.mini .t i { display: block; height: 100%; border-radius: inherit; background: #A8A29E; transform-origin: left; transform: scaleX(0); transition: transform 700ms var(--ease-out); }
+.why-box.open .mini .t i { transform: none; transition-delay: 120ms; }
+.mini.best .t i { background: var(--coral); }
+.mini .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+#room-places { display: flex; flex-direction: column; gap: 8px; }
+.place { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; align-items: center; border: 1px solid var(--paper-line); border-radius: 12px; padding: 7px 8px; background: #fff; transition: border-color var(--t-ui) var(--ease-out), opacity var(--t-ui) var(--ease-out); }
+.place.hot { border-color: rgb(199 62 38 / 0.45); }
+.place.faded { opacity: 0.45; }
+.place-ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: #FFF1E8; color: var(--cat-food); }
+.place-ico svg { width: 18px; height: 18px; }
+.place-name { display: block; font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.place-meta { font-size: 11px; color: var(--ink-3); }
+.heart { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 44px; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-3); font: 600 11px/1 var(--body); cursor: pointer; transition: background-color var(--t-ui) var(--ease-out), color var(--t-ui) var(--ease-out); }
+.heart svg { width: 17px; height: 17px; }
+.heart .on { display: none; }
+.heart[aria-pressed="true"] { color: var(--accent-text); background: var(--accent-soft); }
+.heart[aria-pressed="true"] .on { display: block; }
+.heart[aria-pressed="true"] .off { display: none; }
+.heart:disabled { cursor: default; }
+.heart.pop svg { animation: heartPop 360ms var(--ease-out); }
+@keyframes heartPop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: none; } }
+@media (hover: hover) { .heart:not(:disabled):hover { background: var(--paper-2); color: var(--ink); } .heart[aria-pressed="true"]:hover { background: var(--accent-soft); color: var(--accent-text); } }
+.tag { display: inline-block; margin-top: 3px; font-size: 10.5px; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border-radius: 9999px; padding: 1px 7px; }
+.locked { text-align: center; background: var(--accent-soft); border-color: rgb(199 62 38 / 0.2); padding: 18px 12px 10px; }
+.stamp { width: 44px; height: 44px; margin: 0 auto; border-radius: 50%; background: var(--coral); color: var(--ink); display: grid; place-items: center; animation: stamp 620ms var(--ease-out) both; }
+.stamp svg { width: 22px; height: 22px; }
+@keyframes stamp { 0% { opacity: 0; transform: scale(1.6) rotate(-12deg); } 55% { opacity: 1; transform: scale(0.94) rotate(0); } 100% { transform: none; } }
+.locked .badge { margin-top: 10px; font-weight: 700; color: var(--accent-text); font-size: 12.5px; animation: rise 500ms 180ms var(--ease-out) both; }
+.locked .nm { margin-top: 2px; font: 800 19px/1.25 var(--display); letter-spacing: -0.01em; animation: rise 500ms 240ms var(--ease-out) both; }
+.locked .mt { margin-top: 4px; font-size: 11.5px; color: var(--ink-2); animation: rise 500ms 300ms var(--ease-out) both; }
+.locked .linkbtn { animation: rise 500ms 380ms var(--ease-out) both; }
+.swap { animation: swapIn var(--t-sheet) var(--ease-out); }
+@keyframes swapIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.map { position: relative; background: #F3EFE6; min-height: 100%; overflow: hidden; }
+.map .ml { position: absolute; inset: 0; }
+.map-chip { position: absolute; left: 12px; bottom: 12px; z-index: 2; background: var(--ink); color: var(--paper); border-radius: 9999px; padding: 7px 12px; font-size: 11.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.toast { position: absolute; right: 12px; top: 12px; z-index: 3; background: #fff; color: var(--ink); border-radius: 12px; padding: 7px 10px; font-size: 12px; font-weight: 500; box-shadow: 0 10px 24px -10px rgb(28 25 23 / 0.45); display: flex; align-items: center; gap: 8px; opacity: 0; transform: translateY(-6px); transition: opacity var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out); pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+.toast img { width: 22px; height: 22px; display: block; }
+
+/* Ghim quán trên bản đồ thật (marker HTML) */
+.rpin { display: flex; align-items: center; gap: 5px; padding: 4px 9px 4px 4px; border-radius: 9999px; background: #fff; color: var(--ink); font: 700 11.5px/1 var(--body); box-shadow: 0 4px 12px -4px rgb(28 25 23 / 0.45); border: 2px solid #fff; white-space: nowrap; transition: background-color var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out), opacity var(--t-ui) var(--ease-out); cursor: default; }
+.rpin .dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--coral); color: var(--ink); font-size: 10.5px; }
+.rpin .dot svg { width: 12px; height: 12px; }
+.rpin.sel { background: var(--coral); }
+.rpin.sel .dot { background: #fff; color: var(--accent-text); }
+.rpin.hot { transform: scale(1.1); }
+.rpin.faded { opacity: 0.4; }
+.rpin.done .dot { background: var(--success); color: #fff; }
+.rpin.bump { animation: heartPop 380ms var(--ease-out); }
+
+/* ---------- Mục chung ---------- */
+section { position: relative; }
+.sec { padding-block: 128px; }
+.sec-head { max-width: 40rem; }
+.sec h2 { font: 800 clamp(34px, 4.6vw, 60px)/1.2 var(--display); letter-spacing: -0.025em; }
+.sec .sub { margin-top: 18px; font-size: 18px; color: var(--moon-2); max-width: 34em; }
+
+/* ---------- 1. Nhóm chat ---------- */
+.chat-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 64px; align-items: center; }
+.chat { background: var(--night-2); border: 1px solid var(--night-line); border-radius: 22px; padding: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 30rem; justify-self: end; width: 100%; }
+.chat-day { align-self: center; font-size: 12px; font-weight: 600; color: var(--moon-3); padding: 6px 0; }
+.msg { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; align-items: end; }
+.msg .av-img { width: 32px; height: 32px; }
+.msg .bub { background: var(--night-3); border-radius: 16px 16px 16px 4px; padding: 9px 13px; max-width: 22rem; justify-self: start; }
+.msg .who { font-size: 12px; font-weight: 600; color: var(--moon-3); }
+.msg .txt { font-size: 15px; color: var(--moon); }
+.msg.dim .bub, .msg.dim .av-img { opacity: 0.55; }
+.unread { align-self: center; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--lamp); background: rgb(242 181 68 / 0.1); border-radius: 9999px; padding: 6px 14px; }
+.typing { display: inline-flex; gap: 4px; padding: 13px 14px; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--moon-3); animation: blink 900ms ease-in-out infinite; }
+.typing i:nth-child(2) { animation-delay: 150ms; } .typing i:nth-child(3) { animation-delay: 300ms; }
+@keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+.chat .seq { transition: opacity 420ms var(--ease-out), transform 420ms var(--ease-out); }
+.chat.pre .seq { opacity: 0; transform: translateY(10px); }
+.chat .typing-row { display: none; }
+.chat .typing-row.on { display: grid; }
+
+/* ---------- Dải ảnh thật ---------- */
+.photo { position: relative; height: min(72vh, 640px); min-height: 380px; overflow: hidden; }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; transform: scale(1.06); transition: transform 1600ms var(--ease-out); }
+.photo.in img { transform: none; }
+.photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, var(--night) 0%, rgb(22 17 28 / 0.25) 22%, rgb(22 17 28 / 0.25) 55%, var(--night) 100%); }
+.photo .cap { position: absolute; z-index: 1; left: 0; right: 0; bottom: 56px; }
+.photo .cap p { font: 800 clamp(28px, 4vw, 52px)/1.2 var(--display); letter-spacing: -0.02em; max-width: 16em; text-shadow: 0 2px 24px rgb(0 0 0 / 0.6); }
+.photo .credit { position: absolute; z-index: 1; right: var(--gutter-r); bottom: 14px; font-size: 11.5px; color: var(--moon-2); text-shadow: 0 1px 8px rgb(0 0 0 / 0.8); }
+
+/* ---------- 2. Bốn bước ---------- */
+.flow { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; margin-top: 72px; }
+.flow-steps { display: flex; flex-direction: column; }
+.fstep { min-height: 56vh; display: flex; flex-direction: column; justify-content: center; padding-block: 24px; }
+.fstep:first-child { min-height: 44vh; justify-content: flex-start; }
+.fstep-n { font: 800 18px/1 var(--display); color: var(--moon-3); display: flex; align-items: center; gap: 12px; transition: color var(--t-ui) var(--ease-out); }
+.fstep-n::after { content: ""; height: 1px; width: 48px; background: var(--night-line); transform-origin: left; transition: transform var(--t-sheet) var(--ease-out), background-color var(--t-ui) var(--ease-out); }
+.fstep h3 { margin-top: 14px; font: 800 clamp(28px, 3.2vw, 40px)/1.2 var(--display); letter-spacing: -0.02em; color: var(--moon-3); transition: color var(--t-ui) var(--ease-out); }
+.fstep p { margin-top: 12px; font-size: 17px; color: var(--moon-3); max-width: 26em; transition: color var(--t-ui) var(--ease-out); }
+.fstep.on .fstep-n { color: var(--lamp); }
+.fstep.on .fstep-n::after { transform: scaleX(2); background: var(--lamp); }
+.fstep.on h3 { color: var(--moon); }
+.fstep.on p { color: var(--moon-2); }
+.fstep .inline { display: none; }
+.flow-device { position: sticky; top: 14vh; align-self: start; }
+.flow-device .app { min-height: 460px; }
+.screen { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.screen.fwd { animation: screenFwd var(--t-sheet) var(--ease-out); }
+.screen.back { animation: screenBack var(--t-sheet) var(--ease-out); }
+@keyframes screenFwd { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes screenBack { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+.screen .st { animation: rise 460ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 90ms + 120ms); }
+.search { border: 1px solid var(--paper-line); border-radius: 12px; padding: 10px 12px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; background: #fff; min-height: 42px; }
+.search b { color: var(--ink); font-weight: 500; }
+.caret { display: inline-block; width: 1.5px; height: 15px; background: var(--accent-text); margin-left: -6px; }
+.by { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); }
+.by img { width: 22px; height: 22px; }
+.voterow { display: flex; gap: 6px; }
+.vbtn { flex: 1; min-height: 36px; border-radius: 9999px; border: 1px solid var(--paper-line); background: #fff; font: 600 12px/1 var(--body); color: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.vbtn.yes { background: var(--accent-soft); color: var(--accent-text); border-color: rgb(199 62 38 / 0.25); }
+.voters { display: flex; }
+.voters img { width: 20px; height: 20px; margin-left: -5px; border: 2px solid #fff; animation: popIn 380ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 110ms + 400ms); }
+@keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: none; } }
+.lead { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.lead .bar { flex: 1; height: 6px; border-radius: 9999px; background: var(--paper-2); overflow: hidden; }
+.lead .bar i { display: block; height: 100%; background: var(--coral); border-radius: inherit; transform-origin: left; animation: grow 900ms 400ms var(--ease-out) both; }
+@keyframes grow { from { transform: scaleX(0); } to { transform: none; } }
+.done-card { border-radius: 16px; padding: 22px; background: var(--accent-soft); text-align: center; }
+.done-card .stamp { width: 48px; height: 48px; }
+.done-card .nm { margin-top: 10px; font: 800 26px/1.2 var(--display); letter-spacing: -0.02em; color: var(--ink); }
+.done-card .mt { margin-top: 6px; color: var(--ink-2); font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.done-card .mt img { width: 22px; height: 22px; }
+.cal { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 10px; }
+.cal .h { font-size: 11px; color: var(--ink-3); height: 44px; font-variant-numeric: tabular-nums; }
+.cal .lane { position: relative; grid-row: 1 / span 7; grid-column: 2; background: repeating-linear-gradient(to bottom, var(--paper-line) 0 1px, transparent 1px 44px); }
+.ev { position: absolute; left: 0; right: 0; border-radius: 10px; padding: 7px 10px; font-size: 12px; animation: slideIn 520ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 110ms + 160ms); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.ev b { display: block; font-size: 12.5px; }
+.ev.food { background: #FFEDE3; color: #7C2D12; border: 1px solid #FBD3BE; }
+.ev.open { background: repeating-linear-gradient(135deg, var(--paper-2) 0 6px, #fff 6px 12px); color: var(--ink-3); border: 1px dashed var(--paper-line); }
+.export { display: flex; flex-wrap: wrap; gap: 6px; }
+.export span { font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 9999px; background: var(--paper-2); color: var(--ink-2); }
+
+/* ---------- 3. Hoà phiếu: bản đồ thật + điểm của bạn ---------- */
+.tie-sec { background: var(--night-2); border-block: 1px solid var(--night-line); }
+.tie-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+.cast { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.cast span { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--moon-2); background: var(--night-3); border-radius: 9999px; padding: 4px 14px 4px 4px; }
+.cast img { width: 28px; height: 28px; }
+.explore { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; margin-top: 48px; align-items: stretch; }
+.map-card { position: relative; border-radius: 18px; overflow: hidden; background: #F3EFE6; min-height: 560px; box-shadow: 0 40px 80px -24px rgb(0 0 0 / 0.6); }
+.map-card .ml { position: absolute; inset: 0; }
+.map-card .ask { position: absolute; z-index: 2; left: 14px; right: 14px; top: 14px; background: #fff; color: var(--ink); border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 24px -12px rgb(28 25 23 / 0.45); }
+.ask-q { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.ask-q img { width: 26px; height: 26px; }
+.chips { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chips button { flex: none; min-height: 36px; padding: 0 13px; border-radius: 9999px; border: 1px solid var(--paper-line); background: var(--paper-2); color: var(--ink-2); font: 600 12.5px/1 var(--body); cursor: pointer; transition: background-color var(--t-ui) var(--ease-out), color var(--t-ui) var(--ease-out), border-color var(--t-ui) var(--ease-out); }
+.chips button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); border-color: rgb(199 62 38 / 0.3); }
+@media (hover: hover) { .chips button:hover { border-color: var(--ink-3); color: var(--ink); } }
+.ask-hint { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+.privacy-note { position: absolute; z-index: 2; left: 14px; bottom: 14px; max-width: calc(100% - 28px); background: rgb(28 25 23 / 0.88); color: var(--paper); border-radius: 12px; padding: 8px 12px; font-size: 12px; display: flex; gap: 6px; align-items: flex-start; }
+.privacy-note svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
+.fpin { display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none; }
+.fpin img { width: 34px; height: 34px; box-shadow: 0 0 0 3px #fff, 0 6px 14px -4px rgb(28 25 23 / 0.5); }
+.fpin span { font: 600 11px/1 var(--body); color: var(--ink); background: rgb(255 255 255 / 0.92); border-radius: 9999px; padding: 3px 7px; white-space: nowrap; }
+.you { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: grab; touch-action: none; }
+.you:active { cursor: grabbing; }
+.you img { width: 44px; height: 44px; box-shadow: 0 0 0 3px var(--coral), 0 0 0 6px #fff, 0 10px 20px -6px rgb(28 25 23 / 0.55); }
+.you span { font: 700 11.5px/1 var(--body); color: var(--ink); background: var(--coral); border-radius: 9999px; padding: 4px 8px; white-space: nowrap; }
+.you.drop { animation: drop 520ms var(--ease-out); }
+@keyframes drop { 0% { transform: translateY(-28px); opacity: 0; } 70% { transform: translateY(3px); opacity: 1; } 100% { transform: none; } }
+.mlab { font: 700 11px/1 var(--body); padding: 4px 7px; border-radius: 9999px; background: #fff; color: var(--ink-2); box-shadow: 0 2px 8px -3px rgb(28 25 23 / 0.4); white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
+.mlab.sel { background: var(--coral); color: var(--ink); }
+
+.side { display: flex; flex-direction: column; gap: 16px; }
+.seg { position: relative; display: inline-flex; padding: 5px; border-radius: 9999px; background: var(--night); border: 1px solid var(--night-line); max-width: 100%; align-self: flex-start; }
+.seg .knob { position: absolute; top: 5px; bottom: 5px; left: 0; width: 0; border-radius: 9999px; background: var(--moon); transition: transform var(--t-sheet) var(--ease-out), width var(--t-sheet) var(--ease-out); }
+.seg button { position: relative; z-index: 1; min-height: 46px; padding: 0 18px; border: 0; border-radius: 9999px; background: transparent; color: var(--moon-2); font: 600 14.5px/1.2 var(--body); cursor: pointer; white-space: nowrap; transition: color var(--t-ui) var(--ease-out); }
+.seg button[aria-pressed="true"] { color: var(--night); }
+.verdict { min-height: 7.5em; }
+.verdict .pick { font: 800 clamp(24px, 2.4vw, 30px)/1.2 var(--display); letter-spacing: -0.02em; }
+.verdict .why-line { margin-top: 10px; font-size: 16px; color: var(--moon-2); }
+.verdict .why-line b { color: var(--lamp); font-weight: 700; }
+.board { background: var(--paper); color: var(--ink); border-radius: 18px; padding: 20px; }
+.board-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.board-head h3 { font: 700 15px/1.3 var(--body); }
+.board-head span { font-size: 12px; color: var(--ink-3); }
+.rows { position: relative; margin-top: 10px; display: flex; flex-direction: column; }
+.sel-frame { position: absolute; left: -8px; right: -8px; top: 0; border-radius: 12px; background: var(--accent-soft); transition: transform var(--t-sheet) var(--ease-out), height var(--t-sheet) var(--ease-out); z-index: 0; }
+.row { position: relative; z-index: 1; display: grid; gap: 6px; padding-block: 9px; }
+.row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.row-name { font-weight: 600; font-size: 14px; color: var(--ink-2); transition: color var(--t-ui) var(--ease-out); min-width: 0; }
+.row.sel .row-name { color: var(--ink); }
+.row-km { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.track { position: relative; height: 30px; border-radius: 8px; background: var(--paper-2); overflow: hidden; }
+.row.sel .track { background: #fff; }
+.fill { position: absolute; inset: 0 auto 0 0; border-radius: 8px; background: #D6D3D1; transition: width 520ms var(--ease-out), background-color var(--t-ui) var(--ease-out); }
+.row.sel .fill { background: var(--coral); }
+.who { position: absolute; top: 3px; height: 24px; display: flex; align-items: center; gap: 5px; font: 700 12.5px/1 var(--body); color: var(--ink); transition: left 520ms var(--ease-out); white-space: nowrap; }
+.who img { width: 22px; height: 22px; box-shadow: 0 0 0 2px #fff; }
+.who.isyou img { box-shadow: 0 0 0 2px var(--coral); }
+.board-note { margin-top: 10px; font-size: 12px; color: var(--ink-3); }
+
+/* ---------- 4. Số đo ---------- */
+.lamp-sec { background: var(--lamp); color: var(--lamp-ink); }
+.lamp-sec .sub { color: var(--lamp-ink-2); }
+.lamp-sec ::selection { background: var(--lamp-ink); color: var(--lamp); }
+.lamp-sec :focus-visible { outline-color: var(--lamp-ink); }
+.charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; margin-top: 64px; }
+.chart h3 { margin-top: 14px; font: 700 18px/1.35 var(--body); }
+.chart .note { margin-top: 4px; font-size: 14px; color: var(--lamp-ink-2); }
+.big { font: 800 clamp(56px, 8vw, 112px)/1.05 var(--display); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.bars { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+.bar-r { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 12px; align-items: center; }
+.bar-r .lab { font-size: 14px; font-weight: 500; }
+.bar-r .tr { position: relative; height: 34px; }
+.bar-r .tr i { position: absolute; inset: 0 auto 0 0; min-width: 3px; background: rgb(42 26 12 / 0.22); border-radius: 6px; transform-origin: left; transition: transform 1000ms var(--ease-out); transition-delay: calc(var(--i, 0) * 90ms); }
+.bar-r .tr em { position: absolute; top: 50%; transform: translateY(-50%); font: 700 14px/1 var(--body); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 400ms var(--ease-out); transition-delay: calc(var(--i, 0) * 90ms + 600ms); }
+.charts.pre .bar-r .tr i { transform: scaleX(0); }
+.charts.pre .bar-r .tr em { opacity: 0; }
+.bar-r.us .lab { font-weight: 700; }
+.bar-r.us .tr i { background: var(--lamp-ink); }
+.table-toggle { margin-top: 56px; }
+.table-toggle summary { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 22px; border-radius: 9999px; border: 1px solid rgb(42 26 12 / 0.35); font-weight: 600; cursor: pointer; list-style: none; transition: background-color var(--t-ui) var(--ease-out); }
+@media (hover: hover) { .table-toggle summary:hover { background: rgb(42 26 12 / 0.07); } }
+.table-toggle summary::-webkit-details-marker { display: none; }
+.table-toggle summary svg { transition: transform var(--t-ui) var(--ease-out); }
+.table-toggle[open] summary svg { transform: rotate(180deg); }
+.table-toggle[open] .tbl-wrap { animation: rise 420ms var(--ease-out); }
+.tbl-wrap { overflow-x: auto; margin-top: 20px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid rgb(42 26 12 / 0.18); }
+th { font-weight: 600; color: var(--lamp-ink-2); font-size: 13px; }
+td.c { text-align: center; }
+tr.us td { font-weight: 700; background: rgb(42 26 12 / 0.07); }
+.src { margin-top: 14px; font-size: 13px; color: var(--lamp-ink-2); }
+
+/* ---------- 5. Kết + QR ---------- */
+.end { padding-block: 144px 112px; }
+.end-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: center; }
+.end h2 { font: 800 clamp(44px, 7vw, 96px)/1.2 var(--display); letter-spacing: -0.03em; max-width: 12em; }
+.end .sub { margin-top: 18px; font-size: 18px; color: var(--moon-2); }
+.end .cast { margin-top: 28px; }
+.qr { background: var(--paper); color: var(--ink); border-radius: 20px; padding: 18px; width: 236px; text-align: center; box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.6); }
+.qr #qrcode { width: 200px; height: 200px; margin: 0 auto; }
+.qr #qrcode img, .qr #qrcode canvas { width: 200px !important; height: 200px !important; image-rendering: pixelated; }
+.qr p { margin-top: 12px; font-weight: 700; font-size: 14px; }
+.qr small { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-3); word-break: break-all; }
+footer { border-top: 1px solid var(--night-line); }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-block: 24px; font-size: 13px; color: var(--moon-3); }
+.mock-toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 30; transform: translate(-50%, 16px); opacity: 0; background: var(--moon); color: var(--night); border-radius: 14px; padding: 12px 18px; font-size: 14px; font-weight: 500; box-shadow: 0 16px 32px -12px rgb(0 0 0 / 0.6); transition: opacity var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out); pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
+.mock-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+
+/* ---------- Đáp ứng ---------- */
+@media (max-width: 1080px) { .app-body { grid-template-columns: 240px minmax(0, 1fr); } }
+@media (max-width: 960px) {
+  .hero { padding-top: 104px; }
+  .hero-grid, .chat-grid, .flow, .charts, .explore, .end-grid, .tie-top { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .hero .app { max-width: 440px; }
+  .app-body { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .app-body .map { display: none; }
+  .panel { border-right: 0; }
+  .street { height: 190px; margin-top: 0; }
+  .sec { padding-block: 96px; }
+  .chat { justify-self: start; }
+  .flow { margin-top: 40px; }
+  .flow-device { display: none; }
+  .fstep, .fstep:first-child { min-height: 0; padding-block: 28px; }
+  .fstep .fstep-n { color: var(--lamp); } .fstep .fstep-n::after { background: var(--lamp); }
+  .fstep h3 { color: var(--moon); } .fstep p { color: var(--moon-2); }
+  .fstep .inline { display: block; margin-top: 22px; max-width: 440px; min-height: 200px; }
+  .map-card { min-height: 460px; }
+  .qr { display: none; }
+  .end { padding-block: 104px 88px; }
+}
+@media (max-width: 480px) {
+  .hero .lede { font-size: 17px; }
+  .cta-row .btn { flex: 1 1 auto; }
+  .seg { display: flex; width: 100%; }
+  .seg button { flex: 1 1 auto; padding: 0 10px; font-size: 13.5px; white-space: normal; }
+  .board { padding: 16px; }
+  .bar-r { grid-template-columns: 8em minmax(0, 1fr); }
+  .code { display: none; }
+  .top-create { display: none; }
+  .top-actions { gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+  .btn:active, .chot:active { transform: none; }
+  .fill, .who, .bar-r .tr i, .mini .t i, .photo img { transition: none !important; }
+  .sel-frame, .seg .knob, .lang .knob, .top-create { transition-duration: 1ms !important; }
+  .chat .seq { transform: none !important; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-bowl" viewBox="0 0 256 256"><path fill="currentColor" d="M224 104h-8.37a88 88 0 0 0-175.26 0H32a8 8 0 0 0-8 8 104.35 104.35 0 0 0 56 92.28V208a16 16 0 0 0 16 16h64a16 16 0 0 0 16-16v-3.72A104.35 104.35 0 0 0 232 112a8 8 0 0 0-8-8Zm-24.46 0h-52.25l35.08-35.08A71.84 71.84 0 0 1 199.54 104ZM128 40a71.87 71.87 0 0 1 43.39 14.6L120.69 104H56.46A72.08 72.08 0 0 1 128 40Zm40.17 153.71a8 8 0 0 0-4.17 7V208H96v-7.24a8 8 0 0 0-4.17-7A88.08 88.08 0 0 1 40.36 120h175.28a88.08 88.08 0 0 1-47.47 73.71Z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 256 256"><path fill="currentColor" d="M240 102c0 70-103.79 126.66-108.21 129a8 8 0 0 1-7.58 0C119.79 228.66 16 172 16 102a62.07 62.07 0 0 1 62-62c20.65 0 38.73 8.88 50 23.89C139.27 48.88 157.35 40 178 40a62.07 62.07 0 0 1 62 62Z"/></symbol>
+  <symbol id="i-heart-o" viewBox="0 0 256 256"><path fill="currentColor" d="M178 40c-20.65 0-38.73 8.88-50 23.89C116.73 48.88 98.65 40 78 40a62.07 62.07 0 0 0-62 62c0 70 103.79 126.66 108.21 129a8 8 0 0 0 7.58 0C136.21 228.66 240 172 240 102a62.07 62.07 0 0 0-62-62Zm-50 174.8c-18.26-10.64-96-59.11-96-112.8a46.06 46.06 0 0 1 46-46c19.45 0 35.78 10.36 42.6 27a8 8 0 0 0 14.8 0c6.82-16.67 23.15-27 42.6-27a46.06 46.06 0 0 1 46 46c0 53.61-77.76 102.15-96 112.8Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 256 256"><path fill="currentColor" d="m229.66 77.66-128 128a8 8 0 0 1-11.32 0l-56-56a8 8 0 0 1 11.32-11.32L96 188.69 218.34 66.34a8 8 0 0 1 11.32 11.32Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 256 256"><path fill="currentColor" d="m229.66 218.34-50.07-50.06a88.11 88.11 0 1 0-11.31 11.31l50.06 50.07a8 8 0 0 0 11.32-11.32ZM40 112a72 72 0 1 1 72 72 72.08 72.08 0 0 1-72-72Z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 256 256"><path fill="currentColor" d="M128 16a88.1 88.1 0 0 0-88 88c0 75.3 80 132.17 83.41 134.55a8 8 0 0 0 9.18 0C136 236.17 216 179.3 216 104a88.1 88.1 0 0 0-88-88Zm0 56a32 32 0 1 1-32 32 32 32 0 0 1 32-32Z"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 256 256"><path fill="currentColor" d="m213.66 101.66-80 80a8 8 0 0 1-11.32 0l-80-80a8 8 0 0 1 11.32-11.32L128 164.69l74.34-74.35a8 8 0 0 1 11.32 11.32Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 256 256"><path fill="currentColor" d="M208 80h-32V56a48 48 0 0 0-96 0v24H48a16 16 0 0 0-16 16v112a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16V96a16 16 0 0 0-16-16ZM96 56a32 32 0 0 1 64 0v24H96Zm112 152H48V96h160v112Z"/></symbol>
+  <symbol id="i-coffee" viewBox="0 0 256 256"><path fill="currentColor" d="M80 56V24a8 8 0 0 1 16 0v32a8 8 0 0 1-16 0Zm40 8a8 8 0 0 0 8-8V24a8 8 0 0 0-16 0v32a8 8 0 0 0 8 8Zm32 0a8 8 0 0 0 8-8V24a8 8 0 0 0-16 0v32a8 8 0 0 0 8 8Zm96 56v8a40 40 0 0 1-37.51 39.91 96.59 96.59 0 0 1-27 40.09H208a8 8 0 0 1 0 16H32a8 8 0 0 1 0-16h24.54A96.3 96.3 0 0 1 24 136V88a8 8 0 0 1 8-8h176a40 40 0 0 1 40 40Zm-48 16V96H40v40a80.27 80.27 0 0 0 45.12 72h69.76A80.27 80.27 0 0 0 200 136Zm32-16a24 24 0 0 0-16-22.62V136a95.78 95.78 0 0 1-1.2 15A24 24 0 0 0 232 128Z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 256 256"><path fill="currentColor" d="M196 88a27.86 27.86 0 0 0-13.35 3.39A28 28 0 0 0 144 74.7V44a28 28 0 0 0-56 0v80l-3.82-6.13a28 28 0 0 0-48.41 28.17l29.32 50A80 80 0 0 0 224 168v-52a28 28 0 0 0-28-28Zm12 80a64 64 0 0 1-119.11 32.5l-29.33-50a12 12 0 0 1 20.77-12.11l.12.2 18.68 30A8 8 0 0 0 104 164V44a12 12 0 0 1 24 0v68a8 8 0 0 0 16 0v-12a12 12 0 0 1 24 0v20a8 8 0 0 0 16 0v-4a12 12 0 0 1 24 0Z"/></symbol>
+  <symbol id="i-sound-off" viewBox="0 0 256 256"><path fill="currentColor" d="M155.51 24.81a8 8 0 0 0-8.42.88L77.25 80H32a16 16 0 0 0-16 16v64a16 16 0 0 0 16 16h45.25l69.84 54.31A8 8 0 0 0 160 224V32a8 8 0 0 0-4.49-7.19ZM32 96h40v64H32Zm112 111.64-56-43.55V91.91l56-43.55Zm101.66-61.3a8 8 0 0 1-11.32 11.32L216 149.31l-18.34 18.35a8 8 0 0 1-11.32-11.32L204.69 138l-18.35-18.34a8 8 0 0 1 11.32-11.32L216 126.69l18.34-18.35a8 8 0 0 1 11.32 11.32L227.31 138Z"/></symbol>
+  <symbol id="i-sound-on" viewBox="0 0 256 256"><path fill="currentColor" d="M155.51 24.81a8 8 0 0 0-8.42.88L77.25 80H32a16 16 0 0 0-16 16v64a16 16 0 0 0 16 16h45.25l69.84 54.31A8 8 0 0 0 160 224V32a8 8 0 0 0-4.49-7.19ZM32 96h40v64H32Zm112 111.64-56-43.55V91.91l56-43.55Zm54-106.08a40 40 0 0 1 0 52.88 8 8 0 0 1-12-10.58 24 24 0 0 0 0-31.72 8 8 0 0 1 12-10.58ZM248 128a79.9 79.9 0 0 1-20.37 53.34 8 8 0 0 1-11.92-10.67 64 64 0 0 0 0-85.33 8 8 0 1 1 11.92-10.67A79.83 79.83 0 0 1 248 128Z"/></symbol>
+  <symbol id="i-scooter" viewBox="0 0 92 56"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 42h40l10-14h10" stroke="currentColor" stroke-width="4"/><path d="M58 42c0-10 6-18 16-18" stroke="currentColor" stroke-width="4"/><path d="M74 24l-4-14h8" stroke="currentColor" stroke-width="4"/><path d="M26 30h28l4 12" stroke="currentColor" stroke-width="5"/></g><circle cx="16" cy="44" r="9" fill="#120E17" stroke="currentColor" stroke-width="3"/><circle cx="74" cy="44" r="9" fill="#120E17" stroke="currentColor" stroke-width="3"/><circle cx="82" cy="14" r="3" fill="#FFE7A3"/></symbol>
+</svg>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <a class="wordmark" href="#" aria-label="Hangoutplanner"><b aria-hidden="true">Hangout</b><i aria-hidden="true">PLANNER</i></a>
+    <div class="top-actions">
+      <button class="btn btn-primary btn-sm top-create" type="button" data-mock="create" data-i="create" tabindex="-1">Tạo phòng</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-mock="join" data-i="join">Nhập mã</button>
+      <button class="icon-btn" type="button" id="sound" aria-pressed="false" data-i-label="soundOn" aria-label="Bật âm thanh"><svg aria-hidden="true"><use href="#i-sound-off"/></svg></button>
+      <div class="lang" role="group" aria-label="Ngôn ngữ / Language" id="lang" data-lang="vi">
+        <span class="knob" aria-hidden="true"></span>
+        <button type="button" aria-pressed="true" data-set-lang="vi">VI</button>
+        <button type="button" aria-pressed="false" data-set-lang="en">EN</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ===== 0. Hero: phòng mẫu + phố đêm + bốn bạn hội tụ ===== -->
+  <section class="hero intro" aria-labelledby="hero-title">
+    <div class="wrap hero-grid">
+      <div>
+        <h1 id="hero-title"><span class="ln" data-i="h1a">Tối nay đi đâu?</span> <span class="ln hl" data-i="h1b">Chốt trong một phòng.</span></h1>
+        <p class="lede" data-ih="lede"></p>
+        <div class="cta-row" id="hero-cta">
+          <button class="btn btn-primary" type="button" data-mock="create" data-i="create">Tạo phòng</button>
+          <button class="btn btn-ghost" type="button" data-mock="join" data-i="join">Nhập mã</button>
+        </div>
+        <p class="resume"><span data-i="resume"></span> <a href="#" data-mock="resume"><span data-i="resumeLink"></span> NN64S8</a></p>
+        <p class="try"><svg aria-hidden="true"><use href="#i-hand"/></svg><span data-i="try"></span></p>
+      </div>
+      <div class="app" id="room">
+        <div class="app-bar">
+          <span class="mark" aria-hidden="true">H</span>
+          <span class="app-title" data-i="roomTitle"></span>
+          <span class="code num">NN64S8</span>
+          <span class="presence" id="presence" role="img"></span>
+        </div>
+        <div class="app-body">
+          <div class="panel">
+            <div id="room-card" aria-live="polite"></div>
+            <div id="room-places"></div>
+          </div>
+          <div class="map" aria-hidden="true">
+            <div class="ml" id="hero-map"></div>
+            <div class="map-chip"><svg width="13" height="13"><use href="#i-pin"/></svg><span data-i="center"></span></div>
+            <div class="toast" id="room-toast"><span id="toast-av"></span><span id="room-toast-text"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="street" id="street" aria-hidden="true">
+      <svg class="scene" id="scene" preserveAspectRatio="xMidYMax slice" viewBox="0 0 1440 230"></svg>
+      <div class="riders" id="riders"></div>
+    </div>
+  </section>
+
+  <!-- ===== 1. Nhóm chat rối ===== -->
+  <section class="sec" aria-labelledby="chat-title">
+    <div class="wrap chat-grid">
+      <div class="sec-head">
+        <h2 id="chat-title" data-i="chatH"></h2>
+        <p class="sub" data-i="chatSub"></p>
+      </div>
+      <div class="chat" id="chat" role="img" data-i-label="chatLabel"></div>
+    </div>
+  </section>
+
+  <!-- ===== Dải ảnh thật ===== -->
+  <section class="photo" id="photo" aria-label="">
+    <img src="assets/bui-vien-night.webp" alt="" data-i-alt="photoAlt" loading="lazy" decoding="async">
+    <div class="cap"><div class="wrap"><p data-i="photoCap"></p></div></div>
+    <a class="credit" href="https://commons.wikimedia.org/wiki/File:Bui_Vien_Street,_Ho_Chi_Minh_City,_at_night,_2023_(13).jpg" target="_blank" rel="noopener" data-i="credit"></a>
+  </section>
+
+  <!-- ===== 2. Một phòng, bốn bước ===== -->
+  <section class="sec" aria-labelledby="flow-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="flow-title" data-i="flowH"></h2>
+        <p class="sub" data-i="flowSub"></p>
+      </div>
+      <div class="flow">
+        <div class="flow-steps">
+          <article class="fstep on" data-step="0"><span class="fstep-n num">1</span><h3 data-i="s1h"></h3><p data-i="s1p"></p></article>
+          <article class="fstep" data-step="1"><span class="fstep-n num">2</span><h3 data-i="s2h"></h3><p data-i="s2p"></p></article>
+          <article class="fstep" data-step="2"><span class="fstep-n num">3</span><h3 data-i="s3h"></h3><p data-i="s3p"></p></article>
+          <article class="fstep" data-step="3"><span class="fstep-n num">4</span><h3 data-i="s4h"></h3><p data-i="s4p"></p></article>
+        </div>
+        <div class="flow-device">
+          <div class="app">
+            <div class="app-bar"><span class="mark" aria-hidden="true">H</span><span class="app-title" data-i="roomTitle"></span><span class="steps" id="device-steps" role="group" data-i-label="stepsLabel"></span></div>
+            <div id="device-screen" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. Hoà phiếu: bạn là người thứ năm ===== -->
+  <section class="sec tie-sec" aria-labelledby="tie-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="tie-title" data-i="tieH"></h2>
+        <p class="sub" data-i="tieSub"></p>
+        <div class="cast" id="cast-tie"></div>
+      </div>
+      <div class="explore">
+        <div class="map-card">
+          <div class="ml" id="tie-map"></div>
+          <div class="ask">
+            <p class="ask-q"><span id="ask-av"></span><span data-i="askQ"></span></p>
+            <div class="chips" id="chips" role="group" data-i-label="askQ"></div>
+            <p class="ask-hint" data-i="askHint"></p>
+          </div>
+          <p class="privacy-note"><svg aria-hidden="true"><use href="#i-lock"/></svg><span data-i="privacy"></span></p>
+        </div>
+        <div class="side">
+          <div class="seg" role="group" data-i-label="segLabel" id="seg" data-mode="far">
+            <span class="knob" aria-hidden="true"></span>
+            <button type="button" data-mode="sum" aria-pressed="false" data-i="modeSum"></button>
+            <button type="button" data-mode="far" aria-pressed="true" data-i="modeFar"></button>
+          </div>
+          <div class="verdict" aria-live="polite" id="verdict"></div>
+          <div class="board">
+            <div class="board-head"><h3 data-i="boardH"></h3><span data-i="boardUnit"></span></div>
+            <div class="rows" id="rows"><span class="sel-frame" id="sel-frame" aria-hidden="true"></span></div>
+            <p class="board-note" id="board-note"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. Số đo ===== -->
+  <section class="sec lamp-sec" aria-labelledby="num-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="num-title" data-i="numH"></h2>
+        <p class="sub" data-i="numSub"></p>
+      </div>
+      <div class="charts" id="charts">
+        <div class="chart">
+          <p class="big"><span class="count" data-to="1.13" data-dec="2" data-prefix="+"></span>%</p>
+          <h3 data-i="c1h"></h3><p class="note" data-i="c1n"></p>
+          <div class="bars" id="chart-sum"></div>
+        </div>
+        <div class="chart">
+          <p class="big"><span class="count" data-to="9.37" data-dec="2"></span>%</p>
+          <h3 data-i="c2h"></h3><p class="note" data-i="c2n"></p>
+          <div class="bars" id="chart-far"></div>
+        </div>
+      </div>
+      <details class="table-toggle">
+        <summary><span data-i="tblBtn"></span> <svg width="16" height="16" aria-hidden="true"><use href="#i-caret"/></svg></summary>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th data-i="th1"></th><th data-i="th2"></th><th data-i="th3"></th><th data-i="th4"></th><th data-i="th5"></th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table></div>
+        <p class="src" data-i="src"></p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===== 5. Kết + QR ===== -->
+  <section class="end" aria-labelledby="end-title">
+    <div class="wrap end-grid">
+      <div>
+        <h2 id="end-title" data-i="endH"></h2>
+        <p class="sub" data-i="endSub"></p>
+        <div class="cta-row" id="end-cta">
+          <button class="btn btn-primary" type="button" data-mock="create" data-i="create"></button>
+          <button class="btn btn-ghost" type="button" data-mock="join" data-i="join"></button>
+        </div>
+        <div class="cast" id="cast-end"></div>
+      </div>
+      <div class="qr">
+        <div id="qrcode" role="img" data-i-label="qrLabel"></div>
+        <p data-i="qrTitle"></p>
+        <small>didau-omega.vercel.app</small>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-i="foot"></span>
+    <span data-i="mapCredit"></span>
+  </div>
+</footer>
+<div class="mock-toast" id="mock-toast" role="status"></div>
+
+<script>
+(function () {
+  var RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var HAS_IO = 'IntersectionObserver' in window;
+  var AV = {"Nobita":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%20shape-rendering%3D%22auto%22%3E%3Cmetadata%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%20xmlns%3Axsi%3D%22http%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema-instance%22%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%20xmlns%3Adcterms%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2F%22%3E%3Crdf%3ARDF%3E%3Crdf%3ADescription%3E%3Cdc%3Atitle%3EThumbs%3C%2Fdc%3Atitle%3E%3Cdc%3Acreator%3EDiceBear%3C%2Fdc%3Acreator%3E%3Cdc%3Asource%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fwww.dicebear.com%3C%2Fdc%3Asource%3E%3Cdcterms%3Alicense%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F%3C%2Fdcterms%3Alicense%3E%3Cdc%3Arights%3E%E2%80%9EThumbs%E2%80%9D%20(https%3A%2F%2Fwww.dicebear.com)%20by%20%E2%80%9EDiceBear%E2%80%9D%2C%20licensed%20under%20%E2%80%9ECC0%201.0%E2%80%9D%20(https%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F)%3C%2Fdc%3Arights%3E%3C%2Frdf%3ADescription%3E%3C%2Frdf%3ARDF%3E%3C%2Fmetadata%3E%3Cmask%20id%3D%22viewboxMask%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%220%22%20ry%3D%220%22%20x%3D%220%22%20y%3D%220%22%20fill%3D%22%23fff%22%20%2F%3E%3C%2Fmask%3E%3Cg%20mask%3D%22url(%23viewboxMask)%22%3E%3Crect%20fill%3D%22%230a5b83%22%20width%3D%22100%22%20height%3D%22100%22%20x%3D%220%22%20y%3D%220%22%20%2F%3E%3Cg%20transform%3D%22translate(0%2C%204)%20rotate(-7%2050%2070)%22%3E%3Cpath%20d%3D%22M95%2053.33C95%2029.4%2074.85%2010%2050%2010S5%2029.4%205%2053.33V140h90V53.33Z%22%20fill%3D%22%23f88c49%22%2F%3E%3Cg%20transform%3D%22translate(29%2033)%22%3E%3Cg%20transform%3D%22translate(7%2C%209)%20rotate(7%2021%2021)%22%3E%3Cg%20transform%3D%22translate(0%204)%22%3E%3Cpath%20d%3D%22M9.86%207.5c0-1.42-4.14-2.85-4.82-4.98C4.34.4%2014%205.37%2014%207.5c0%202.13-9.65%207.11-8.96%204.98.68-2.13%204.82-3.56%204.82-4.98ZM32.14%207.5c0-1.42%204.14-2.85%204.82-4.98C37.66.4%2028%205.37%2028%207.5c0%202.13%209.65%207.11%208.96%204.98-.68-2.13-4.82-3.56-4.82-4.98Z%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate(6%2024)%22%3E%3Cpath%20d%3D%22M15%2011C4.52%2011%202.42%202.82%203.12%202.14%203.82%201.46%208.02%203.5%2015%203.5c6.99%200%2011.18-2.04%2011.88-1.36.7.68-1.4%208.86-11.88%208.86Z%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E","Xeko":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%20shape-rendering%3D%22auto%22%3E%3Cmetadata%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%20xmlns%3Axsi%3D%22http%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema-instance%22%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%20xmlns%3Adcterms%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2F%22%3E%3Crdf%3ARDF%3E%3Crdf%3ADescription%3E%3Cdc%3Atitle%3EThumbs%3C%2Fdc%3Atitle%3E%3Cdc%3Acreator%3EDiceBear%3C%2Fdc%3Acreator%3E%3Cdc%3Asource%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fwww.dicebear.com%3C%2Fdc%3Asource%3E%3Cdcterms%3Alicense%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F%3C%2Fdcterms%3Alicense%3E%3Cdc%3Arights%3E%E2%80%9EThumbs%E2%80%9D%20(https%3A%2F%2Fwww.dicebear.com)%20by%20%E2%80%9EDiceBear%E2%80%9D%2C%20licensed%20under%20%E2%80%9ECC0%201.0%E2%80%9D%20(https%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F)%3C%2Fdc%3Arights%3E%3C%2Frdf%3ADescription%3E%3C%2Frdf%3ARDF%3E%3C%2Fmetadata%3E%3Cmask%20id%3D%22viewboxMask%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%220%22%20ry%3D%220%22%20x%3D%220%22%20y%3D%220%22%20fill%3D%22%23fff%22%20%2F%3E%3C%2Fmask%3E%3Cg%20mask%3D%22url(%23viewboxMask)%22%3E%3Crect%20fill%3D%22%23f1f4dc%22%20width%3D%22100%22%20height%3D%22100%22%20x%3D%220%22%20y%3D%220%22%20%2F%3E%3Cg%20transform%3D%22translate(-1%2C%202)%20rotate(-20%2050%2070)%22%3E%3Cpath%20d%3D%22M95%2053.33C95%2029.4%2074.85%2010%2050%2010S5%2029.4%205%2053.33V140h90V53.33Z%22%20fill%3D%22%230a5b83%22%2F%3E%3Cg%20transform%3D%22translate(29%2033)%22%3E%3Cg%20transform%3D%22translate(10%2C%205)%20rotate(-10%2021%2021)%22%3E%3Cg%20transform%3D%22translate(0%202)%22%3E%3Cpath%20d%3D%22M12%208c0%202.2-1.34%204-3%204s-3-1.8-3-4%201.34-4%203-4%203%201.8%203%204ZM30.5%205C27.29%205%2026%206.36%2026%207.04c0%203.4%201.29%201.35%204.5%201.35S35%2010.43%2035%207.04C35%206.36%2033.71%205%2030.5%205Z%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate(6%2026)%22%3E%3Cpath%20d%3D%22M15%2010C6.79%2010%203.02%203.88%204.22%203.12%205.42%202.35%206.1%206.6%2015%206.49c8.9-.12%209.58-4.23%2010.78-3.37C26.98%203.98%2023.21%2010%2015%2010Z%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E","Xuka":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%20shape-rendering%3D%22auto%22%3E%3Cmetadata%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%20xmlns%3Axsi%3D%22http%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema-instance%22%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%20xmlns%3Adcterms%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2F%22%3E%3Crdf%3ARDF%3E%3Crdf%3ADescription%3E%3Cdc%3Atitle%3EThumbs%3C%2Fdc%3Atitle%3E%3Cdc%3Acreator%3EDiceBear%3C%2Fdc%3Acreator%3E%3Cdc%3Asource%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fwww.dicebear.com%3C%2Fdc%3Asource%3E%3Cdcterms%3Alicense%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F%3C%2Fdcterms%3Alicense%3E%3Cdc%3Arights%3E%E2%80%9EThumbs%E2%80%9D%20(https%3A%2F%2Fwww.dicebear.com)%20by%20%E2%80%9EDiceBear%E2%80%9D%2C%20licensed%20under%20%E2%80%9ECC0%201.0%E2%80%9D%20(https%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F)%3C%2Fdc%3Arights%3E%3C%2Frdf%3ADescription%3E%3C%2Frdf%3ARDF%3E%3C%2Fmetadata%3E%3Cmask%20id%3D%22viewboxMask%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%220%22%20ry%3D%220%22%20x%3D%220%22%20y%3D%220%22%20fill%3D%22%23fff%22%20%2F%3E%3C%2Fmask%3E%3Cg%20mask%3D%22url(%23viewboxMask)%22%3E%3Crect%20fill%3D%22%231c799f%22%20width%3D%22100%22%20height%3D%22100%22%20x%3D%220%22%20y%3D%220%22%20%2F%3E%3Cg%20transform%3D%22translate(-1%2C%20-5)%20rotate(-13%2050%2070)%22%3E%3Cpath%20d%3D%22M95%2053.33C95%2029.4%2074.85%2010%2050%2010S5%2029.4%205%2053.33V140h90V53.33Z%22%20fill%3D%22%23f1f4dc%22%2F%3E%3Cg%20transform%3D%22translate(29%2033)%22%3E%3Cg%20transform%3D%22translate(-6%2C%20-11)%20rotate(-20%2021%2021)%22%3E%3Cg%20transform%3D%22translate(0%203)%22%3E%3Cpath%20d%3D%22M16%208c0%202.2-1.34%204-3%204s-3-1.8-3-4%201.34-4%203-4%203%201.8%203%204ZM32%208c0%202.2-1.34%204-3%204s-3-1.8-3-4%201.34-4%203-4%203%201.8%203%204Z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate(6%2025)%22%3E%3Cpath%20d%3D%22M15%2014C1.9%2014-.72%201.29.15.23%201.03-.83%206.27%202.11%2015%202.11S28.97-.83%2029.85.23C30.72%201.3%2028.1%2014%2015%2014Z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E","Doraemon":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%20shape-rendering%3D%22auto%22%3E%3Cmetadata%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%20xmlns%3Axsi%3D%22http%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema-instance%22%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%20xmlns%3Adcterms%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2F%22%3E%3Crdf%3ARDF%3E%3Crdf%3ADescription%3E%3Cdc%3Atitle%3EThumbs%3C%2Fdc%3Atitle%3E%3Cdc%3Acreator%3EDiceBear%3C%2Fdc%3Acreator%3E%3Cdc%3Asource%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fwww.dicebear.com%3C%2Fdc%3Asource%3E%3Cdcterms%3Alicense%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F%3C%2Fdcterms%3Alicense%3E%3Cdc%3Arights%3E%E2%80%9EThumbs%E2%80%9D%20(https%3A%2F%2Fwww.dicebear.com)%20by%20%E2%80%9EDiceBear%E2%80%9D%2C%20licensed%20under%20%E2%80%9ECC0%201.0%E2%80%9D%20(https%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F)%3C%2Fdc%3Arights%3E%3C%2Frdf%3ADescription%3E%3C%2Frdf%3ARDF%3E%3C%2Fmetadata%3E%3Cmask%20id%3D%22viewboxMask%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%220%22%20ry%3D%220%22%20x%3D%220%22%20y%3D%220%22%20fill%3D%22%23fff%22%20%2F%3E%3C%2Fmask%3E%3Cg%20mask%3D%22url(%23viewboxMask)%22%3E%3Crect%20fill%3D%22%231c799f%22%20width%3D%22100%22%20height%3D%22100%22%20x%3D%220%22%20y%3D%220%22%20%2F%3E%3Cg%20transform%3D%22translate(5%2C%205)%20rotate(8%2050%2070)%22%3E%3Cpath%20d%3D%22M95%2053.33C95%2029.4%2074.85%2010%2050%2010S5%2029.4%205%2053.33V140h90V53.33Z%22%20fill%3D%22%23f1f4dc%22%2F%3E%3Cg%20transform%3D%22translate(29%2033)%22%3E%3Cg%20transform%3D%22translate(13%2C%203)%20rotate(4%2021%2021)%22%3E%3Cg%20transform%3D%22translate(0%202)%22%3E%3Cpath%20d%3D%22M15%208c0%203.31-1.34%206-3%206s-3-2.69-3-6%201.34-6%203-6%203%202.69%203%206ZM33%208c0%203.31-1.34%206-3%206s-3-2.69-3-6%201.34-6%203-6%203%202.69%203%206Z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate(6%2026)%22%3E%3Cpath%20d%3D%22M15%2011C4.52%2011%202.42%202.82%203.12%202.14%203.82%201.46%208.02%203.5%2015%203.5c6.99%200%2011.18-2.04%2011.88-1.36.7.68-1.4%208.86-11.88%208.86Z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E","Bạn":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%20shape-rendering%3D%22auto%22%3E%3Cmetadata%20xmlns%3Ardf%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%22%20xmlns%3Axsi%3D%22http%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema-instance%22%20xmlns%3Adc%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%22%20xmlns%3Adcterms%3D%22http%3A%2F%2Fpurl.org%2Fdc%2Fterms%2F%22%3E%3Crdf%3ARDF%3E%3Crdf%3ADescription%3E%3Cdc%3Atitle%3EThumbs%3C%2Fdc%3Atitle%3E%3Cdc%3Acreator%3EDiceBear%3C%2Fdc%3Acreator%3E%3Cdc%3Asource%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fwww.dicebear.com%3C%2Fdc%3Asource%3E%3Cdcterms%3Alicense%20xsi%3Atype%3D%22dcterms%3AURI%22%3Ehttps%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F%3C%2Fdcterms%3Alicense%3E%3Cdc%3Arights%3E%E2%80%9EThumbs%E2%80%9D%20(https%3A%2F%2Fwww.dicebear.com)%20by%20%E2%80%9EDiceBear%E2%80%9D%2C%20licensed%20under%20%E2%80%9ECC0%201.0%E2%80%9D%20(https%3A%2F%2Fcreativecommons.org%2Fpublicdomain%2Fzero%2F1.0%2F)%3C%2Fdc%3Arights%3E%3C%2Frdf%3ADescription%3E%3C%2Frdf%3ARDF%3E%3C%2Fmetadata%3E%3Cmask%20id%3D%22viewboxMask%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%220%22%20ry%3D%220%22%20x%3D%220%22%20y%3D%220%22%20fill%3D%22%23fff%22%20%2F%3E%3C%2Fmask%3E%3Cg%20mask%3D%22url(%23viewboxMask)%22%3E%3Crect%20fill%3D%22%230a5b83%22%20width%3D%22100%22%20height%3D%22100%22%20x%3D%220%22%20y%3D%220%22%20%2F%3E%3Cg%20transform%3D%22translate(1%2C%202)%20rotate(15%2050%2070)%22%3E%3Cpath%20d%3D%22M95%2053.33C95%2029.4%2074.85%2010%2050%2010S5%2029.4%205%2053.33V140h90V53.33Z%22%20fill%3D%22%23f1f4dc%22%2F%3E%3Cg%20transform%3D%22translate(29%2033)%22%3E%3Cg%20transform%3D%22translate(-3%2C%2014)%20rotate(-8%2021%2021)%22%3E%3Cg%20transform%3D%22translate(0%203)%22%3E%3Cpath%20d%3D%22M15%208c0%202.2-1.34%204-3%204s-3-1.8-3-4%201.34-4%203-4%203%201.8%203%204ZM33%208c0%202.2-1.34%204-3%204s-3-1.8-3-4%201.34-4%203-4%203%201.8%203%204Z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate(6%2025)%22%3E%3Cpath%20d%3D%22M15.5%2010c-5.07%200-9.3-5.23-8.37-5.88.93-.65%203.45%202.15%208.37%202.15%204.92%200%207.44-2.88%208.37-2.15.93.73-3.3%205.88-8.37%205.88Z%22%20fill%3D%22%23000000%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E"};
+  var CAST = [
+    { id: 'Nobita', area: 'q1', color: '#F2B544' },
+    { id: 'Doraemon', area: 'bt', color: '#7CC4E8' },
+    { id: 'Xuka', area: 'td', color: '#F29BB8' },
+    { id: 'Xeko', area: 'q7', color: '#9AD1B9' }
+  ];
+  var avImg = function (id, cls) { return '<img class="av-img' + (cls ? ' ' + cls : '') + '" src="' + AV[id] + '" alt="">'; };
+
+  /* ================= Song ngữ ================= */
+  var T = {
+    vi: {
+      create: 'Tạo phòng', join: 'Nhập mã', resume: 'Bạn đang có phòng dở:', resumeLink: 'vào lại phòng', soundOn: 'Bật âm thanh', soundOff: 'Tắt âm thanh',
+      h1a: 'Tối nay đi đâu?', h1b: 'Chốt trong một phòng.',
+      lede: 'Rủ cả nhóm vào chung một phòng: thả quán, bỏ phiếu, chốt và xếp lịch cả tối. Hoà phiếu thì app đề xuất quán để <strong>không ai phải chạy xe xa nhất một mình</strong>.',
+      try: 'Phòng mẫu này bấm được: thả tim, mở "Vì sao?", rồi chốt thử.',
+      roomTitle: 'Tối thứ Bảy đi đâu?', center: 'Trung tâm nhóm · 4 người',
+      tieTitle: 'Hoà rồi: {c} quán cùng {v} phiếu', suggest: 'Chọn {n} sẽ tốt hơn', saves: 'người xa nhất bớt {m}′', lockIn: 'Chốt {n}', why: 'Vì sao?',
+      whyRule: 'Ưu tiên quán mà người phải đi xa nhất đi ít nhất (đi + về).',
+      leadTitle: '{n} đang dẫn', leadSub: '{v} phiếu Muốn đi · chỉ chủ phòng chốt được',
+      locked: 'Chốt rồi', lockedSub: 'Ăn tối · Nobita là chủ phòng', undo: 'Làm lại',
+      farthest: 'người xa nhất {m}′', proposed: 'Đề xuất', food: 'Ăn uống',
+      voteAdd: 'Muốn đi: {n}', voteRemove: 'Bỏ Muốn đi: {n}',
+      joined: '{w} vừa vào phòng', online: '{c} người đang xem', riderArea: { q1: 'Quận 1', bt: 'Bình Thạnh', td: 'Thủ Đức', q7: 'Quận 7' },
+      chatH: 'Hỏi từ thứ Tư. Tới tối thứ Bảy vẫn chưa ai chốt.',
+      chatSub: 'Mỗi người một ý, ai cũng ngại nói nhà mình xa. Tin nhắn trôi mất, quán hay bị quên, và người ở xa nhất thường là người xin vắng.',
+      chatLabel: 'Ví dụ một nhóm chat: hỏi đi đâu từ thứ Tư, tối thứ Bảy vẫn chưa chốt',
+      wed: 'Thứ Tư', sat: 'Thứ Bảy, 18:40', unread: 'tin nhắn sau',
+      m1: 'Thứ Bảy này đi đâu mọi người?', m2: 'Gì cũng được, miễn có đồ ăn', m3: 'Lẩu ở Giga Mall đi, gần nhà mình', m4: 'Giga Mall thì mình chạy gần 40 phút mỗi chiều đó', m5: 'Vậy rốt cuộc mình đi đâu?',
+      photoAlt: 'Phố Bùi Viện về đêm: bảng hiệu neon, ghế nhựa và người đi bộ kín lòng đường',
+      photoCap: 'Tối nào Sài Gòn cũng đông. Khó nhất là chốt được chỗ.',
+      credit: 'Ảnh: Bahnfrend, CC BY-SA 4.0, Wikimedia Commons',
+      flowH: 'Một phòng, bốn bước, xong trước giờ hẹn.',
+      flowSub: 'Gửi mã phòng vào nhóm chat. Không cần tài khoản: nhập nickname, chọn nơi xuất phát là vào.',
+      s1h: 'Ai cũng thả quán mình thích', s1p: 'Tìm trong hơn bốn mươi nghìn quán ở TP.HCM, thả vào chung một danh sách.',
+      s2h: 'Cả nhóm bỏ phiếu cùng lúc', s2p: 'Muốn đi hoặc Không. Phiếu hiện ngay trên máy mọi người, thấy quán nào đang dẫn.',
+      s3h: 'Chủ phòng bấm chốt', s3p: 'App chỉ đề xuất. Người quyết là chủ phòng, không có gì tự chốt.',
+      s4h: 'Xếp cả tối rồi gửi đi', s4p: 'Kéo thả giờ cho từng chặng, rồi gửi kế hoạch thành ảnh, tin nhắn, file lịch hoặc link.',
+      steps: ['Tìm quán', 'Bình chọn', 'Chốt kèo', 'Gửi lịch'], stepsLabel: 'Các bước',
+      added: '{w} thả', agree: 'Muốn đi', disagree: 'Không', voted: 'Đã bỏ phiếu', wantN: '{v} Muốn đi',
+      lockedBy: 'Nobita (chủ phòng) đã chốt', farthestShort: 'Người xa nhất',
+      dinner: 'Ăn tối', coffee: 'Cà phê', next: 'Đi tiếp', open: 'Chưa chốt',
+      exports: ['Ảnh PNG', 'Tin nhắn', 'File .ics', 'Link'], area: { tdc: 'Thủ Đức', q7: 'Quận 7' },
+      tieH: 'Hoà rồi. Ai phải chạy xa nhất?',
+      tieSub: 'Bốn bạn ở bốn quận, ba quán ăn cùng số phiếu. Giờ thêm bạn vào phòng: chọn quận hoặc kéo điểm của bạn trên bản đồ, xem app đổi đề xuất ra sao.',
+      askQ: 'Bạn ở quận nào?', askHint: 'Hoặc kéo ảnh của bạn tới đúng chỗ.',
+      privacy: 'Bạn bè chỉ hiện theo quận, không lộ nhà ai. Chỉ điểm của bạn là chính xác, và chỉ bạn thấy.',
+      segLabel: 'Cách phá hoà', modeSum: 'Cộng tổng km', modeFar: 'Ưu tiên người xa nhất',
+      boardH: 'Người xa nhất phải đi bao lâu', boardUnit: 'đi + về, phút', total: 'tổng {k} km', you: 'Bạn',
+      vWaitPick: 'Chưa có bạn: app đề xuất Pizza 4P\'s.', vWaitWhy: 'Người xa nhất là Xuka, <b>60′</b>. Chọn quận của bạn để xem đề xuất có đổi không.',
+      vFarPick: 'App đề xuất {n}.', vFarYou: 'Lần này người xa nhất là <b>bạn</b>: {m}′ đi về. App chọn quán để bạn đỡ phải chạy xa nhất.',
+      vFarOther: 'Người xa nhất là {w}, <b>{m}′</b>. Bạn đi {y}′.',
+      vSumPick: 'Máy chọn {n}.', vSumWhy: 'Tổng đường cả nhóm ngắn nhất, {k} km. Nhưng {w} phải đi <b>{m}′</b>.',
+      vDiff: 'Nếu chỉ cộng tổng km, máy sẽ chọn {n} và {w} phải đi {m}′.',
+      noteEst: 'Phút của bạn là ước lượng (đường chim bay × 1,3); số của 4 bạn kia đo trên đường xe máy thật. Bản thật dùng lưới đường tính sẵn.',
+      numH: 'Không phải may một lần.',
+      numSub: 'So với năm cách phá hoà khác trên 20 bộ dữ liệu: gần như không tốn thêm đường cho cả nhóm, và người ở xa không còn gánh phần thiệt.',
+      c1h: 'Tổng km cả nhóm, dư so với đường ngắn nhất', c1n: 'Trung bình 20 bộ dữ liệu. Càng ngắn càng tốt.',
+      c2h: 'Người xa nhất thiệt nhiều nhất', c2n: 'Trường hợp tệ nhất trong 20 bộ. Càng ngắn càng công bằng.',
+      algos: { greedy: 'Tham lam từng chặng', weighted: 'Chấm điểm trọng số', life: 'Xét cả vòng đời', sum: 'Cộng tổng km', random: 'Ngẫu nhiên / ai bỏ phiếu trước', us: 'Hangoutplanner (Ordered Median)' },
+      tblBtn: 'Xem bảng so sánh đầy đủ', th1: 'Cách phá hoà', th2: 'Nhìn quãng đường', th3: 'Nhìn cả buổi tối', th4: 'Bảo vệ người ở xa', th5: 'Kết quả đo',
+      yes: 'Có', no: 'Không', part: 'Một phần',
+      r: { random: 'Có thể bắt một người đi hơn 1 tiếng', greedy: 'Dư +44,7% km', weighted: 'Dư +20,1% km', life: 'Dư +13,9% km, đảo hạng 2,9%', sum: 'Người xa nhất thiệt tới 35,7%', us: '+1,13% km; người xa nhất thiệt tối đa 9,37%' },
+      src: 'Đo trên 20 bộ dữ liệu thử của đồ án; số của Hangoutplanner chạy lại bằng bộ giải của app.',
+      endH: 'Tới lượt nhóm bạn.', endSub: 'Tạo phòng, gửi mã vào nhóm chat, chốt trước giờ hẹn.',
+      qrTitle: 'Quét để thử trên điện thoại', qrLabel: 'Mã QR mở didau-omega.vercel.app',
+      foot: 'Hangoutplanner, chọn chỗ đi chơi cùng nhóm.', mapCredit: 'Bản đồ: OpenFreeMap · OpenMapTiles · © OpenStreetMap',
+      mock: { create: 'Đây là mock: ở app thật, nút này mở form Tạo phòng.', join: 'Đây là mock: ở app thật, nút này mở ô Nhập mã phòng.', resume: 'Đây là mock: ở app thật, link này đưa bạn về phòng đang dở.' },
+      districts: { q1: 'Quận 1', q3: 'Quận 3', q5: 'Quận 5', q7: 'Quận 7', bt: 'Bình Thạnh', pn: 'Phú Nhuận', tb: 'Tân Bình', gv: 'Gò Vấp', td: 'Thủ Đức', q12: 'Quận 12', btn: 'Bình Tân', nb: 'Nhà Bè' }
+    },
+    en: {
+      create: 'Create a room', join: 'Enter code', resume: 'You have a room in progress:', resumeLink: 'rejoin room', soundOn: 'Turn sound on', soundOff: 'Turn sound off',
+      h1a: 'Where to tonight?', h1b: 'Settle it in one room.',
+      lede: 'Bring the whole group into one room: add places, vote, lock it in and plan the night. When votes tie, the app suggests the place where <strong>nobody rides the farthest alone</strong>.',
+      try: 'This sample room works: tap a heart, open "Why?", then try locking it in.',
+      roomTitle: 'Where to on Saturday?', center: 'Group center · 4 people',
+      tieTitle: 'It’s a tie: {c} places with {v} votes each', suggest: 'Picking {n} works better', saves: 'farthest person saves {m}′', lockIn: 'Lock in {n}', why: 'Why?',
+      whyRule: 'Favors the place where the person riding farthest rides the least (there and back).',
+      leadTitle: '{n} is leading', leadSub: '{v} Want to go votes · only the host can lock in',
+      locked: 'It’s decided', lockedSub: 'Dinner · Nobita is the host', undo: 'Start over',
+      farthest: 'farthest {m}′', proposed: 'Suggested', food: 'Food',
+      voteAdd: 'Want to go: {n}', voteRemove: 'Remove Want to go: {n}',
+      joined: '{w} just joined', online: '{c} people here', riderArea: { q1: 'District 1', bt: 'Bình Thạnh', td: 'Thủ Đức', q7: 'District 7' },
+      chatH: 'Asked on Wednesday. Saturday night, still no plan.',
+      chatSub: 'Everyone has an idea, and nobody wants to say they live far. Messages get buried, good places get forgotten, and whoever lives farthest usually bails.',
+      chatLabel: 'Example group chat: asked on Wednesday, still undecided on Saturday night',
+      wed: 'Wednesday', sat: 'Saturday, 18:40', unread: 'more messages',
+      m1: 'Where are we going this Saturday?', m2: 'Anything works, as long as there’s food', m3: 'Hotpot at Giga Mall? It’s near me', m4: 'Giga Mall is almost 40 minutes each way for me', m5: 'So where are we actually going?',
+      photoAlt: 'Bùi Viện street at night: neon signs, plastic stools and people filling the road',
+      photoCap: 'Saigon is busy every night. The hard part is picking a place.',
+      credit: 'Photo: Bahnfrend, CC BY-SA 4.0, Wikimedia Commons',
+      flowH: 'One room, four steps, done before you meet.',
+      flowSub: 'Drop the room code in your group chat. No account: pick a nickname and a starting point and you’re in.',
+      s1h: 'Everyone adds places they like', s1p: 'Search more than forty thousand places in Ho Chi Minh City and add them to one shared list.',
+      s2h: 'The whole group votes at once', s2p: 'Want to go or Not this one. Votes show up on everyone’s phone right away, so you see what’s leading.',
+      s3h: 'The host locks it in', s3p: 'The app only suggests. The host decides, and nothing locks in on its own.',
+      s4h: 'Plan the night and send it', s4p: 'Drag times for each stop, then send the plan as an image, a message, a calendar file or a link.',
+      steps: ['Find places', 'Vote', 'Lock in', 'Send plan'], stepsLabel: 'Steps',
+      added: 'added by {w}', agree: 'Want to go', disagree: 'Not this one', voted: 'Voted', wantN: '{v} Want to go',
+      lockedBy: 'Locked in by Nobita (host)', farthestShort: 'Farthest person',
+      dinner: 'Dinner', coffee: 'Coffee', next: 'After', open: 'Not decided',
+      exports: ['PNG image', 'Message', '.ics file', 'Link'], area: { tdc: 'Thủ Đức', q7: 'District 7' },
+      tieH: 'It’s a tie. Who rides the farthest?',
+      tieSub: 'Four friends in four districts, three restaurants with the same votes. Now add yourself: pick your district or drag your pin on the map, and watch the suggestion change.',
+      askQ: 'Which district are you in?', askHint: 'Or drag your picture to the right spot.',
+      privacy: 'Friends only show by district, nobody’s home is revealed. Only your own pin is exact, and only you see it.',
+      segLabel: 'How to break the tie', modeSum: 'Add up total km', modeFar: 'Favor the farthest',
+      boardH: 'How long the farthest person rides', boardUnit: 'there + back, minutes', total: '{k} km total', you: 'You',
+      vWaitPick: 'Without you: the app suggests Pizza 4P’s.', vWaitWhy: 'The farthest person is Xuka, <b>60′</b>. Pick your district to see if the suggestion changes.',
+      vFarPick: 'The app suggests {n}.', vFarYou: 'This time the farthest person is <b>you</b>: {m}′ there and back. The app picks the place that spares you the longest ride.',
+      vFarOther: 'The farthest person is {w}, <b>{m}′</b>. You ride {y}′.',
+      vSumPick: 'The machine picks {n}.', vSumWhy: 'The shortest total for the group, {k} km. But {w} has to ride <b>{m}′</b>.',
+      vDiff: 'If it only added up total km, it would pick {n} and {w} would ride {m}′.',
+      noteEst: 'Your minutes are an estimate (straight line × 1.3); the other four are measured on real motorbike roads. The real build uses a precomputed road grid.',
+      numH: 'Not a lucky one-off.',
+      numSub: 'Compared with five other tie-breakers on 20 datasets: almost no extra distance for the group, and whoever lives far stops taking the loss.',
+      c1h: 'Group total km, above the shortest possible', c1n: 'Average of 20 datasets. Shorter is better.',
+      c2h: 'Worst extra for the farthest person', c2n: 'Worst case of the 20 datasets. Shorter is fairer.',
+      algos: { greedy: 'Greedy, stop by stop', weighted: 'Weighted scoring', life: 'Full lifecycle', sum: 'Add up total km', random: 'Random / first to vote', us: 'Hangoutplanner (Ordered Median)' },
+      tblBtn: 'See the full comparison', th1: 'Tie-breaker', th2: 'Looks at distance', th3: 'Looks at the whole night', th4: 'Protects whoever is far', th5: 'Measured result',
+      yes: 'Yes', no: 'No', part: 'Partly',
+      r: { random: 'Can make one person ride over an hour', greedy: '+44.7% km extra', weighted: '+20.1% km extra', life: '+13.9% km extra, 2.9% rank flips', sum: 'Farthest person loses up to 35.7%', us: '+1.13% km; farthest person loses at most 9.37%' },
+      src: 'Measured on the project’s 20 test datasets; Hangoutplanner’s numbers rerun with the app’s own solver.',
+      endH: 'Your group’s turn.', endSub: 'Create a room, drop the code in your group chat, decide before you meet.',
+      qrTitle: 'Scan to try it on your phone', qrLabel: 'QR code that opens didau-omega.vercel.app',
+      foot: 'Hangoutplanner, pick hangout spots with friends.', mapCredit: 'Map: OpenFreeMap · OpenMapTiles · © OpenStreetMap',
+      mock: { create: 'This is a mock: in the real app, this opens the Create a room form.', join: 'This is a mock: in the real app, this opens the room code field.', resume: 'This is a mock: in the real app, this takes you back to your room.' },
+      districts: { q1: 'District 1', q3: 'District 3', q5: 'District 5', q7: 'District 7', bt: 'Bình Thạnh', pn: 'Phú Nhuận', tb: 'Tân Bình', gv: 'Gò Vấp', td: 'Thủ Đức', q12: 'District 12', btn: 'Bình Tân', nb: 'Nhà Bè' }
+    }
+  };
+  var lang = 'vi';
+  try { var saved = localStorage.getItem('hp-landing-lang'); if (saved === 'en' || saved === 'vi') lang = saved; } catch (e) {}
+  var t = function (k) { return k.split('.').reduce(function (o, p) { return o && o[p]; }, T[lang]); };
+  var fill = function (s, o) { return s.replace(/\{(\w)\}/g, function (_, k) { return o[k]; }); };
+  var dec = function (x, d) { var s = (d == null ? String(x) : x.toFixed(d)); return lang === 'vi' ? s.replace('.', ',') : s; };
+  var once = function (el, fn, opts) {
+    if (!HAS_IO) { fn(); return; }
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { io.disconnect(); fn(); } }); }, opts || { threshold: 0.35 });
+    io.observe(el);
+  };
+  var below = function (el) { return el.getBoundingClientRect().top > window.innerHeight * 0.85; };
+  function tween(a, b, dur, cb) {
+    if (RM || a === b) { cb(b); return; }
+    var s = performance.now();
+    (function f(now) { var p = Math.max(0, Math.min(1, (now - s) / dur)); cb(a + (b - a) * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(f); })(s);
+  }
+  function applyStatic() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i]').forEach(function (el) { var v = t(el.dataset.i); if (typeof v === 'string') el.textContent = v; });
+    document.querySelectorAll('[data-ih]').forEach(function (el) { el.innerHTML = t(el.dataset.ih); });
+    document.querySelectorAll('[data-i-label]').forEach(function (el) { el.setAttribute('aria-label', t(el.dataset.iLabel)); });
+    document.querySelectorAll('[data-i-alt]').forEach(function (el) { el.alt = t(el.dataset.iAlt); });
+    var lg = document.getElementById('lang');
+    lg.dataset.lang = lang;
+    lg.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.setLang === lang)); });
+    syncSoundLabel();
+  }
+
+  /* ================= Âm thanh (WebAudio, tắt sẵn, chỉ tạo khi người xem bật) ================= */
+  var soundOn = false, actx = null;
+  var soundBtn = document.getElementById('sound');
+  function syncSoundLabel() { soundBtn.setAttribute('aria-label', t(soundOn ? 'soundOff' : 'soundOn')); soundBtn.setAttribute('aria-pressed', String(soundOn)); soundBtn.querySelector('use').setAttribute('href', soundOn ? '#i-sound-on' : '#i-sound-off'); }
+  soundBtn.addEventListener('click', function () {
+    soundOn = !soundOn;
+    if (soundOn && !actx) { var C = window.AudioContext || window.webkitAudioContext; if (C) actx = new C(); }
+    if (!soundOn && actx) { actx.close(); actx = null; }
+    syncSoundLabel();
+    if (soundOn) play('tick');
+  });
+  function play(name) {
+    if (!soundOn || !actx) return;
+    var tt = actx.currentTime;
+    var tones = name === 'chime' ? [[880, 0], [1320, 0.08]] : [[1600, 0]];
+    tones.forEach(function (tn) {
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = name === 'chime' ? 'sine' : 'triangle'; o.frequency.value = tn[0];
+      var len = name === 'chime' ? 0.36 : 0.06;
+      g.gain.setValueAtTime(0.0001, tt + tn[1]); g.gain.exponentialRampToValueAtTime(0.16, tt + tn[1] + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, tt + tn[1] + len);
+      o.connect(g).connect(actx.destination); o.start(tt + tn[1]); o.stop(tt + tn[1] + len + 0.02);
+    });
+  }
+
+  /* ================= Thông báo của mock + thanh đỉnh ================= */
+  var mt = document.getElementById('mock-toast'), mtTimer;
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-mock]'); if (!el) return;
+    e.preventDefault();
+    mt.textContent = t('mock.' + el.dataset.mock); mt.classList.add('show');
+    clearTimeout(mtTimer); mtTimer = setTimeout(function () { mt.classList.remove('show'); }, 2800);
+  });
+  var top = document.getElementById('top'), topCreate = top.querySelector('.top-create');
+  var heroCtaVisible = true, endCtaVisible = false;
+  function syncTop() { top.classList.toggle('scrolled', window.scrollY > 24); var s = !heroCtaVisible && !endCtaVisible; top.classList.toggle('show-cta', s); topCreate.tabIndex = s ? 0 : -1; }
+  window.addEventListener('scroll', syncTop, { passive: true });
+  if (HAS_IO) {
+    new IntersectionObserver(function (es) { heroCtaVisible = es[0].isIntersecting; syncTop(); }).observe(document.getElementById('hero-cta'));
+    new IntersectionObserver(function (es) { endCtaVisible = es[0].isIntersecting; syncTop(); }).observe(document.getElementById('end-cta'));
+  }
+
+  /* ================= Bản đồ thật (MapLibre, style sáng của app) ================= */
+  var STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+  var PLACES = [
+    { id: 'pizza', name: "Pizza 4P's Thiso Mall Sala", short: "Pizza 4P's", ll: [106.72284, 10.77227], far: 60, farWho: 'Xuka', km: 68.2 },
+    { id: 'haidilao', name: 'Haidilao Giga Mall', short: 'Haidilao', ll: [106.722, 10.82777], far: 74, farWho: 'Xeko', km: 63.5 },
+    { id: 'dookki', name: 'Dookki SC VivoCity', short: 'Dookki', ll: [106.70325, 10.73017], far: 94, farWho: 'Xuka', km: 81.5 }
+  ];
+  var HOME = { q1: [106.6980, 10.7725], bt: [106.7091, 10.8106], td: [106.7537, 10.8494], q7: [106.7180, 10.7290] };
+  // Thứ tự chip: trộn quận gần và xa để người xem dễ thấy đề xuất lật (Gò Vấp/Thủ Đức → Haidilao, Bình Tân → Dookki)
+  var DIST = { q1: [106.7004, 10.7757], q7: [106.7215, 10.7340], gv: [106.6653, 10.8387], btn: [106.6037, 10.7653], td: [106.7537, 10.8494], nb: [106.7046, 10.6955], bt: [106.7091, 10.8105], q12: [106.6413, 10.8672], pn: [106.6800, 10.7990], tb: [106.6527, 10.8015], q3: [106.6844, 10.7843], q5: [106.6634, 10.7540] };
+  function tidyStyle(map) {
+    (map.getStyle().layers || []).forEach(function (l) { if (/poi|transit|bus|rail|aeroway|housenum/i.test(l.id)) map.setLayoutProperty(l.id, 'visibility', 'none'); });
+  }
+  function pinEl(p, extra) {
+    var el = document.createElement('div');
+    el.className = 'rpin' + (extra || '');
+    el.dataset.id = p.id;
+    el.innerHTML = '<span class="dot"><svg aria-hidden="true"><use href="#i-bowl"/></svg></span><span class="lbl">' + p.short + '</span>';
+    return el;
+  }
+  var hasML = typeof maplibregl !== 'undefined';
+
+  /* ================= Hero: phòng bấm được ================= */
+  var START = { pizza: 3, haidilao: 3, dookki: 3 };
+  var room = { votes: Object.assign({}, START), mine: {}, locked: null, why: false, joined: false, kind: '' };
+  var cardEl = document.getElementById('room-card'), placesEl = document.getElementById('room-places');
+  var heroPins = {};
+  if (hasML) {
+    var hm = new maplibregl.Map({ container: 'hero-map', style: STYLE, interactive: false, attributionControl: false, center: [106.716, 10.78], zoom: 11.4, fadeDuration: 0 });
+    window.addEventListener('resize', function () { hm.resize(); });
+    if (window.ResizeObserver) new ResizeObserver(function () { hm.resize(); }).observe(document.getElementById('hero-map'));
+    hm.on('load', function () {
+      hm.resize();
+      tidyStyle(hm);
+      hm.fitBounds([[106.700, 10.722], [106.728, 10.835]], { padding: { top: 50, bottom: 60, left: 30, right: 30 }, duration: 0 });
+      PLACES.forEach(function (p) { var el = pinEl(p); heroPins[p.id] = el; new maplibregl.Marker({ element: el }).setLngLat(p.ll).addTo(hm); });
+      syncPins();
+    });
+  }
+  function roomState() {
+    var max = Math.max.apply(null, PLACES.map(function (p) { return room.votes[p.id]; }));
+    var tops = PLACES.filter(function (p) { return room.votes[p.id] === max; });
+    var sorted = tops.slice().sort(function (a, b) { return a.far - b.far; });
+    return { max: max, tie: tops.length > 1, tops: tops, best: sorted[0], runner: sorted[1] || sorted[0] };
+  }
+  function syncPins() {
+    PLACES.forEach(function (p) {
+      var el = heroPins[p.id]; if (!el) return;
+      var done = room.locked === p.id;
+      el.classList.toggle('done', done);
+      el.classList.toggle('faded', !!room.locked && !done);
+      el.querySelector('.lbl').textContent = p.short + ' · ' + room.votes[p.id];
+      el.querySelector('use').setAttribute('href', done ? '#i-check' : '#i-bowl');
+    });
+  }
+  function renderRoom() {
+    var st = roomState();
+    var kind = room.locked ? 'locked' : st.tie ? 'tie:' + st.tops.map(function (p) { return p.id; }).join() + ':' + st.max : 'lead:' + st.best.id + ':' + st.max;
+    var anim = room.kind && kind !== room.kind; room.kind = kind;
+    var html;
+    if (room.locked) {
+      var lp = PLACES.filter(function (x) { return x.id === room.locked; })[0];
+      html = '<div class="card locked"><div class="stamp"><svg><use href="#i-check"/></svg></div><div class="badge">' + t('locked') + '</div><div class="nm">' + lp.name + '</div><div class="mt">' + t('lockedSub') + '</div><button type="button" class="linkbtn" id="undo">' + t('undo') + '</button></div>';
+    } else if (st.tie) {
+      var bars = st.tops.map(function (p) { return '<div class="mini' + (p.id === st.best.id ? ' best' : '') + '"><span>' + p.short + '</span><span class="t"><i style="width:' + p.far + '%"></i></span><span class="v">' + p.far + '′</span></div>'; }).join('');
+      html = '<div class="card' + (anim ? ' swap' : '') + '"><div class="card-head">' + fill(t('tieTitle'), { c: st.tops.length, v: st.max }) + '</div><div class="card-sub">' + st.tops.map(function (p) { return p.short; }).join(' · ') + '</div>' +
+        '<div class="sugg"><div class="sugg-title">' + fill(t('suggest'), { n: st.best.name }) + '</div><div class="sugg-meta">' + fill(t('saves'), { m: st.runner.far - st.best.far }) + '</div>' +
+        '<button type="button" class="chot" data-lock="' + st.best.id + '"><svg width="14" height="14" aria-hidden="true"><use href="#i-check"/></svg>' + fill(t('lockIn'), { n: st.best.short }) + '</button>' +
+        '<button type="button" class="linkbtn" id="why-btn" aria-expanded="' + room.why + '" aria-controls="why-box">' + t('why') + '<svg aria-hidden="true"><use href="#i-caret"/></svg></button>' +
+        '<div class="why-box' + (room.why ? ' open' : '') + '" id="why-box"><div><div class="why-in"><p class="why-rule">' + t('whyRule') + '</p>' + bars + '</div></div></div></div></div>';
+    } else {
+      html = '<div class="card' + (anim ? ' swap' : '') + '"><div class="card-head">' + fill(t('leadTitle'), { n: st.best.name }) + '</div><div class="card-sub">' + fill(t('leadSub'), { v: st.max }) + '</div><button type="button" class="chot" data-lock="' + st.best.id + '"><svg width="14" height="14" aria-hidden="true"><use href="#i-check"/></svg>' + fill(t('lockIn'), { n: st.best.short }) + '</button></div>';
+    }
+    cardEl.innerHTML = html;
+    placesEl.innerHTML = PLACES.map(function (p) {
+      var mine = !!room.mine[p.id];
+      var cls = room.locked ? (room.locked === p.id ? ' hot' : ' faded') : '';
+      var tag = !room.locked && st.tie && p.id === st.best.id ? '<br><span class="tag">' + t('proposed') + '</span>' : '';
+      return '<div class="place' + cls + '" data-id="' + p.id + '"><span class="place-ico"><svg aria-hidden="true"><use href="#i-bowl"/></svg></span><span style="min-width:0"><span class="place-name">' + p.name + '</span><span class="place-meta">' + t('food') + ' · ' + fill(t('farthest'), { m: p.far }) + '</span>' + tag + '</span>' +
+        '<button type="button" class="heart" data-vote="' + p.id + '" aria-pressed="' + mine + '" aria-label="' + fill(t(mine ? 'voteRemove' : 'voteAdd'), { n: p.name }) + '"' + (room.locked ? ' disabled' : '') + '><svg class="off" aria-hidden="true"><use href="#i-heart-o"/></svg><svg class="on" aria-hidden="true"><use href="#i-heart"/></svg><span class="num">' + room.votes[p.id] + '</span></button></div>';
+    }).join('');
+    syncPins();
+  }
+  document.getElementById('room').addEventListener('click', function (e) {
+    var v = e.target.closest('[data-vote]');
+    if (v && !room.locked) {
+      var id = v.dataset.vote; room.mine[id] = !room.mine[id]; room.votes[id] += room.mine[id] ? 1 : -1;
+      renderRoom(); play('tick');
+      var nb = placesEl.querySelector('[data-vote="' + id + '"]'); nb.focus({ preventScroll: true }); if (room.mine[id]) nb.classList.add('pop');
+      var pin = heroPins[id]; if (pin && !RM) { pin.classList.remove('bump'); void pin.offsetWidth; pin.classList.add('bump'); }
+      return;
+    }
+    var wb = e.target.closest('#why-btn');
+    if (wb) { room.why = !room.why; document.getElementById('why-box').classList.toggle('open', room.why); wb.setAttribute('aria-expanded', String(room.why)); return; }
+    var l = e.target.closest('[data-lock]');
+    if (l) { room.locked = l.dataset.lock; room.why = false; renderRoom(); play('chime'); document.getElementById('undo').focus({ preventScroll: true }); return; }
+    if (e.target.closest('#undo')) { room.locked = null; room.mine = {}; room.votes = Object.assign({}, START); renderRoom(); var c = cardEl.querySelector('.chot'); if (c) c.focus({ preventScroll: true }); }
+  });
+  ['pointerover', 'pointerout'].forEach(function (ev) {
+    placesEl.addEventListener(ev, function (e) { var r = e.target.closest('.place'); if (!r || (e.relatedTarget && r.contains(e.relatedTarget))) return; var p = heroPins[r.dataset.id]; if (p) p.classList.toggle('hot', ev === 'pointerover'); if (room.locked !== r.dataset.id) r.classList.toggle('hot', ev === 'pointerover'); });
+  });
+
+  // Hiện diện: avatar thật, 3 người đang xem, người thứ tư vào đúng một lần
+  var presenceEl = document.getElementById('presence');
+  function renderPresence() {
+    var n = room.joined ? 4 : 3;
+    presenceEl.innerHTML = CAST.slice(0, n).map(function (c) { return avImg(c.id); }).join('');
+    presenceEl.setAttribute('aria-label', fill(t('online'), { c: n }));
+  }
+  var roomToast = document.getElementById('room-toast');
+  function joinOnce() {
+    if (room.joined) return; room.joined = true; renderPresence();
+    var last = presenceEl.lastElementChild; if (last && !RM) last.animate([{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(0.16,1,0.3,1)' });
+    document.getElementById('toast-av').innerHTML = avImg('Xeko');
+    document.getElementById('room-toast-text').textContent = fill(t('joined'), { w: 'Xeko' });
+    roomToast.classList.add('show'); setTimeout(function () { roomToast.classList.remove('show'); }, 2600);
+  }
+
+  /* ================= Phố đêm vẽ tay + bốn bạn hội tụ ================= */
+  var scene = document.getElementById('scene'), street = document.getElementById('street');
+  (function drawScene() {
+    // dãy nhà ống: chiều cao/màu thay phiên; cửa sổ sáng ngẫu nhiên nhưng cố định (seed)
+    var s = 7, rnd = function () { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    var out = '<defs><radialGradient id="lampg" cx="50%" cy="0%" r="70%"><stop offset="0" stop-color="#F2B544" stop-opacity="0.55"/><stop offset="1" stop-color="#F2B544" stop-opacity="0"/></radialGradient></defs>';
+    var x = 0, signs = [['CƠM TẤM', '#FF6B4A'], ['CÀ PHÊ', '#2FA38C'], ['LẨU', '#F2B544'], ['PHỞ', '#7CC4E8'], ['BÚN BÒ', '#F29BB8'], ['TRÀ SỮA', '#C9B2E8']], si = 0;
+    while (x < 1440) {
+      var w = 70 + Math.round(rnd() * 50), h = 70 + Math.round(rnd() * 70), fillc = ['var(--house-1)', 'var(--house-2)', 'var(--house-3)'][Math.floor(rnd() * 3)];
+      var y = 168 - h;
+      out += '<rect x="' + x + '" y="' + y + '" width="' + (w - 2) + '" height="' + h + '" fill="' + fillc + '"/>';
+      for (var wy = y + 12; wy < 128; wy += 24) for (var wx = x + 10; wx < x + w - 18; wx += 22) {
+        var on = rnd() > 0.45;
+        out += '<rect class="win' + (on ? ' on' : '') + '" x="' + wx + '" y="' + wy + '" width="10" height="12" rx="1.5" fill="#F2C46B" style="transition-delay:' + Math.round(rnd() * 900) + 'ms"/>';
+      }
+      if (rnd() > 0.35) {
+        var sg = signs[si++ % signs.length], sw = Math.min(w - 12, 12 + sg[0].length * 7.4);
+        out += '<g class="glow" style="transition-delay:' + Math.round(200 + rnd() * 700) + 'ms"><rect x="' + (x + 6) + '" y="134" width="' + sw + '" height="18" rx="3" fill="' + sg[1] + '"/><text x="' + (x + 6 + sw / 2) + '" y="147" text-anchor="middle" font-family="Be Vietnam Pro, system-ui" font-weight="700" font-size="10" fill="#16111C">' + sg[0] + '</text></g>';
+      }
+      x += w;
+    }
+    // vỉa hè + lòng đường + vạch
+    out += '<rect x="0" y="166" width="1440" height="10" fill="#2E2538"/><rect x="0" y="176" width="1440" height="54" fill="#1A1420"/>';
+    for (var dx = 20; dx < 1440; dx += 60) out += '<rect x="' + dx + '" y="202" width="28" height="3" rx="1.5" fill="#3D3247"/>';
+    // đèn đường + quầng sáng đổ xuống
+    for (var lx = 120; lx < 1440; lx += 260) {
+      out += '<g><rect x="' + lx + '" y="70" width="3" height="98" fill="#3D3247"/><path d="M' + lx + ' 72 q 0 -8 14 -8 h 8" stroke="#3D3247" stroke-width="3" fill="none"/><rect x="' + (lx + 18) + '" y="62" width="14" height="5" rx="2" fill="#4A3D55"/>' +
+        '<g class="glow" style="transition-delay:' + (lx / 3) + 'ms"><circle cx="' + (lx + 25) + '" cy="68" r="3.5" fill="#FFE7A3"/><path d="M' + (lx + 18) + ' 68 L ' + (lx - 40) + ' 230 L ' + (lx + 90) + ' 230 L ' + (lx + 32) + ' 68 Z" fill="url(#lampg)"/></g></g>';
+    }
+    scene.innerHTML = out;
+  })();
+  var ridersEl = document.getElementById('riders');
+  function renderRiders() {
+    ridersEl.innerHTML = CAST.map(function (c, i) {
+      return '<div class="rider' + (i % 2 ? ' rev' : '') + '" data-i="' + i + '"><svg style="color:' + c.color + '"><use href="#i-scooter"/></svg>' + avImg(c.id) + '<span class="tag">' + c.id + '</span></div>';
+    }).join('');
+    placeRiders(false);
+  }
+  // Điểm dừng: dưới cửa sổ phòng mẫu (màn rộng) hoặc giữa (màn hẹp)
+  function slots() {
+    var w = ridersEl.clientWidth, appEl = document.getElementById('room').getBoundingClientRect(), base = ridersEl.getBoundingClientRect();
+    var cx = window.innerWidth > 960 ? appEl.left - base.left + appEl.width / 2 : w / 2;
+    var gap = Math.min(120, w / 4.4);
+    return [-1.5, -0.5, 0.5, 1.5].map(function (k) { return cx + k * gap - 46; });
+  }
+  function placeRiders(animate) {
+    var sl = slots(), w = ridersEl.clientWidth;
+    Array.prototype.forEach.call(ridersEl.children, function (r, i) {
+      r.style.left = sl[i] + 'px';
+      if (!animate || RM) return;
+      var fromLeft = i % 2 === 0, dist = fromLeft ? -(sl[i] + 140) : (w - sl[i] + 140);
+      r.animate([{ transform: 'translateX(' + dist + 'px)' }, { transform: 'translateX(0)' }], { duration: 1500 + i * 120, delay: 300 + i * 90, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' });
+    });
+  }
+  renderRiders();
+  requestAnimationFrame(function () {
+    street.classList.add('lit');
+    placeRiders(true);
+    setTimeout(function () { ridersEl.classList.add('arrived'); }, RM ? 0 : 2050);
+  });
+  window.addEventListener('resize', function () { placeRiders(false); });
+  renderRoom(); renderPresence();
+  setTimeout(joinOnce, RM ? 1200 : 3600);
+
+  /* ================= 1. Nhóm chat ================= */
+  var chat = document.getElementById('chat');
+  function renderChat() {
+    var msg = function (who, key, extra) { return '<div class="msg seq' + (extra || '') + '">' + avImg(who) + '<div class="bub"><div class="who">' + who + '</div><div class="txt">' + t(key) + '</div></div></div>'; };
+    chat.innerHTML = '<span class="chat-day seq">' + t('wed') + '</span>' + msg('Nobita', 'm1') + msg('Doraemon', 'm2') + msg('Xuka', 'm3') + msg('Xeko', 'm4', ' dim') +
+      '<span class="unread seq num"><span id="unread-n">53</span> ' + t('unread') + '</span><span class="chat-day seq">' + t('sat') + '</span>' +
+      '<div class="msg typing-row" id="typing">' + avImg('Nobita') + '<div class="bub" style="padding:0"><span class="typing"><i></i><i></i><i></i></span></div></div>' +
+      msg('Nobita', 'm5').replace('class="msg seq"', 'class="msg seq" id="last-msg"');
+  }
+  renderChat();
+  if (HAS_IO && below(chat)) {
+    chat.classList.add('pre'); document.getElementById('unread-n').textContent = '0';
+    once(chat, function () {
+      var seq = Array.prototype.slice.call(chat.querySelectorAll('.seq')), lastMsg = document.getElementById('last-msg'), typing = document.getElementById('typing'), unreadN = document.getElementById('unread-n');
+      var step = RM ? 0 : 280;
+      seq.forEach(function (el, i) { el.style.transitionDelay = (i * step) + 'ms'; });
+      lastMsg.style.opacity = '0'; chat.classList.remove('pre');
+      setTimeout(function () { var s0 = performance.now(), dur = RM ? 0 : 900; (function tick(now) { var p = dur ? Math.max(0, Math.min(1, (now - s0) / dur)) : 1; unreadN.textContent = Math.round(53 * p); if (p < 1) requestAnimationFrame(tick); })(s0); }, 5 * step);
+      var tT = (seq.length - 1) * step;
+      setTimeout(function () { if (!RM) typing.classList.add('on'); }, tT);
+      setTimeout(function () { typing.classList.remove('on'); lastMsg.style.transitionDelay = '0ms'; lastMsg.style.opacity = ''; }, tT + (RM ? 0 : 1100));
+    }, { threshold: 0.4 });
+  }
+
+  /* ================= Dải ảnh ================= */
+  var photo = document.getElementById('photo');
+  once(photo, function () { photo.classList.add('in'); }, { threshold: 0.2 });
+
+  /* ================= 2. Bốn bước ================= */
+  function placeRow(name, meta, right, i, drink) {
+    return '<div class="place st" style="--i:' + i + '"><span class="place-ico"' + (drink ? ' style="background:#E6F6EE;color:#047857"' : '') + '><svg><use href="' + (drink ? '#i-coffee' : '#i-bowl') + '"/></svg></span><span style="min-width:0"><span class="place-name">' + name + '</span><span class="place-meta">' + meta + '</span></span>' + (right || '') + '</div>';
+  }
+  var by = function (w) { return '<span class="by">' + avImg(w) + fill(t('added'), { w: w }) + '</span>'; };
+  var voters = function (ids) { return '<span class="voters">' + ids.map(function (w, k) { return avImg(w).replace('class="av-img"', 'class="av-img" style="--i:' + k + '"'); }).join('') + '</span>'; };
+  function screenHTML(i) {
+    var a = t('area');
+    if (i === 0) return '<div class="search"><svg width="15" height="15"><use href="#i-search"/></svg><b class="typed" data-text="pizza"></b><span class="caret"></span></div>' +
+      placeRow("Pizza 4P's Thiso Mall Sala", t('food') + ' · ' + a.tdc, by('Nobita'), 2) + placeRow('Haidilao Giga Mall', t('food') + ' · ' + a.tdc, by('Xuka'), 3) +
+      placeRow('Dookki SC VivoCity', t('food') + ' · ' + a.q7, by('Xeko'), 4) + placeRow('Cà Phê Ciao', t('coffee') + ' · 74-76 Nguyễn Huệ', by('Doraemon'), 5, true);
+    if (i === 1) return placeRow("Pizza 4P's Thiso Mall Sala", t('food') + ' · ' + fill(t('wantN'), { v: 3 }), voters(['Nobita', 'Doraemon', 'Xeko']), 0) +
+      '<div class="voterow st" style="--i:1"><span class="vbtn yes"><svg width="14" height="14"><use href="#i-heart"/></svg>' + t('agree') + '</span><span class="vbtn">' + t('disagree') + '</span></div>' +
+      placeRow('Haidilao Giga Mall', t('food') + ' · ' + fill(t('wantN'), { v: 3 }), voters(['Nobita', 'Doraemon', 'Xuka']), 2) +
+      placeRow('Dookki SC VivoCity', t('food') + ' · ' + fill(t('wantN'), { v: 3 }), voters(['Doraemon', 'Xuka', 'Xeko']), 3) +
+      '<div class="lead st" style="--i:4"><span>' + t('voted') + '</span><span class="bar"><i></i></span><span class="num">4/4</span></div>';
+    if (i === 2) return '<div class="done-card"><div class="stamp"><svg><use href="#i-check"/></svg></div><div class="nm st" style="--i:2">Pizza 4P\'s Thiso Mall Sala</div><div class="mt st" style="--i:3">' + avImg('Nobita') + t('lockedBy') + '</div></div>' +
+      '<div class="lead st" style="--i:4"><span>' + t('farthestShort') + '</span><span class="bar"><i style="width:60%"></i></span><span class="num">60′</span></div>';
+    return '<div class="cal"><span class="h">18:00</span><div class="lane"><div class="ev food" style="top:2px;height:62px;--i:0"><b>Pizza 4P\'s Thiso Mall Sala</b>' + t('dinner') + ' · 18:00–19:30</div>' +
+      '<div class="ev open" style="top:79px;height:53px;--i:1"><b>' + t('coffee') + '</b>' + t('open') + ' · 19:45–21:00</div><div class="ev open" style="top:145px;height:40px;--i:2"><b>' + t('next') + '</b>21:15</div></div>' +
+      '<span class="h">19:00</span><span class="h">20:00</span><span class="h">21:00</span><span class="h">22:00</span><span class="h">23:00</span><span class="h"></span></div>' +
+      '<div class="export">' + t('exports').map(function (x, k) { return '<span class="st" style="--i:' + (k + 3) + '">' + x + '</span>'; }).join('') + '</div>';
+  }
+  function typeInto(root, quiet) { var el = root.querySelector('.typed'); if (!el) return; var s = el.dataset.text, k = 0; if (RM || quiet) { el.textContent = s; return; } (function next() { el.textContent = s.slice(0, ++k); if (k < s.length) setTimeout(next, 80); })(); }
+  var screen = document.getElementById('device-screen'), stepsEl = document.getElementById('device-steps');
+  var fsteps = Array.prototype.slice.call(document.querySelectorAll('.fstep')), current = 0, ignoreIOUntil = 0;
+  function pills(i) { return t('steps').map(function (n, k) { var cls = k < i ? 'done' : (k === i ? 'now' : ''); return '<button type="button" class="step-pill ' + cls + '" data-go="' + k + '" aria-pressed="' + (k === i) + '">' + (k === i ? (k + 1) + ' ' : '') + n + '</button>'; }).join(''); }
+  function fillInline(box, k, quiet) { box.dataset.ready = '1'; box.innerHTML = '<div class="app"><div class="app-bar"><span class="mark" aria-hidden="true">H</span><span class="app-title">' + t('roomTitle') + '</span><span class="steps"><span class="step-pill now">' + (k + 1) + ' ' + t('steps')[k] + '</span></span></div><div class="screen">' + screenHTML(k) + '</div></div>'; typeInto(box, quiet); }
+  function renderFlow(i, dir, quiet) { current = i; screen.innerHTML = '<div class="screen' + (quiet ? '' : dir < 0 ? ' back' : ' fwd') + '">' + screenHTML(i) + '</div>'; stepsEl.innerHTML = pills(i); fsteps.forEach(function (s, k) { s.classList.toggle('on', k === i); }); typeInto(screen, quiet); }
+  function show(i) { if (i !== current) renderFlow(i, i > current ? 1 : -1, false); }
+  stepsEl.addEventListener('click', function (e) { var b = e.target.closest('[data-go]'); if (!b) return; var k = +b.dataset.go; ignoreIOUntil = performance.now() + 1000; show(k); fsteps[k].scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'center' }); var nb = stepsEl.querySelector('[data-go="' + k + '"]'); if (nb) nb.focus({ preventScroll: true }); });
+  fsteps.forEach(function (s, k) { var box = document.createElement('div'); box.className = 'inline'; box.setAttribute('aria-hidden', 'true'); s.appendChild(box); once(box, function () { fillInline(box, k, false); }, { threshold: 0.2 }); });
+  renderFlow(0, 0, true);
+  if (HAS_IO) { var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting && window.innerWidth > 960 && performance.now() > ignoreIOUntil) show(+e.target.dataset.step); }); }, { rootMargin: '-45% 0px -45% 0px' }); fsteps.forEach(function (s) { io.observe(s); }); }
+
+  /* ================= 3. Hoà phiếu: bạn là người thứ năm ================= */
+  var you = null, mode = 'far', youArea = null, shown = { min: 60 };
+  var rowsEl = document.getElementById('rows'), frame = document.getElementById('sel-frame'), seg = document.getElementById('seg'), verdict = document.getElementById('verdict');
+  function hav(a, b) { var R = 6371, toR = Math.PI / 180, dLat = (b[1] - a[1]) * toR, dLng = (b[0] - a[0]) * toR; var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[1] * toR) * Math.cos(b[1] * toR) * Math.sin(dLng / 2) * Math.sin(dLng / 2); return 2 * R * Math.asin(Math.sqrt(x)); }
+  // Ước lượng (mock): chim bay × 1,3, ~20 km/h trung bình xe máy nội thành + 2′ dắt xe; đi + về
+  function trip(ll, p) { var km = hav(ll, p.ll) * 1.3; return { km: km * 2, min: Math.round(2 * (km / 20 * 60 + 2)) }; }
+  function evaluate() {
+    return PLACES.map(function (p) {
+      var y = you ? trip(you, p) : null;
+      var far = p.far, who = p.farWho;
+      if (y && y.min > far) { far = y.min; who = 'you'; }
+      return { p: p, y: y, far: far, who: who, total: p.km + (y ? y.km : 0) };
+    });
+  }
+  function pickOf(ev, m) {
+    var s = ev.slice().sort(m === 'sum' ? function (a, b) { return a.total - b.total; } : function (a, b) { return a.far - b.far || a.total - b.total; });
+    return s[0];
+  }
+  var whoName = function (w) { return w === 'you' ? t('you') : w; };
+  function renderBoard(animate) {
+    var ev = evaluate(), pick = pickOf(ev, mode), other = pickOf(ev, mode === 'far' ? 'sum' : 'far');
+    if (!rowsEl.querySelector('.row')) {
+      PLACES.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'row'; d.dataset.id = p.id;
+        d.innerHTML = '<div class="row-top"><span class="row-name">' + p.name + '</span><span class="row-km num"></span></div><div class="track"><div class="fill"></div><span class="who"></span></div>';
+        rowsEl.appendChild(d);
+      });
+    }
+    var MAXM = Math.max(110, Math.max.apply(null, ev.map(function (e) { return e.far; })) + 10);
+    ev.forEach(function (e) {
+      var r = rowsEl.querySelector('.row[data-id="' + e.p.id + '"]');
+      r.classList.toggle('sel', e.p.id === pick.p.id);
+      r.querySelector('.row-km').textContent = fill(t('total'), { k: dec(Math.round(e.total * 10) / 10) });
+      var w = e.far / MAXM * 100;
+      r.querySelector('.fill').style.width = w + '%';
+      var wh = r.querySelector('.who');
+      wh.className = 'who' + (e.who === 'you' ? ' isyou' : '');
+      wh.style.left = 'calc(' + w + '% - ' + (e.who === 'you' ? 5.6 : 6.4) + 'em)';
+      wh.innerHTML = avImg(e.who === 'you' ? 'Bạn' : e.who) + '<span class="num">' + e.far + '′</span>';
+    });
+    var sel = rowsEl.querySelector('.row.sel'); frame.style.height = sel.offsetHeight + 'px'; frame.style.transform = 'translateY(' + sel.offsetTop + 'px)';
+    // lời kết luận
+    var html;
+    if (!you && mode === 'far') html = '<p class="pick">' + t('vWaitPick') + '</p><p class="why-line">' + t('vWaitWhy') + '</p>';
+    else if (mode === 'far') {
+      var yMin = pick.y ? pick.y.min : 0;
+      html = '<p class="pick">' + fill(t('vFarPick'), { n: pick.p.name }) + '</p><p class="why-line">' + (pick.who === 'you' ? fill(t('vFarYou'), { m: pick.far }) : fill(t('vFarOther'), { w: whoName(pick.who), m: pick.far, y: yMin })) +
+        (other.p.id !== pick.p.id ? ' ' + fill(t('vDiff'), { n: other.p.name, w: whoName(other.who), m: other.far }) : '') + '</p>';
+    } else {
+      html = '<p class="pick">' + fill(t('vSumPick'), { n: pick.p.name }) + '</p><p class="why-line">' + fill(t('vSumWhy'), { k: dec(Math.round(pick.total * 10) / 10), w: whoName(pick.who), m: pick.far }) + '</p>';
+    }
+    if (verdict.dataset.key !== pick.p.id + mode + (you ? 1 : 0)) { verdict.innerHTML = html.replace(/class="pick"/, 'class="pick' + (animate ? ' swap' : '') + '"'); verdict.dataset.key = pick.p.id + mode + (you ? 1 : 0); }
+    else verdict.innerHTML = html;
+    document.getElementById('board-note').textContent = you ? t('noteEst') : '';
+    syncTieMap(ev, pick);
+  }
+  function moveKnob() { var b = seg.querySelector('[data-mode="' + mode + '"]'), k = seg.querySelector('.knob'); k.style.width = b.offsetWidth + 'px'; k.style.transform = 'translateX(' + b.offsetLeft + 'px)'; }
+  function setMode(m) { if (m === mode) return; mode = m; seg.dataset.mode = m; seg.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); }); moveKnob(); renderBoard(true); }
+  seg.addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
+  seg.addEventListener('keydown', function (e) { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); var m = e.key === 'ArrowLeft' ? 'sum' : 'far'; setMode(m); seg.querySelector('[data-mode="' + m + '"]').focus(); });
+
+  // Bản đồ lớn: vùng mờ cấp quận cho 4 bạn, ghim 3 quán, điểm của bạn kéo được + 3 đường thẳng tới quán
+  var tm = null, tiePins = {}, youMarker = null, midLabels = {};
+  function initTieMap() {
+    if (!hasML || tm) return;
+    tm = new maplibregl.Map({ container: 'tie-map', style: STYLE, center: [106.712, 10.79], zoom: 11.3, attributionControl: { compact: true }, cooperativeGestures: false, dragRotate: false, pitchWithRotate: false, fadeDuration: 0 });
+    tm.scrollZoom.disable();
+    tm.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    tm.on('load', function () {
+      tidyStyle(tm);
+      tm.fitBounds([[106.69, 10.715], [106.765, 10.86]], { padding: { top: 150, bottom: 70, left: 40, right: 40 }, duration: 0 });
+      tm.addSource('areas', { type: 'geojson', data: { type: 'FeatureCollection', features: CAST.map(function (c) { return { type: 'Feature', properties: { color: c.color }, geometry: { type: 'Point', coordinates: HOME[c.area] } }; }) } });
+      tm.addLayer({ id: 'areas', type: 'circle', source: 'areas', paint: { 'circle-color': ['get', 'color'], 'circle-opacity': 0.42, 'circle-blur': 0.6, 'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 10, 26, 12, 90, 14, 330] } });
+      tm.addSource('legs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      tm.addLayer({ id: 'legs', type: 'line', source: 'legs', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['case', ['get', 'sel'], '#FF6B4A', '#78716C'], 'line-width': ['case', ['get', 'sel'], 4, 2], 'line-dasharray': [2, 2], 'line-opacity': ['case', ['get', 'sel'], 1, 0.7] } });
+      CAST.forEach(function (c) {
+        var el = document.createElement('div'); el.className = 'fpin';
+        el.innerHTML = avImg(c.id) + '<span>' + c.id + ' · ' + t('riderArea')[c.area] + '</span>';
+        new maplibregl.Marker({ element: el }).setLngLat(HOME[c.area]).addTo(tm);
+      });
+      PLACES.forEach(function (p) { var el = pinEl(p); tiePins[p.id] = el; new maplibregl.Marker({ element: el }).setLngLat(p.ll).addTo(tm); });
+      PLACES.forEach(function (p) { var el = document.createElement('div'); el.className = 'mlab'; midLabels[p.id] = { el: el, m: new maplibregl.Marker({ element: el }) }; });
+      tm.on('click', function (e) { setYou([e.lngLat.lng, e.lngLat.lat], null, true); });
+      renderBoard(false);
+    });
+  }
+  function syncTieMap(ev, pick) {
+    if (!tm || !tm.getSource('legs')) return;
+    PLACES.forEach(function (p) { var el = tiePins[p.id]; if (el) el.classList.toggle('sel', p.id === pick.p.id); });
+    tm.getSource('legs').setData({ type: 'FeatureCollection', features: you ? PLACES.map(function (p) { return { type: 'Feature', properties: { sel: p.id === pick.p.id }, geometry: { type: 'LineString', coordinates: [you, p.ll] } }; }) : [] });
+    ev.forEach(function (e) {
+      var ml = midLabels[e.p.id]; if (!ml) return;
+      if (!you) { ml.m.remove(); return; }
+      ml.el.classList.toggle('sel', e.p.id === pick.p.id);
+      ml.el.textContent = e.y.min + '′';
+      ml.m.setLngLat([(you[0] + e.p.ll[0]) / 2, (you[1] + e.p.ll[1]) / 2]).addTo(tm);
+    });
+  }
+  var raf = 0;
+  function setYou(ll, area, drop) {
+    you = ll; youArea = area;
+    document.querySelectorAll('#chips button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.area === area)); });
+    if (tm) {
+      if (!youMarker) {
+        var el = document.createElement('div'); el.className = 'you';
+        el.innerHTML = avImg('Bạn') + '<span>' + t('you') + '</span>';
+        youMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(ll).addTo(tm);
+        youMarker.on('drag', function () { var p = youMarker.getLngLat(); you = [p.lng, p.lat]; youArea = null; if (!raf) raf = requestAnimationFrame(function () { raf = 0; document.querySelectorAll('#chips button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); }); renderBoard(false); }); });
+        youMarker.on('dragend', function () { renderBoard(true); play('tick'); });
+      } else youMarker.setLngLat(ll);
+      if (drop && !RM) { var y = youMarker.getElement(); y.classList.remove('drop'); void y.offsetWidth; y.classList.add('drop'); }
+    }
+    renderBoard(true); play('tick');
+  }
+  function renderChips() {
+    var D = t('districts');
+    document.getElementById('chips').innerHTML = Object.keys(DIST).map(function (k) { return '<button type="button" data-area="' + k + '" aria-pressed="' + (youArea === k) + '">' + D[k] + '</button>'; }).join('');
+  }
+  document.getElementById('chips').addEventListener('click', function (e) { var b = e.target.closest('[data-area]'); if (b) setYou(DIST[b.dataset.area], b.dataset.area, true); });
+  document.getElementById('ask-av').innerHTML = avImg('Bạn');
+  function renderCast(id) { document.getElementById(id).innerHTML = CAST.map(function (c) { return '<span>' + avImg(c.id) + c.id + ' · ' + t('riderArea')[c.area] + '</span>'; }).join(''); }
+  renderChips(); renderCast('cast-tie'); renderCast('cast-end');
+  var tieSec = document.querySelector('.tie-sec');
+  once(tieSec, initTieMap, { rootMargin: '600px 0px' });
+  renderBoard(false);
+  window.addEventListener('resize', function () { moveKnob(); var sel = rowsEl.querySelector('.row.sel'); if (sel) { frame.style.height = sel.offsetHeight + 'px'; frame.style.transform = 'translateY(' + sel.offsetTop + 'px)'; } });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moveKnob(); placeRiders(false); renderBoard(false); });
+  moveKnob();
+
+  /* ================= 4. Số đo ================= */
+  var charts = document.getElementById('charts');
+  function bars(id, data, max) { document.getElementById(id).innerHTML = data.map(function (d, i) { var w = d.v / max * 100, inside = w > 55; return '<div class="bar-r' + (d.us ? ' us' : '') + '" style="--i:' + i + '"><span class="lab">' + d.label + '</span><span class="tr"><i style="width:' + w + '%"></i><em style="' + (inside ? 'right:' + (100 - w) + '%;margin-right:10px' : 'left:calc(' + w + '% + 10px)') + '">' + dec(d.v) + '%</em></span></div>'; }).join(''); }
+  function renderNumbers() {
+    var A = t('algos');
+    bars('chart-sum', [{ label: A.greedy, v: 44.7 }, { label: A.weighted, v: 20.1 }, { label: A.life, v: 13.9 }, { label: 'Hangoutplanner', v: 1.13, us: true }], 50);
+    bars('chart-far', [{ label: A.sum, v: 35.7 }, { label: 'Hangoutplanner', v: 9.37, us: true }], 50);
+    charts.querySelectorAll('.count').forEach(function (el) { el.textContent = (el.dataset.prefix || '') + dec(+el.dataset.to, +el.dataset.dec); });
+  }
+  function renderTable() {
+    var A = t('algos'), R = t('r'), y = t('yes'), n = t('no'), pt = t('part');
+    document.getElementById('tbody').innerHTML = [['random', n, n, n], ['greedy', y, n, pt], ['weighted', y, n, pt], ['life', y, pt, pt], ['sum', y, y, n], ['us', y, y, y]].map(function (r) { return '<tr' + (r[0] === 'us' ? ' class="us"' : '') + '><td>' + A[r[0]] + '</td><td class="c">' + r[1] + '</td><td class="c">' + r[2] + '</td><td class="c">' + r[3] + '</td><td class="num">' + R[r[0]] + '</td></tr>'; }).join('');
+  }
+  renderNumbers(); renderTable();
+  if (HAS_IO && below(charts)) {
+    charts.classList.add('pre');
+    charts.querySelectorAll('.count').forEach(function (el) { el.textContent = (el.dataset.prefix || '') + dec(0, +el.dataset.dec); });
+    once(charts, function () { charts.classList.remove('pre'); charts.querySelectorAll('.count').forEach(function (el) { var to = +el.dataset.to, d = +el.dataset.dec, pre = el.dataset.prefix || ''; tween(0, to, 1000, function (v) { el.textContent = pre + dec(v, d); }); }); }, { threshold: 0.25 });
+  }
+
+  /* ================= 5. QR ================= */
+  if (typeof QRCode !== 'undefined') new QRCode(document.getElementById('qrcode'), { text: 'https://didau-omega.vercel.app/', width: 400, height: 400, colorDark: '#1C1917', colorLight: '#FAFAF9', correctLevel: QRCode.CorrectLevel.M });
+
+  /* ================= Đổi ngôn ngữ ================= */
+  function setLang(l) {
+    lang = l; try { localStorage.setItem('hp-landing-lang', l); } catch (e) {}
+    applyStatic(); room.kind = ''; renderRoom(); renderPresence(); renderRiders(); ridersEl.classList.add('arrived');
+    renderChat(); renderFlow(current, 0, true);
+    fsteps.forEach(function (s, k) { var box = s.querySelector('.inline'); if (box && box.dataset.ready) fillInline(box, k, true); });
+    renderChips(); renderCast('cast-tie'); renderCast('cast-end');
+    if (youMarker) youMarker.getElement().querySelector('span').textContent = t('you');
+    moveKnob(); renderBoard(false); renderNumbers(); renderTable();
+  }
+  document.querySelectorAll('[data-set-lang]').forEach(function (b) { b.addEventListener('click', function () { setLang(b.dataset.setLang); }); });
+  applyStatic();
+  if (lang !== 'vi') setLang(lang);
+  syncTop();
+})();
+</script>
+</body>
+</html>

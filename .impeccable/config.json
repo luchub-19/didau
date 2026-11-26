@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "docs/phase11/comps/landing-dem.html"
+        ],
+        "createdAt": "2026-11-26T09:27:51.514Z",
+        "reason": "Claude: detector measures against #ffffff, but the page ground is body --night #16111C (moon text ~15:1, moon-3 ~6:1)"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/phase11/comps/landing-dem.html"
+        ],
+        "createdAt": "2026-11-26T09:29:17.595Z",
+        "reason": "Claude: flagged full-width colored bands (.tie-sec, .lamp-sec) inset their text via .wrap gutter >=16px and 96-128px block padding; verified in 390/1440 captures"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/phase11/comps/landing-v3.html"
+        ],
+        "createdAt": "2026-11-26T10:56:54.258Z",
+        "reason": "Claude: flagged full-width colored band (.tie-sec/.lamp-sec) insets text via .wrap gutter >=16px and 96-128px block padding; same finding verified false on v2 captures"
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "docs/phase11/comps/landing-v3.html"
+        ],
+        "createdAt": "2026-11-26T10:56:54.265Z",
+        "reason": "Claude: the dots are the chat typing indicator, shown once for ~1.1s before the last message arrives, then display:none; not a persistent liveness dot"
+      }
+    ]
+  }
+}

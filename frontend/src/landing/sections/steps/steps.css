@@ -1,0 +1,600 @@
+/* Phần 4 "Một phòng, bốn bước" (T-127). Cột chữ + khung app dính (>= 961px) / khung riêng từng bước (< 961px).
+   Khung app luôn SÁNG dù landing tối (ép token như hero-app). Thời lượng theo PLAN §4.5: đổi màn 360 ms ± 14px, so le 90 ms. */
+
+.fs-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 64px;
+  margin-top: 72px;
+}
+
+.fs-flow[data-wide='false'] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-top: 40px;
+}
+
+.fs-steps {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Cột chữ ---------- */
+.fs-step {
+  min-height: 56vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: 24px;
+}
+
+.fs-step:first-child {
+  min-height: 44vh;
+  justify-content: flex-start;
+}
+
+.fs-flow[data-wide='false'] .fs-step,
+.fs-flow[data-wide='false'] .fs-step:first-child {
+  min-height: 0;
+  padding-block: 28px;
+}
+
+.fs-step-n {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 800 18px/1 var(--stage-font-display);
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--night-moon-3));
+  transition: color var(--landing-t-bar) var(--landing-ease);
+}
+
+.fs-step-n::after {
+  content: '';
+  height: 1px;
+  width: 48px;
+  background: rgb(var(--night-line));
+  transform-origin: left;
+  transition:
+    transform var(--t-sheet) var(--landing-ease),
+    background-color var(--landing-t-bar) var(--landing-ease);
+}
+
+.fs-step h3 {
+  margin-top: 14px;
+  font: 800 clamp(28px, 3.2vw, 40px) / 1.2 var(--stage-font-display);
+  letter-spacing: -0.02em;
+  color: rgb(var(--night-moon-3));
+  transition: color var(--landing-t-bar) var(--landing-ease);
+}
+
+.fs-step p {
+  margin-top: 12px;
+  max-width: 26em;
+  font-size: 17px;
+  color: rgb(var(--night-moon-3));
+  transition: color var(--landing-t-bar) var(--landing-ease);
+}
+
+/* Bước đang hiện (desktop) hoặc mọi bước (mobile, không có khung dính để chỉ bước) */
+.fs-step[data-on='true'] .fs-step-n {
+  color: rgb(var(--lamp));
+}
+.fs-step[data-on='true'] .fs-step-n::after {
+  transform: scaleX(2);
+  background: rgb(var(--lamp));
+}
+.fs-step[data-on='true'] h3 {
+  color: rgb(var(--night-moon));
+}
+.fs-step[data-on='true'] p {
+  color: rgb(var(--night-moon-2));
+}
+
+/* ---------- Khung app (luôn sáng) ---------- */
+.fs-device {
+  position: sticky;
+  top: 14vh;
+  align-self: start;
+}
+
+.fs-app {
+  color-scheme: light;
+  --color-bg: 250 250 249;
+  --color-surface: 255 255 255;
+  --color-surface-2: 245 245 244;
+  --color-line: 231 229 228;
+  --color-ink: 28 25 23;
+  --color-ink-2: 87 83 78;
+  --color-ink-3: 120 113 108;
+  --color-accent: 255 107 74;
+  --color-accent-hover: 242 92 60;
+  --color-accent-soft: 255 241 236;
+  --color-accent-text: 199 62 38;
+  --color-success: 4 120 87;
+  --color-success-soft: 236 253 245;
+  --color-cat-food: 194 65 12;
+  --color-cat-food-soft: 255 247 237;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-ink));
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow:
+    0 40px 80px -24px rgb(0 0 0 / 0.65),
+    0 12px 24px -12px rgb(0 0 0 / 0.5);
+}
+
+.fs-device-app {
+  min-height: 460px;
+}
+
+.fs-app :focus-visible {
+  outline-color: rgb(var(--color-accent-text));
+}
+
+.fs-app-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgb(var(--color-line));
+  background: rgb(var(--color-bg));
+}
+
+.fs-app-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.fs-pills {
+  margin-left: auto;
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.fs-pill {
+  min-height: 30px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: rgb(var(--color-ink-3));
+  transition:
+    background-color var(--landing-t-bar) var(--landing-ease),
+    color var(--landing-t-bar) var(--landing-ease);
+}
+
+button.fs-pill {
+  cursor: pointer;
+}
+
+.fs-pill[data-state='done'] {
+  color: rgb(var(--color-success));
+}
+
+.fs-pill[data-state='now'] {
+  background: rgb(var(--color-accent-soft));
+  color: rgb(var(--color-accent-text));
+}
+
+@media (hover: hover) {
+  button.fs-pill:not([data-state='now']):hover {
+    background: rgb(var(--color-surface-2));
+    color: rgb(var(--color-ink));
+  }
+}
+
+/* Khung riêng của mỗi bước ở màn hẹp */
+.fs-inline {
+  margin-top: 22px;
+  max-width: 440px;
+  min-height: 240px;
+}
+
+/* Chiều cao khung đã dựng (đo ở 360-430px) để dựng khi cuộn tới không đẩy chữ bên dưới */
+.fs-inline[data-step='0'] {
+  min-height: 370px;
+}
+.fs-inline[data-step='1'] {
+  min-height: 320px;
+}
+.fs-inline[data-step='2'] {
+  min-height: 295px;
+}
+.fs-inline[data-step='3'] {
+  min-height: 420px;
+}
+
+/* ---------- Màn ---------- */
+.fs-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.fs-screen[data-dir='1'] {
+  animation: fs-fwd var(--t-sheet) var(--landing-ease);
+}
+
+.fs-screen[data-dir='-1'] {
+  animation: fs-back var(--t-sheet) var(--landing-ease);
+}
+
+@keyframes fs-fwd {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fs-back {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Phần tử so le 90 ms trong màn (--i do component đặt) */
+.fs-st {
+  animation: landing-rise 460ms var(--landing-ease) both;
+  animation-delay: calc(var(--i, 0) * var(--landing-stagger) + 120ms);
+}
+
+.fs-av {
+  flex: none;
+  border-radius: 50%;
+  background: #fff;
+  display: block;
+}
+
+.fs-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid rgb(var(--color-line));
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  padding: 10px 12px;
+  color: rgb(var(--color-ink-3));
+}
+
+.fs-typed {
+  font-weight: 500;
+  color: rgb(var(--color-ink));
+}
+
+.fs-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 15px;
+  margin-left: -6px;
+  background: rgb(var(--color-accent-text));
+}
+
+.fs-place {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid rgb(var(--color-line));
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  padding: 7px 8px;
+}
+
+.fs-place-ico {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgb(var(--color-cat-food-soft));
+  color: rgb(var(--color-cat-food));
+}
+
+.fs-place-ico[data-drink='true'] {
+  background: rgb(var(--color-success-soft));
+  color: rgb(var(--color-success));
+}
+
+.fs-place-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.fs-place-meta {
+  display: block;
+  font-size: 11px;
+  color: rgb(var(--color-ink-3));
+}
+
+.fs-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgb(var(--color-ink-3));
+}
+
+.fs-voters {
+  display: flex;
+}
+
+.fs-voters .fs-av {
+  margin-left: -5px;
+  border: 2px solid #fff;
+  animation: fs-pop 380ms var(--landing-ease) both;
+  animation-delay: calc(var(--i, 0) * 110ms + 400ms);
+}
+
+@keyframes fs-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fs-voterow {
+  display: flex;
+  gap: 6px;
+}
+
+.fs-vbtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 1px solid rgb(var(--color-line));
+  border-radius: 9999px;
+  background: rgb(var(--color-surface));
+  font-weight: 600;
+  font-size: 12px;
+  color: rgb(var(--color-ink-2));
+}
+
+.fs-vbtn[data-yes='true'] {
+  border-color: rgb(var(--color-accent-text) / 0.25);
+  background: rgb(var(--color-accent-soft));
+  color: rgb(var(--color-accent-text));
+}
+
+.fs-lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgb(var(--color-ink-2));
+}
+
+.fs-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(var(--color-surface-2));
+  overflow: hidden;
+}
+
+.fs-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(var(--color-accent));
+  transform-origin: left;
+  animation: fs-grow 900ms 400ms var(--landing-ease) both;
+}
+
+@keyframes fs-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.fs-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Màn 3: chốt */
+.fs-done {
+  border-radius: 16px;
+  background: rgb(var(--color-accent-soft));
+  padding: 22px;
+  text-align: center;
+}
+
+.fs-stamp {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-ink));
+  animation: fs-stamp 620ms var(--landing-ease) both;
+}
+
+@keyframes fs-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.6) rotate(-12deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(0);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.fs-done-name {
+  margin-top: 10px;
+  font: 800 26px/1.2 var(--stage-font-display);
+  letter-spacing: -0.02em;
+  animation: landing-rise 500ms var(--landing-ease) both;
+  animation-delay: 240ms;
+}
+
+.fs-done-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgb(var(--color-ink-2));
+  animation: landing-rise 500ms var(--landing-ease) both;
+  animation-delay: 300ms;
+}
+
+/* Màn 4: lịch + xuất */
+.fs-cal {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0 10px;
+}
+
+.fs-hour {
+  height: 44px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--color-ink-3));
+}
+
+.fs-lane {
+  position: relative;
+  grid-row: 1 / span 7;
+  grid-column: 2;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(var(--color-line)) 0 1px,
+    transparent 1px 44px
+  );
+}
+
+.fs-ev {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 12px;
+  animation: fs-slide 520ms var(--landing-ease) both;
+  animation-delay: calc(var(--i, 0) * 110ms + 160ms);
+}
+
+.fs-ev b {
+  display: block;
+  font-size: 12.5px;
+}
+
+.fs-ev[data-kind='food'] {
+  background: rgb(var(--color-cat-food-soft));
+  color: #7c2d12;
+  border: 1px solid #fbd3be;
+}
+
+.fs-ev[data-kind='open'] {
+  background: repeating-linear-gradient(
+    135deg,
+    rgb(var(--color-surface-2)) 0 6px,
+    rgb(var(--color-surface)) 6px 12px
+  );
+  /* ink-2: ink-3 trên nền sọc chỉ đạt 4,36:1 (T-130) */
+  color: rgb(var(--color-ink-2));
+  border: 1px dashed rgb(var(--color-line));
+}
+
+@keyframes fs-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fs-export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fs-export span {
+  border-radius: 9999px;
+  background: rgb(var(--color-surface-2));
+  padding: 5px 11px;
+  font-weight: 600;
+  font-size: 11.5px;
+  color: rgb(var(--color-ink-2));
+}
+
+/* ---------- Mức static / giảm chuyển động: chỉ đổi màu, không đổi chỗ ---------- */
+.landing[data-tier='static'] .fs-screen,
+.landing[data-tier='static'] .fs-st,
+.landing[data-tier='static'] .fs-voters .fs-av,
+.landing[data-tier='static'] .fs-bar i,
+.landing[data-tier='static'] .fs-stamp,
+.landing[data-tier='static'] .fs-done-name,
+.landing[data-tier='static'] .fs-done-meta,
+.landing[data-tier='static'] .fs-ev {
+  animation: none;
+}
+
+.landing[data-tier='static'] .fs-step-n::after {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-screen,
+  .fs-st,
+  .fs-voters .fs-av,
+  .fs-bar i,
+  .fs-stamp,
+  .fs-done-name,
+  .fs-done-meta,
+  .fs-ev {
+    animation: none;
+  }
+}

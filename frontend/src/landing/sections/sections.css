@@ -1,0 +1,543 @@
+/* Phần 2–3 của landing (T-126): nhóm chat rối + dải ảnh Bùi Viện. Màu chỉ từ token --night-*; thời lượng theo PLAN §4.5. */
+
+/* ---------- Nhóm chat ---------- */
+.chat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.chat {
+  background: rgb(var(--night-2));
+  border: 1px solid rgb(var(--night-line));
+  border-radius: 22px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 30rem;
+  justify-self: end;
+  width: 100%;
+}
+
+.chat-seq {
+  transition:
+    opacity 420ms var(--landing-ease),
+    transform 420ms var(--landing-ease);
+}
+
+.chat[data-state='waiting'] .chat-seq {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.chat-day {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--night-moon-3));
+  padding: 6px 0;
+}
+
+.chat-msg {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.chat-av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  display: block;
+}
+
+.chat-bub {
+  background: rgb(var(--night-3));
+  border-radius: 16px 16px 16px 4px;
+  padding: 9px 13px;
+  max-width: 22rem;
+  justify-self: start;
+}
+
+.chat-who {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--night-moon-3));
+}
+
+.chat-txt {
+  font-size: 15px;
+  color: rgb(var(--night-moon));
+}
+
+/* Người im lặng (Xeko): mờ avatar, bong bóng chỉ còn khung viền. Không dùng opacity cho chữ — opacity 0,55 kéo chữ 12px
+   xuống 2,39:1 (axe, T-130); giữ chữ đủ 4,5:1 mà vẫn "nhạt hơn" nhờ nền tối hơn + viền. */
+.chat-msg.is-dim .chat-av {
+  opacity: 0.55;
+}
+
+.chat-msg.is-dim .chat-bub {
+  background: rgb(var(--night-2));
+  box-shadow: inset 0 0 0 1px rgb(var(--night-line));
+}
+
+.chat-unread {
+  align-self: center;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--lamp));
+  background: rgb(var(--lamp) / 0.1);
+  border-radius: 9999px;
+  padding: 6px 14px;
+}
+
+/* Chỗ tin chốt: giữ chiều cao cho hàng "đang gõ" đè lên (không chèn/gỡ hàng → không dịch bố cục) */
+.chat-last {
+  position: relative;
+}
+
+.chat-typing-row {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+}
+
+/* 3 chấm "đang gõ": chỉ tồn tại ≤ 1,1 s trong DOM (ChatStory), không lặp vô hạn */
+.chat-typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 13px 14px;
+}
+
+.chat-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgb(var(--night-moon-3));
+  animation: chat-blink 900ms ease-in-out infinite;
+}
+
+.chat-typing i:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.chat-typing i:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes chat-blink {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ---------- Dải ảnh ---------- */
+.landing-photo {
+  position: relative;
+  height: min(72vh, 640px);
+  min-height: 380px;
+  overflow: hidden;
+  background: rgb(var(--night-2));
+}
+
+.landing-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 60%;
+}
+
+/* Zoom 1,06 → 1 khi phần vào 20% màn hình, một lần (đã ở trong màn đầu / static = đứng yên ở 1) */
+.landing-photo[data-zoom='waiting'] img {
+  transform: scale(1.06);
+}
+
+.landing-photo[data-zoom='entered'] img {
+  animation: landing-photo-settle 1600ms var(--landing-ease) both;
+}
+
+@keyframes landing-photo-settle {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Phủ tối trên/dưới hoà vào nền; đáy đặc để dòng ghi công đạt ≥ 4,5:1 */
+.landing-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--night)) 0%,
+    rgb(var(--night) / 0.25) 22%,
+    rgb(var(--night) / 0.25) 55%,
+    rgb(var(--night) / 0.9) 88%,
+    rgb(var(--night)) 100%
+  );
+  pointer-events: none;
+}
+
+.landing-photo-cap,
+.landing-photo-credit {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+}
+
+.landing-photo-cap {
+  bottom: 56px;
+}
+
+.landing-photo-cap p {
+  font-family: var(--stage-font-display);
+  font-weight: 800;
+  font-size: clamp(28px, 4vw, 52px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  max-width: 16em;
+  text-wrap: balance;
+  text-shadow: 0 2px 24px rgb(0 0 0 / 0.6);
+}
+
+.landing-photo-credit {
+  bottom: 14px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.landing-photo-credit a {
+  color: rgb(var(--night-moon-2));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.landing-photo-credit a:hover {
+  color: rgb(var(--night-moon));
+}
+
+@media (max-width: 960px) {
+  .chat-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .chat {
+    justify-self: start;
+  }
+  .landing-photo-credit {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-seq {
+    transition: opacity 1ms;
+  }
+  .chat[data-state='waiting'] .chat-seq {
+    transform: none;
+  }
+  .landing-photo[data-zoom='waiting'] img {
+    transform: none;
+  }
+  .landing-photo[data-zoom='entered'] img {
+    animation: none;
+  }
+}
+
+/* ---------- Phần 6: số đo (dải vàng đèn đường, T-129) ---------- */
+.num-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 56px;
+  margin-top: 64px;
+}
+
+.num-big {
+  font-family: var(--stage-font-display);
+  font-weight: 800;
+  font-size: clamp(56px, 8vw, 112px);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.num-h3 {
+  margin-top: 14px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.num-note {
+  margin-top: 4px;
+  font-size: 14px;
+  color: rgb(var(--lamp-ink-2));
+}
+
+.num-bars {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.num-bar {
+  display: grid;
+  grid-template-columns: 11em minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.num-bar-lab {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.num-bar.is-us .num-bar-lab {
+  font-weight: 700;
+}
+
+.num-bar-tr {
+  position: relative;
+  height: 34px;
+}
+
+.num-bar-tr i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 3px;
+  border-radius: 6px;
+  background: rgb(var(--lamp-ink) / 0.22);
+  transform-origin: left;
+  transition: transform 1000ms var(--landing-ease);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+
+.num-bar.is-us .num-bar-tr i {
+  background: rgb(var(--lamp-ink));
+}
+
+.num-bar-tr em {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: opacity 400ms var(--landing-ease);
+  transition-delay: calc(var(--i, 0) * 90ms + 600ms);
+}
+
+/* Thanh trong của người dùng là mực đậm → nhãn trong thanh phải sáng; thanh xám nhạt thì nhãn giữ mực */
+.num-bar.is-us .num-bar-tr em[style*='right'] {
+  color: rgb(var(--lamp));
+}
+
+.num-charts[data-state='waiting'] .num-bar-tr i {
+  transform: scaleX(0);
+}
+
+.num-charts[data-state='waiting'] .num-bar-tr em {
+  opacity: 0;
+}
+
+.num-toggle {
+  margin-top: 56px;
+}
+
+.num-toggle summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--lamp-ink) / 0.35);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--t-hover) var(--landing-ease);
+}
+
+.num-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+.num-toggle summary svg {
+  transition: transform var(--landing-t-bar) var(--landing-ease);
+}
+
+.num-toggle[open] summary svg {
+  transform: rotate(180deg);
+}
+
+@media (hover: hover) {
+  .num-toggle summary:hover {
+    background: rgb(var(--lamp-ink) / 0.07);
+  }
+}
+
+/* Bảng cuộn ngang trong khung riêng: trang không tràn ngang ở 360px */
+.num-tbl-wrap {
+  overflow-x: auto;
+  margin-top: 20px;
+  max-width: 100%;
+}
+
+.num-toggle[open] .num-tbl-wrap {
+  animation: landing-rise 420ms var(--landing-ease);
+}
+
+.num-tbl {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  font-size: 14.5px;
+}
+
+.num-tbl th,
+.num-tbl td {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgb(var(--lamp-ink) / 0.18);
+}
+
+.num-tbl thead th {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--lamp-ink-2));
+}
+
+.num-tbl tbody th {
+  font-weight: 500;
+}
+
+.num-tbl td.c {
+  text-align: center;
+}
+
+.num-tbl tr.is-us th,
+.num-tbl tr.is-us td {
+  font-weight: 700;
+  background: rgb(var(--lamp-ink) / 0.07);
+}
+
+.num-src {
+  margin-top: 14px;
+  font-size: 13px;
+  color: rgb(var(--lamp-ink-2));
+}
+
+/* ---------- Phần 7: kết + QR ---------- */
+.end-sec {
+  padding-block: 144px 112px;
+}
+
+.end-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: center;
+}
+
+.end-h2 {
+  font-family: var(--stage-font-display);
+  font-weight: 800;
+  font-size: clamp(44px, 7vw, 96px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  max-width: 12em;
+  text-wrap: balance;
+  scroll-margin-top: calc(var(--landing-top-h) + 24px);
+}
+
+.end-cast {
+  margin-top: 28px;
+  display: flex;
+}
+
+.end-cast img {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 3px rgb(var(--night));
+}
+
+.end-cast img + img {
+  margin-left: -8px;
+}
+
+.end-qr {
+  width: 236px;
+  padding: 18px;
+  border-radius: 20px;
+  text-align: center;
+  background: #fafaf9;
+  color: #1c1917;
+  box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.6);
+}
+
+.end-qr img {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+  image-rendering: pixelated;
+}
+
+.end-qr strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.end-qr small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #57534e;
+  word-break: break-all;
+}
+
+@media (max-width: 960px) {
+  .num-charts,
+  .end-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .end-qr {
+    display: none;
+  }
+
+  .end-sec {
+    padding-block: 104px 88px;
+  }
+}
+
+@media (max-width: 520px) {
+  .num-bar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

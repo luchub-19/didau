@@ -236,9 +236,9 @@ describe('T-59: mức chuyển động → thành phần hero', () => {
     expect(html).toContain('The whole night, in order, no detours');
   });
 
-  it('HomePage dùng hero, có khẩu hiệu và 2 CTA', () => {
+  it('HomePage (T-124: landing gđ11 thay hero) có tiêu đề và 2 CTA', () => {
     const html = renderToStaticMarkup(<HomePage onNavigateToRoom={noop} />);
-    expect(html).toContain('Đi đâu? Rồi đi đâu nữa?');
+    expect(html).toContain('Tối nay đi đâu?');
     expect(html).toContain('Tạo phòng');
     expect(html).toContain('Nhập mã');
   });

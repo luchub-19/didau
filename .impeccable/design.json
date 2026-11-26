@@ -243,6 +243,54 @@
       "accent-soft": {
         "role": "primary",
         "darkValue": "#3A1F18"
+      },
+      "night": {
+        "role": "stage",
+        "displayName": "Đêm Sài Gòn",
+        "canonical": "oklch(18.9% 0.023 305.1)",
+        "tonalRamp": [
+          "oklch(15% 0.010 305)",
+          "oklch(26% 0.014 305)",
+          "oklch(38% 0.018 305)",
+          "oklch(49% 0.021 305)",
+          "oklch(61% 0.021 305)",
+          "oklch(72% 0.018 305)",
+          "oklch(84% 0.014 305)",
+          "oklch(95% 0.010 305)"
+        ],
+        "darkValue": "#16111C"
+      },
+      "night-moon": {
+        "role": "stage",
+        "displayName": "Trăng Thức",
+        "canonical": "oklch(94.7% 0.016 73.7)",
+        "tonalRamp": [
+          "oklch(15% 0.007 74)",
+          "oklch(26% 0.010 74)",
+          "oklch(38% 0.012 74)",
+          "oklch(49% 0.015 74)",
+          "oklch(61% 0.015 74)",
+          "oklch(72% 0.012 74)",
+          "oklch(84% 0.010 74)",
+          "oklch(95% 0.007 74)"
+        ],
+        "darkValue": "#F4ECE2"
+      },
+      "lamp": {
+        "role": "stage",
+        "displayName": "Đèn Natri",
+        "canonical": "oklch(81.0% 0.144 79.3)",
+        "tonalRamp": [
+          "oklch(15% 0.065 79)",
+          "oklch(26% 0.088 79)",
+          "oklch(38% 0.110 79)",
+          "oklch(49% 0.133 79)",
+          "oklch(61% 0.133 79)",
+          "oklch(72% 0.110 79)",
+          "oklch(84% 0.088 79)",
+          "oklch(95% 0.065 79)"
+        ],
+        "darkValue": "#F2B544"
       }
     },
     "typographyMeta": {
@@ -365,6 +413,16 @@
         "name": "t-reveal",
         "value": "1800ms",
         "purpose": "Stage: reveal chốt quán."
+      },
+      {
+        "name": "landing-t-rise",
+        "value": "760ms",
+        "purpose": "Landing: chữ hero lên theo dòng, một lần (--landing-t-rise)."
+      },
+      {
+        "name": "landing-stagger",
+        "value": "90ms",
+        "purpose": "Landing: so le giữa các phần tử cùng nhóm (--landing-stagger)."
       }
     ],
     "breakpoints": [
@@ -458,7 +516,7 @@
   ],
   "narrative": {
     "northStar": "Người sắp xếp kín tiếng",
-    "overview": "Hangoutplanner là người bạn trong nhóm lo hết việc sắp xếp nhưng không bao giờ nói nhiều. Trong phòng, giao diện lùi về sau: nền xám ấm phẳng lặng, một họ chữ, bề mặt tách nhau bằng nấc màu thay vì đường kẻ hay bóng. Mỗi giai đoạn chỉ đưa ra đúng việc cần làm lúc đó với **một** nút coral. Phần còn lại (\"Vì sao?\", chi tiết quán, lịch đầy đủ) nằm sau một thao tác, sẵn đó khi người dùng hỏi tới, không bày sẵn ra màn hình.\n\nHệ chia làm hai vùng có chủ đích. **Operate** (mọi thứ lặp lại trong phòng: danh sách, bản đồ, lịch, form, sheet) phẳng, yên, quen tay, dày vừa đủ để quét nhanh trên điện thoại 360px. **Stage** (trang chủ bản đồ 3D, quẹt phiếu, reveal chốt quán, thẻ chuyến đi) là con phố nắng bên ngoài: giấy kem \"Sài Gòn nắng\", chữ display Bricolage Grotesque, một luồng ánh sáng chiều và bóng dài một hướng. Người sắp xếp chỉ lên tiếng ở vài khoảnh khắc nhóm thật sự nhớ. Xong là trở lại yên lặng.\n\nCái vui đến từ coral, chữ to rõ, lời văn tự nhiên và vài khoảnh khắc có chủ đích. Nó không đến từ emoji, gradient hay hiệu ứng rải khắp nơi. Bị loại rõ ràng: glass/blur trang trí, chữ gradient, eyebrow viết hoa giãn chữ, thẻ icon xếp hàng ba, emoji làm icon, màu xám lạnh trộn với xám ấm.",
+    "overview": "Hangoutplanner là người bạn trong nhóm lo hết việc sắp xếp nhưng không bao giờ nói nhiều. Trong phòng, giao diện lùi về sau: nền xám ấm phẳng lặng, một họ chữ, bề mặt tách nhau bằng nấc màu thay vì đường kẻ hay bóng. Mỗi giai đoạn chỉ đưa ra đúng việc cần làm lúc đó với **một** nút coral. Phần còn lại (\"Vì sao?\", chi tiết quán, lịch đầy đủ) nằm sau một thao tác, sẵn đó khi người dùng hỏi tới, không bày sẵn ra màn hình.\n\nHệ chia làm hai vùng có chủ đích. **Operate** (mọi thứ lặp lại trong phòng: danh sách, bản đồ, lịch, form, sheet) phẳng, yên, quen tay, dày vừa đủ để quét nhanh trên điện thoại 360px. **Stage** (trang chủ bản đồ 3D, quẹt phiếu, reveal chốt quán, thẻ chuyến đi) là con phố nắng bên ngoài: giấy kem \"Sài Gòn nắng\", chữ display Bricolage Grotesque, một luồng ánh sáng chiều và bóng dài một hướng. Người sắp xếp chỉ lên tiếng ở vài khoảnh khắc nhóm thật sự nhớ. Xong là trở lại yên lặng.\n\nCái vui đến từ coral, chữ to rõ, lời văn tự nhiên và vài khoảnh khắc có chủ đích. Nó không đến từ emoji, gradient hay hiệu ứng rải khắp nơi. Bị loại rõ ràng: glass/blur trang trí, chữ gradient, eyebrow viết hoa giãn chữ, thẻ icon xếp hàng ba, emoji làm icon, màu xám lạnh trộn với xám ấm. Một ngoại lệ có tên của Stage là landing `/` (\"Sài Gòn về đêm\"): cảnh phố đêm cố định, luôn tối, chỉ dành cho người mới tới; cửa sổ app bên trong vẫn là giao diện sáng của app.",
     "keyCharacteristics": [
       "Một màu nhấn duy nhất (Coral Nhóm Mình) và nó luôn mang nghĩa \"lựa chọn của nhóm\".",
       "Phẳng theo mặc định; độ sâu bằng nấc màu, bóng chỉ cho thứ thật sự nổi.",
@@ -479,7 +537,12 @@
       },
       {
         "name": "The Always-Light Map Rule",
-        "body": "Bản đồ và lớp quán (`PoiLayer.ts`) luôn dùng bảng màu sáng, kể cả khi app ở theme tối.",
+        "body": "Bản đồ và lớp quán (`PoiLayer.ts`) luôn dùng bảng màu sáng, kể cả khi app ở theme tối và cả trên nền đêm của landing.",
+        "section": "colors"
+      },
+      {
+        "name": "The Night Window Rule",
+        "body": "Landing là ngoại lệ có tên của vùng Stage: nền đêm cố định (`night-*`, `lamp-*`), nhưng cửa sổ app bên trong luôn dùng token sáng của app. Operate không mượn token đêm; landing không đọc token app tối.",
         "section": "colors"
       },
       {
@@ -526,7 +589,8 @@
       "Don't dùng `h-screen`, `transition: all`, bounce/elastic, hiệu ứng lặp vô hạn (shimmer, pulse, xoay mãi) hay `z-[9999]`.",
       "Don't dùng modal cho việc làm được ngay tại chỗ (vote, lọc, đổi tab), hay `alert()`/`confirm()`.",
       "Don't để file Operate import `gsap`, `motion/*`, `sound/*` hoặc `stage/*`. Hiệu ứng Stage ở lại trong Stage.",
-      "Don't đổi bản đồ sang bảng màu tối theo theme app."
+      "Don't đổi bản đồ sang bảng màu tối theo theme app.",
+      "Don't để landing import `stage/hero/*` hoặc `gsap`, ghim/scrub khi cuộn, hay dựng quá một WebGL context gắn DOM cùng lúc (xem docs/phase11/DESIGN.md)."
     ]
   }
 }

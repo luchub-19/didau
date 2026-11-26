@@ -1,0 +1,169 @@
+{
+ "measuredAt": "2026-11-26",
+ "source": "Valhalla self-host, costing motor_scooter; km va phut = di + ve (khu hoi); expected = ordered_median backend (lambda=1, k=2)",
+ "members": [
+  {
+   "id": "Nobita",
+   "district": "q1",
+   "ll": [
+    106.698,
+    10.7725
+   ]
+  },
+  {
+   "id": "Doraemon",
+   "district": "bt",
+   "ll": [
+    106.7091,
+    10.8106
+   ]
+  },
+  {
+   "id": "Xuka",
+   "district": "td",
+   "ll": [
+    106.7537,
+    10.8494
+   ]
+  },
+  {
+   "id": "Xeko",
+   "district": "q7",
+   "ll": [
+    106.718,
+    10.729
+   ]
+  }
+ ],
+ "places": [
+  {
+   "id": "pizza",
+   "name": "Pizza 4P's Thiso Mall Sala",
+   "short": "Pizza 4P's",
+   "address": "Thiso Mall Sala, 10 Mai Chí Thọ, Thủ Thiêm",
+   "ll": [
+    106.72284,
+    10.77227
+   ]
+  },
+  {
+   "id": "haidilao",
+   "name": "Haidilao Giga Mall",
+   "short": "Haidilao",
+   "address": "Giga Mall, 240–242 Phạm Văn Đồng, Thủ Đức",
+   "ll": [
+    106.722,
+    10.82777
+   ]
+  },
+  {
+   "id": "dookki",
+   "name": "Dookki SC VivoCity",
+   "short": "Dookki",
+   "address": "SC VivoCity, 1058 Nguyễn Văn Linh, Quận 7",
+   "ll": [
+    106.70325,
+    10.73017
+   ]
+  }
+ ],
+ "trips": {
+  "Nobita": {
+   "pizza": {
+    "km": 10.401,
+    "min": 26
+   },
+   "haidilao": {
+    "km": 16.927,
+    "min": 41
+   },
+   "dookki": {
+    "km": 11.97,
+    "min": 30
+   }
+  },
+  "Doraemon": {
+   "pizza": {
+    "km": 11.288,
+    "min": 28
+   },
+   "haidilao": {
+    "km": 7.222,
+    "min": 18
+   },
+   "dookki": {
+    "km": 25.26,
+    "min": 62
+   }
+  },
+  "Xuka": {
+   "pizza": {
+    "km": 24.699,
+    "min": 60
+   },
+   "haidilao": {
+    "km": 8.914,
+    "min": 22
+   },
+   "dookki": {
+    "km": 38.737,
+    "min": 94
+   }
+  },
+  "Xeko": {
+   "pizza": {
+    "km": 21.819,
+    "min": 54
+   },
+   "haidilao": {
+    "km": 30.413,
+    "min": 74
+   },
+   "dookki": {
+    "km": 5.507,
+    "min": 14
+   }
+  }
+ },
+ "totals": {
+  "pizza": 68.2,
+  "haidilao": 63.5,
+  "dookki": 81.5
+ },
+ "expected": {
+  "omp": [
+   {
+    "placeId": "pizza",
+    "psi": 2291.602,
+    "maxKm": 24.699,
+    "sumKm": 68.207
+   },
+   {
+    "placeId": "haidilao",
+    "psi": 2485.543,
+    "maxKm": 30.413,
+    "sumKm": 63.476
+   },
+   {
+    "placeId": "dookki",
+    "psi": 4285.925,
+    "maxKm": 38.737,
+    "sumKm": 81.474
+   }
+  ],
+  "sum": [
+   {
+    "placeId": "haidilao",
+    "sumKm": 63.5
+   },
+   {
+    "placeId": "pizza",
+    "sumKm": 68.2
+   },
+   {
+    "placeId": "dookki",
+    "sumKm": 81.5
+   }
+  ]
+ }
+}
