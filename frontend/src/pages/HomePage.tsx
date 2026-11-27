@@ -12,7 +12,7 @@ export interface HomePageProps {
 
 /**
  * Trang chủ (gđ11): landing "Sài Gòn về đêm". Tạo phòng / Nhập mã / Vào lại phòng mở đúng modal thật của app.
- * Hero cũ (stage/hero/**, quả cầu gđ9, gsap) không còn được import ở đây; code giữ trong repo tới cổng G2.
+ * Hero cũ (quả cầu gđ9) đã xoá ở cổng G2 (2026-11-27); gsap giữ cho `stage/reveal`.
  */
 export const HomePage: React.FC<HomePageProps> = ({ onNavigateToRoom }) => {
   const [modals, dispatch] = useReducer(homeModalReducer, HOME_MODAL_INITIAL);

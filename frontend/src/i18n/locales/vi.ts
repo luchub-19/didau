@@ -157,11 +157,6 @@ export const vi = {
       tieBreakAction: 'Chốt kết quả (TieBreak)',
     },
   },
-  home: {
-    resume: 'Tiếp tục phòng {{code}}',
-    resumeHint: 'Phòng bạn vào gần đây',
-    footer: '{{name}}, chọn chỗ đi chơi cùng nhóm.',
-  },
   connection: {
     live: 'Trực tiếp',
     offline: 'Mất kết nối',

@@ -11,7 +11,7 @@ import { usePlaceStore } from '../store/usePlaceStore';
 import { CategoryIcon } from '../components/common';
 import { CATEGORY_METADATA } from '../components/common/categoryMetadata';
 import { Button, TextField, Sheet } from '../components/ui';
-import { HomeHeader as Header, RoomTopBar } from '../components/shell';
+import { RoomTopBar } from '../components/shell';
 
 // Room components
 import { CreateRoomModal, JoinRoomModal, MemberList, InviteCard } from '../components/room';
@@ -45,7 +45,7 @@ afterAll(() => {
 });
 
 describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => {
-  it('render UI components (Button, TextField, Header, Sheet) chính xác', () => {
+  it('render UI components (Button, TextField, Sheet) chính xác', () => {
     const btnHtml = renderToStaticMarkup(
       <Button variant="primary" size="md">
         Khởi tạo
@@ -60,10 +60,6 @@ describe('T-18: Frontend UI - Room Creation, Joining & Member List View', () => 
     );
     expect(inputHtml).toContain('Biệt danh');
     expect(inputHtml).toContain('HoangNam');
-
-    const headerHtml = renderToStaticMarkup(<Header />);
-    expect(headerHtml).toContain('Hangoutplanner');
-    expect(headerHtml).toContain('VI');
 
     const sheetHtml = renderToStaticMarkup(
       <Sheet isOpen={true} onClose={() => {}} title="Tiêu đề Sheet">

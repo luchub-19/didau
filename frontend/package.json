@@ -44,7 +44,6 @@
     "typescript": "^5.4.5",
     "vite": "^5.2.11",
     "vitest": "^1.6.1",
-    "world-atlas": "2.0.2",
     "zustand": "^5.0.15"
   },
   "eslintConfig": {

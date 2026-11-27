@@ -159,11 +159,6 @@ export const en: Messages = {
       tieBreakAction: 'Finalize (TieBreak)',
     },
   },
-  home: {
-    resume: 'Continue room {{code}}',
-    resumeHint: 'Your recent room',
-    footer: '{{name}}, pick where to go with your group.',
-  },
   connection: {
     live: 'Live',
     offline: 'Offline',
